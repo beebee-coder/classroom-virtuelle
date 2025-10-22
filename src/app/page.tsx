@@ -3,14 +3,14 @@ import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { getAuthSession } from '@/lib/session';
-import { ArrowRight, BookOpen, UserCheck, Megaphone } from 'lucide-react';
+import { ArrowRight, Megaphone } from 'lucide-react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getPublicAnnouncements } from '@/lib/actions/announcement.actions';
 import { format } from 'date-fns';
 import { AnnouncementWithAuthor } from '@/lib/types';
 import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
-import Menu from '@/components/Menu';
+import { StudentCarousel } from '@/components/StudentCarousel'; // Importer le nouveau composant
 
 export default async function HomePage() {
   console.log('🏠 [PAGE] - Chargement de la page d\'accueil.');
@@ -49,35 +49,10 @@ export default async function HomePage() {
         <div className="flex flex-1">
           <Sidebar>
             <SidebarContent>
-              {/* Le menu peut être conditionnel ou différent pour les visiteurs */}
+              {/* Remplacer les cartes statiques par le carrousel dynamique */}
                <div className="p-4">
-                <h2 className="font-semibold text-lg mb-4">Fonctionnalités Clés</h2>
-                <div className="space-y-4">
-                  <Card>
-                    <CardHeader className='p-4'>
-                      <CardTitle className='text-base flex items-center gap-2'><UserCheck className="h-5 w-5 text-primary" />Tableaux de Bord</CardTitle>
-                    </CardHeader>
-                    <CardContent className='p-4 text-sm'>
-                      <p>Des interfaces optimisées pour les professeurs et les élèves.</p>
-                    </CardContent>
-                  </Card>
-                   <Card>
-                    <CardHeader className='p-4'>
-                      <CardTitle className='text-base flex items-center gap-2'><BookOpen className="h-5 w-5 text-primary" />Librairie de Métiers</CardTitle>
-                    </CardHeader>
-                    <CardContent className='p-4 text-sm'>
-                      <p>Un catalogue de carrières pour inspirer les élèves.</p>
-                    </CardContent>
-                  </Card>
-                   <Card>
-                    <CardHeader className='p-4'>
-                       <CardTitle className='text-base flex items-center gap-2'><ArrowRight className="h-5 w-5 text-primary" />Sessions Interactives</CardTitle>
-                    </CardHeader>
-                    <CardContent className='p-4 text-sm'>
-                      <p>Lancez des sessions vidéo en direct avec vos élèves.</p>
-                    </CardContent>
-                  </Card>
-                </div>
+                <h2 className="font-semibold text-lg mb-4 text-center">Au Cœur des Sessions</h2>
+                <StudentCarousel />
               </div>
             </SidebarContent>
           </Sidebar>
