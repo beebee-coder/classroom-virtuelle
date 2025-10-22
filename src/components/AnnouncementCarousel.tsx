@@ -1,6 +1,7 @@
 // src/components/AnnouncementCarousel.tsx
 'use client';
 
+import { useState, useEffect } from 'react';
 import {
   Carousel,
   CarouselContent,
@@ -12,6 +13,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Megaphone } from "lucide-react";
 import { format } from 'date-fns';
 import { AnnouncementWithAuthor } from "@/lib/types";
+
+interface AnnouncementDateProps {
+  date: string | Date;
+}
+
+function FormattedDate({ date }: AnnouncementDateProps) {
+  const [formattedDate, setFormattedDate] = useState('Chargement...');
+
+  useEffect(() => {
+    setFormattedDate(format(new Date(date), 'dd MMMM yyyy'));
+  }, [date]);
+
+  return <>{formattedDate}</>;
+}
 
 interface AnnouncementCarouselProps {
   announcements: AnnouncementWithAuthor[];
@@ -43,7 +58,7 @@ export function AnnouncementCarousel({ announcements }: AnnouncementCarouselProp
                       <div>
                         <CardTitle className="text-lg">{announcement.title}</CardTitle>
                          <CardDescription>
-                            Par {announcement.author.name ?? 'Admin'} - {format(new Date(announcement.createdAt), 'dd MMMM yyyy')}
+                            Par {announcement.author.name ?? 'Admin'} - <FormattedDate date={announcement.createdAt} />
                         </CardDescription>
                       </div>
                     </div>
