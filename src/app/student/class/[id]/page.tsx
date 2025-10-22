@@ -21,8 +21,8 @@ export type ClassroomWithStudents = {
 
 // DUMMY DATA
 const dummyStudents: StudentForCard[] = [
-    { id: 'student1', name: 'Alice', email: 'student1@example.com', points: 1250, etat: { isPunished: false } },
-    { id: 'student2', name: 'Bob', email: 'student2@example.com', points: 980, etat: { isPunished: false } },
+    { id: 'student1', name: 'Alice', email: 'student1@example.com', points: 1250, image: null, etat: { isPunished: false } },
+    { id: 'student2', name: 'Bob', email: 'student2@example.com', points: 980, image: null, etat: { isPunished: false } },
 ];
 
 const dummyClassroom: ClassroomWithStudents = {
