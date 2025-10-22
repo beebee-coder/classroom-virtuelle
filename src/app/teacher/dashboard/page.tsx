@@ -16,11 +16,21 @@ const dummyClassrooms = [
 ];
 
 export default async function TeacherDashboardPage() {
-  const session = await getAuthSession();
-  
-  if (!session?.user || session.user.role !== 'PROFESSEUR') {
-      redirect('/login');
+  // ---=== BYPASS NEXT-AUTH (temporaire) ===---
+  // const session = await getAuthSession();
+  // if (!session?.user || session.user.role !== 'PROFESSEUR') {
+  //     redirect('/login');
+  // }
+  const session = {
+      user: {
+        id: 'teacher-id',
+        name: 'Professeur Test (Démo)',
+        email: 'teacher@example.com',
+        role: 'PROFESSEUR'
+      }
   }
+  // ---======================================---
+  
   const user = session.user;
 
   // Fetch only the data needed for this page - USING DUMMY DATA
@@ -31,13 +41,13 @@ export default async function TeacherDashboardPage() {
   return (
     <SidebarProvider>
       <div className="flex flex-col min-h-screen">
-        <Header user={user}>
+        <Header user={user as any}>
           <SidebarTrigger />
         </Header>
         <div className="flex flex-1">
           <Sidebar>
             <SidebarContent>
-              <Menu user={user} classrooms={classrooms} validationCount={validationCount} />
+              <Menu user={user as any} classrooms={classrooms} validationCount={validationCount} />
             </SidebarContent>
           </Sidebar>
           <SidebarInset>

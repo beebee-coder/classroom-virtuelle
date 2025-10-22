@@ -1,16 +1,15 @@
-
 // src/app/student/dashboard/page.tsx
 import { Header } from '@/components/Header';
 import { notFound, redirect } from 'next/navigation';
 import { CareerThemeWrapper } from '@/components/CareerThemeWrapper';
-import { StudentWithStateAndCareer, AppTask } from '@/lib/types';
+import { StudentWithStateAndCareer, AppTask, AnnouncementWithAuthor, Metier, TaskType, TaskCategory, TaskDifficulty, ValidationType, ProgressStatus } from '@/lib/types';
 import { getAuthSession } from '@/lib/session';
 import { ChatSheet } from '@/components/ChatSheet';
 import { getStudentAnnouncements } from '@/lib/actions/announcement.actions';
 import StudentPageClient from '@/components/StudentPageClient';
 import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import Menu from '@/components/Menu';
-import { Metier, CoursSession, StudentProgress, TaskType, TaskCategory, TaskDifficulty, ValidationType, ProgressStatus } from '@prisma/client';
+import { CoursSession, StudentProgress } from '@prisma/client';
 
 // DUMMY DATA
 const dummyCareers: Metier[] = [
@@ -65,7 +64,6 @@ const dummyStudentData: { [id: string]: StudentWithStateAndCareer } = {
   },
 };
 
-
 async function getStudentData(id: string): Promise<StudentWithStateAndCareer | null> {
     // DUMMY DATA
     return dummyStudentData[id] || dummyStudentData['student1'];
@@ -76,10 +74,22 @@ export default async function StudentDashboardPage({
 }: {
   searchParams: { [key: string]: string | string[] | undefined };
 }) {
-  const session = await getAuthSession();
-  if (!session?.user?.id) {
-    redirect('/login');
-  }
+  // ---=== BYPASS NEXT-AUTH (temporaire) ===---
+  // const session = await getAuthSession();
+  // if (!session?.user?.id) {
+  //   redirect('/login');
+  // }
+  const session = {
+    user: {
+      id: 'student1',
+      name: 'Alice (Démo)',
+      email: 'student1@example.com',
+      role: 'ELEVE',
+      classeId: 'classe-a',
+    }
+  };
+  // ---======================================---
+
 
   const student = await getStudentData(session.user.id);
   const viewAs = searchParams.viewAs;
@@ -118,7 +128,7 @@ export default async function StudentDashboardPage({
             {!isTeacherView && (
               <Sidebar>
                 <SidebarContent>
-                  <Menu user={session.user} />
+                  <Menu user={session.user as any} />
                 </SidebarContent>
               </Sidebar>
             )}
@@ -137,5 +147,3 @@ export default async function StudentDashboardPage({
     </CareerThemeWrapper>
   );
 }
-
-    

@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { signIn } from 'next-auth/react';
+// import { signIn } from 'next-auth/react'; // ---=== BYPASS NEXT-AUTH (temporaire) ===---
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -54,12 +54,14 @@ export function LoginForm() {
 
   const handleDummyLogin = (role: 'teacher' | 'student') => {
     setLoading(true);
-    // Simulate login and redirect
+    // ---=== BYPASS NEXT-AUTH (temporaire) ===---
+    // Simule la connexion en redirigeant directement
     if (role === 'teacher') {
       router.push('/teacher/dashboard');
     } else {
-      router.push('/student/dashboard'); // Redirect to a dummy student ID
+      router.push('/student/dashboard');
     }
+    // ---======================================---
   };
 
   const handleRoleSelection = (role: 'teacher' | 'student') => {
