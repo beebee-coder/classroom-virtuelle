@@ -12,7 +12,8 @@ import Menu from '@/components/Menu'; // Import the new Menu component
 // ---=== BYPASS BACKEND ===---
 const dummyClassrooms = [
   { id: 'classe-a', nom: 'Classe 6ème A' },
-  { id: 'classe-b', nom: 'Classe 5ème B' },
+  { id: 'classe-b', nom: 'Classe 6ème B' },
+  { id: 'classe-c', nom: 'Classe 5ème A' },
 ];
 // ---=========================---
 
@@ -141,3 +142,5 @@ export default async function TeacherDashboardPage() {
     </SidebarProvider>
   );
 }
+
+    

@@ -27,60 +27,72 @@ async function main() {
 
   const classB = await prisma.classroom.create({
     data: {
-      nom: 'Classe 5ème B',
+      nom: 'Classe 6ème B',
       professeurId: teacher.id,
     },
   });
   console.log(`🏫 Created class: ${classB.nom}`);
 
-  // Créer des élèves
-  const student1 = await prisma.user.create({
+  const classC = await prisma.classroom.create({
     data: {
-      email: 'student1@example.com',
-      name: 'Alice',
-      role: 'ELEVE',
-      classroomId: classA.id,
-      ambition: 'Devenir Astronaute',
+      nom: 'Classe 5ème A',
+      professeurId: teacher.id,
     },
   });
-   await prisma.etatEleve.create({ data: { eleveId: student1.id } });
-  console.log(`🎓 Created student: ${student1.name}`);
+  console.log(`🏫 Created class: ${classC.nom}`);
 
-  const student2 = await prisma.user.create({
-    data: {
-      email: 'student2@example.com',
-      name: 'Bob',
-      role: 'ELEVE',
-      classroomId: classA.id,
-      ambition: 'Explorer les fonds marins'
-    },
-  });
-  await prisma.etatEleve.create({ data: { eleveId: student2.id } });
-  console.log(`🎓 Created student: ${student2.name}`);
-  
-  const student3 = await prisma.user.create({
-    data: {
-      email: 'student3@example.com',
-      name: 'Charlie',
-      role: 'ELEVE',
-      classroomId: classB.id,
-      ambition: 'Créer des jeux vidéo'
-    },
-  });
-  await prisma.etatEleve.create({ data: { eleveId: student3.id } });
-  console.log(`🎓 Created student: ${student3.name}`);
-  
-  const student4 = await prisma.user.create({
-    data: {
-      email: 'student4@example.com',
-      name: 'Diana',
-      role: 'ELEVE',
-      classroomId: classB.id,
-      ambition: 'Devenir chef cuisinier'
-    },
-  });
-  await prisma.etatEleve.create({ data: { eleveId: student4.id } });
-  console.log(`🎓 Created student: ${student4.name}`);
+
+  // Créer des élèves
+  const students = [
+    // Classe A
+    { name: 'Ahmed', classroomId: classA.id, ambition: 'Devenir Astronaute' },
+    { name: 'Bilel', classroomId: classA.id, ambition: 'Explorer les fonds marins' },
+    { name: 'Fatima', classroomId: classA.id, ambition: 'Créer des jeux vidéo' },
+    { name: 'Khadija', classroomId: classA.id, ambition: 'Devenir chef cuisinier' },
+    { name: 'Youssef', classroomId: classA.id, ambition: 'Être un grand artiste' },
+    { name: 'Amina', classroomId: classA.id, ambition: 'Protéger la nature' },
+    { name: 'Omar', classroomId: classA.id, ambition: 'Construire des robots' },
+    { name: 'Leila', classroomId: classA.id, ambition: 'Soigner les animaux' },
+    { name: 'Ibrahim', classroomId: classA.id, ambition: 'Devenir pompier' },
+    { name: 'Nora', classroomId: classA.id, ambition: 'Voyager dans le temps' },
+    // Classe B
+    { name: 'Ali', classroomId: classB.id, ambition: 'Piloter des avions' },
+    { name: 'Sofia', classroomId: classB.id, ambition: 'Écrire des histoires' },
+    { name: 'Mehdi', classroomId: classB.id, ambition: 'Devenir un champion de sport' },
+    { name: 'Yasmina', classroomId: classB.id, ambition: 'Inventer de nouvelles choses' },
+    { name: 'Karim', classroomId: classB.id, ambition: 'Être détective' },
+    { name: 'Sara', classroomId: classB.id, ambition: 'Guérir les maladies' },
+    { name: 'Hassan', classroomId: classB.id, ambition: 'Explorer des grottes' },
+    { name: 'Ines', classroomId: classB.id, ambition: 'Parler toutes les langues' },
+    { name: 'Rachid', classroomId: classB.id, ambition: 'Construire des ponts' },
+    { name: 'Samira', classroomId: classB.id, ambition: 'Chanter sur scène' },
+    // Classe C
+    { name: 'Zayd', classroomId: classC.id, ambition: 'Découvrir des trésors' },
+    { name: 'Lina', classroomId: classC.id, ambition: 'Dessiner des mangas' },
+    { name: 'Adil', classroomId: classC.id, ambition: 'Créer des applications' },
+    { name: 'Dounia', classroomId: classC.id, ambition: 'Devenir photographe' },
+    { name: 'Anis', classroomId: classC.id, ambition: 'Comprendre les étoiles' },
+    { name: 'Nadia', classroomId: classC.id, ambition: 'Faire le tour du monde' },
+    { name: 'Ismail', classroomId: classC.id, ambition: 'Construire des cabanes' },
+    { name: 'Rania', classroomId: classC.id, ambition: 'Aider les autres' },
+    { name: 'Malik', classroomId: classC.id, ambition: 'Être un super-héros' },
+    { name: 'Zahra', classroomId: classC.id, ambition: 'Cultiver un jardin magique' },
+  ];
+
+  for (const [index, studentData] of students.entries()) {
+    const student = await prisma.user.create({
+      data: {
+        email: `${studentData.name.toLowerCase()}${index}@example.com`,
+        name: studentData.name,
+        role: 'ELEVE',
+        classroomId: studentData.classroomId,
+        ambition: studentData.ambition,
+      },
+    });
+    await prisma.etatEleve.create({ data: { eleveId: student.id } });
+    console.log(`🎓 Created student: ${student.name}`);
+  }
+
 
   // Créer des métiers
   const metiers = [
@@ -148,3 +160,5 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+
+    

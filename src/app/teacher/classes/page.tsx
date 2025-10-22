@@ -12,8 +12,9 @@ import Menu from '@/components/Menu'; // Import the new Menu component
 
 // DUMMY DATA
 const dummyClassrooms = [
-  { id: 'classe-a', nom: 'Classe 6ème A', _count: { eleves: 2 } },
-  { id: 'classe-b', nom: 'Classe 5ème B', _count: { eleves: 2 } },
+  { id: 'classe-a', nom: 'Classe 6ème A', _count: { eleves: 10 } },
+  { id: 'classe-b', nom: 'Classe 6ème B', _count: { eleves: 10 } },
+  { id: 'classe-c', nom: 'Classe 5ème A', _count: { eleves: 10 } },
 ];
 
 
@@ -92,3 +93,5 @@ export default async function TeacherClassesPage() {
     </SidebarProvider>
   );
 }
+
+    

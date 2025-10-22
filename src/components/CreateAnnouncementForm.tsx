@@ -26,7 +26,8 @@ import { createAnnouncement } from '@/lib/actions';
 // DUMMY DATA for classrooms
 const dummyClassrooms = [
   { id: 'classe-a', nom: 'Classe 6ème A' },
-  { id: 'classe-b', nom: 'Classe 5ème B' },
+  { id: 'classe-b', nom: 'Classe 6ème B' },
+  { id: 'classe-c', nom: 'Classe 5ème A' },
 ];
 
 function SubmitButton() {
@@ -120,3 +121,5 @@ export function CreateAnnouncementForm({ classrooms = dummyClassrooms }: CreateA
         </Dialog>
     )
 }
+
+    

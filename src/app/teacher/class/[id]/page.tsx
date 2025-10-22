@@ -7,23 +7,57 @@ import { ClassroomWithDetails, StudentForCard } from '@/lib/types';
 import { User } from '@prisma/client';
 
 // DUMMY DATA
-const dummyStudents: StudentForCard[] = [
-    { id: 'student1', name: 'Alice', email: 'student1@example.com', points: 1250, etat: { isPunished: false } },
-    { id: 'student2', name: 'Bob', email: 'student2@example.com', points: 980, etat: { isPunished: false } },
-    { id: 'student3', name: 'Charlie', email: 'student3@example.com', points: 1500, etat: { isPunished: true } },
-    { id: 'student4', name: 'Diana', email: 'student4@example.com', points: 750, etat: { isPunished: false } },
+const allDummyStudents: StudentForCard[] = [
+    // Class A
+    { id: 'student1', name: 'Ahmed', email: 'ahmed@example.com', points: 1250, etat: { isPunished: false } },
+    { id: 'student2', name: 'Bilel', email: 'bilel@example.com', points: 980, etat: { isPunished: false } },
+    { id: 'student3', name: 'Fatima', email: 'fatima@example.com', points: 1500, etat: { isPunished: true } },
+    { id: 'student4', name: 'Khadija', email: 'khadija@example.com', points: 750, etat: { isPunished: false } },
+    { id: 'student5', name: 'Youssef', email: 'youssef@example.com', points: 1100, etat: { isPunished: false } },
+    { id: 'student6', name: 'Amina', email: 'amina@example.com', points: 850, etat: { isPunished: false } },
+    { id: 'student7', name: 'Omar', email: 'omar@example.com', points: 1300, etat: { isPunished: false } },
+    { id: 'student8', name: 'Leila', email: 'leila@example.com', points: 920, etat: { isPunished: false } },
+    { id: 'student9', name: 'Ibrahim', email: 'ibrahim@example.com', points: 1600, etat: { isPunished: false } },
+    { id: 'student10', name: 'Nora', email: 'nora@example.com', points: 700, etat: { isPunished: false } },
+    // Class B
+    { id: 'student11', name: 'Ali', email: 'ali@example.com', points: 1150, etat: { isPunished: false } },
+    { id: 'student12', name: 'Sofia', email: 'sofia@example.com', points: 1050, etat: { isPunished: false } },
+    { id: 'student13', name: 'Mehdi', email: 'mehdi@example.com', points: 1400, etat: { isPunished: false } },
+    { id: 'student14', name: 'Yasmina', email: 'yasmina@example.com', points: 800, etat: { isPunished: false } },
+    { id: 'student15', name: 'Karim', email: 'karim@example.com', points: 1200, etat: { isPunished: false } },
+    { id: 'student16', name: 'Sara', email: 'sara@example.com', points: 950, etat: { isPunished: false } },
+    { id: 'student17', name: 'Hassan', email: 'hassan@example.com', points: 1350, etat: { isPunished: false } },
+    { id: 'student18', name: 'Ines', email: 'ines@example.com', points: 880, etat: { isPunished: false } },
+    { id: 'student19', name: 'Rachid', email: 'rachid@example.com', points: 1700, etat: { isPunished: false } },
+    { id: 'student20', name: 'Samira', email: 'samira@example.com', points: 650, etat: { isPunished: false } },
+    // Class C
+    { id: 'student21', name: 'Zayd', email: 'zayd@example.com', points: 1000, etat: { isPunished: false } },
+    { id: 'student22', name: 'Lina', email: 'lina@example.com', points: 1100, etat: { isPunished: false } },
+    { id: 'student23', name: 'Adil', email: 'adil@example.com', points: 1300, etat: { isPunished: false } },
+    { id: 'student24', name: 'Dounia', email: 'dounia@example.com', points: 900, etat: { isPunished: false } },
+    { id: 'student25', name: 'Anis', email: 'anis@example.com', points: 1250, etat: { isPunished: false } },
+    { id: 'student26', name: 'Nadia', email: 'nadia@example.com', points: 980, etat: { isPunished: false } },
+    { id: 'student27', name: 'Ismail', email: 'ismail@example.com', points: 1450, etat: { isPunished: false } },
+    { id: 'student28', name: 'Rania', email: 'rania@example.com', points: 850, etat: { isPunished: false } },
+    { id: 'student29', name: 'Malik', email: 'malik@example.com', points: 1800, etat: { isPunished: false } },
+    { id: 'student30', name: 'Zahra', email: 'zahra@example.com', points: 600, etat: { isPunished: false } },
 ];
 
 const dummyClassrooms: { [key: string]: ClassroomWithDetails } = {
     'classe-a': {
         id: 'classe-a',
         nom: 'Classe 6ème A',
-        eleves: dummyStudents.slice(0,2)
+        eleves: allDummyStudents.slice(0,10)
     },
     'classe-b': {
         id: 'classe-b',
-        nom: 'Classe 5ème B',
-        eleves: dummyStudents.slice(2,4)
+        nom: 'Classe 6ème B',
+        eleves: allDummyStudents.slice(10,20)
+    },
+    'classe-c': {
+        id: 'classe-c',
+        nom: 'Classe 5ème A',
+        eleves: allDummyStudents.slice(20,30)
     }
 };
 
@@ -46,3 +80,5 @@ export default async function ClassPage({ params }: { params: { id: string } }) 
   
   return <ClassPageClient classroom={classroom} teacher={session.user} announcements={announcements} />;
 }
+
+    
