@@ -18,6 +18,7 @@ import { BackButton } from '@/components/BackButton';
 import { Video, XSquare, Crown, Loader2, Wifi } from 'lucide-react';
 import { pusherClient } from '@/lib/pusher/client';
 import { cn } from '@/lib/utils';
+import { useSession } from 'next-auth/react';
 
 interface ClassPageClientProps {
     classroom: ClassroomWithDetails;
@@ -31,29 +32,33 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
     const [onlineStudents, setOnlineStudents] = useState<string[]>([]);
     const router = useRouter();
     const { toast } = useToast();
+    const { data: session } = useSession();
 
     useEffect(() => {
-        if (!classroom.id) return;
+        if (!classroom.id || !session?.user?.id) return;
 
         const channelName = `presence-class-${classroom.id}`;
-        const channel = pusherClient.subscribe(channelName);
+        try {
+            const channel = pusherClient.subscribe(channelName);
 
-        const updateOnlineMembers = () => {
-            // `members` contient tous les membres du canal, y compris l'utilisateur actuel
-            const memberIds = Object.keys(channel.members.members);
-            // Exclure le professeur de la liste des élèves en ligne
-            const studentMemberIds = memberIds.filter(id => id !== teacher.id);
-            setOnlineStudents(studentMemberIds);
-        };
+            const updateOnlineMembers = () => {
+                // `members` contient tous les membres du canal.
+                // On récupère les IDs et on exclut le professeur.
+                const memberIds = Object.keys(channel.members.members);
+                setOnlineStudents(memberIds.filter(id => id !== session.user.id));
+            };
 
-        channel.bind('pusher:subscription_succeeded', updateOnlineMembers);
-        channel.bind('pusher:member_added', updateOnlineMembers);
-        channel.bind('pusher:member_removed', updateOnlineMembers);
+            channel.bind('pusher:subscription_succeeded', updateOnlineMembers);
+            channel.bind('pusher:member_added', updateOnlineMembers);
+            channel.bind('pusher:member_removed', updateOnlineMembers);
 
-        return () => {
-            pusherClient.unsubscribe(channelName);
-        };
-    }, [classroom.id, teacher.id]);
+            return () => {
+                pusherClient.unsubscribe(channelName);
+            };
+        } catch (error) {
+            console.error("Failed to subscribe to Pusher channel:", error);
+        }
+    }, [classroom.id, session?.user?.id]);
 
 
     // Validation des props
