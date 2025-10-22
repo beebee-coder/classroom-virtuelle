@@ -2,14 +2,14 @@
 import { Header } from '@/components/Header';
 import { notFound, redirect } from 'next/navigation';
 import { CareerThemeWrapper } from '@/components/CareerThemeWrapper';
-import { StudentWithStateAndCareer, AppTask, TaskType, TaskCategory, TaskDifficulty, ValidationType, ProgressStatus } from '@/lib/types';
+import { StudentWithStateAndCareer, AppTask } from '@/lib/types';
 import { getAuthSession } from '@/lib/session';
 import { ChatSheet } from '@/components/ChatSheet';
 import { getStudentAnnouncements } from '@/lib/actions/announcement.actions';
 import StudentPageClient from '@/components/StudentPageClient';
 import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import Menu from '@/components/Menu';
-import { Metier, CoursSession, StudentProgress } from '@prisma/client';
+import { Metier, CoursSession, StudentProgress, TaskType, TaskCategory, TaskDifficulty, ValidationType, ProgressStatus } from '@prisma/client';
 
 // DUMMY DATA
 const dummyCareers: Metier[] = [
