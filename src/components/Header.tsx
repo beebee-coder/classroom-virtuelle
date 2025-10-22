@@ -64,7 +64,7 @@ export default function Header() {
                 </SheetClose>
                 <div className="mt-4 pt-4 border-t">
                   <SheetClose asChild>
-                    <Button className="w-full mb-2" variant="ghost" asChild><Link href="/login">Se connecter</Link></SheetClose>
+                    <Button className="w-full mb-2" variant="ghost" asChild><Link href="/login">Se connecter</Link></Button>
                   </SheetClose>
                    <SheetClose asChild>
                     <Button className="w-full" asChild><Link href="/login">S'inscrire</Link></Button>
