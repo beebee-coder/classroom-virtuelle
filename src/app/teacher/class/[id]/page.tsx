@@ -65,7 +65,7 @@ export default async function ClassPage({ params }: { params: { id: string } }) 
   const classroomId = params.id;
   const session = await getAuthSession();
 
-  if (!session || session.user.role !== 'PROFESSEUR') {
+  if (!session || session.user.role !== Role.PROFESSEUR) {
       redirect('/login')
   }
 
