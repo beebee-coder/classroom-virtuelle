@@ -48,7 +48,9 @@ export default async function TeacherClassesPage() {
                         <BackButton />
                         <div>
                             <h1 className="text-3xl font-bold tracking-tight">Mes Classes</h1>
-                            <p className="text-muted-foreground">Cliquez sur une classe pour la gérer.</p>
+                            <p className="text-muted-foreground">
+                                {classrooms.length} classe(s) active(s). Cliquez sur une classe pour la gérer.
+                            </p>
                         </div>
                     </div>
                     <AddClassForm teacherId={user.id} />
@@ -78,7 +80,7 @@ export default async function TeacherClassesPage() {
                           </div>
                         </CardHeader>
                         <CardContent>
-                          <p className="text-sm text-muted-foreground">Accéder à la liste des élèves et gérer leurs thèmes.</p>
+                          <p className="text-sm text-muted-foreground">Accéder à la liste des élèves, gérer les annonces et démarrer une session.</p>
                         </CardContent>
                       </Card>
                     </Link>
@@ -93,5 +95,3 @@ export default async function TeacherClassesPage() {
     </SidebarProvider>
   );
 }
-
-    
