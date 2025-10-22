@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { StudentWithStateAndCareer, AppTask, AnnouncementWithAuthor } from '@/lib/types';
 import type { Metier } from '@prisma/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +13,9 @@ import { CareerSelector } from '@/components/CareerSelector';
 import { AnnouncementCarousel } from '@/components/AnnouncementCarousel';
 import { BackButton } from '@/components/BackButton';
 import { Skeleton } from './ui/skeleton';
+import { SessionInvitationCard } from './SessionInvitationCard';
+import { pusherClient } from '@/lib/pusher/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface StudentPageClientProps {
     student: StudentWithStateAndCareer;
@@ -22,14 +25,47 @@ interface StudentPageClientProps {
     tasks: AppTask[];
 }
 
+interface SessionInvitation {
+    sessionId: string;
+    professeurId: string;
+}
+
 export default function StudentPageClient({ student, announcements, allCareers, isTeacherView, tasks }: StudentPageClientProps) {
     const [mounted, setMounted] = useState(false);
+    const [sessionInvitation, setSessionInvitation] = useState<SessionInvitation | null>(null);
     const searchParams = useSearchParams();
+    const router = useRouter();
+    const { toast } = useToast();
     const viewAs = searchParams.get('viewAs');
 
     useEffect(() => {
         setMounted(true);
     }, []);
+
+    useEffect(() => {
+        if (!student.classeId || isTeacherView) return;
+
+        const channelName = `presence-classe-${student.classeId}`;
+        const channel = pusherClient.subscribe(channelName);
+
+        const handleSessionStarted = (data: { sessionId: string; invitedStudentIds: string[]; professeurId: string }) => {
+            if (data.invitedStudentIds.includes(student.id)) {
+                setSessionInvitation({ sessionId: data.sessionId, professeurId: data.professeurId });
+                toast({
+                    title: "Nouvelle session !",
+                    description: "Vous êtes invité à rejoindre une session vidéo.",
+                });
+            }
+        };
+
+        channel.bind('session-started', handleSessionStarted);
+
+        return () => {
+            channel.unbind('session-started', handleSessionStarted);
+            pusherClient.unsubscribe(channelName);
+        };
+
+    }, [student.id, student.classeId, isTeacherView, toast]);
 
     if (!mounted) {
         return (
@@ -53,12 +89,28 @@ export default function StudentPageClient({ student, announcements, allCareers, 
     const progress = (((student.points ?? 0) % 1000) / 1000) * 100;
     const isTeacherViewing = viewAs === 'teacher' && isTeacherView;
 
+    const handleAcceptInvitation = (sessionId: string) => {
+        router.push(`/session/${sessionId}`);
+    };
+
+    const handleDeclineInvitation = () => {
+        setSessionInvitation(null);
+    };
+
     return (
         <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {isTeacherViewing && (
                  <div className="mb-6">
                     <BackButton />
                 </div>
+            )}
+
+            {sessionInvitation && !isTeacherView && (
+                <SessionInvitationCard 
+                    professeurId={sessionInvitation.professeurId}
+                    onAccept={() => handleAcceptInvitation(sessionInvitation.sessionId)}
+                    onDecline={handleDeclineInvitation}
+                />
             )}
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
