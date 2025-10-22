@@ -22,11 +22,11 @@ interface TaskBoardProps {
   studentId: string;
 }
 
-const taskTypeOrder: TaskType[] = [TaskType.DAILY, TaskType.WEEKLY, TaskType.MONTHLY];
+const taskTypeOrder: TaskType[] = ['DAILY', 'WEEKLY', 'MONTHLY'];
 const taskTypeTranslations: Record<TaskType, string> = {
-  [TaskType.DAILY]: 'Quotidien',
-  [TaskType.WEEKLY]: 'Hebdomadaire',
-  [TaskType.MONTHLY]: 'Mensuel',
+  'DAILY': 'Quotidien',
+  'WEEKLY': 'Hebdomadaire',
+  'MONTHLY': 'Mensuel',
 };
 
 export function TaskBoard({ tasks, studentProgress, studentId }: TaskBoardProps) {
@@ -40,12 +40,14 @@ export function TaskBoard({ tasks, studentProgress, studentId }: TaskBoardProps)
 
   const groupedTasks = useMemo(() => {
     const groups: Record<TaskType, AppTask[]> = {
-      [TaskType.DAILY]: [],
-      [TaskType.WEEKLY]: [],
-      [TaskType.MONTHLY]: [],
+      'DAILY': [],
+      'WEEKLY': [],
+      'MONTHLY': [],
     };
     tasks.forEach((task) => {
-      groups[task.type].push(task);
+      if (groups[task.type]) {
+        groups[task.type].push(task);
+      }
     });
     return groups;
   }, [tasks]);
@@ -95,9 +97,9 @@ export function TaskBoard({ tasks, studentProgress, studentId }: TaskBoardProps)
   const getTaskStatus = (task: Task) => {
     const progress = progressMap.get(task.id);
     if (progress) {
-      if (progress.status === ProgressStatus.VERIFIED) return 'validated';
-      if (progress.status === ProgressStatus.PENDING_VALIDATION) return 'pending';
-      if (progress.status === ProgressStatus.REJECTED) return 'rejected';
+      if (progress.status === 'VERIFIED') return 'validated';
+      if (progress.status === 'PENDING_VALIDATION') return 'pending';
+      if (progress.status === 'REJECTED') return 'rejected';
     }
     return 'todo';
   };
@@ -167,7 +169,7 @@ export function TaskBoard({ tasks, studentProgress, studentId }: TaskBoardProps)
   };
 
   return (
-    <Tabs defaultValue={TaskType.DAILY} className="w-full">
+    <Tabs defaultValue={'DAILY'} className="w-full">
       <TabsList className="grid w-full grid-cols-3">
         {taskTypeOrder.map((type) => (
           <TabsTrigger key={type} value={type}>
