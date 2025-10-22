@@ -108,6 +108,16 @@ export default function SessionClient({
     }
   };
 
+  const signalViaAPI = async (payload: any) => {
+    await fetch('/api/pusher/signal', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload)
+    });
+  }
+
   // ---=== 2. GESTION DES CONNEXIONS PEER-TO-PEER ===---
   const createPeer = (targetUserId: string, initiator: boolean, stream: MediaStream): PeerInstance => {
     const peer = new SimplePeer({
@@ -117,7 +127,8 @@ export default function SessionClient({
     });
 
     peer.on('signal', signal => {
-      pusherClient.trigger(`presence-session-${sessionId}`, 'signal', {
+      signalViaAPI({
+        channelName: `presence-session-${sessionId}`,
         userId: currentUserId,
         target: targetUserId,
         signal,
@@ -135,10 +146,12 @@ export default function SessionClient({
     });
     
     peer.on('signal', signal => {
-      pusherClient.trigger(`presence-session-${sessionId}`, 'signal-return', {
+      signalViaAPI({
+        channelName: `presence-session-${sessionId}`,
         userId: currentUserId,
         target: callerId,
         signal,
+        isReturnSignal: true, // Indicate this is a return signal
       });
     });
     
@@ -170,24 +183,28 @@ export default function SessionClient({
     channel.bind('pusher:member_added', (member: any) => {
       if (member.id === currentUserId) return;
       setOnlineUserIds(prev => [...prev, member.id]);
-      const peer = addPeer(null, member.id, localStream);
+      const peer = createPeer(member.id, true, localStream);
       setPeers(prev => [...prev.filter(p => p.id !== member.id), { id: member.id, peer }]);
       peersRef.current = [...peersRef.current.filter(p => p.id !== member.id), { id: member.id, peer }];
     });
 
-    // Signal WebRTC initial
-    channel.bind('signal', (data: SignalData & { target: string }) => {
+    // Signal WebRTC initial ou de retour
+    channel.bind('signal', (data: SignalData & { target: string, isReturnSignal?: boolean }) => {
       if (data.target !== currentUserId) return;
-      const peer = addPeer(data.signal, data.userId, localStream);
-      setPeers(prev => [...prev.filter(p => p.id !== data.userId), { id: data.userId, peer }]);
-      peersRef.current = [...peersRef.current.filter(p => p.id !== data.userId), { id: data.userId, peer }];
-    });
+      
+      const peerData = peersRef.current.find(p => p.id === data.userId);
 
-    // Signal WebRTC de retour
-    channel.bind('signal-return', (data: SignalData & { target: string }) => {
-        if (data.target !== currentUserId) return;
-        const item = peersRef.current.find(p => p.id === data.userId);
-        item?.peer.signal(data.signal);
+      if (data.isReturnSignal) {
+        // C'est un signal de retour, on signale simplement le peer existant
+        peerData?.peer.signal(data.signal);
+      } else {
+        // C'est un signal initial, on crée un nouveau peer pour répondre
+        if (!peerData) {
+            const peer = addPeer(data.signal, data.userId, localStream);
+            setPeers(prev => [...prev.filter(p => p.id !== data.userId), { id: data.userId, peer }]);
+            peersRef.current = [...peersRef.current.filter(p => p.id !== data.userId), { id: data.userId, peer }];
+        }
+      }
     });
 
     // Quand un utilisateur quitte

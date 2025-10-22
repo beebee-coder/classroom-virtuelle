@@ -4,17 +4,13 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
-    // ---=== BYPASS D'AUTH POUR LA DÉMO ===---
-    // La vérification de session est retirée pour permettre la simulation
-    // entre un navigateur normal et une fenêtre de navigation privée.
-    
     const body = await request.json();
-    const { socket_id, signal, userId, channelName } = body;
+    const { socket_id, signal, userId, channelName, target } = body;
 
-    // On déclenche l'événement sur le canal avec les données reçues.
-    // L'ID de l'appelant (userId) est déjà dans le corps de la requête.
+    // Déclencher l'événement sur le canal vers la cible
     await pusherTrigger(channelName, 'signal', {
       userId: userId, // Qui envoie le signal
+      target: target,
       signal: signal,
     }, { socket_id: socket_id });
 
