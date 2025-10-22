@@ -8,7 +8,8 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getPublicAnnouncements } from '@/lib/actions/announcement.actions';
 import { format } from 'date-fns';
-import { AnnouncementWithAuthor, Role } from '@/lib/types';
+import { AnnouncementWithAuthor } from '@/lib/types';
+import { Role } from '@prisma/client';
 import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { StudentCarousel } from '@/components/StudentCarousel'; // Importer le nouveau composant
 

@@ -3,7 +3,7 @@ import { TaskEditor } from "@/components/TaskEditor";
 import { BackButton } from "@/components/BackButton";
 import { getAuthSession } from "@/lib/session";
 import { redirect } from "next/navigation";
-import { Task, TaskType, TaskCategory, TaskDifficulty, ValidationType } from "@prisma/client";
+import { Task, TaskType, TaskCategory, TaskDifficulty, ValidationType, Role } from "@prisma/client";
 
 
 // DUMMY DATA

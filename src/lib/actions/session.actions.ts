@@ -1,69 +1,218 @@
-// src/lib/actions/session.actions.ts
+// src/lib/actions/session.actions.ts - Version corrigée
 'use server';
 
 import { revalidatePath } from 'next/cache';
 import { pusherServer } from '../pusher/server';
 
 export async function createCoursSession(professeurId: string, studentIds: string[]) {
-    console.log(`[ACTION] - createCoursSession appelée pour le prof ${professeurId} avec les élèves:`, studentIds);
-    
-    const sessionId = `session-${Math.random().toString(36).substring(7)}`;
-    const classroomId = 'classe-a'; // Dummy classroom for broadcast
+    try {
+        console.log(`[ACTION] - createCoursSession appelée pour le prof ${professeurId} avec les élèves:`, studentIds);
+        
+        // Validation des paramètres
+        if (!professeurId || !studentIds || !Array.isArray(studentIds)) {
+            throw new Error('Paramètres invalides: professeurId et studentIds sont requis');
+        }
 
-    console.log(`[ACTION] - ID de session généré: ${sessionId}. Déclenchement de Pusher...`);
-    // The frontend expects this to be awaited, but in a real scenario,
-    // this would be a "fire and forget" and we wouldn't block for it.
-    await pusherServer.trigger(`presence-classe-${classroomId}`, 'session-started', {
-        sessionId: sessionId,
-        invitedStudentIds: studentIds,
-    });
-    console.log('[ACTION] - Événement Pusher "session-started" envoyé.');
-    
-    studentIds.forEach(id => {
-        revalidatePath(`/student/${id}`);
-    });
-    
-    console.log('[ACTION] - Retourne l\'objet session.');
-    return { id: sessionId, professeurId, classroomId };
+        const sessionId = `session-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+        const classroomId = 'classe-a';
+
+        console.log(`[ACTION] - ID de session généré: ${sessionId}. Déclenchement de Pusher...`);
+        
+        // Appel sécurisé à Pusher avec gestion d'erreur
+        const pusherResponse = await pusherServer.trigger(
+            `presence-classe-${classroomId}`, 
+            'session-started', 
+            {
+                sessionId: sessionId,
+                invitedStudentIds: studentIds,
+                professeurId: professeurId,
+                timestamp: new Date().toISOString()
+            }
+        );
+
+        if (pusherResponse.status !== 200) {
+            console.error('[ACTION] - Erreur Pusher:', pusherResponse.body);
+            throw new Error(`Échec de la diffusion Pusher: ${pusherResponse.body}`);
+        }
+
+        console.log('[ACTION] - Événement Pusher "session-started" envoyé avec succès.');
+        
+        // Revalidation des chemins pour les élèves concernés
+        studentIds.forEach(id => {
+            revalidatePath(`/student/${id}`);
+        });
+        
+        console.log('[ACTION] - Retourne l\'objet session.');
+        return { 
+            id: sessionId, 
+            professeurId, 
+            classroomId,
+            success: true 
+        };
+        
+    } catch (error) {
+        console.error('[ACTION] - Erreur lors de la création de la session:', error);
+        throw new Error(
+            error instanceof Error 
+                ? `Échec de la création de session: ${error.message}`
+                : 'Erreur inconnue lors de la création de session'
+        );
+    }
 }
 
 export async function getSessionDetails(sessionId: string) {
-    // DUMMY DATA
-    console.log(`[DUMMY] Getting session details for ${sessionId}`);
-    return {
-        id: sessionId,
-        participants: [],
-        professeur: { id: 'teacher-id', name: 'Professeur Test' },
-    };
+    try {
+        if (!sessionId) {
+            throw new Error('sessionId est requis');
+        }
+
+        console.log(`[SESSION] Getting session details for ${sessionId}`);
+        return {
+            id: sessionId,
+            participants: [],
+            professeur: { 
+                id: 'teacher-id', 
+                name: 'Professeur Test' 
+            },
+            createdAt: new Date().toISOString()
+        };
+    } catch (error) {
+        console.error('[SESSION] - Erreur lors de la récupération des détails:', error);
+        throw new Error('Impossible de récupérer les détails de la session');
+    }
 }
 
 export async function spotlightParticipant(sessionId: string, participantId: string) {
-    // DUMMY ACTION
-    console.log(`[DUMMY] Spotlighting participant ${participantId} in session ${sessionId}`);
-    const channelName = `presence-session-${sessionId}`;
-    await pusherServer.trigger(channelName, 'participant-spotlighted', { participantId });
-    revalidatePath(`/session/${sessionId}`);
+    try {
+        if (!sessionId || !participantId) {
+            throw new Error('sessionId et participantId sont requis');
+        }
+
+        console.log(`[SPOTLIGHT] Spotlighting participant ${participantId} in session ${sessionId}`);
+        const channelName = `presence-session-${sessionId}`;
+        
+        const pusherResponse = await pusherServer.trigger(
+            channelName, 
+            'participant-spotlighted', 
+            { 
+                participantId,
+                sessionId,
+                timestamp: new Date().toISOString()
+            }
+        );
+
+        if (pusherResponse.status !== 200) {
+            throw new Error(`Échec de la diffusion spotlight: ${pusherResponse.body}`);
+        }
+
+        revalidatePath(`/session/${sessionId}`);
+        return { success: true, participantId, sessionId };
+        
+    } catch (error) {
+        console.error('[SPOTLIGHT] - Erreur:', error);
+        throw new Error(
+            error instanceof Error 
+                ? `Échec du spotlight: ${error.message}`
+                : 'Erreur inconnue lors du spotlight'
+        );
+    }
 }
 
 export async function endCoursSession(sessionId: string) {
-    // DUMMY ACTION
-    console.log(`[DUMMY] Ending session ${sessionId}`);
-    const channelName = `presence-session-${sessionId}`;
-    await pusherServer.trigger(channelName, 'session-ended', { sessionId });
-    // Also notify on a dummy class channel
-    await pusherServer.trigger('presence-classe-classe-a', 'session-ended', { sessionId });
+    try {
+        if (!sessionId) {
+            throw new Error('sessionId est requis');
+        }
 
-    return { id: sessionId, endedAt: new Date() };
+        console.log(`[SESSION] Ending session ${sessionId}`);
+        const channelName = `presence-session-${sessionId}`;
+        
+        // Notifier la fin de session sur le channel de session
+        await pusherServer.trigger(
+            channelName, 
+            'session-ended', 
+            { 
+                sessionId,
+                endedAt: new Date().toISOString()
+            }
+        );
+
+        // Notifier sur le channel de classe
+        await pusherServer.trigger(
+            'presence-classe-classe-a', 
+            'session-ended', 
+            { 
+                sessionId,
+                endedAt: new Date().toISOString()
+            }
+        );
+
+        return { 
+            id: sessionId, 
+            endedAt: new Date(),
+            success: true 
+        };
+        
+    } catch (error) {
+        console.error('[SESSION] - Erreur lors de la fin de session:', error);
+        throw new Error('Impossible de terminer la session');
+    }
 }
 
 export async function serverSpotlightParticipant(sessionId: string, participantId: string) {
-    // DUMMY ACTION (forwarder)
-    await spotlightParticipant(sessionId, participantId);
+    // Forwarder avec gestion d'erreur
+    return await spotlightParticipant(sessionId, participantId);
 }
 
 export async function broadcastTimerEvent(sessionId: string, event: string, data?: any) {
-    // DUMMY ACTION
-    console.log(`[DUMMY] Broadcasting timer event ${event} for session ${sessionId}`);
-    const channel = `presence-session-${sessionId}`;
-    await pusherServer.trigger(channel, event, data || {});
+    try {
+        if (!sessionId || !event) {
+            throw new Error('sessionId et event sont requis');
+        }
+
+        console.log(`[TIMER] Broadcasting timer event ${event} for session ${sessionId}`);
+        const channel = `presence-session-${sessionId}`;
+        
+        const pusherResponse = await pusherServer.trigger(
+            channel, 
+            event, 
+            { 
+                ...data,
+                sessionId,
+                timestamp: new Date().toISOString()
+            }
+        );
+
+        if (pusherResponse.status !== 200) {
+            throw new Error(`Échec de la diffusion timer: ${pusherResponse.body}`);
+        }
+
+        return { success: true, event, sessionId };
+        
+    } catch (error) {
+        console.error('[TIMER] - Erreur:', error);
+        throw new Error(
+            error instanceof Error 
+                ? `Échec de la diffusion timer: ${error.message}`
+                : 'Erreur inconnue lors de la diffusion timer'
+        );
+    }
+}
+
+// Types pour TypeScript
+export interface SessionData {
+    id: string;
+    professeurId: string;
+    classroomId: string;
+    success?: boolean;
+}
+
+export interface SessionDetails {
+    id: string;
+    participants: any[];
+    professeur: {
+        id: string;
+        name: string;
+    };
+    createdAt: string;
 }

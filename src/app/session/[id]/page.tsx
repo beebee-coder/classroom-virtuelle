@@ -3,7 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import { getAuthSession } from '@/lib/session';
 import SessionClient from '@/components/SessionClient';
 import { getSessionDetails } from '@/lib/actions/session.actions';
-import { Role } from '@/lib/types';
+import { Role } from '@prisma/client';
 import SessionLoading from '@/components/SessionLoading';
 import { Suspense } from 'react';
 
