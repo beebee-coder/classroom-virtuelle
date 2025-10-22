@@ -90,7 +90,7 @@ export const authOptions: NextAuthOptions = {
         }
         // Ensure the user object passed along has the correct id and role for the session callback
         user.id = dbUser.id;
-        user.role = dbUser.role;
+        user.role = dbUser.role as 'PROFESSEUR' | 'ELEVE';
         user.image = dbUser.image;
       }
       return true;

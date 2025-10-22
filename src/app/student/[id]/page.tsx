@@ -8,7 +8,6 @@ import { CareerThemeWrapper } from '@/components/CareerThemeWrapper';
 import { SidebarProvider, Sidebar, SidebarContent, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { Header } from '@/components/Header';
 import Menu from '@/components/Menu';
-import { ChatSheet } from '@/components/ChatSheet';
 
 
 // DUMMY DATA

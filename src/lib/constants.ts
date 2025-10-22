@@ -13,10 +13,10 @@ import {
     KeyRound,
     Target
 } from 'lucide-react';
-import type { Role, Classroom } from '@prisma/client';
+import type { Classroom } from '@prisma/client';
 import { CreateAnnouncementForm } from '@/components/CreateAnnouncementForm';
 import { ResetButton } from '@/components/ResetButton';
-import type { User, Session } from 'next-auth';
+import type { Session } from 'next-auth';
 
 // Définition des éléments de menu pour une configuration centralisée
 export const menuItems = [
@@ -27,31 +27,31 @@ export const menuItems = [
                 label: "Tableau de Bord", 
                 href: "/teacher/dashboard", 
                 icon: LayoutDashboard,
-                roles: ['PROFESSEUR'] as Role[],
+                roles: ['PROFESSEUR'],
             },
             { 
                 label: "Gérer les Classes", 
                 href: "/teacher/classes", 
                 icon: Users,
-                roles: ['PROFESSEUR'] as Role[],
+                roles: ['PROFESSEUR'],
             },
             { 
                 label: "Validations", 
                 href: "/teacher/validations", 
                 icon: CheckCircle,
-                roles: ['PROFESSEUR'] as Role[],
+                roles: ['PROFESSEUR'],
             },
             { 
                 label: "Gérer les Tâches", 
                 href: "/teacher/tasks", 
                 icon: Edit,
-                roles: ['PROFESSEUR'] as Role[],
+                roles: ['PROFESSEUR'],
             },
              { 
                 label: "Classe du Futur", 
                 href: "/teacher/future-classroom", 
                 icon: Rocket,
-                roles: ['PROFESSEUR'] as Role[],
+                roles: ['PROFESSEUR'],
             },
         ],
     },
@@ -61,12 +61,12 @@ export const menuItems = [
             { 
                 label: "Créer une Annonce", 
                 component: CreateAnnouncementForm,
-                roles: ['PROFESSEUR'] as Role[],
+                roles: ['PROFESSEUR'],
             },
             {
                 label: "Remise à zéro",
                 component: ResetButton,
-                roles: ['PROFESSEUR'] as Role[],
+                roles: ['PROFESSEUR'],
             }
         ]
     },
@@ -77,14 +77,14 @@ export const menuItems = [
                 label: "Ma Classe",
                 href: (user: Session['user']) => `/student/class/${user.classeId}`,
                 icon: Users,
-                roles: ['ELEVE'] as Role[],
+                roles: ['ELEVE'],
                 condition: (user: Session['user']) => !!user.classeId,
             },
             {
                 label: "Mon Profil de Compétences",
                 href: (user: Session['user']) => `/student/${user.id}/skills`,
                 icon: Target,
-                roles: ['ELEVE'] as Role[],
+                roles: ['ELEVE'],
             },
         ],
     },
@@ -95,7 +95,7 @@ export const menuItems = [
                 label: "Espace Parental",
                 href: (user: Session['user']) => `/student/${user.id}/parent`,
                 icon: KeyRound,
-                roles: ['ELEVE'] as Role[],
+                roles: ['ELEVE'],
             },
         ]
     },
@@ -104,15 +104,15 @@ export const menuItems = [
         items: [
             { 
                 label: "Profil", 
-                href: (user: Session['user']) => user.role === 'Role.PROFESSEUR' ? '/teacher/profile' : `/student/${user.id}`, 
+                href: (user: Session['user']) => user.role === 'PROFESSEUR' ? '/teacher/profile' : `/student/${user.id}`, 
                 icon: UserCircle,
-                roles: ['PROFESSEUR', 'ELEVE'] as Role[],
+                roles: ['PROFESSEUR', 'ELEVE'],
             },
             { 
                 label: "Paramètres", 
                 href: "/settings", // Lien générique pour les paramètres
                 icon: Settings,
-                roles: ['PROFESSEUR', 'ELEVE'] as Role[],
+                roles: ['PROFESSEUR', 'ELEVE'],
             },
         ],
     },

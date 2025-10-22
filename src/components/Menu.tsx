@@ -5,9 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import styles from './Menu.module.css';
-import type { Role, Classroom } from '@prisma/client';
+import type { Classroom } from '@prisma/client';
 import { menuItems } from '@/lib/constants';
-import type { User } from 'next-auth';
 import type { Session } from "next-auth";
 
 interface MenuProps {
@@ -19,7 +18,7 @@ interface MenuProps {
 // Type pour les éléments de menu avec toutes les propriétés possibles
 interface MenuItem {
   label: string;
-  roles: Role[];
+  roles: string[]; // Use string[] for Role
   condition?: (user: Session['user']) => boolean;
   component?: React.ElementType;
   href?: string | ((user: Session['user']) => string);
@@ -53,7 +52,7 @@ const Menu: React.FC<MenuProps> = ({ user, classrooms = [], validationCount = 0 
         
         // Filter items based on user role and conditions
         const visibleItems = items.filter(item => 
-          item.roles.includes(user.role as Role) &&
+          item.roles.includes(user.role as string) &&
           (!item.condition || item.condition(user))
         );
         

@@ -1,6 +1,8 @@
 // src/types/next-auth.d.ts
-import type { Role } from '@prisma/client';
 import type { DefaultSession, User } from 'next-auth';
+
+// Use a string literal union type for Role
+type Role = 'PROFESSEUR' | 'ELEVE';
 
 declare module 'next-auth' {
   /**

@@ -2,7 +2,6 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { ProgressStatus, ValidationType, Role } from '@prisma/client';
 import type { TaskForProfessorValidation } from '../types';
 
 // ---=== BYPASS BACKEND ===---
