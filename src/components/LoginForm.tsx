@@ -1,15 +1,18 @@
+
 // src/components/LoginForm.tsx
 "use client";
 
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 // import { signIn } from 'next-auth/react'; // ---=== BYPASS BACKEND ===---
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2, User, Lock, ArrowRight } from 'lucide-react';
+import { Checkbox } from './ui/checkbox';
+import Link from 'next/link';
 
 const GoogleIcon = () => (
     <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24">
@@ -72,86 +75,88 @@ export function LoginForm() {
      console.log(`👤 [LOGIN] Rôle sélectionné pour la démo: ${role}`);
   }
 
-  if (selectedRole) {
-     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Connexion (Démo)</CardTitle>
-          <CardDescription>Connexion en tant que {selectedRole === 'teacher' ? 'Professeur' : 'Élève'}.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={(e) => { e.preventDefault(); handleDummyLogin(selectedRole); }} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                readOnly
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Mot de passe</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                readOnly
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Se connecter
-            </Button>
-            <Button variant="link" onClick={() => setSelectedRole(null)}>Retour</Button>
-          </form>
-        </CardContent>
-      </Card>
-    )
-  }
-
+  // Version du formulaire inspirée de l'image
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Accès à la démo</CardTitle>
-        <CardDescription>Choisissez un rôle pour accéder à l'application avec des données de test.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <Button 
-          variant="outline" 
-          className="w-full"
-          onClick={() => handleRoleSelection('teacher')}
-          disabled={loading}
-        >
-          Accéder comme Professeur
-        </Button>
-        <Button 
-          variant="outline" 
-          className="w-full"
-          onClick={() => handleRoleSelection('student')}
-          disabled={loading}
-        >
-          Accéder comme Élève
-        </Button>
-        <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                OU
-                </span>
-            </div>
-        </div>
-         <Button 
-            variant="outline" 
-            className="w-full"
-            onClick={() => alert('La connexion Google est désactivée en mode démo.')}
-            disabled={loading}
-          >
-           <GoogleIcon /> Se connecter avec Google
-        </Button>
-      </CardContent>
+    <Card className="shadow-2xl shadow-black/10">
+        <form onSubmit={(e) => { e.preventDefault(); if(selectedRole) handleDummyLogin(selectedRole); }}>
+            <CardContent className="p-6 space-y-4">
+                 {error && (
+                    <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Erreur de connexion</AlertTitle>
+                    <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                )}
+                <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <Input 
+                        id="email" 
+                        type="email" 
+                        placeholder="Identifiant" 
+                        className="pl-10 bg-muted/50 border-0 focus-visible:ring-primary"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        disabled={loading}
+                    />
+                </div>
+                <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <Input 
+                        id="password" 
+                        type="password" 
+                        placeholder="Mot de passe" 
+                        className="pl-10 bg-muted/50 border-0 focus-visible:ring-primary"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        disabled={loading}
+                    />
+                </div>
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <Checkbox id="remember-me" />
+                        <Label htmlFor="remember-me" className="text-sm font-normal text-muted-foreground">Se souvenir de moi</Label>
+                    </div>
+                </div>
+                <Button 
+                  type="submit" 
+                  className="w-full font-semibold text-base py-6 shadow-inner-white"
+                  disabled={loading || !selectedRole}
+                  onClick={() => selectedRole && handleDummyLogin(selectedRole)}
+                  style={{
+                    background: 'linear-gradient(to bottom, hsl(var(--background)), hsl(var(--muted)))',
+                    color: 'hsl(var(--foreground))',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.1), 0 1px 1px rgba(255,255,255,0.5) inset'
+                  }}
+                >
+                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Se connecter
+                </Button>
+
+                {/* Sélecteur de rôle pour la démo */}
+                <div className="space-y-2 pt-2">
+                  <p className="text-center text-xs text-muted-foreground">Pour la démo, choisissez un rôle :</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button variant={selectedRole === 'teacher' ? 'default' : 'outline'} onClick={() => handleRoleSelection('teacher')}>
+                      Professeur
+                    </Button>
+                    <Button variant={selectedRole === 'student' ? 'default' : 'outline'} onClick={() => handleRoleSelection('student')}>
+                      Élève
+                    </Button>
+                  </div>
+                </div>
+
+            </CardContent>
+            <CardFooter className="bg-muted/30 p-4 border-t">
+                <p className="text-xs text-muted-foreground w-full text-center">
+                    Pas encore de compte ?{' '}
+                    <Button variant="link" className="p-0 h-auto text-xs" asChild>
+                      <Link href="#">
+                        S'inscrire !
+                      </Link>
+                    </Button>
+                </p>
+            </CardFooter>
+        </form>
     </Card>
   );
 }
