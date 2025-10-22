@@ -1,4 +1,5 @@
-// src/app/teacher/class/[id]/ClassPageClient.tsx
+
+// src/app/teacher/class/[id]/ClassPageClient.tsx - Version avec simulation de présence
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
@@ -15,8 +16,9 @@ import { ClassroomWithDetails, StudentForCard, AnnouncementWithAuthor } from '@/
 import { User } from 'next-auth';
 import { AnnouncementCarousel } from '@/components/AnnouncementCarousel';
 import { BackButton } from '@/components/BackButton';
-import { Video, XSquare, Crown, Loader2, Wifi } from 'lucide-react';
+import { Video, XSquare, Crown, Loader2, Wifi, WifiOff } from 'lucide-react';
 import { pusherClient } from '@/lib/pusher/client';
+import type { PresenceChannel } from 'pusher-js';
 import { cn } from '@/lib/utils';
 import { useSession } from 'next-auth/react';
 
@@ -26,60 +28,95 @@ interface ClassPageClientProps {
     announcements: AnnouncementWithAuthor[];
 }
 
+// Simulation de présence pour le développement
+const simulateOnlineStudents = (students: StudentForCard[]): string[] => {
+    // Simuler que 30-70% des élèves sont en ligne
+    const onlineCount = Math.max(1, Math.floor(students.length * (0.3 + Math.random() * 0.4)));
+    const shuffled = [...students].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, onlineCount).map(student => student.id);
+};
+
 export default function ClassPageClient({ classroom, teacher, announcements }: ClassPageClientProps) {
     const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
     const [isStartingSession, setIsStartingSession] = useState<boolean>(false);
     const [onlineStudents, setOnlineStudents] = useState<string[]>([]);
+    const [isSimulationMode, setIsSimulationMode] = useState<boolean>(true);
     const router = useRouter();
     const { toast } = useToast();
     const { data: session } = useSession();
 
+    // Simulation de présence pour le développement
     useEffect(() => {
-        if (!classroom.id || !session?.user?.id) {
-            console.log("👨‍🏫 [PRESENCE PROF] - Conditions non remplies pour l'abonnement Pusher.", { classroomId: classroom.id, userId: session?.user?.id });
-            return;
-        }
-
-        const channelName = `presence-class-${classroom.id}`;
-        console.log(`👨‍🏫 [PRESENCE PROF] - Tentative d'abonnement au canal: ${channelName}`);
-        
-        try {
-            const channel = pusherClient.subscribe(channelName);
-
-            const updateOnlineMembers = () => {
-                // `members` contient tous les membres du canal.
-                // On récupère les IDs et on exclut le professeur.
-                const memberIds = Object.keys(channel.members.members);
-                console.log('👨‍🏫 [PRESENCE PROF] - Mise à jour des membres. IDs reçus de Pusher:', memberIds);
-                const studentMemberIds = memberIds.filter(id => id !== session.user.id);
-                setOnlineStudents(studentMemberIds);
-                console.log('👨‍🏫 [PRESENCE PROF] - Liste des élèves en ligne mise à jour:', studentMemberIds);
-            };
-
-            channel.bind('pusher:subscription_succeeded', (members: any) => {
-                console.log('✅ [PRESENCE PROF] - Abonnement réussi. Membres actuels:', members.members);
-                updateOnlineMembers();
-            });
+        if (isSimulationMode && classroom.eleves?.length) {
+            console.log('🎮 [PRESENCE SIMULATION] - Activation de la simulation de présence');
             
-            channel.bind('pusher:member_added', (member: { id: string, info: any }) => {
-                console.log('➕ [PRESENCE PROF] - Membre ajouté:', member);
-                updateOnlineMembers();
-            });
-            
-            channel.bind('pusher:member_removed', (member: { id: string, info: any }) => {
-                 console.log('➖ [PRESENCE PROF] - Membre retiré:', member);
-                updateOnlineMembers();
-            });
+            const initialOnlineStudents = simulateOnlineStudents(classroom.eleves);
+            setOnlineStudents(initialOnlineStudents);
+            console.log('🎮 [PRESENCE SIMULATION] - Élèves en ligne simulés:', initialOnlineStudents);
 
-            return () => {
-                console.log(`🔚 [PRESENCE PROF] - Désabonnement du canal ${channelName}`);
-                pusherClient.unsubscribe(channelName);
-            };
-        } catch (error) {
-            console.error("❌ [PRESENCE PROF] - Erreur lors de l'abonnement Pusher:", error);
+            // Simuler des changements de présence toutes les 10-30 secondes
+            const interval = setInterval(() => {
+                const newOnlineStudents = simulateOnlineStudents(classroom.eleves || []);
+                setOnlineStudents(newOnlineStudents);
+                console.log('🎮 [PRESENCE SIMULATION] - Mise à jour des élèves en ligne:', newOnlineStudents);
+            }, 10000 + Math.random() * 20000);
+
+            return () => clearInterval(interval);
         }
-    }, [classroom.id, session?.user?.id]);
+    }, [classroom.eleves, isSimulationMode]);
 
+    // Abonnement réel Pusher (désactivé en simulation)
+    useEffect(() => {
+        if (!isSimulationMode && classroom.id && session?.user?.id) {
+            console.log("👨‍🏫 [PRESENCE PROF] - Abonnement réel Pusher activé", { classroomId: classroom.id, userId: session.user.id });
+
+            const channelName = `presence-class-${classroom.id}`;
+            console.log(`👨‍🏫 [PRESENCE PROF] - Tentative d'abonnement au canal: ${channelName}`);
+            
+            try {
+                const channel = pusherClient.subscribe(channelName) as PresenceChannel;
+
+                const updateOnlineMembers = () => {
+                    if (channel.members?.members) {
+                        const memberIds = Object.keys(channel.members.members);
+                        console.log('👨‍🏫 [PRESENCE PROF] - Mise à jour des membres. IDs reçus de Pusher:', memberIds);
+                        const studentMemberIds = memberIds.filter(id => id !== session.user?.id);
+                        setOnlineStudents(studentMemberIds);
+                        console.log('👨‍🏫 [PRESENCE PROF] - Liste des élèves en ligne mise à jour:', studentMemberIds);
+                    }
+                };
+
+                channel.bind('pusher:subscription_succeeded', (members: any) => {
+                    console.log('✅ [PRESENCE PROF] - Abonnement réussi. Membres actuels:', members.members);
+                    updateOnlineMembers();
+                });
+                
+                channel.bind('pusher:member_added', (member: { id: string, info: any }) => {
+                    console.log('➕ [PRESENCE PROF] - Membre ajouté:', member);
+                    updateOnlineMembers();
+                });
+                
+                channel.bind('pusher:member_removed', (member: { id: string, info: any }) => {
+                    console.log('➖ [PRESENCE PROF] - Membre retiré:', member);
+                    updateOnlineMembers();
+                });
+
+                return () => {
+                    console.log(`🔚 [PRESENCE PROF] - Désabonnement du canal ${channelName}`);
+                    pusherClient.unsubscribe(channelName);
+                };
+            } catch (error) {
+                console.error("❌ [PRESENCE PROF] - Erreur lors de l'abonnement Pusher:", error);
+                // Retour à la simulation en cas d'erreur
+                setIsSimulationMode(true);
+                toast({
+                    variant: 'destructive',
+                    title: 'Erreur de présence',
+                    description: 'Mode simulation activé',
+                });
+            }
+        }
+    }, [classroom.id, session?.user?.id, isSimulationMode, toast]);
 
     // Validation des props
     if (!classroom?.id || !teacher?.id) {
@@ -185,6 +222,8 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
         return student.name?.charAt(0)?.toUpperCase() || '?';
     };
 
+    const onlineSelectedCount = selectedStudents.filter(id => onlineStudents.includes(id)).length;
+
     return (
         <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
@@ -202,8 +241,30 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                 <div className="flex gap-2">
                     <CreateAnnouncementForm classrooms={[classroom]} />
                     <AddStudentForm classroomId={classroom.id} />
+                    
+                    {/* Bouton de contrôle de simulation */}
+                    <Button
+                        variant={isSimulationMode ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setIsSimulationMode(!isSimulationMode)}
+                        className="gap-2"
+                    >
+                        {isSimulationMode ? <Wifi className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
+                        {isSimulationMode ? 'Simulation' : 'Réel'}
+                    </Button>
                 </div>
             </div>
+            
+            {/* Indicateur de mode */}
+            {isSimulationMode && (
+                <div className="mb-4 p-3 bg-yellow-100 border border-yellow-300 rounded-lg">
+                    <div className="flex items-center gap-2 text-yellow-800">
+                        <Wifi className="h-4 w-4" />
+                        <span className="font-medium">Mode simulation activé</span>
+                        <span className="text-sm">- Présence des élèves simulée pour le développement</span>
+                    </div>
+                </div>
+            )}
             
             {announcements && announcements.length > 0 && (
                 <div className="mb-8">
@@ -218,9 +279,12 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                 <CardHeader>
                     <CardTitle>
                         Liste des Élèves ({classroom.eleves?.length || 0})
+                        <span className="ml-2 text-sm font-normal text-green-600">
+                            • {onlineStudents.length} en ligne
+                        </span>
                     </CardTitle>
                     <CardDescription>
-                        Sélectionnez les élèves <span className="font-bold text-green-600">en ligne</span> pour démarrer une session vidéo.
+                        Sélectionnez les élèves <span className="font-bold text-green-600">en ligne</span> (indicateur vert) pour démarrer une session vidéo.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -234,77 +298,89 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                             {sortedStudents.map((student, index) => {
                                 const isOnline = onlineStudents.includes(student.id);
+                                const isSelected = selectedStudents.includes(student.id);
+                                
                                 return (
-                                <Card 
-                                    key={student.id} 
-                                    className={cn(`transition-all duration-200`,
-                                        selectedStudents.includes(student.id) 
-                                            ? 'ring-2 ring-primary shadow-md' 
-                                            : 'hover:shadow-sm',
-                                        !isOnline && 'opacity-60 bg-muted/50'
-                                    )}
-                                >
-                                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                        <CardTitle className="text-sm font-medium truncate max-w-[120px]">
-                                            {student.name || 'Élève sans nom'}
-                                        </CardTitle>
-                                        <Checkbox
-                                            checked={selectedStudents.includes(student.id)}
-                                            onCheckedChange={() => handleSelectStudent(student.id)}
-                                            disabled={isStartingSession || !isOnline}
-                                            aria-label={`Sélectionner ${student.name}`}
-                                        />
-                                    </CardHeader>
-                                    <CardContent className="text-center">
-                                        <div className="relative inline-block">
-                                            <Avatar 
-                                                className="h-20 w-20 cursor-pointer" 
-                                                onClick={() => router.push(`/student/${student.id}?viewAs=teacher`)}
-                                            >
-                                                <AvatarImage 
-                                                    src={getStudentAvatarUrl(student)} 
-                                                    alt={`Avatar de ${student.name}`}
+                                    <Card 
+                                        key={student.id} 
+                                        className={cn(`transition-all duration-200`,
+                                            isSelected 
+                                                ? 'ring-2 ring-primary shadow-md' 
+                                                : 'hover:shadow-sm',
+                                            !isOnline && 'opacity-60 bg-muted/50'
+                                        )}
+                                    >
+                                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                            <CardTitle className="text-sm font-medium truncate max-w-[120px]">
+                                                {student.name || 'Élève sans nom'}
+                                            </CardTitle>
+                                            <div className="flex items-center gap-2">
+                                                {isOnline ? (
+                                                    <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" title="En ligne" />
+                                                ) : (
+                                                    <div className="h-2 w-2 rounded-full bg-gray-400" title="Hors ligne" />
+                                                )}
+                                                <Checkbox
+                                                    checked={isSelected}
+                                                    onCheckedChange={() => handleSelectStudent(student.id)}
+                                                    disabled={isStartingSession || !isOnline}
+                                                    aria-label={`Sélectionner ${student.name}`}
                                                 />
-                                                <AvatarFallback>
-                                                    {getStudentInitial(student)}
-                                                </AvatarFallback>
-                                            </Avatar>
-                                            {index === 0 && sortedStudents.length > 1 && (
-                                                <Crown className="absolute -top-2 -right-2 h-6 w-6 text-yellow-400 transform rotate-12" />
-                                            )}
-                                            {student.etat?.isPunished && (
-                                                <div className="absolute -bottom-1 -right-1 bg-destructive rounded-full p-1">
-                                                    <XSquare className="h-4 w-4 text-destructive-foreground" />
-                                                </div>
-                                            )}
-                                            {isOnline && (
-                                                <div title="En ligne" className="absolute -top-1 -left-1 bg-background rounded-full p-0.5">
-                                                    <div className="h-3 w-3 rounded-full bg-green-500 animate-pulse"></div>
-                                                </div>
-                                            )}
-                                        </div>
-                                        <p className="text-xs text-muted-foreground mt-2 truncate">
-                                            {student.email || 'Aucun email'}
-                                        </p>
-                                        <p className="text-xl font-bold mt-1">
-                                            {student.points ?? 0} pts
-                                        </p>
-                                    </CardContent>
-                                </Card>
-                            )})}
+                                            </div>
+                                        </CardHeader>
+                                        <CardContent className="text-center">
+                                            <div className="relative inline-block">
+                                                <Avatar 
+                                                    className="h-20 w-20 cursor-pointer" 
+                                                    onClick={() => router.push(`/student/${student.id}?viewAs=teacher`)}
+                                                >
+                                                    <AvatarImage 
+                                                        src={getStudentAvatarUrl(student)} 
+                                                        alt={`Avatar de ${student.name}`}
+                                                    />
+                                                    <AvatarFallback>
+                                                        {getStudentInitial(student)}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                                {index === 0 && sortedStudents.length > 1 && (
+                                                    <Crown className="absolute -top-2 -right-2 h-6 w-6 text-yellow-400 transform rotate-12" />
+                                                )}
+                                                {student.etat?.isPunished && (
+                                                    <div className="absolute -bottom-1 -right-1 bg-destructive rounded-full p-1">
+                                                        <XSquare className="h-4 w-4 text-destructive-foreground" />
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <p className="text-xs text-muted-foreground mt-2 truncate">
+                                                {student.email || 'Aucun email'}
+                                            </p>
+                                            <p className="text-xl font-bold mt-1">
+                                                {student.points ?? 0} pts
+                                            </p>
+                                            <div className="mt-1 text-xs">
+                                                {isOnline ? (
+                                                    <span className="text-green-600 font-medium">● En ligne</span>
+                                                ) : (
+                                                    <span className="text-gray-500">● Hors ligne</span>
+                                                )}
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                );
+                            })}
                         </div>
                     )}
                 </CardContent>
                 <CardFooter className="flex justify-between items-center">
                     <div className="text-sm text-muted-foreground">
-                        {selectedStudents.length > 0 
-                            ? `${selectedStudents.length} élève(s) sélectionné(s)` 
-                            : 'Sélectionnez au moins un élève'
+                        {onlineSelectedCount > 0 
+                            ? `${onlineSelectedCount} élève(s) en ligne sélectionné(s)` 
+                            : 'Sélectionnez au moins un élève en ligne'
                         }
                     </div>
                     <Button 
                         onClick={handleStartSession} 
-                        disabled={selectedStudents.filter(id => onlineStudents.includes(id)).length === 0 || isStartingSession}
+                        disabled={onlineSelectedCount === 0 || isStartingSession}
                         className="min-w-[180px]"
                     >
                         {isStartingSession ? (
@@ -315,7 +391,7 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                         ) : (
                             <>
                                 <Video className="mr-2 h-4 w-4" />
-                                Démarrer la session ({selectedStudents.filter(id => onlineStudents.includes(id)).length})
+                                Démarrer la session ({onlineSelectedCount})
                             </>
                         )}
                     </Button>
