@@ -37,8 +37,6 @@ export async function getTasksForValidation(studentId: string): Promise<(Task & 
             isActive: true,
             startTime: null,
             duration: null,
-            createdAt: new Date(),
-            updatedAt: new Date()
         },
         {
             id: 'task-bed',
@@ -55,8 +53,6 @@ export async function getTasksForValidation(studentId: string): Promise<(Task & 
             isActive: true,
             startTime: null,
             duration: null,
-            createdAt: new Date(),
-            updatedAt: new Date()
         }
     ] as (Task & { progressId: string })[];
 }

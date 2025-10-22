@@ -5,6 +5,7 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
 import prisma from '@/lib/prisma';
 import { User as PrismaUser } from '@prisma/client';
+import { Role } from './types';
 
 const providers: NextAuthOptions['providers'] = [
   CredentialsProvider({
