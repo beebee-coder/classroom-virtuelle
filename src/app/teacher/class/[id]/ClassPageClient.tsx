@@ -28,13 +28,8 @@ interface ClassPageClientProps {
     announcements: AnnouncementWithAuthor[];
 }
 
-// Simulation de présence pour le développement
-const simulateOnlineStudents = (students: StudentForCard[]): string[] => {
-    // Simuler que 30-70% des élèves sont en ligne
-    const onlineCount = Math.max(1, Math.floor(students.length * (0.3 + Math.random() * 0.4)));
-    const shuffled = [...students].sort(() => 0.5 - Math.random());
-    return shuffled.slice(0, onlineCount).map(student => student.id);
-};
+// ID de l'élève de démo connecté
+const SIMULATED_ONLINE_STUDENT_ID = 'student1';
 
 export default function ClassPageClient({ classroom, teacher, announcements }: ClassPageClientProps) {
     const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
@@ -47,23 +42,11 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
 
     // Simulation de présence pour le développement
     useEffect(() => {
-        if (isSimulationMode && classroom.eleves?.length) {
-            console.log('🎮 [PRESENCE SIMULATION] - Activation de la simulation de présence');
-            
-            const initialOnlineStudents = simulateOnlineStudents(classroom.eleves);
-            setOnlineStudents(initialOnlineStudents);
-            console.log('🎮 [PRESENCE SIMULATION] - Élèves en ligne simulés:', initialOnlineStudents);
-
-            // Simuler des changements de présence toutes les 10-30 secondes
-            const interval = setInterval(() => {
-                const newOnlineStudents = simulateOnlineStudents(classroom.eleves || []);
-                setOnlineStudents(newOnlineStudents);
-                console.log('🎮 [PRESENCE SIMULATION] - Mise à jour des élèves en ligne:', newOnlineStudents);
-            }, 10000 + Math.random() * 20000);
-
-            return () => clearInterval(interval);
+        if (isSimulationMode) {
+            console.log('🎮 [PRESENCE SIMULATION] - Seul l\'élève connecté (ID: student1) est affiché comme en ligne.');
+            setOnlineStudents([SIMULATED_ONLINE_STUDENT_ID]);
         }
-    }, [classroom.eleves, isSimulationMode]);
+    }, [isSimulationMode]);
 
     // Abonnement réel Pusher (désactivé en simulation)
     useEffect(() => {
