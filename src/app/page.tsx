@@ -58,53 +58,57 @@ export default async function HomePage() {
           </Sidebar>
           <SidebarInset>
              <main className="flex-1 flex items-center justify-center p-4 lg:p-8">
-              <div className="container mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                
-                {/* Hero Section */}
-                <div className="text-center lg:text-left">
-                  <h1 className="text-4xl font-extrabold tracking-tight lg:text-6xl text-primary">
-                    Classroom Connector
-                  </h1>
-                  <p className="mt-6 max-w-xl mx-auto lg:mx-0 text-lg text-muted-foreground">
-                    Une plateforme innovante pour connecter professeurs et élèves, personnaliser l'apprentissage et explorer des futurs passionnants.
-                  </p>
-                  <div className="mt-8 flex justify-center lg:justify-start">
-                    <Button size="lg" asChild>
-                      <Link href="/login">
-                        Accéder à la plateforme <ArrowRight className="ml-2" />
-                      </Link>
-                    </Button>
+              <Card className="w-full max-w-6xl">
+                <CardContent className="p-8">
+                  <div className="container mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                    
+                    {/* Hero Section */}
+                    <div className="text-center lg:text-left">
+                      <h1 className="text-4xl font-extrabold tracking-tight lg:text-6xl text-primary">
+                        Classroom Connector
+                      </h1>
+                      <p className="mt-6 max-w-xl mx-auto lg:mx-0 text-lg text-muted-foreground">
+                        Une plateforme innovante pour connecter professeurs et élèves, personnaliser l'apprentissage et explorer des futurs passionnants.
+                      </p>
+                      <div className="mt-8 flex justify-center lg:justify-start">
+                        <Button size="lg" asChild>
+                          <Link href="/login">
+                            Accéder à la plateforme <ArrowRight className="ml-2" />
+                          </Link>
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Announcements Section */}
+                    <div className="space-y-6">
+                       <h2 className="text-3xl font-bold text-center lg:text-left">Annonces Récentes</h2>
+                        {announcements.length > 0 ? (
+                            announcements.map((announcement: AnnouncementWithAuthor) => (
+                              <Card key={announcement.id}>
+                                <CardHeader>
+                                  <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-primary/10 rounded-full">
+                                      <Megaphone className="h-6 w-6 text-primary" />
+                                    </div>
+                                    <CardTitle className="text-lg">{announcement.title}</CardTitle>
+                                  </div>
+                                  <CardDescription>
+                                    <p>Par {announcement.author.name ?? 'Utilisateur inconnu'} - {format(new Date(announcement.createdAt), 'dd MMM yyyy')}</p>
+                                  </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                  <p className="text-sm">{announcement.content}</p>
+                                </CardContent>
+                              </Card>
+                            ))
+                        ) : (
+                            <p className="text-muted-foreground">Aucune annonce pour le moment.</p>
+                        )}
+                    </div>
+
                   </div>
-                </div>
-
-                {/* Announcements Section */}
-                <div className="space-y-6">
-                   <h2 className="text-3xl font-bold text-center lg:text-left">Annonces Récentes</h2>
-                    {announcements.length > 0 ? (
-                        announcements.map((announcement: AnnouncementWithAuthor) => (
-                          <Card key={announcement.id}>
-                            <CardHeader>
-                              <div className="flex items-center gap-4">
-                                <div className="p-3 bg-primary/10 rounded-full">
-                                  <Megaphone className="h-6 w-6 text-primary" />
-                                </div>
-                                <CardTitle className="text-lg">{announcement.title}</CardTitle>
-                              </div>
-                              <CardDescription>
-                                <p>Par {announcement.author.name ?? 'Utilisateur inconnu'} - {format(new Date(announcement.createdAt), 'dd MMM yyyy')}</p>
-                              </CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                              <p className="text-sm">{announcement.content}</p>
-                            </CardContent>
-                          </Card>
-                        ))
-                    ) : (
-                        <p className="text-muted-foreground">Aucune annonce pour le moment.</p>
-                    )}
-                </div>
-
-              </div>
+                </CardContent>
+              </Card>
              </main>
           </SidebarInset>
         </div>
