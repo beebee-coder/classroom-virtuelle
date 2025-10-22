@@ -1,3 +1,4 @@
+
 // src/app/page.tsx
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
@@ -13,16 +14,24 @@ import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger 
 import Menu from '@/components/Menu';
 
 export default async function HomePage() {
+  console.log('🏠 [PAGE] - Chargement de la page d\'accueil.');
   const session = await getAuthSession();
   const announcements = await getPublicAnnouncements(3);
 
   // Redirect logged-in users to their respective dashboards
   if (session?.user) {
+    console.log('👤 [PAGE] - Session utilisateur trouvée:', JSON.stringify(session.user, null, 2));
     if (session.user.role === 'PROFESSEUR') {
+      console.log('Redirecting to /teacher/dashboard');
       redirect('/teacher/dashboard');
     } else if (session.user.role === 'ELEVE') {
+      console.log('Redirecting to /student/dashboard');
       redirect(`/student/dashboard`);
+    } else {
+       console.warn('🤷 [PAGE] - Rôle non reconnu, pas de redirection:', session.user.role);
     }
+  } else {
+    console.log('Guest user, showing homepage');
   }
 
   // Render homepage content for non-logged-in users

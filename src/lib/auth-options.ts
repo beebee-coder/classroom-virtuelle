@@ -1,3 +1,4 @@
+
 // src/lib/auth-options.ts
 import { NextAuthOptions } from 'next-auth';
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
@@ -96,7 +97,7 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
     async jwt({ token, user, trigger, session }) {
-      console.log('🔐 [AUTH] JWT callback - trigger:', trigger, 'user:', user);
+      // console.log('🔐 [AUTH] JWT callback - trigger:', trigger, 'user:', user);
       
       // Initial sign in
       if (user) {
@@ -108,7 +109,7 @@ export const authOptions: NextAuthOptions = {
       
       // Update session (when `update()` is called)
       if (trigger === "update" && session) {
-        console.log('🔐 [AUTH] JWT update - session:', session);
+        // console.log('🔐 [AUTH] JWT update - session:', session);
         // Handle full user object update
         if (session.user) {
           token.name = session.user.name;
@@ -125,12 +126,15 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
-      console.log('🔐 [AUTH] Session callback - token:', token);
+      console.log('🔑 [AUTH] - Callback de session. Token reçu:', JSON.stringify(token, null, 2));
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as Role;
         session.user.classeId = token.classeId as string | undefined;
         session.user.image = token.picture as string | undefined; // ← CRITIQUE
+        console.log('✅ [AUTH] - Session enrichie:', JSON.stringify(session.user, null, 2));
+      } else {
+        console.warn('⚠️ [AUTH] - Token ou session.user manquant.');
       }
       return session;
     },
