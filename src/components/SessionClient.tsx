@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { pusherClient } from '@/lib/pusher/client';
-import type { Role, StudentForCard, User } from '@/lib/types';
+import type { Role, User } from '@/lib/types';
 import SimplePeer, { Instance as PeerInstance, SignalData } from 'simple-peer';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';

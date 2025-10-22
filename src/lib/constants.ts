@@ -85,6 +85,7 @@ export const menuItems = [
                 href: (user: Session['user']) => `/student/${user?.id}/skills`,
                 icon: Target,
                 roles: ['ELEVE'],
+                condition: (user: Session['user']) => !!user?.id,
             },
         ],
     },
@@ -96,6 +97,7 @@ export const menuItems = [
                 href: (user: Session['user']) => `/student/${user?.id}/parent`,
                 icon: KeyRound,
                 roles: ['ELEVE'],
+                condition: (user: Session['user']) => !!user?.id,
             },
         ]
     },
@@ -107,6 +109,7 @@ export const menuItems = [
                 href: (user: Session['user']) => user?.role === 'PROFESSEUR' ? '/teacher/profile' : `/student/${user?.id}`, 
                 icon: UserCircle,
                 roles: ['PROFESSEUR', 'ELEVE'],
+                condition: (user: Session['user']) => !!user?.id,
             },
             { 
                 label: "Paramètres", 

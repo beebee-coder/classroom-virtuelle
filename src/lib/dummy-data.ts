@@ -16,8 +16,8 @@ export const dummyTasks: AppTask[] = [
 ];
 
 const studentProgress = [
-    { id: 'p1', studentId: 'student1', taskId: 'task1', status: ProgressStatus.VERIFIED, completionDate: new Date(), pointsAwarded: 10, submissionUrl: null, accuracy: 100, recipeName: null, },
-    { id: 'p2', studentId: 'student1', taskId: 'task3', status: ProgressStatus.PENDING_VALIDATION, completionDate: new Date(), pointsAwarded: 0, submissionUrl: 'https://example.com/proof', accuracy: null, recipeName: null, }
+    { id: 'p1', studentId: 'student1', taskId: 'task1', status: 'VERIFIED' as ProgressStatus, completionDate: new Date(), pointsAwarded: 10, submissionUrl: null, accuracy: 100, recipeName: null, },
+    { id: 'p2', studentId: 'student1', taskId: 'task3', status: 'PENDING_VALIDATION' as ProgressStatus, completionDate: new Date(), pointsAwarded: 0, submissionUrl: 'https://example.com/proof', accuracy: null, recipeName: null, }
 ];
 
 export const allDummyStudents: StudentWithStateAndCareer[] = [

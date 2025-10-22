@@ -37,7 +37,7 @@ function getDummySessionData(sessionId: string) {
     };
     
     // Pour la démo, on prend tous les élèves de la classe A
-    const students = Object.values(dummyStudentData).filter(s => s.classroomId === 'classe-a');
+    const students: User[] = Object.values(dummyStudentData).filter(s => s.classroomId === 'classe-a') as User[];
 
     const participants = [teacher, ...students];
 
@@ -78,7 +78,7 @@ export default async function SessionPage({ params }: { params: { id: string } }
 
     // Vérification de sécurité (simplifiée pour la démo)
     const isTeacher = authSession.user.role === 'PROFESSEUR';
-    const isInvitedStudent = students.some((s: any) => s.id === authSession.user.id);
+    const isInvitedStudent = students.some((s: any) => s.id === authSession.user?.id);
     
     if (!isTeacher && !isInvitedStudent) {
          console.warn(`[SESSION PAGE] - L'utilisateur ${authSession.user.id} n'est pas un participant de la session ${params.id}. Accès refusé.`);

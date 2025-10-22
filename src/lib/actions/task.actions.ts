@@ -44,7 +44,7 @@ export async function completeTask(taskId: string, submissionUrl?: string): Prom
     id: `progress-${Date.now()}`,
     studentId: studentId,
     taskId: taskId,
-    status: ProgressStatus.PENDING_VALIDATION,
+    status: 'PENDING_VALIDATION',
     completionDate: new Date(),
     submissionUrl: submissionUrl || null,
     pointsAwarded: 0,
