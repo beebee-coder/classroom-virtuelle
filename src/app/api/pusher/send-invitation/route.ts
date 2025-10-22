@@ -25,6 +25,8 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        console.log('🚀 [API INVITATION] - Envoi via Pusher...');
+        
         // Envoyer l'événement via Pusher
         const result = await pusherTrigger(channel, event, data);
 

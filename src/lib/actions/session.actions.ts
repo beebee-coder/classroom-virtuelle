@@ -69,7 +69,16 @@ async function sendIndividualInvitations(sessionId: string, professeurId: string
             };
 
             console.log(`[ACTION] - Envoi d'invitation à l'élève ${studentId}`);
-            
+             // 1. Stocker l'invitation pour récupération ultérieure
+             await fetch(`${process.env.NEXTAUTH_URL}/api/sessions/pending-invitations`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    channel: `private-user-${studentId}`,
+                    event: 'session-invitation',
+                    data: invitationPayload
+                }),
+            });
             const pusherResponse = await pusherTrigger(
                 `private-user-${studentId}`, 
                 'session-invitation', 

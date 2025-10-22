@@ -123,54 +123,69 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                 : [...prev, studentId]
         );
     }, []);
+// Dans ClassPageClient.tsx - Modifiez la fonction sendSessionInvitations :
 
-    const sendSessionInvitations = async (sessionId: string, studentIds: string[]) => {
-        console.log('📨 [INVITATIONS] - Envoi des invitations pour la session:', sessionId, 'aux élèves:', studentIds);
-        setIsSendingInvitations(true);
 
-        try {
-            // Envoyer les invitations via Pusher
-            for (const studentId of studentIds) {
-                const channelName = `private-user-${studentId}`;
-                console.log(`📨 [INVITATIONS] - Envoi d'invitation à l'élève ${studentId} via canal ${channelName}`);
-                
-                await fetch('/api/pusher/send-invitation', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        channel: channelName,
-                        event: 'session-invitation',
-                        data: {
-                            sessionId,
-                            teacherName: teacher.name || 'Votre professeur',
-                            classroomName: classroom.nom,
-                            timestamp: new Date().toISOString()
-                        }
-                    }),
-                });
+// Dans ClassPageClient.tsx - Remplacez la fonction sendSessionInvitations :
+
+const sendSessionInvitations = async (sessionId: string, studentIds: string[]) => {
+    console.log('📨 [INVITATIONS] - Envoi des invitations pour la session:', sessionId, 'aux élèves:', studentIds);
+    setIsSendingInvitations(true);
+
+    try {
+        // Attendre que les élèves aient fini de recharger leur page
+        console.log('⏳ [INVITATIONS] - Attente de 2 secondes pour laisser les élèves se réabonner...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Envoyer les invitations via l'API
+        for (const studentId of studentIds) {
+            const channelName = `private-user-${studentId}`;
+            console.log(`📨 [INVITATIONS] - Envoi d'invitation à l'élève ${studentId} via canal ${channelName}`);
+            
+            const response = await fetch('/api/pusher/send-invitation', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    channel: channelName,
+                    event: 'session-invitation',
+                    data: {
+                        sessionId,
+                        teacherId: teacher.id,
+                        teacherName: teacher.name || 'Votre professeur',
+                        classroomName: classroom.nom,
+                        timestamp: new Date().toISOString(),
+                        type: 'session-invitation'
+                    }
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Échec de l'envoi à ${studentId}: ${response.statusText}`);
             }
 
-            console.log('✅ [INVITATIONS] - Toutes les invitations ont été envoyées');
-            toast({
-                title: 'Invitations envoyées !',
-                description: `Les invitations ont été envoyées à ${studentIds.length} élève(s).`,
-                duration: 3000,
-            });
-
-        } catch (error) {
-            console.error('❌ [INVITATIONS] - Erreur lors de l\'envoi des invitations:', error);
-            toast({
-                variant: 'destructive',
-                title: 'Erreur d\'envoi',
-                description: 'Les invitations n\'ont pas pu être envoyées à tous les élèves.',
-            });
-        } finally {
-            setIsSendingInvitations(false);
+            console.log(`✅ [INVITATIONS] - Invitation envoyée avec succès à ${studentId}`);
         }
-    };
 
+        console.log('✅ [INVITATIONS] - Toutes les invitations ont été envoyées');
+        toast({
+            title: 'Invitations envoyées !',
+            description: `Les invitations ont été envoyées à ${studentIds.length} élève(s).`,
+            duration: 3000,
+        });
+
+    } catch (error) {
+        console.error('❌ [INVITATIONS] - Erreur lors de l\'envoi des invitations:', error);
+        toast({
+            variant: 'destructive',
+            title: 'Erreur d\'envoi',
+            description: 'Les invitations n\'ont pas pu être envoyées à tous les élèves.',
+        });
+    } finally {
+        setIsSendingInvitations(false);
+    }
+};
     const handleStartSession = async () => {
         console.log('🚀 [CLIENT] - Clic sur "Démarrer la session". Élèves sélectionnés:', selectedStudents);
         

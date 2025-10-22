@@ -46,10 +46,15 @@ export default function StudentPageClient({
     const { toast } = useToast();
     const router = useRouter();
 
-    // Abonnement aux invitations de session
-    useEffect(() => {
-        if (!student?.id) return;
+  // Dans StudentPageClient.tsx - Modifiez l'abonnement Pusher :
 
+// Abonnement aux invitations en temps réel
+useEffect(() => {
+    if (!student?.id) return;
+
+    let timeoutId: NodeJS.Timeout;
+
+    const subscribeToInvitations = () => {
         const channelName = `private-user-${student.id}`;
         console.log('📨 [ELEVE] - Abonnement aux invitations sur le canal:', channelName);
 
@@ -64,7 +69,7 @@ export default function StudentPageClient({
                 toast({
                     title: '🎯 Nouvelle invitation de session !',
                     description: `${data.teacherName} vous invite à rejoindre une session vidéo.`,
-                    duration: 10000, // 10 secondes
+                    duration: 10000,
                     action: (
                         <div className="flex gap-2">
                             <Button 
@@ -85,18 +90,127 @@ export default function StudentPageClient({
                 });
             });
 
-            channel.bind('subscription_succeeded', () => {
+            channel.bind('pusher:subscription_succeeded', () => {
                 console.log('✅ [ELEVE] - Abonnement aux invitations réussi');
             });
 
-            return () => {
-                console.log('🔚 [ELEVE] - Désabonnement des invitations');
-                pusherClient.unsubscribe(channelName);
-            };
         } catch (error) {
             console.error('❌ [ELEVE] - Erreur d\'abonnement aux invitations:', error);
         }
-    }, [student?.id, toast]);
+    };
+
+    // Attendre un peu avant de s'abonner pour éviter les conflits
+    timeoutId = setTimeout(subscribeToInvitations, 1000);
+
+    return () => {
+        clearTimeout(timeoutId);
+        console.log('🔚 [ELEVE] - Désabonnement des invitations');
+        pusherClient.unsubscribe(`private-user-${student.id}`);
+    };
+}, [student?.id, toast]);
+
+// Vérifier les invitations manquées au chargement
+useEffect(() => {
+    const checkMissedInvitations = async () => {
+        try {
+            console.log('📨 [ELEVE] - Vérification des invitations manquées...');
+            // Vérifier si il y a des invitations récentes manquées
+          //  const response = await fetch(`/api/sessions/pending-invitations?studentId=${student.id}`);
+           // if (response.ok) {
+             //   const pendingInvitations = await response.json();
+               // if (pendingInvitations.length > 0) {
+                 //   const latestInvitation = pendingInvitations[0];
+                   // console.log('📨 [ELEVE] - Invitation manquée trouvée:', latestInvitation);
+                    
+                   // setSessionInvitation(latestInvitation);
+                    
+                   // toast({
+                     //   title: '🎯 Invitation de session en attente !',
+                       // description: `${latestInvitation.teacherName} vous a invité à une session.`,
+                    //    duration: 15000,
+                      //  action: (
+                     //       <div className="flex gap-2">
+                       //         <Button 
+                         //           size="sm" 
+                           //         onClick={() => handleAcceptInvitation(latestInvitation)}
+                             //   >
+                               //     Rejoindre
+                    //            </Button>
+                      //          <Button 
+                        //            size="sm" 
+                          //          variant="outline"
+                            //        onClick={() => setSessionInvitation(null)}
+                              //  >
+                                //    Ignorer
+                      //          </Button>
+                        //    </div>
+                       // ),
+              //      });
+            //    }
+          //  }
+          console.log('📨 [ELEVE] - Vérification des invitations désactivée temporairement');
+
+        } catch (error) {
+            console.error('❌ [ELEVE] - Erreur lors de la vérification des invitations manquées:', error);
+        }
+    };
+
+    if (student?.id) {
+        checkMissedInvitations();
+    }
+}, [student?.id, toast]);
+
+// Abonnement aux invitations en temps réel
+useEffect(() => {
+    if (!student?.id) return;
+
+    const channelName = `private-user-${student.id}`;
+    console.log('📨 [ELEVE] - Abonnement aux invitations sur le canal:', channelName);
+
+    try {
+        const channel = pusherClient.subscribe(channelName);
+
+        channel.bind('session-invitation', (data: SessionInvitation) => {
+            console.log('📨 [ELEVE] - Nouvelle invitation de session reçue:', data);
+            
+            setSessionInvitation(data);
+            
+            toast({
+                title: '🎯 Nouvelle invitation de session !',
+                description: `${data.teacherName} vous invite à rejoindre une session vidéo.`,
+                duration: 10000,
+                action: (
+                    <div className="flex gap-2">
+                        <Button 
+                            size="sm" 
+                            onClick={() => handleAcceptInvitation(data)}
+                        >
+                            Rejoindre
+                        </Button>
+                        <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => setSessionInvitation(null)}
+                        >
+                            Ignorer
+                        </Button>
+                    </div>
+                ),
+            });
+        });
+
+        channel.bind('subscription_succeeded', () => {
+            console.log('✅ [ELEVE] - Abonnement aux invitations réussi');
+        });
+
+        return () => {
+            console.log('🔚 [ELEVE] - Désabonnement des invitations');
+            pusherClient.unsubscribe(channelName);
+        };
+    } catch (error) {
+        console.error('❌ [ELEVE] - Erreur d\'abonnement aux invitations:', error);
+    }
+}, [student?.id, toast]);
 
     const handleAcceptInvitation = useCallback(async (invitation: SessionInvitation) => {
         console.log('✅ [ELEVE] - Acceptation de l\'invitation:', invitation.sessionId);
