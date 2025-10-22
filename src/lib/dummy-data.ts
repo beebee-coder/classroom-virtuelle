@@ -1,7 +1,7 @@
 
 // src/lib/dummy-data.ts
 
-import { StudentWithStateAndCareer, AppTask, Metier, StudentForCard, ClassroomWithDetails, Role, ProgressStatus, TaskType, TaskCategory, TaskDifficulty, ValidationType, StudentProgress } from '@/lib/types';
+import { StudentWithStateAndCareer, AppTask, Metier, StudentForCard, ClassroomWithDetails, StudentProgress } from '@/lib/types';
 
 export const dummyCareers: Metier[] = [
     { id: 'pompier', nom: 'Pompier', description: 'Sauve des vies et combat le feu.', icon: 'Flame', theme: '{"backgroundColor":"from-red-500 to-orange-500","textColor":"text-white","primaryColor":"22 84% 44%","accentColor":"45 93% 47%","cursor":"cursor-crosshair"}' },
@@ -10,15 +10,15 @@ export const dummyCareers: Metier[] = [
 ];
 
 export const dummyTasks: AppTask[] = [
-    { id: 'task1', title: 'Faire son lit', description: 'Un lit bien fait...', points: 10, type: 'DAILY', category: 'HOME', difficulty: 'EASY', validationType: 'PARENT', requiresProof: false, attachmentUrl: null, isActive: true, startTime: null, duration: null },
-    { id: 'task2', title: 'Lire 15 minutes', description: 'Un chapitre par jour...', points: 15, type: 'DAILY', category: 'LANGUAGE', difficulty: 'EASY', validationType: 'PARENT', requiresProof: false, attachmentUrl: null, isActive: true, startTime: null, duration: null },
-    { id: 'task3', title: 'Ranger sa chambre', description: 'Un espace propre...', points: 50, type: 'WEEKLY', category: 'HOME', difficulty: 'MEDIUM', validationType: 'PARENT', requiresProof: true, attachmentUrl: null, isActive: true, startTime: null, duration: null },
-    { id: 'task4', title: 'Exercice de maths', description: 'Résoudre une série...', points: 70, type: 'WEEKLY', category: 'MATH', difficulty: 'MEDIUM', validationType: 'PROFESSOR', requiresProof: true, attachmentUrl: null, isActive: true, startTime: null, duration: null },
+    { id: 'task1', title: 'Faire son lit', description: 'Un lit bien fait...', points: 10, type: 'DAILY', category: 'HOME', difficulty: 'EASY', validationType: 'PARENT', requiresProof: false, attachmentUrl: null, isActive: true, startTime: null, duration: null, createdAt: new Date(), updatedAt: new Date() },
+    { id: 'task2', title: 'Lire 15 minutes', description: 'Un chapitre par jour...', points: 15, type: 'DAILY', category: 'LANGUAGE', difficulty: 'EASY', validationType: 'PARENT', requiresProof: false, attachmentUrl: null, isActive: true, startTime: null, duration: null, createdAt: new Date(), updatedAt: new Date() },
+    { id: 'task3', title: 'Ranger sa chambre', description: 'Un espace propre...', points: 50, type: 'WEEKLY', category: 'HOME', difficulty: 'MEDIUM', validationType: 'PARENT', requiresProof: true, attachmentUrl: null, isActive: true, startTime: null, duration: null, createdAt: new Date(), updatedAt: new Date() },
+    { id: 'task4', title: 'Exercice de maths', description: 'Résoudre une série...', points: 70, type: 'WEEKLY', category: 'MATH', difficulty: 'MEDIUM', validationType: 'PROFESSOR', requiresProof: true, attachmentUrl: null, isActive: true, startTime: null, duration: null, createdAt: new Date(), updatedAt: new Date() },
 ];
 
 const studentProgress: StudentProgress[] = [
-    { id: 'p1', studentId: 'student1', taskId: 'task1', status: 'VERIFIED', completionDate: new Date(), pointsAwarded: 10, submissionUrl: null, accuracy: 100, recipeName: null },
-    { id: 'p2', studentId: 'student1', taskId: 'task3', status: 'PENDING_VALIDATION', completionDate: new Date(), pointsAwarded: 0, submissionUrl: 'https://example.com/proof', accuracy: null, recipeName: null }
+    { id: 'p1', studentId: 'student1', taskId: 'task1', status: 'VERIFIED', completionDate: new Date(), pointsAwarded: 10, submissionUrl: null, accuracy: 100, recipeName: null, createdAt: new Date(), updatedAt: new Date() },
+    { id: 'p2', studentId: 'student1', taskId: 'task3', status: 'PENDING_VALIDATION', completionDate: new Date(), pointsAwarded: 0, submissionUrl: 'https://example.com/proof', accuracy: null, recipeName: null, createdAt: new Date(), updatedAt: new Date() }
 ];
 
 export const allDummyStudents: StudentWithStateAndCareer[] = [
@@ -64,16 +64,19 @@ export const dummyClassrooms: { [key: string]: ClassroomWithDetails } = {
     'classe-a': {
         id: 'classe-a',
         nom: 'Classe 6ème A',
+        professeurId: 'teacher-id',
         eleves: allDummyStudents.filter(s => s.classroomId === 'classe-a').map(mapToStudentForCard),
     },
     'classe-b': {
         id: 'classe-b',
         nom: 'Classe 6ème B',
+        professeurId: 'teacher-id',
         eleves: allDummyStudents.filter(s => s.classroomId === 'classe-b').map(mapToStudentForCard),
     },
     'classe-c': {
         id: 'classe-c',
         nom: 'Classe 5ème A',
+        professeurId: 'teacher-id',
         eleves: allDummyStudents.filter(s => s.classroomId === 'classe-c').map(mapToStudentForCard),
     }
 };
