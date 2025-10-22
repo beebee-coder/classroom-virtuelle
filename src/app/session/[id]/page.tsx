@@ -3,7 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import { getAuthSession } from '@/lib/session';
 import SessionClient from '@/components/SessionClient';
 import { getSessionDetails } from '@/lib/actions/session.actions';
-import { Role } from '@prisma/client';
+import { Role } from '@/lib/types';
 import SessionLoading from '@/components/SessionLoading';
 import { Suspense } from 'react';
 
@@ -50,7 +50,7 @@ export default async function SessionPage({ params }: { params: { id: string } }
     
     if (!initialData) {
         console.error(`[SESSION PAGE] - Aucune donnée initiale pour la session ${params.id}, redirection vers le tableau de bord.`);
-        redirect(authSession.user.role === Role.PROFESSEUR ? '/teacher/dashboard' : '/student/dashboard');
+        redirect(authSession.user.role === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard');
     }
     
     const { session, students, teacher } = initialData;

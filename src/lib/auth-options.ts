@@ -1,11 +1,10 @@
-
 // src/lib/auth-options.ts
 import { NextAuthOptions } from 'next-auth';
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
 import prisma from '@/lib/prisma';
-import { Role, User as PrismaUser } from '@prisma/client';
+import { User as PrismaUser } from '@prisma/client';
 
 const providers: NextAuthOptions['providers'] = [
   CredentialsProvider({
@@ -75,7 +74,7 @@ export const authOptions: NextAuthOptions = {
                 email: profile.email!,
                 name: profile.name,
                 image: (profile as any).picture,
-                role: Role.ELEVE, // Default role for new Google sign-ups
+                role: 'ELEVE', // Default role for new Google sign-ups
               },
             });
 
@@ -129,7 +128,7 @@ export const authOptions: NextAuthOptions = {
       console.log('🔑 [AUTH] - Callback de session. Token reçu:', JSON.stringify(token, null, 2));
       if (token && session.user) {
         session.user.id = token.id as string;
-        session.user.role = token.role as Role;
+        session.user.role = token.role as 'PROFESSEUR' | 'ELEVE';
         session.user.classeId = token.classeId as string | undefined;
         session.user.image = token.picture as string | undefined; // ← CRITIQUE
         console.log('✅ [AUTH] - Session enrichie:', JSON.stringify(session.user, null, 2));

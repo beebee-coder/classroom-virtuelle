@@ -4,7 +4,7 @@ import ClassPageClient from './ClassPageClient';
 import { getAuthSession } from '@/lib/session';
 import { getClassAnnouncements } from '@/lib/actions/announcement.actions';
 import { ClassroomWithDetails, StudentForCard } from '@/lib/types';
-import { Role } from '@prisma/client';
+
 
 // DUMMY DATA
 const allDummyStudents: StudentForCard[] = [
@@ -65,7 +65,7 @@ export default async function ClassPage({ params }: { params: { id: string } }) 
   const classroomId = params.id;
   const session = await getAuthSession();
 
-  if (!session || session.user.role !== Role.PROFESSEUR) {
+  if (!session || session.user.role !== 'PROFESSEUR') {
       redirect('/login')
   }
 

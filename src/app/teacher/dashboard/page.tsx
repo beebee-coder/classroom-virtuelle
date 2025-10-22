@@ -4,6 +4,7 @@ import { Users, CheckCircle, Megaphone } from 'lucide-react';
 import Link from 'next/link';
 import { getAuthSession } from '@/lib/session';
 import { getTasksForProfessorValidation } from '@/lib/actions/teacher.actions';
+import { redirect } from 'next/navigation';
 
 // ---=== BYPASS BACKEND ===---
 const dummyClassrooms = [
@@ -18,6 +19,9 @@ export default async function TeacherDashboardPage() {
   console.log('👨‍🏫 [PAGE] - Chargement du tableau de bord professeur.');
 
   const session = await getAuthSession();
+  if (!session || session.user.role !== 'PROFESSEUR') {
+    redirect('/login');
+  }
   const user = session!.user;
 
   // ---=== BYPASS BACKEND ===---
