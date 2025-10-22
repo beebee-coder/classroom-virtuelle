@@ -4,6 +4,12 @@ import type { Prisma, Reaction as PrismaReaction, Message as PrismaMessage, Stud
 // Re-export all enums and types from Prisma
 export * from '@prisma/client';
 
+// Manually define Role enum as it's not supported by the DB driver
+export enum Role {
+  ELEVE = 'ELEVE',
+  PROFESSEUR = 'PROFESSEUR',
+}
+
 export type ClassroomWithUsers = Prisma.ClassroomGetPayload<{
     include: { eleves: true, professeur: true }
 }>
