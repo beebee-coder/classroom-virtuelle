@@ -17,14 +17,13 @@ import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import type { MessageWithReactions, ReactionWithUser } from '@/lib/types';
-import type { Role } from '@/lib/types';
 
 const EMOJIS = ['👍', '❤️', '😂', '😯', '😢', '🤔'];
 
 interface ChatSheetProps {
   classroomId: string;
   userId: string;
-  userRole: Role;
+  userRole: 'PROFESSEUR' | 'ELEVE';
 }
 
 export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
@@ -261,3 +260,4 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
     </Sheet>
   );
 }
+```

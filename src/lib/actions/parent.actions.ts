@@ -68,3 +68,4 @@ export async function validateTaskByParent(
   revalidatePath(`/student/some-student-id`);
   return { pointsAwarded: 50 };
 }
+```

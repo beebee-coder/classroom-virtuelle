@@ -3,8 +3,8 @@ import { notFound, redirect } from 'next/navigation';
 import { getAuthSession } from '@/lib/session';
 import SessionClient from '@/components/SessionClient';
 import { Suspense } from 'react';
-import { dummyStudentData } from '@/lib/dummy-data';
 import { User } from '@/lib/types';
+import { allDummyStudents } from '@/lib/dummy-data';
 
 
 // Composant de chargement simple
@@ -37,7 +37,7 @@ function getDummySessionData(sessionId: string) {
     };
     
     // Pour la démo, on prend tous les élèves de la classe A
-    const students: User[] = Object.values(dummyStudentData).filter(s => s.classroomId === 'classe-a') as User[];
+    const students: User[] = allDummyStudents.filter(s => s.classroomId === 'classe-a') as User[];
 
     const participants = [teacher, ...students];
 
@@ -101,3 +101,4 @@ export default async function SessionPage({ params }: { params: { id: string } }
         </Suspense>
     );
 }
+```

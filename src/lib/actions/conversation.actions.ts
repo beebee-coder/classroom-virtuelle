@@ -24,7 +24,6 @@ export async function getOrCreateConversation(
         message: 'Bonjour ! Ceci est une conversation de test.', 
         senderId: initiatorId, 
         createdAt: new Date(), 
-        updatedAt: new Date(),
         conversationId: `conv-${initiatorId}-${receiverId}`,
         classroomId: null,
         isQuestion: false,

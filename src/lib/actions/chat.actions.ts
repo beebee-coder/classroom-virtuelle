@@ -12,7 +12,6 @@ const dummyMessages: MessageWithReactions[] = [
         senderId: 'teacher-id', 
         classroomId: 'classe-a', 
         createdAt: new Date(Date.now() - 60000), 
-        updatedAt: new Date(Date.now() - 60000),
         isQuestion: false, 
         conversationId: null, 
         directMessageSenderId: null,
@@ -29,7 +28,6 @@ const dummyMessages: MessageWithReactions[] = [
         senderId: 'student1', 
         classroomId: 'classe-a', 
         createdAt: new Date(Date.now() - 30000), 
-        updatedAt: new Date(Date.now() - 30000),
         isQuestion: false, 
         conversationId: null, 
         directMessageSenderId: null,
@@ -65,7 +63,6 @@ export async function sendMessage(formData: FormData) {
         classroomId,
         senderId: 'current-user-id', // En mode bypass, l'ID est générique
         createdAt: new Date(),
-        updatedAt: new Date(),
         isQuestion: false,
         conversationId: null,
         directMessageSenderId: null,

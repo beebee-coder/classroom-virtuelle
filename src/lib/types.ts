@@ -1,6 +1,6 @@
 // src/lib/types.ts
 
-import type { Prisma, Reaction as PrismaReaction, Message as PrismaMessage, StudentProgress, Announcement as PrismaAnnouncement, Classroom, User, Metier, CoursSession, Leaderboard, Task } from '@prisma/client';
+import type { Prisma, Reaction as PrismaReaction, Message as PrismaMessage, StudentProgress as PrismaStudentProgress, Announcement as PrismaAnnouncement, Classroom, User, Metier, CoursSession, Leaderboard, Task } from '@prisma/client';
 
 // Ré-exporter tous les types et énumérations de Prisma pour un accès centralisé
 export * from '@prisma/client';
@@ -161,3 +161,6 @@ export type TaskForProfessorValidation = Prisma.StudentProgressGetPayload<{
     };
   }
 }>;
+
+export type StudentProgress = PrismaStudentProgress;
+```

@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { pusherClient } from '@/lib/pusher/client';
-import type { Role, User } from '@/lib/types';
+import type { User } from '@/lib/types';
 import SimplePeer, { Instance as PeerInstance, SignalData } from 'simple-peer';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -20,7 +20,7 @@ interface SessionClientProps {
   sessionId: string;
   initialStudents: User[];
   initialTeacher: User;
-  currentUserRole: Role;
+  currentUserRole: 'PROFESSEUR' | 'ELEVE';
   currentUserId: string;
 }
 
@@ -187,11 +187,11 @@ export default function SessionClient({
     return <SessionLoading />;
   }
   
-  const currentUser = currentUserRole === "PROFESSEUR" ? initialTeacher : initialStudents.find(s=>s.id === currentUserId)
+  const currentUser = currentUserRole === "PROFESSEUR" ? initialTeacher : initialStudents.find(s=>s.id === currentUserId);
 
   return (
     <div className="flex flex-col h-screen bg-background text-foreground">
-       <Header user={currentUser} />
+       <Header user={currentUser as any} />
 
       <div className="flex-1 flex flex-col md:flex-row p-4 gap-4 overflow-hidden">
         {/* Main Video Grid */}
@@ -230,3 +230,4 @@ export default function SessionClient({
     </div>
   );
 }
+```

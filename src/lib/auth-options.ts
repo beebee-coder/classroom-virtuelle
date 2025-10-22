@@ -90,7 +90,7 @@ export const authOptions: NextAuthOptions = {
         }
         // Ensure the user object passed along has the correct id and role for the session callback
         user.id = dbUser.id;
-        user.role = dbUser.role as 'PROFESSEUR' | 'ELEVE';
+        (user as any).role = dbUser.role; // Use direct assignment
         user.image = dbUser.image;
       }
       return true;
@@ -101,7 +101,7 @@ export const authOptions: NextAuthOptions = {
       // Initial sign in
       if (user) {
         token.id = user.id;
-        token.role = user.role;
+        token.role = (user as any).role;
         token.picture = user.image; // ← CRITIQUE
         token.classeId = (user as any).classeId;
       }
@@ -142,3 +142,4 @@ export const authOptions: NextAuthOptions = {
     signIn: '/login',
   },
 };
+```
