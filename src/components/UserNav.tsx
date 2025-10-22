@@ -30,6 +30,16 @@ interface UserNavProps {
 export function UserNav({ user }: UserNavProps) {
     const { setTheme } = useTheme();
 
+    const handleSignOut = () => {
+        // ---=== BYPASS BACKEND ===---
+        // En mode bypass, on ne peut pas appeler le vrai signOut().
+        // On simule la déconnexion en redirigeant simplement vers la page d'accueil.
+        console.log('🚪 [BYPASS] Déconnexion simulée. Redirection vers /');
+        window.location.href = '/';
+        // signOut({ callbackUrl: '/' }); // Appel original
+        // ---=========================---
+    };
+
     if (!user) {
         return (
             <Button asChild>
@@ -96,7 +106,7 @@ export function UserNav({ user }: UserNavProps) {
                     </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => signOut({ callbackUrl: '/' })}>
+                <DropdownMenuItem onClick={handleSignOut}>
                     <LogOut className="mr-2" />
                     Se déconnecter
                 </DropdownMenuItem>
