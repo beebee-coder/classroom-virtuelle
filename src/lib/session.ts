@@ -5,7 +5,7 @@ import type { Session } from 'next-auth';
 import { cookies } from 'next/headers';
 
 // ---=== BYPASS BACKEND ===---
-const DUMMY_SESSIONS = {
+const DUMMY_SESSIONS: Record<string, Session> = {
   teacher: {
     user: {
       id: 'teacher-id',
@@ -52,9 +52,6 @@ export const getAuthSession = async (): Promise<Session | null> => {
 
   // If no bypass cookie is found, attempt to get the real session.
   // In a pure bypass environment, this might always return null.
-  // return getServerSession(authOptions);
-
-  console.log("👤 [BYPASS] Pas de session factice active, retourne null.");
-  return null;
+  return getServerSession(authOptions);
   // ---=========================---
 };
