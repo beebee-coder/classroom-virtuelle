@@ -11,7 +11,8 @@ import {
   MessageSquare,
   Monitor,
   Headphones,
-  Settings
+  Settings,
+  LogOut,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -22,6 +23,7 @@ interface StudentSessionControlsProps {
   currentComprehension?: 'compris' | 'confus' | 'perdu';
   onOpenChat?: () => void;
   onSettings?: () => void;
+  onLeaveSession: () => void;
 }
 
 export function StudentSessionControls({
@@ -30,7 +32,8 @@ export function StudentSessionControls({
   onComprehensionUpdate,
   currentComprehension,
   onOpenChat,
-  onSettings
+  onSettings,
+  onLeaveSession
 }: StudentSessionControlsProps) {
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
@@ -64,6 +67,10 @@ export function StudentSessionControls({
 
   return (
     <div className="space-y-4">
+       <Button onClick={onLeaveSession} variant="outline" size="lg" className="w-full">
+            <LogOut className="mr-2 h-4 w-4" />
+            Quitter la session
+       </Button>
       {/* Contrôle de compréhension */}
       <Card>
         <CardHeader className="pb-3">

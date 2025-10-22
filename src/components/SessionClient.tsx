@@ -65,6 +65,16 @@ export default function SessionClient({
       });
   }, [toast]);
 
+  const handleEndSession = useCallback(async () => {
+    // Le professeur termine la session pour tout le monde
+    if (currentUserRole === 'PROFESSEUR') {
+      await endCoursSession(sessionId);
+    }
+    // L'élève quitte simplement, la redirection est gérée par l'événement pusher ou le rechargement de page
+    router.push(currentUserRole === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard');
+  }, [sessionId, currentUserRole, router]);
+
+
   // 2. Setup Pusher and WebRTC
   useEffect(() => {
     if (!localStream) return;
@@ -115,13 +125,24 @@ export default function SessionClient({
       }
     });
 
+    // Listen for the session-ended event
+    channel.bind('session-ended', () => {
+      toast({
+        title: "Session terminée",
+        description: "Le professeur a mis fin à la session."
+      });
+      // Redirect all users
+      handleEndSession();
+    });
+
     return () => {
       console.log(`Unsubscribing from ${channelName}`);
       localStream.getTracks().forEach(track => track.stop());
       peersRef.current.forEach(p => p.peer.destroy());
+      pusherClient.unbind('session-ended');
       pusherClient.unsubscribe(channelName);
     };
-  }, [localStream, sessionId, currentUserId, toast, channelName]);
+  }, [localStream, sessionId, currentUserId, toast, channelName, handleEndSession]);
 
   const createPeer = (userToSignal: string, callerId: string, stream: MediaStream): PeerInstance => {
     console.log(`Creating peer for ${userToSignal} from ${callerId}`);
@@ -161,11 +182,6 @@ export default function SessionClient({
     return peer;
   };
 
-  const handleEndSession = async () => {
-    await endCoursSession(sessionId);
-    router.push(currentUserRole === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard');
-  };
-
   if (!localStream) {
     return <SessionLoading />;
   }
@@ -196,17 +212,16 @@ export default function SessionClient({
               isScreenSharing={false}
               raisedHands={[]}
               onLowerHand={() => {}}
+              onEndSession={handleEndSession} // Pass the function here
             />
           ) : (
             <StudentSessionControls
               onRaiseHand={() => {}} // Placeholder
               isHandRaised={false}
               onComprehensionUpdate={() => {}}
+              onLeaveSession={handleEndSession} // Student leaves session
             />
           )}
-           <Button onClick={handleEndSession} variant="destructive">
-             {currentUserRole === 'PROFESSEUR' ? 'Terminer la session pour tous' : 'Quitter la session'}
-          </Button>
         </div>
       </div>
     </div>

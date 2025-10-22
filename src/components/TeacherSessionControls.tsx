@@ -14,7 +14,8 @@ import {
   MessageSquare,
   Monitor,
   Zap,
-  Square // Remplacement de Whiteboard
+  Square, // Remplacement de Whiteboard
+  XCircle,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -27,6 +28,7 @@ interface TeacherSessionControlsProps {
   onPauseTimer?: () => void;
   onResetTimer?: () => void;
   timerValue?: string;
+  onEndSession: () => void;
 }
 
 export function TeacherSessionControls({
@@ -37,7 +39,8 @@ export function TeacherSessionControls({
   onStartTimer,
   onPauseTimer,
   onResetTimer,
-  timerValue = '00:00'
+  timerValue = '00:00',
+  onEndSession,
 }: TeacherSessionControlsProps) {
   const [activeTool, setActiveTool] = useState<string>('');
 
@@ -50,6 +53,10 @@ export function TeacherSessionControls({
 
   return (
     <div className="space-y-4">
+      <Button onClick={onEndSession} variant="destructive" size="lg" className="w-full">
+          <XCircle className="mr-2 h-5 w-5" />
+          Terminer la session pour tous
+      </Button>
       {/* Contrôles principaux */}
       <Card>
         <CardHeader className="pb-3">
