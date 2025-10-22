@@ -1,45 +1,48 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// prisma/schema.prisma
+
+datasource db {
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
 
 generator client {
   provider        = "prisma-client-js"
   previewFeatures = ["driverAdapters"]
-  binaryTargets = ["native", "debian-openssl-3.0.x"]
+  binaryTargets   = ["native", "debian-openssl-3.0.x"]
 }
 
-datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
-}
-
-
+// User model for both teachers and students
 model User {
-  id                    String                 @id @default(cuid())
+  id                    String          @id @default(cuid())
   name                  String?
-  email                 String?                @unique
+  email                 String?         @unique
   emailVerified         DateTime?
   image                 String?
-  parentPassword        String?                // Mot de passe pour l'espace parent
+  parentPassword        String?         @map("parent_password") // Mot de passe pour l'espace parent
   role                  String
   ambition              String?
-  points                Int                    @default(0)
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
+  points                Int?            @default(0)
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  // Relations
   accounts              Account[]
   sessions              Session[]
-  classesDirigees       Classroom[]            @relation("ProfessorClasses")
-  annonces              Announcement[]
-  reactions             Reaction[]
-  sessionsCrees         CoursSession[]
-  sessionsParticipees   CoursSession[]         @relation("SessionParticipants")
-  sentDms               DirectMessage[]        @relation("SentDms")
-  receivedDms           DirectMessage[]        @relation("ReceivedDms")
-  classe                Classroom?             @relation(fields: [classroomId], references: [id])
-  classroomId           String?
   etat                  EtatEleve?
-  progress              StudentProgress[]
-  brainwaveData         BrainwaveData[]
-  VRSessionParticipant  VRSessionParticipant[]
+  announcements         Announcement[]
+  messages              Message[]
+  reactions             Reaction[]
+  classesDirigees       Classroom[]     @relation("ProfessorClasses")
+  sessionsCrees         CoursSession[]
+  sessionsParticipees   CoursSession[]  @relation("SessionParticipants")
+  sentDms               DirectMessage[] @relation("SentDms")
+  receivedDms           DirectMessage[] @relation("ReceivedDms")
+  conversationInitiated Conversation[]  @relation("Initiator")
+  conversationReceived  Conversation[]  @relation("Receiver")
+  leaderboard           Leaderboard?
+
+  classe      Classroom? @relation(fields: [classroomId], references: [id])
+  classroomId String?
 }
 
 model Account {
@@ -48,14 +51,15 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String?
-  access_token      String?
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String?
+  id_token          String? @db.Text
   session_state     String?
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -68,6 +72,16 @@ model Session {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+// Model for student-specific state
+model EtatEleve {
+  id         String  @id @default(cuid())
+  eleveId    String  @unique
+  eleve      User    @relation(fields: [eleveId], references: [id])
+  isPunished Boolean @default(false)
+  metierId   String?
+  metier     Metier? @relation(fields: [metierId], references: [id])
+}
+
 model Metier {
   id          String      @id @default(cuid())
   nom         String      @unique
@@ -77,13 +91,21 @@ model Metier {
   eleves      EtatEleve[]
 }
 
-model EtatEleve {
-  id         String  @id @default(cuid())
-  eleveId    String  @unique
-  eleve      User    @relation(fields: [eleveId], references: [id])
-  metierId   String?
-  metier     Metier? @relation(fields: [metierId], references: [id])
-  isPunished Boolean @default(false)
+model Task {
+  id             String   @id @default(cuid())
+  title          String
+  description    String
+  points         Int
+  type           String // DAILY, WEEKLY, MONTHLY
+  category       String // HOME, MATH, LANGUAGE, ART, SCIENCE
+  difficulty     String // EASY, MEDIUM, HARD
+  validationType String // AUTOMATIC, PROFESSOR, PARENT
+  requiresProof  Boolean  @default(false)
+  attachmentUrl  String?
+  isActive       Boolean  @default(true)
+  startTime      DateTime?
+  duration       Int? // en minutes
+  progress       StudentProgress[]
 }
 
 model Classroom {
@@ -93,66 +115,64 @@ model Classroom {
   professeur   User           @relation(name: "ProfessorClasses", fields: [professeurId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   eleves       User[]
   annonces     Announcement[]
-  cours        CoursSession[]
-  messages     Message[]
-}
-
-model Task {
-  id            String    @id @default(cuid())
-  title         String
-  description   String
-  points        Int
-  type          String //  DAILY, WEEKLY, MONTHLY
-  category      String // HOME, MATH, LANGUAGE, SCIENCE, ART
-  difficulty    String // EASY, MEDIUM, HARD
-  validationType String // AUTOMATIC, PROFESSOR, PARENT
-  requiresProof Boolean   @default(false)
-  attachmentUrl String?
-  isActive      Boolean   @default(true)
-  startTime     DateTime?
-  duration      Int? // en minutes
-  progress      StudentProgress[]
+  sessions     CoursSession[]
 }
 
 model StudentProgress {
-  id              String          @id @default(cuid())
-  studentId       String
-  student         User            @relation(fields: [studentId], references: [id])
-  taskId          String
-  task            Task            @relation(fields: [taskId], references: [id])
-  status          String          @default("PENDING") // PENDING, PENDING_VALIDATION, VERIFIED, REJECTED
-  completionDate  DateTime?
-  submissionUrl   String?
-  pointsAwarded   Int             @default(0)
-  accuracy        Float?
-  recipeFeedback  RecipeFeedback?
-  recipeName      String?
+  id             String          @id @default(cuid())
+  studentId      String
+  student        User            @relation(fields: [studentId], references: [id])
+  taskId         String
+  task           Task            @relation(fields: [taskId], references: [id])
+  status         String          @default("PENDING") // PENDING, PENDING_VALIDATION, VERIFIED, REJECTED
+  completionDate DateTime        @default(now())
+  submissionUrl  String?
+  pointsAwarded  Int?
+  accuracy       Float?
+  recipeName     String?
+  recipeFeedback RecipeFeedback?
+
+  @@unique([studentId, taskId])
 }
 
 model Announcement {
   id            String     @id @default(cuid())
   title         String
   content       String
+  attachmentUrl String?
   authorId      String
   author        User       @relation(fields: [authorId], references: [id])
   classeId      String?
   classe        Classroom? @relation(fields: [classeId], references: [id])
-  attachmentUrl String?
   createdAt     DateTime   @default(now())
 }
 
+model Conversation {
+  id          String    @id @default(cuid())
+  initiatorId String
+  receiverId  String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  messages    Message[]
+  initiator   User      @relation("Initiator", fields: [initiatorId], references: [id])
+  receiver    User      @relation("Receiver", fields: [receiverId], references: [id])
+}
+
 model Message {
-  id           String     @id @default(cuid())
-  message      String
-  senderId     String
-  senderName   String // Denormalized for quick display
-  classroomId  String?
-  classroom    Classroom? @relation(fields: [classroomId], references: [id])
-  createdAt    DateTime   @default(now())
-  reactions    Reaction[]
-  isQuestion   Boolean?
-  conversationId String?
-  conversation Conversation? @relation(fields: [conversationId], references: [id])
+  id                  String        @id @default(cuid())
+  message             String
+  createdAt           DateTime      @default(now())
+  senderId            String
+  senderName          String
+  sender              User          @relation(fields: [senderId], references: [id])
+  reactions           Reaction[]
+  isQuestion          Boolean?
+  // For group chat
+  classroomId         String?
+  classroom           Classroom?    @relation(fields: [classroomId], references: [id])
+  // For DM
+  conversationId      String?
+  conversation        Conversation? @relation(fields: [conversationId], references: [id])
   directMessageSenderId String?
 }
 
@@ -163,44 +183,20 @@ model Reaction {
   user      User     @relation(fields: [userId], references: [id])
   messageId String
   message   Message  @relation(fields: [messageId], references: [id])
-}
 
-model Conversation {
-  id        String    @id @default(cuid())
-  initiatorId String
-  receiverId String
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  messages  Message[]
-  initiator User      @relation("Initiator", fields: [initiatorId], references: [id])
-  receiver  User      @relation("Receiver", fields: [receiverId], references: [id])
+  @@unique([userId, messageId, emoji])
 }
 
 model DirectMessage {
   id           String   @id @default(cuid())
   content      String
-  senderId     String
-  receiverId   String
   createdAt    DateTime @default(now())
+  senderId     String
   sender       User     @relation("SentDms", fields: [senderId], references: [id])
+  receiverId   String
   receiver     User     @relation("ReceivedDms", fields: [receiverId], references: [id])
-}
-
-model CoursSession {
-  id                       String                 @id @default(cuid())
-  createdAt                DateTime               @default(now())
-  startedAt                DateTime?
-  endedAt                  DateTime?
-  status                   String                 @default("PENDING") // PENDING, ACTIVE, ENDED
-  professeurId             String
-  professeur               User                   @relation(fields: [professeurId], references: [id])
-  classeId                 String?
-  classe                   Classroom?             @relation(fields: [classeId], references: [id])
-  participants             User[]                 @relation("SessionParticipants")
-  spotlightedParticipantId String?
-  timerState               String?
-  vrSession                VRSession?
-  VRSessionParticipant     VRSessionParticipant[]
+  isRead       Boolean  @default(false)
+  attachmentUrl String?
 }
 
 model Leaderboard {
@@ -215,16 +211,67 @@ model Leaderboard {
   currentStreak  Int
   bestStreak     Int
   rank           Int
+  createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 }
 
+model CoursSession {
+  id                      String   @id @default(cuid())
+  createdAt               DateTime @default(now())
+  endedAt                 DateTime?
+  professeurId            String
+  classeId                String?
+  spotlightedParticipantId String?
+  timerState              String?
+  professeur              User           @relation(fields: [professeurId], references: [id])
+  classe                  Classroom?     @relation(fields: [classeId], references: [id])
+  participants            User[]         @relation("SessionParticipants")
+  vrSession               VRSession?
+}
+
+model EmotionalState {
+  id             String    @id @default(cuid())
+  studentId      String
+  sessionId      String
+  timestamp      DateTime  @default(now())
+  valence        Float // Positif/Négatif
+  arousal        Float // Intensité
+  dominantEmotion String
+  // Liens
+  student        User      @relation(fields: [studentId], references: [id])
+  session        CoursSession @relation(fields: [sessionId], references: [id])
+}
+
 model BrainwaveData {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  sessionId String // Could link to a CoursSession or a specific VR/Neuro session
-  timestamp DateTime @default(now())
-  payload   String // Raw data from EEG
+  id         String   @id @default(cuid())
+  studentId  String
+  sessionId  String
+  timestamp  DateTime @default(now())
+  payload    String // Raw data from EEG
+  // Liens
+  student    User     @relation(fields: [studentId], references: [id])
+  session    CoursSession @relation(fields: [sessionId], references: [id])
+}
+
+model VRSession {
+  id           String                 @id @default(cuid())
+  coursSessionId String                 @unique
+  coursSession   CoursSession           @relation(fields: [coursSessionId], references: [id])
+  scenarioId   String
+  createdAt    DateTime               @default(now())
+  state        String // Scene graph, user positions, etc.
+  participants VRSessionParticipant[]
+}
+
+model VRSessionParticipant {
+  id          String   @id @default(cuid())
+  userId      String
+  vrSessionId String
+  // Liens
+  user        User     @relation(fields: [userId], references: [id])
+  vrSession   VRSession @relation(fields: [vrSessionId], references: [id])
+
+  @@unique([userId, vrSessionId])
 }
 
 model RecipeFeedback {
@@ -237,27 +284,3 @@ model RecipeFeedback {
   comment      String?
   createdAt    DateTime        @default(now())
 }
-
-model VRSession {
-  id           String                 @id @default(cuid())
-  coursSession CoursSession?            @relation(fields: [coursSessionId], references: [id])
-  coursSessionId String?                @unique
-  scenario     String // e.g., "Space Exploration", "Historic Battle"
-  createdAt    DateTime               @default(now())
-  state        String // Scene graph, user positions, etc.
-  participants VRSessionParticipant[]
-}
-
-model VRSessionParticipant {
-  id          String       @id @default(cuid())
-  vrSession   VRSession    @relation(fields: [vrSessionId], references: [id])
-  vrSessionId String
-  user        User         @relation(fields: [userId], references: [id])
-  userId      String
-  joinedAt    DateTime     @default(now())
-  role        String // e.g., "Observer", "Active Participant"
-  coursSession CoursSession? @relation(fields: [coursSessionId], references: [id])
-  coursSessionId String?
-}
-
-    
