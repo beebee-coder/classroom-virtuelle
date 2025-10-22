@@ -1,10 +1,10 @@
 
-import type { Prisma, Reaction as PrismaReaction, Message as PrismaMessage, StudentProgress, Announcement as PrismaAnnouncement, Classroom, User, Metier, CoursSession, Leaderboard, Task, ProgressStatus, ValidationType } from '@prisma/client';
-import { TaskType, TaskCategory, TaskDifficulty, Role } from '@prisma/client';
+import type { Prisma, Reaction as PrismaReaction, Message as PrismaMessage, StudentProgress, Announcement as PrismaAnnouncement, Classroom, User, Metier, CoursSession, Leaderboard, Task, ValidationType } from '@prisma/client';
+import { TaskType, TaskCategory, TaskDifficulty, Role, ProgressStatus } from '@prisma/client';
 
 
 export type { ValidationType };
-export { TaskType, TaskCategory, TaskDifficulty, ProgressStatus, Role };
+export { TaskType, TaskCategory, TaskDifficulty, Role, ProgressStatus };
 
 
 export type ClassroomWithUsers = Prisma.ClassroomGetPayload<{
@@ -118,4 +118,5 @@ export type TaskForProfessorValidation = StudentProgress & {
     name: string | null;
   };
 };
+
 
