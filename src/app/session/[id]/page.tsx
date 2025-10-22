@@ -1,3 +1,4 @@
+
 // src/app/session/[id]/page.tsx
 import { notFound, redirect } from 'next/navigation';
 import { getAuthSession } from '@/lib/session';
@@ -37,7 +38,7 @@ function getDummySessionData(sessionId: string) {
     };
     
     // Pour la démo, on prend tous les élèves de la classe A
-    const students: User[] = allDummyStudents.filter(s => s.classeId === 'classe-a') as unknown as User[];
+    const students: User[] = allDummyStudents.filter(s => s.classe?.id === 'classe-a') as unknown as User[];
 
     const participants = [teacher, ...students];
 
@@ -101,3 +102,4 @@ export default async function SessionPage({ params }: { params: { id: string } }
         </Suspense>
     );
 }
+
