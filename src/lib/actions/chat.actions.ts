@@ -10,6 +10,7 @@ const dummyMessages: MessageWithReactions[] = [
         id: '1', 
         message: 'Bonjour la classe ! Ceci est un message de test.', 
         senderId: 'teacher-id', 
+        senderName: 'Professeur Test',
         classroomId: 'classe-a', 
         createdAt: new Date(Date.now() - 60000), 
         isQuestion: false, 
@@ -26,6 +27,7 @@ const dummyMessages: MessageWithReactions[] = [
         id: '2', 
         message: 'Bonjour Monsieur !', 
         senderId: 'student1', 
+        senderName: 'Alice',
         classroomId: 'classe-a', 
         createdAt: new Date(Date.now() - 30000), 
         isQuestion: false, 
@@ -62,6 +64,7 @@ export async function sendMessage(formData: FormData) {
         message: messageContent,
         classroomId,
         senderId: 'current-user-id', // En mode bypass, l'ID est générique
+        senderName: "Vous (Démo)",
         createdAt: new Date(),
         isQuestion: false,
         conversationId: null,
