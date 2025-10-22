@@ -1,6 +1,7 @@
 'use client';
 
 import Link from "next/link";
+import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -46,22 +47,25 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const router = useRouter();
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    // Dummy logic for demo accounts
-    if (
-      (email.toLowerCase() === 'teacher@example.com' || email.toLowerCase() === 'student@example.com') && 
-      password === 'password'
-    ) {
-      alert(`Connexion réussie pour ${email}. Redirection en cours... (simulation)`);
-      // In a real app, you would redirect here:
-      // const role = email.toLowerCase().startsWith('teacher') ? 'teacher' : 'student';
-      // window.location.href = `/${role}/dashboard`;
-    } else {
-      setError('Email ou mot de passe invalide.');
+    const lowerCaseEmail = email.toLowerCase();
+    
+    if (password === 'password') {
+        if (lowerCaseEmail === 'teacher@example.com') {
+            router.push('/teacher/dashboard');
+            return;
+        }
+        if (lowerCaseEmail === 'student@example.com') {
+            router.push('/student/dashboard');
+            return;
+        }
     }
+    
+    setError('Email ou mot de passe invalide.');
   };
 
   return (
