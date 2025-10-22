@@ -10,7 +10,7 @@ import { Trophy, Zap, Megaphone } from 'lucide-react';
 import { TaskBoard } from '@/components/TaskBoard';
 import { CareerSelector } from '@/components/CareerSelector';
 import { AnnouncementCarousel } from '@/components/AnnouncementCarousel';
-import { BackButton } from './BackButton';
+import { BackButton } from '@/components/BackButton';
 
 interface StudentPageClientProps {
     student: StudentWithStateAndCareer;
