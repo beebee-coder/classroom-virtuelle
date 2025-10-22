@@ -1,3 +1,4 @@
+
 // src/lib/auth-options.ts
 import { NextAuthOptions } from 'next-auth';
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
@@ -27,12 +28,25 @@ const providers: NextAuthOptions['providers'] = [
         return null;
       }
       
+      // Ensure the role is of the expected type
+      if (user.role !== 'PROFESSEUR' && user.role !== 'ELEVE') {
+        return null;
+      }
+      
       // This is for demo purposes only. In a real application,
       // you would hash and compare passwords.
       const isValid = credentials.password === 'password';
 
       if (isValid) {
-        return user;
+        // Explicitly cast the user object to satisfy the expected type
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          image: user.image,
+          role: user.role as Role,
+          classeId: user.classroomId || undefined,
+        };
       }
 
       return null;
