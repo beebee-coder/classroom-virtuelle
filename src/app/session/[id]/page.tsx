@@ -101,4 +101,3 @@ export default async function SessionPage({ params }: { params: { id: string } }
         </Suspense>
     );
 }
-```
