@@ -1,4 +1,4 @@
-// src/lib/types.ts
+// src/lib/types.ts - Version corrigée
 
 import type { Prisma, Classroom, User, Metier, CoursSession, Leaderboard, Task, StudentProgress, Reaction, Message, Announcement, Conversation } from '@prisma/client';
 
@@ -32,18 +32,14 @@ export type StudentWithStateAndCareer = Prisma.UserGetPayload<{
             }
         },
         classe: true,
-        progress: {
-            include: {
-                task: true
-            }
-        },
-        sessionsParticipees: {
-            where: {
-                endedAt: null
-            }
-        }
+        progress: true,
+        sessionsParticipees: true
     }
-}>
+}> & {
+    // Assurer la compatibilité avec les données simulées
+    progress?: StudentProgress[];
+    sessionsParticipees?: any[];
+};
 
 /**
  * Type pour une réaction avec les informations de l'utilisateur qui a réagi.
@@ -176,3 +172,24 @@ export type TaskForProfessorValidation = Prisma.StudentProgressGetPayload<{
     };
   }
 }>;
+
+// Types utilitaires pour résoudre les problèmes de compatibilité
+export interface StudentState {
+    id: string;
+    eleveId: string;
+    isPunished: boolean;
+    metierId: string | null;
+    metier: Metier | null;
+}
+
+export interface StudentClass {
+    id: string;
+    nom: string;
+    professeurId: string;
+}
+
+// Type alternatif pour les données simulées
+export type SimulatedStudent = Omit<StudentWithStateAndCareer, 'progress' | 'sessionsParticipees'> & {
+    progress: StudentProgress[];
+    sessionsParticipees: any[];
+};
