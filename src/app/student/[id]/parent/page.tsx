@@ -12,7 +12,7 @@ import { Suspense } from 'react';
 
 // DUMMY DATA
 const dummyStudents: {[key: string]: { id: string, name: string, parentPassword?: string }} = {
-    'student1': { id: 'student1', name: 'Alice', parentPassword: 'hashedpassword' }, // Simulate password is set
+    'student1': { id: 'student1', name: 'Alice', parentPassword: 'password' }, // Simulate password is set
     'student2': { id: 'student2', name: 'Bob' }, // Simulate password is not set
 }
 
