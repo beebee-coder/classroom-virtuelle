@@ -86,3 +86,15 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+
+@layer utilities {
+  .marquee-container {
+    animation: marquee 30s linear infinite;
+  }
+  
+  @keyframes marquee {
+    from { transform: translateY(0); }
+    to { transform: translateY(-50%); }
+  }
+}
