@@ -1,58 +1,33 @@
-// src/components/SessionClient.tsx - Version fusionnée améliorée
+// src/components/SessionClient.tsx
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { pusherClient } from '@/lib/pusher/client';
-import type { User as PrismaUser } from '@prisma/client';
-import SimplePeer, { Instance as PeerInstance, SignalData } from 'simple-peer';
-import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import SessionLoading from './SessionLoading';
-import { endCoursSession, serverSpotlightParticipant, broadcastTimerEvent } from '@/lib/actions';
-import { VideoPlayer } from './VideoPlayer';
-import { PresenceChannel } from 'pusher-js';
-import { 
-    Video, 
-    VideoOff, 
-    Mic, 
-    MicOff, 
-    ScreenShare, 
-    ScreenShareOff, 
-    Hand, 
-    Users, 
-    MessageSquare,
-    Clock,
-    X,
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { cn } from '@/lib/utils';
-import { ParticipantGrid } from './ParticipantGrid';
-import { TeacherSessionControls } from './TeacherSessionControls';
-import { StudentSessionControls } from './StudentSessionControls';
+import { useSession } from 'next-auth/react';
+import type { Instance as PeerInstance } from 'simple-peer';
+import SimplePeer from 'simple-peer';
 
-// Use a more generic role type to avoid conflicts
-type SessionRole = 'PROFESSEUR' | 'ELEVE';
+import { pusherClient } from '@/lib/pusher/client';
+import { useToast } from '@/hooks/use-toast';
+import { User, Role } from '@/lib/types';
+import SessionLoading from './SessionLoading';
+import { TeacherSessionView } from './session/TeacherSessionView';
+import { StudentSessionView } from './session/StudentSessionView';
+import { SessionHeader } from './session/SessionHeader';
+import { PermissionPrompt } from './PermissionPrompt';
+import { endCoursSession } from '@/lib/actions';
+
+// Définition de types locaux
+type UnderstandingStatus = 'understood' | 'confused' | 'lost' | 'none';
+type PeerData = { id: string; peer: PeerInstance };
+type SignalData = { userId: string; signal: any };
 
 interface SessionClientProps {
   sessionId: string;
-  initialStudents: PrismaUser[];
-  initialTeacher: PrismaUser;
-  currentUserRole: SessionRole;
+  initialStudents: User[];
+  initialTeacher: User;
+  currentUserRole: Role;
   currentUserId: string;
-}
-
-interface PeerData {
-  peer: PeerInstance;
-  userId: string;
-}
-
-interface Participant {
-  id: string;
-  name: string;
-  role: SessionRole;
-  stream?: MediaStream;
 }
 
 export default function SessionClient({
@@ -64,304 +39,279 @@ export default function SessionClient({
 }: SessionClientProps) {
   const router = useRouter();
   const { toast } = useToast();
-
+  const { data: session } = useSession();
+  
+  // États principaux
+  const [loading, setLoading] = useState(true);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
   const [peers, setPeers] = useState<PeerData[]>([]);
+  const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
+  const [spotlightedParticipantId, setSpotlightedParticipantId] = useState<string | null>(initialTeacher?.id || null);
+  
+  // États d'interaction
+  const [raisedHands, setRaisedHands] = useState<Set<string>>(new Set());
+  const [understandingStatus, setUnderstandingStatus] = useState<Map<string, UnderstandingStatus>>(new Map());
+  const [isEndingSession, setIsEndingSession] = useState(false);
+  
+  const allSessionUsers = [initialTeacher, ...initialStudents];
   const peersRef = useRef<PeerData[]>([]);
-  const userVideoRef = useRef<HTMLVideoElement>(null);
-  const [sessionParticipants, setSessionParticipants] = useState<Participant[]>([]);
-  
-  // États de l'UI
-  const [isAudioMuted, setIsAudioMuted] = useState(false);
-  const [isVideoMuted, setIsVideoMuted] = useState(false);
-  const [isScreenSharing, setIsScreenSharing] = useState(false);
-  
-  // États de l'élève
-  const [isHandRaised, setIsHandRaised] = useState(false);
-  const [comprehension, setComprehension] = useState<'compris' | 'confus' | 'perdu'>('confus');
-  
-  // États du professeur
-  const [raisedHands, setRaisedHands] = useState<string[]>([]);
-  const [comprehensionLevels, setComprehensionLevels] = useState<Record<string, 'compris' | 'confus' | 'perdu'>>({});
-  const [spotlightParticipantId, setSpotlightParticipantId] = useState<string | null>(null);
-  
-  const [timer, setTimer] = useState(0);
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  
-  const channelName = `presence-session-${sessionId}`;
-  const pusherChannelRef = useRef<PresenceChannel | null>(null);
+  const screenPeerRef = useRef<PeerInstance | null>(null);
 
-  // Initialisation du média
+  // ---=== 1. GESTION DES FLUX MÉDIAS ===---
   useEffect(() => {
-    const initializeMedia = async () => {
+    const getMedia = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         setLocalStream(stream);
-        if (userVideoRef.current) {
-          userVideoRef.current.srcObject = stream;
-        }
-        console.log('✅ [SESSION] - Médias locaux initialisés');
+        console.log('✅ [MEDIA] - Flux local (caméra/micro) obtenu.');
       } catch (error) {
-        console.error('❌ [SESSION] - Erreur d\'accès aux médias:', error);
+        console.error('❌ [MEDIA] - Erreur d\'accès à la caméra/micro:', error);
         toast({
           variant: 'destructive',
-          title: 'Erreur de connexion',
-          description: 'Accès à la caméra/microphone refusé',
+          title: 'Erreur Média',
+          description: 'Impossible d\'accéder à votre caméra et/ou microphone.'
         });
+      } finally {
+        setLoading(false);
       }
     };
-    initializeMedia();
-  }, [toast]);
+    getMedia();
 
-  // Fin de session
-  const handleEndSession = useCallback(async () => {
-    if (currentUserRole === 'PROFESSEUR') {
-      await endCoursSession(sessionId);
+    return () => {
+      localStream?.getTracks().forEach(track => track.stop());
+      screenStream?.getTracks().forEach(track => track.stop());
+    };
+  }, []);
+
+  const toggleScreenShare = async () => {
+    if (screenStream) {
+      screenStream.getTracks().forEach(track => track.stop());
+      setScreenStream(null);
+      if (screenPeerRef.current) {
+        screenPeerRef.current.destroy();
+        screenPeerRef.current = null;
+      }
+      toast({ title: 'Partage d\'écran arrêté' });
+    } else {
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({ cursor: true });
+        setScreenStream(stream);
+        toast({ title: 'Partage d\'écran activé' });
+      } catch (error) {
+        toast({
+          variant: 'destructive',
+          title: 'Erreur de partage',
+          description: 'Impossible de démarrer le partage d\'écran.'
+        });
+      }
     }
-    router.push(currentUserRole === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard');
-  }, [sessionId, currentUserRole, router]);
+  };
 
-  // Configuration de Pusher et WebRTC
+  // ---=== 2. GESTION DES CONNEXIONS PEER-TO-PEER ===---
+  const createPeer = (targetUserId: string, initiator: boolean, stream: MediaStream): PeerInstance => {
+    const peer = new SimplePeer({
+      initiator,
+      trickle: false,
+      stream,
+    });
+
+    peer.on('signal', signal => {
+      pusherClient.trigger(`presence-session-${sessionId}`, 'signal', {
+        userId: currentUserId,
+        target: targetUserId,
+        signal,
+      });
+    });
+
+    return peer;
+  };
+
+  const addPeer = (incomingSignal: any, callerId: string, stream: MediaStream): PeerInstance => {
+    const peer = new SimplePeer({
+      initiator: false,
+      trickle: false,
+      stream,
+    });
+    
+    peer.on('signal', signal => {
+      pusherClient.trigger(`presence-session-${sessionId}`, 'signal-return', {
+        userId: currentUserId,
+        target: callerId,
+        signal,
+      });
+    });
+    
+    peer.signal(incomingSignal);
+    return peer;
+  };
+  
+  // ---=== 3. GESTION DES ÉVÉNEMENTS PUSHER ===---
   useEffect(() => {
     if (!localStream) return;
 
-    const channel = pusherClient.subscribe(channelName) as PresenceChannel;
-    pusherChannelRef.current = channel;
-    console.log(`📡 [SESSION] - Connexion au canal: ${channelName}`);
-
-    channel.bind('pusher:subscription_succeeded', () => {
-      console.log('✅ [SESSION] - Abonnement réussi');
-      const allMemberIds = Object.keys(channel.members.members);
-      setSessionParticipants(allMemberIds.map(id => ({ id, name: channel.members.members[id].name || `User-${id.slice(0,4)}`, role: channel.members.members[id].role })));
+    const channelName = `presence-session-${sessionId}`;
+    const channel = pusherClient.subscribe(channelName);
+    
+    // Initialisation quand on rejoint
+    channel.bind('pusher:subscription_succeeded', (members: any) => {
+      const otherUsers = Object.keys(members.members).filter(id => id !== currentUserId);
+      setOnlineUserIds(Object.keys(members.members));
       
-      allMemberIds.forEach(memberId => {
-        if (memberId !== currentUserId) {
-          console.log(`🔗 [WEBRTC] - Connexion à ${memberId}`);
-          const peer = createPeer(memberId, currentUserId, localStream);
-          const peerData = { userId: memberId, peer };
-          setPeers(prev => [...prev, peerData]);
-          peersRef.current.push(peerData);
-        }
+      const newPeers: PeerData[] = otherUsers.map(userId => {
+        const peer = createPeer(userId, true, localStream);
+        return { id: userId, peer };
+      });
+      setPeers(newPeers);
+      peersRef.current = newPeers;
+    });
+
+    // Quand un nouvel utilisateur rejoint
+    channel.bind('pusher:member_added', (member: any) => {
+      if (member.id === currentUserId) return;
+      setOnlineUserIds(prev => [...prev, member.id]);
+      const peer = addPeer(null, member.id, localStream);
+      setPeers(prev => [...prev.filter(p => p.id !== member.id), { id: member.id, peer }]);
+      peersRef.current = [...peersRef.current.filter(p => p.id !== member.id), { id: member.id, peer }];
+    });
+
+    // Signal WebRTC initial
+    channel.bind('signal', (data: SignalData & { target: string }) => {
+      if (data.target !== currentUserId) return;
+      const peer = addPeer(data.signal, data.userId, localStream);
+      setPeers(prev => [...prev.filter(p => p.id !== data.userId), { id: data.userId, peer }]);
+      peersRef.current = [...peersRef.current.filter(p => p.id !== data.userId), { id: data.userId, peer }];
+    });
+
+    // Signal WebRTC de retour
+    channel.bind('signal-return', (data: SignalData & { target: string }) => {
+        if (data.target !== currentUserId) return;
+        const item = peersRef.current.find(p => p.id === data.userId);
+        item?.peer.signal(data.signal);
+    });
+
+    // Quand un utilisateur quitte
+    channel.bind('pusher:member_removed', (member: any) => {
+      setOnlineUserIds(prev => prev.filter(id => id !== member.id));
+      const peerToRemove = peersRef.current.find(p => p.id === member.id);
+      peerToRemove?.peer.destroy();
+      setPeers(prev => prev.filter(p => p.id !== member.id));
+      peersRef.current = peersRef.current.filter(p => p.id !== member.id);
+    });
+
+    // Fin de session
+    channel.bind('session-ended', () => {
+      toast({ title: 'Session terminée', description: 'Le professeur a mis fin à la session.' });
+      router.push(currentUserRole === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard');
+    });
+
+    // Mise en vedette
+    channel.bind('participant-spotlighted', (data: { participantId: string }) => {
+      setSpotlightedParticipantId(data.participantId);
+    });
+
+    // Main levée
+    channel.bind('hand-raise-update', (data: { userId: string; isRaised: boolean }) => {
+      setRaisedHands(prev => {
+        const newSet = new Set(prev);
+        data.isRaised ? newSet.add(data.userId) : newSet.delete(data.userId);
+        return newSet;
       });
     });
 
-    channel.bind('pusher:member_added', (member: { id: string, info: any }) => {
-        console.log(`➕ [SESSION] - Participant ajouté: ${member.id}`);
-        setSessionParticipants(prev => [...prev, { id: member.id, name: member.info.name, role: member.info.role }]);
-        
-        const peer = addPeer(member.id, currentUserId, localStream);
-        const peerData = { userId: member.id, peer };
-        setPeers(prev => [...prev, peerData]);
-        peersRef.current.push(peerData);
-        
-        toast({ title: 'Nouveau participant', description: `${member.info.name} a rejoint la session.` });
-    });
-
-    channel.bind('pusher:member_removed', (member: { id: string }) => {
-      console.log(`➖ [SESSION] - Participant retiré: ${member.id}`);
-      setSessionParticipants(prev => prev.filter(p => p.id !== member.id));
-      
-      const peerData = peersRef.current.find(p => p.userId === member.id);
-      if (peerData) peerData.peer.destroy();
-      
-      const newPeers = peersRef.current.filter(p => p.userId !== member.id);
-      peersRef.current = newPeers;
-      setPeers(newPeers);
-      
-      toast({ title: 'Participant parti', description: 'Un utilisateur a quitté la session.' });
-    });
-
-    channel.bind('signal', ({ userId, signal }: { userId: string, signal: SignalData }) => {
-      const peerData = peersRef.current.find(p => p.userId === userId);
-      peerData?.peer.signal(signal);
-    });
-
-    channel.bind('client-hand-raised', (data: { userId: string, raised: boolean }) => {
-      setRaisedHands(prev => data.raised ? [...prev, data.userId] : prev.filter(id => id !== data.userId));
-    });
-
-    channel.bind('client-comprehension-update', (data: { userId: string, level: 'compris' | 'confus' | 'perdu' }) => {
-      setComprehensionLevels(prev => ({ ...prev, [data.userId]: data.level }));
-    });
-    
-     channel.bind('session-ended', () => {
-        toast({ title: "Session terminée", description: "Le professeur a mis fin à la session." });
-        handleEndSession();
+    // Statut de compréhension
+    channel.bind('understanding-update', (data: { userId: string; status: UnderstandingStatus }) => {
+      setUnderstandingStatus(prev => new Map(prev).set(data.userId, data.status));
     });
 
     return () => {
-      console.log('🧹 [SESSION] - Nettoyage de la session');
-      localStream.getTracks().forEach(track => track.stop());
-      peersRef.current.forEach(p => p.peer.destroy());
+      channel.unbind_all();
       pusherClient.unsubscribe(channelName);
     };
-  }, [localStream, sessionId, currentUserId, toast, channelName, handleEndSession]);
 
-  const createPeer = (userToSignal: string, callerId: string, stream: MediaStream): PeerInstance => {
-    const peer = new SimplePeer({ initiator: true, trickle: false, stream });
-    peer.on('signal', signal => {
-      fetch('/api/pusher/signal', {
+  }, [sessionId, localStream, currentUserId, router, toast]);
+
+  const onSpotlightParticipant = useCallback(async (participantId: string) => {
+    if (currentUserRole !== 'PROFESSEUR') return;
+    try {
+      await fetch(`/api/session/${sessionId}/spotlight`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ socket_id: userToSignal, signal, userId: callerId, channelName }),
+        body: JSON.stringify({ participantId }),
       });
-    });
-    return peer;
-  };
-
-  const addPeer = (incomingSignalId: string, callerId: string, stream: MediaStream): PeerInstance => {
-    const peer = new SimplePeer({ initiator: false, trickle: false, stream });
-    peer.on('signal', signal => {
-      fetch('/api/pusher/signal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ socket_id: incomingSignalId, signal, userId: callerId, channelName }),
-      });
-    });
-    return peer;
-  };
-
-  const handleRaiseHand = () => {
-    const newRaisedState = !isHandRaised;
-    setIsHandRaised(newRaisedState);
-    pusherChannelRef.current?.trigger('client-hand-raised', { userId: currentUserId, raised: newRaisedState });
-  };
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de mettre le participant en vedette.' });
+    }
+  }, [sessionId, currentUserRole, toast]);
   
-  const handleLowerHand = (userId: string) => {
-    pusherChannelRef.current?.trigger('client-hand-raised', { userId: userId, raised: false });
-  };
+  const handleEndSession = useCallback(async () => {
+    if (currentUserRole !== 'PROFESSEUR') return;
+    setIsEndingSession(true);
+    try {
+      await endCoursSession(sessionId);
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de terminer la session.' });
+    } finally {
+      setIsEndingSession(false);
+    }
+  }, [currentUserRole, sessionId, toast]);
 
-  const handleComprehensionUpdate = (level: 'compris' | 'confus' | 'perdu') => {
-    setComprehension(level);
-    pusherChannelRef.current?.trigger('client-comprehension-update', { userId: currentUserId, level: level });
-  };
+  const handleLeaveSession = useCallback(() => {
+    console.log('🚪 [CLIENT] - Départ de la session demandé');
+    localStream?.getTracks().forEach(track => track.stop());
+    peersRef.current.forEach(({ peer }) => peer.destroy());
+    router.push(currentUserRole === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard');
+  }, [localStream, router, currentUserRole]);
 
-  const handleToggleScreenShare = async () => {
-      // ... (screen sharing logic - keep as is)
-  };
-  
-  const handleSpotlight = (participantId: string) => {
-    serverSpotlightParticipant(sessionId, participantId);
-  }
+  // Logique pour déterminer le flux à afficher en vedette
+  const spotlightedPeer = peers.find(p => p.id === spotlightedParticipantId);
+  const spotlightedStream = spotlightedParticipantId === currentUserId 
+    ? localStream 
+    : spotlightedPeer?.peer.streams[0] || null;
 
-  // Timer logic
-   const formatTime = (timeInSeconds: number) => {
-        const minutes = Math.floor(timeInSeconds / 60).toString().padStart(2, '0');
-        const seconds = (timeInSeconds % 60).toString().padStart(2, '0');
-        return `${minutes}:${seconds}`;
-    };
-
-    const handleStartTimer = () => {
-        if (!isTimerRunning) {
-            setIsTimerRunning(true);
-            timerIntervalRef.current = setInterval(() => {
-                setTimer(prev => prev + 1);
-            }, 1000);
-            broadcastTimerEvent(sessionId, 'timer-started');
-        }
-    };
-    
-    const handlePauseTimer = () => {
-        if (isTimerRunning && timerIntervalRef.current) {
-            setIsTimerRunning(false);
-            clearInterval(timerIntervalRef.current);
-            broadcastTimerEvent(sessionId, 'timer-paused');
-        }
-    };
-
-    const handleResetTimer = () => {
-        setIsTimerRunning(false);
-        if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-        setTimer(0);
-        broadcastTimerEvent(sessionId, 'timer-reset');
-    };
-
-
-  if (!localStream) {
+  if (loading) {
     return <SessionLoading />;
   }
 
-  const allSessionUsers = [initialTeacher, ...initialStudents];
-  const mainVideoPeer = peers.find(p => p.userId === spotlightParticipantId);
-
   return (
-    <div className="flex h-screen bg-background text-foreground">
-      {/* Main content */}
-      <main className="flex-1 flex flex-col">
-        {/* Main video area */}
-        <div className="flex-1 bg-muted/40 relative flex items-center justify-center">
-            {mainVideoPeer ? (
-                <VideoPlayer peer={mainVideoPeer.peer} userId={mainVideoPeer.userId} allUsers={allSessionUsers} isSpotlighted={true} />
-            ) : (
-                 <p>Le professeur partagera bientôt son écran ou mettra quelqu'un en vedette.</p>
-            )}
-        </div>
-        
-        {/* Video strip */}
-        <div className="h-40 bg-background border-t p-2">
-            <div className="flex gap-2 h-full">
-                {/* Local Video */}
-                <div className="h-full aspect-video rounded-lg overflow-hidden relative">
-                    <video ref={userVideoRef} autoPlay muted className="w-full h-full object-cover" />
-                    <Badge variant="secondary" className="absolute bottom-1 left-1 text-xs">Vous</Badge>
-                </div>
-                {/* Peer Videos */}
-                {peers.map(peerData => (
-                    <div key={peerData.userId} className="h-full aspect-video rounded-lg overflow-hidden relative">
-                        <VideoPlayer peer={peerData.peer} userId={peerData.userId} allUsers={allSessionUsers} />
-                    </div>
-                ))}
-            </div>
-        </div>
+    <div className="flex flex-col h-screen bg-background">
+      <SessionHeader 
+        sessionId={sessionId} 
+        isTeacher={currentUserRole === 'PROFESSEUR'}
+        onEndSession={handleEndSession}
+        onLeaveSession={handleLeaveSession}
+        isEndingSession={isEndingSession}
+        isSharingScreen={!!screenStream}
+        onToggleScreenShare={toggleScreenShare}
+        initialDuration={3600}
+      />
+      <main className="flex-1 flex flex-col container mx-auto px-4 sm:px-6 lg:px-8 min-h-0">
+        <PermissionPrompt />
+        {currentUserRole === 'PROFESSEUR' ? (
+          <TeacherSessionView
+            sessionId={sessionId}
+            localStream={localStream}
+            screenStream={screenStream}
+            remoteParticipants={peers.map(p => ({ id: p.id, stream: p.peer.streams[0] }))}
+            spotlightedUser={allSessionUsers.find(u => u.id === spotlightedParticipantId)}
+            allSessionUsers={allSessionUsers}
+            onlineUserIds={onlineUserIds}
+            onSpotlightParticipant={onSpotlightParticipant}
+            raisedHands={raisedHands}
+            understandingStatus={understandingStatus}
+          />
+        ) : (
+          <StudentSessionView
+            sessionId={sessionId}
+            localStream={localStream}
+            spotlightedStream={spotlightedStream}
+            spotlightedUser={allSessionUsers.find(u => u.id === spotlightedParticipantId)}
+            isHandRaised={raisedHands.has(currentUserId)}
+            onToggleHandRaise={() => { /* Implémenter la logique d'émission */ }}
+            onUnderstandingChange={(status) => { /* Implémenter la logique d'émission */ }}
+            currentUnderstanding={understandingStatus.get(currentUserId) || 'none'}
+          />
+        )}
       </main>
-
-      {/* Sidebar */}
-      <aside className="w-80 border-l flex flex-col">
-        <div className="p-4 border-b">
-            <h2 className="font-semibold text-lg">Session en cours</h2>
-            <p className="text-sm text-muted-foreground">{sessionId.slice(0, 15)}...</p>
-        </div>
-
-        <Tabs defaultValue="participants" className="flex-1 flex flex-col">
-            <TabsList className="w-full">
-                <TabsTrigger value="participants" className="flex-1">Participants</TabsTrigger>
-                <TabsTrigger value="controls" className="flex-1">Contrôles</TabsTrigger>
-            </TabsList>
-            <TabsContent value="participants" className="flex-1 overflow-y-auto p-4">
-                <ParticipantGrid 
-                    participants={allSessionUsers}
-                    currentUserId={currentUserId}
-                    raisedHands={raisedHands}
-                    comprehension={comprehensionLevels}
-                    onSpotlight={currentUserRole === 'PROFESSEUR' ? handleSpotlight : undefined}
-                />
-            </TabsContent>
-            <TabsContent value="controls" className="flex-1 overflow-y-auto p-4">
-                {currentUserRole === 'PROFESSEUR' ? (
-                    <TeacherSessionControls
-                        onScreenShare={handleToggleScreenShare}
-                        isScreenSharing={isScreenSharing}
-                        raisedHands={raisedHands}
-                        onLowerHand={handleLowerHand}
-                        onEndSession={handleEndSession}
-                        onStartTimer={handleStartTimer}
-                        onPauseTimer={handlePauseTimer}
-                        onResetTimer={handleResetTimer}
-                        timerValue={formatTime(timer)}
-                    />
-                ) : (
-                    <StudentSessionControls
-                        onRaiseHand={handleRaiseHand}
-                        isHandRaised={isHandRaised}
-                        onComprehensionUpdate={handleComprehensionUpdate}
-                        currentComprehension={comprehension}
-                        onLeaveSession={handleEndSession}
-                    />
-                )}
-            </TabsContent>
-        </Tabs>
-      </aside>
     </div>
   );
 }
