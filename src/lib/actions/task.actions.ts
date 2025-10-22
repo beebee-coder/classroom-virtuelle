@@ -44,13 +44,12 @@ export async function completeTask(taskId: string, submissionUrl?: string): Prom
     id: `progress-${Date.now()}`,
     studentId: studentId,
     taskId: taskId,
-    status: 'PENDING_VALIDATION',
+    status: 'PENDING_VALIDATION' as ProgressStatus,
     completionDate: new Date(),
     submissionUrl: submissionUrl || null,
     pointsAwarded: 0,
     accuracy: null,
     recipeName: null,
-    createdAt: new Date(),
     updatedAt: new Date()
   };
 }
