@@ -23,9 +23,10 @@ import { useTheme } from "next-themes";
 import { User } from "next-auth";
 import { ProfileAvatar } from "./ProfileAvatar";
 import { useRouter } from "next/navigation";
+import type { Session } from 'next-auth';
 
 interface UserNavProps {
-    user?: User | null;
+    user?: Session['user'] | null;
 }
 
 export function UserNav({ user }: UserNavProps) {
@@ -59,7 +60,7 @@ export function UserNav({ user }: UserNavProps) {
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative h-8 w-8 rounded-full">
-                     <ProfileAvatar user={user} isInteractive={false} />
+                     <ProfileAvatar user={user as User} isInteractive={false} />
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="end" forceMount>
@@ -78,7 +79,7 @@ export function UserNav({ user }: UserNavProps) {
                             Profil
                         </Link>
                     </DropdownMenuItem>
-                    <ProfileAvatar user={user} isInteractive={true}>
+                    <ProfileAvatar user={user as User} isInteractive={true}>
                          <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                             <Camera className="mr-2" />
                             Changer la photo

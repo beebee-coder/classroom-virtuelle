@@ -16,7 +16,7 @@ import {
 import type { Role, Classroom } from '@prisma/client';
 import { CreateAnnouncementForm } from '@/components/CreateAnnouncementForm';
 import { ResetButton } from '@/components/ResetButton';
-import type { User } from 'next-auth';
+import type { User, Session } from 'next-auth';
 
 // Définition des éléments de menu pour une configuration centralisée
 export const menuItems = [
@@ -25,7 +25,7 @@ export const menuItems = [
         items: [
             { 
                 label: "Tableau de Bord", 
-                href: "/teacher", 
+                href: "/teacher/dashboard", 
                 icon: LayoutDashboard,
                 roles: ['PROFESSEUR'] as Role[],
             },
@@ -75,14 +75,14 @@ export const menuItems = [
         items: [
             {
                 label: "Ma Classe",
-                href: (user: User) => `/student/class/${user.classeId}`,
+                href: (user: Session['user']) => `/student/class/${user.classeId}`,
                 icon: Users,
                 roles: ['ELEVE'] as Role[],
-                condition: (user: User) => !!user.classeId,
+                condition: (user: Session['user']) => !!user.classeId,
             },
             {
                 label: "Mon Profil de Compétences",
-                href: (user: User) => `/student/${user.id}/skills`,
+                href: (user: Session['user']) => `/student/${user.id}/skills`,
                 icon: Target,
                 roles: ['ELEVE'] as Role[],
             },
@@ -93,7 +93,7 @@ export const menuItems = [
         items: [
             {
                 label: "Espace Parental",
-                href: (user: User) => `/student/${user.id}/parent`,
+                href: (user: Session['user']) => `/student/${user.id}/parent`,
                 icon: KeyRound,
                 roles: ['ELEVE'] as Role[],
             },
@@ -104,7 +104,7 @@ export const menuItems = [
         items: [
             { 
                 label: "Profil", 
-                href: (user: User) => user.role === 'PROFESSEUR' ? '/teacher/profile' : `/student/${user.id}`, 
+                href: (user: Session['user']) => user.role === 'PROFESSEUR' ? '/teacher/profile' : `/student/${user.id}`, 
                 icon: UserCircle,
                 roles: ['PROFESSEUR', 'ELEVE'] as Role[],
             },

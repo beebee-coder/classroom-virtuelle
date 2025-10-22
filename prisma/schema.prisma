@@ -1,92 +1,283 @@
 // prisma/schema.prisma
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "debian-openssl-3.0.x"]
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 // --------------------------------------
+// ÉNUMÉRATIONS
+// --------------------------------------
 
-// Rôles des utilisateurs
 enum Role {
   ELEVE
   PROFESSEUR
 }
 
-// Modèle Utilisateur
-model User {
-  id              String      @id @default(cuid())
-  name            String?
-  email           String?     @unique
-  emailVerified   DateTime?
-  image           String?
-  parentPassword  String?
-  role            Role
-  points          Int?        @default(0)
-  ambition        String?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  sessions        Session[]
-  accounts        Account[]
-  classe          Classroom?  @relation(fields: [classroomId], references: [id])
-  classroomId     String?
-  announcements   Announcement[]
-  reactions       Reaction[]
-  etat            EtatEleve?
-  sessionsParticipees CoursSession[] @relation("Participants")
-  leaderboard     Leaderboard?
-  progress        StudentProgress[]
+enum TaskType {
+  DAILY
+  WEEKLY
+  MONTHLY
 }
 
-// Modèle pour l'état et la personnalisation de l'élève
+enum TaskCategory {
+  MATH
+  SCIENCE
+  LANGUAGE
+  ART
+  HOME
+  SPORTS
+}
+
+enum TaskDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum ValidationType {
+  AUTOMATIC
+  PARENT
+  PROFESSOR
+}
+
+enum ProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  PENDING_VALIDATION
+  VERIFIED
+  REJECTED
+}
+
+// --------------------------------------
+// MODÈLES PRINCIPAUX
+// --------------------------------------
+
+model User {
+  id                      String        @id @default(cuid())
+  name                    String?
+  email                   String?       @unique
+  emailVerified           DateTime?
+  image                   String?
+  parentPassword          String?
+  role                    Role
+  ambition                String?
+  points                  Int?          @default(0)
+  // Relations
+  classe                  Classroom?    @relation("EleveDe", fields: [classroomId], references: [id])
+  classroomId             String?
+  classesEnseignees       Classroom[]   @relation("ProfesseurDe")
+  etat                    EtatEleve?
+  messagesEnvoyes         Message[]     @relation("SenderMessages")
+  messagesDirectsEnvoyes  Message[]     @relation("DirectSenderMessages")
+  conversationsInitiated  Conversation[] @relation("Initiator")
+  conversationsReceived   Conversation[] @relation("Receiver")
+  reactions               Reaction[]
+  annonces                Announcement[]
+  sessionsCrees           CoursSession[] @relation("SessionProfesseur")
+  sessionsParticipees     Participant[]
+  progress                StudentProgress[]
+
+  @@index([classroomId])
+}
+
+model Classroom {
+  id           String  @id @default(cuid())
+  nom          String
+  // Relations
+  professeur   User    @relation("ProfesseurDe", fields: [professeurId], references: [id])
+  professeurId String
+  eleves       User[]  @relation("EleveDe")
+  annonces     Annonce[]
+  messages     Message[]
+  coursSession CoursSession[]
+
+  @@index([professeurId])
+}
+
 model EtatEleve {
   id         String  @id @default(cuid())
+  isPunished Boolean @default(false)
+  // Relations
   eleve      User    @relation(fields: [eleveId], references: [id])
   eleveId    String  @unique
   metier     Metier? @relation(fields: [metierId], references: [id])
   metierId   String?
-  isPunished Boolean @default(false)
+
+  @@index([metierId])
 }
 
-// Modèle pour les métiers/thèmes
 model Metier {
   id          String      @id @default(cuid())
   nom         String      @unique
   description String
   icon        String
-  theme       Json // { backgroundColor, textColor, primary, accent, cursor }
+  theme       Json // ex: { primary: '#RRGGBB', accent: '#RRGGBB', etc. }
+  // Relations
   eleves      EtatEleve[]
 }
 
-// Modèle Classe
-model Classroom {
-  id           String         @id @default(cuid())
-  nom          String
-  professeur   User           @relation(fields: [professeurId], references: [id])
-  professeurId String
-  eleves       User[]
-  annonces     Announcement[]
-  sessions     CoursSession[]
+model Task {
+  id             String         @id @default(cuid())
+  title          String
+  description    String
+  points         Int
+  type           TaskType
+  category       TaskCategory
+  difficulty     TaskDifficulty
+  validationType ValidationType
+  requiresProof  Boolean        @default(false)
+  attachmentUrl  String?
+  isActive       Boolean        @default(true)
+  startTime      DateTime?
+  duration       Int? // en minutes
+  // Relations
+  progress       StudentProgress[]
 }
 
-// Modèle Annonce
+model StudentProgress {
+  id             String         @id @default(cuid())
+  status         ProgressStatus @default(NOT_STARTED)
+  completionDate DateTime?
+  submissionUrl  String?
+  pointsAwarded  Int?
+  accuracy       Float?
+  recipeName     String?
+  // Relations
+  student        User           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentId      String
+  task           Task           @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId         String
+
+  @@unique([studentId, taskId])
+  @@index([studentId])
+  @@index([taskId])
+}
+
+model Leaderboard {
+  id             String   @id @default(cuid())
+  studentId      String   @unique
+  rank           Int
+  totalPoints    Int
+  dailyPoints    Int
+  weeklyPoints   Int
+  monthlyPoints  Int
+  completedTasks Int
+  currentStreak  Int
+  bestStreak     Int
+  updatedAt      DateTime @updatedAt
+}
+
+// Pour les annonces publiques ou de classe
 model Announcement {
-  id            String     @id @default(cuid())
+  id            String    @id @default(cuid())
   title         String
   content       String
   attachmentUrl String?
-  author        User       @relation(fields: [authorId], references: [id])
+  createdAt     DateTime  @default(now())
+  // Relations
+  author        User      @relation(fields: [authorId], references: [id])
   authorId      String
   classe        Classroom? @relation(fields: [classeId], references: [id])
   classeId      String?
-  createdAt     DateTime   @default(now())
+
+  @@index([authorId])
+  @@index([classeId])
 }
 
-// Modèles pour NextAuth
+// Session de cours en direct
+model CoursSession {
+  id                      String        @id @default(cuid())
+  createdAt               DateTime      @default(now())
+  startedAt               DateTime?
+  endedAt                 DateTime?
+  // Relations
+  professeur              User          @relation("SessionProfesseur", fields: [professeurId], references: [id])
+  professeurId            String
+  classe                  Classroom     @relation(fields: [classeId], references: [id])
+  classeId                String
+  participants            Participant[]
+  spotlightedParticipantId String?
+
+  @@index([professeurId])
+  @@index([classeId])
+}
+
+model Participant {
+  id           String       @id @default(cuid())
+  joinedAt     DateTime     @default(now())
+  leftAt       DateTime?
+  isOnline     Boolean      @default(true)
+  // Relations
+  user         User         @relation(fields: [userId], references: [id])
+  userId       String
+  session      CoursSession @relation(fields: [sessionId], references: [id])
+  sessionId    String
+
+  @@unique([userId, sessionId])
+}
+
+// Modèles pour le Chat
+model Message {
+  id           String    @id @default(cuid())
+  message      String
+  createdAt    DateTime  @default(now())
+  isQuestion   Boolean?
+  // Expéditeur
+  sender       User      @relation("SenderMessages", fields: [senderId], references: [id])
+  senderId     String
+  // Destinataire (pour DM)
+  directMessageSender User? @relation("DirectSenderMessages", fields: [directMessageSenderId], references: [id])
+  directMessageSenderId String?
+  // Relations
+  classe       Classroom? @relation(fields: [classroomId], references: [id])
+  classroomId  String?
+  conversation Conversation? @relation(fields: [conversationId], references: [id])
+  conversationId String?
+  reactions    Reaction[]
+
+  @@index([senderId])
+  @@index([classroomId])
+  @@index([conversationId])
+}
+
+model Conversation {
+  id          String    @id @default(cuid())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  // Relations
+  initiator   User      @relation("Initiator", fields: [initiatorId], references: [id])
+  initiatorId String
+  receiver    User      @relation("Receiver", fields: [receiverId], references: [id])
+  receiverId  String
+  messages    Message[]
+
+  @@unique([initiatorId, receiverId])
+  @@index([receiverId])
+}
+
+
+model Reaction {
+  id        String   @id @default(cuid())
+  emoji     String
+  // Relations
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  message   Message  @relation(fields: [messageId], references: [id])
+  messageId String
+
+  @@unique([userId, messageId, emoji])
+  @@index([messageId])
+}
+
+// --------------------------------------
+// MODÈLES D'AUTHENTIFICATION (NextAuth.js)
+// --------------------------------------
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -100,9 +291,11 @@ model Account {
   scope             String?
   id_token          String? @db.Text
   session_state     String?
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@index([userId])
 }
 
 model Session {
@@ -111,6 +304,8 @@ model Session {
   userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model VerificationToken {
@@ -119,158 +314,4 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
-}
-
-// Types pour les tâches
-enum TaskType {
-  DAILY
-  WEEKLY
-  MONTHLY
-}
-
-enum TaskCategory {
-  MATH
-  SCIENCE
-  LANGUAGE
-  ART
-  SPORT
-  HOME
-  SOCIAL
-  OTHER
-}
-
-enum TaskDifficulty {
-  EASY
-  MEDIUM
-  HARD
-}
-
-enum ValidationType {
-  AUTO
-  PARENT
-  PROFESSOR
-}
-
-// Modèle Tâche
-model Task {
-  id             String         @id @default(cuid())
-  title          String
-  description    String
-  points         Int
-  type           TaskType
-  category       TaskCategory
-  difficulty     TaskDifficulty
-  validationType ValidationType
-  requiresProof  Boolean        @default(false)
-  attachmentUrl  String?
-  isActive       Boolean        @default(true)
-  startTime      DateTime? // Pour les tâches planifiées
-  duration       Int? // En minutes
-  progress       StudentProgress[]
-}
-
-enum ProgressStatus {
-  PENDING
-  IN_PROGRESS
-  PENDING_VALIDATION
-  VERIFIED
-  REJECTED
-}
-
-// Modèle de progression de l'élève sur une tâche
-model StudentProgress {
-  id              String         @id @default(cuid())
-  student         User           @relation(fields: [studentId], references: [id])
-  studentId       String
-  task            Task           @relation(fields: [taskId], references: [id])
-  taskId          String
-  status          ProgressStatus @default(PENDING)
-  completionDate  DateTime?
-  submissionUrl   String?
-  pointsAwarded   Int?
-  accuracy        Float? // Pour les quiz, etc.
-  recipeName      String?
-  taste           Int?
-  presentation    Int?
-  autonomy        Int?
-  parentComment   String?
-
-  @@unique([studentId, taskId, completionDate])
-}
-
-// Modèle de Session de cours en direct
-model CoursSession {
-  id                String       @id @default(cuid())
-  professeur        User         @relation("Professeur", fields: [professeurId], references: [id])
-  professeurId      String
-  participants      User[]       @relation("Participants")
-  classe            Classroom    @relation(fields: [classroomId], references: [id])
-  classroomId       String
-  startTime         DateTime     @default(now())
-  endedAt           DateTime?
-  comprehensionData Json? // {"studentId": "compris" | "confus" | "perdu"}
-  timerState        Json? // { running, time, startedAt }
-}
-
-// Modèle de classement
-model Leaderboard {
-  id             String   @id @default(cuid())
-  student        User     @relation(fields: [studentId], references: [id])
-  studentId      String   @unique
-  rank           Int
-  dailyPoints    Int      @default(0)
-  weeklyPoints   Int      @default(0)
-  monthlyPoints  Int      @default(0)
-  totalPoints    Int      @default(0)
-  completedTasks Int      @default(0)
-  currentStreak  Int      @default(0)
-  bestStreak     Int      @default(0)
-  lastActivity   DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-}
-
-// --------------------------------------
-// MODÈLES POUR LE CHAT ET LES CONVERSATIONS
-// --------------------------------------
-model Message {
-  id                   String        @id @default(cuid())
-  message              String        @db.Text
-  senderId             String
-  senderName           String
-  classroomId          String? // Si c'est un message de classe
-  createdAt            DateTime      @default(now())
-  reactions            Reaction[]
-  isQuestion           Boolean? // Pourrait être utilisé pour filtrer les questions
-  // Pour les messages directs
-  conversation         Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  conversationId       String?
-  directMessageSender  User?         @relation(fields: [directMessageSenderId], references: [id], onDelete: Cascade)
-  directMessageSenderId String?
-
-  @@index([classroomId])
-  @@index([conversationId])
-}
-
-model Reaction {
-  id        String  @id @default(cuid())
-  emoji     String
-  user      User    @relation(fields: [userId], references: [id])
-  userId    String
-  message   Message @relation(fields: [messageId], references: [id])
-  messageId String
-
-  @@unique([userId, messageId, emoji])
-}
-
-model Conversation {
-  id          String    @id @default(cuid())
-  initiator   User      @relation("ConversationInitiator", fields: [initiatorId], references: [id])
-  initiatorId String
-  receiver    User      @relation("ConversationReceiver", fields: [receiverId], references: [id])
-  receiverId  String
-  messages    Message[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@unique([initiatorId, receiverId])
 }

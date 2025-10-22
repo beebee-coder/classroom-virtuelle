@@ -7,9 +7,10 @@ import { UserNav } from './UserNav';
 import { Button } from './ui/button';
 import { User } from 'next-auth';
 import { ThemeToggle } from './ThemeToggle';
+import type { Session } from 'next-auth';
 
 interface HeaderProps {
-  user?: User | null;
+  user?: Session['user'] | null;
   children?: React.ReactNode;
 }
 

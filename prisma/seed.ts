@@ -1,5 +1,8 @@
 
 import { PrismaClient, Role, TaskType, TaskCategory, TaskDifficulty, ValidationType } from '@prisma/client';
+import * as dotenv from 'dotenv';
+
+dotenv.config({ path: '.env.local' });
 
 const prisma = new PrismaClient();
 

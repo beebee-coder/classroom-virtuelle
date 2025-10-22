@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getPublicAnnouncements } from '@/lib/actions/announcement.actions';
 import { format } from 'date-fns';
-import { AnnouncementWithAuthor } from '@/lib/types';
+import { AnnouncementWithAuthor, Role } from '@/lib/types';
 import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { StudentCarousel } from '@/components/StudentCarousel'; // Importer le nouveau composant
 
@@ -22,7 +22,7 @@ export default async function HomePage() {
     console.log('👤 [PAGE] - Session utilisateur trouvée, redirection...');
     if (session.user.role === Role.PROFESSEUR) {
       redirect('/teacher/dashboard');
-    } else if (session.user.role === 'ELEVE') {
+    } else if (session.user.role === Role.ELEVE) {
       redirect('/student/dashboard');
     }
   }
