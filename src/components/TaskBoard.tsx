@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Check, CheckCircle, Clock, FileUp, Loader2, KeyRound } from 'lucide-react';
-import { ProgressStatus, Task, TaskType } from '@prisma/client';
+import { ProgressStatus, Task, TaskType } from '@/lib/types';
 import { completeTask } from '@/lib/actions/task.actions';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';

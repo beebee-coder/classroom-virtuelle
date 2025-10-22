@@ -13,9 +13,9 @@ import { Metier, CoursSession, StudentProgress } from '@prisma/client';
 
 // DUMMY DATA
 const dummyCareers: Metier[] = [
-    { id: 'pompier', nom: 'Pompier', description: 'Sauve des vies et combat le feu.', icon: 'Flame', theme: { backgroundColor: 'from-red-500 to-orange-500', textColor: 'text-white', primaryColor: '22 84% 44%', accentColor: '45 93% 47%', cursor: 'cursor-crosshair' } },
-    { id: 'astronaute', nom: 'Astronaute', description: 'Explore l\'espace et les étoiles.', icon: 'Rocket', theme: { backgroundColor: 'from-blue-800 to-indigo-900', textColor: 'text-white', primaryColor: '217 91% 60%', accentColor: '262 84% 60%', cursor: 'cursor-pointer' } },
-    { id: 'devjeux', nom: 'DevJeux', description: 'Crée des mondes virtuels.', icon: 'Gamepad2', theme: { backgroundColor: 'from-purple-600 to-blue-600', textColor: 'text-white', primaryColor: '250 84% 60%', accentColor: '280 84% 60%', cursor: 'cursor-grab' } },
+    { id: 'pompier', nom: 'Pompier', description: 'Sauve des vies et combat le feu.', icon: 'Flame', theme: { backgroundColor: 'from-red-500 to-orange-500', textColor: 'text-white', primaryColor: '22 84% 44%', accentColor: '45 93% 47%', cursor: 'cursor-crosshair' } as any },
+    { id: 'astronaute', nom: 'Astronaute', description: 'Explore l\'espace et les étoiles.', icon: 'Rocket', theme: { backgroundColor: 'from-blue-800 to-indigo-900', textColor: 'text-white', primaryColor: '217 91% 60%', accentColor: '262 84% 60%', cursor: 'cursor-pointer' } as any },
+    { id: 'devjeux', nom: 'DevJeux', description: 'Crée des mondes virtuels.', icon: 'Gamepad2', theme: { backgroundColor: 'from-purple-600 to-blue-600', textColor: 'text-white', primaryColor: '250 84% 60%', accentColor: '280 84% 60%', cursor: 'cursor-grab' } as any },
 ];
 
 const dummyTasks: AppTask[] = [
@@ -32,31 +32,31 @@ const dummyProgress: StudentProgress[] = [
 
 const dummyStudentData: { [id: string]: StudentWithStateAndCareer } = {
   'student1': {
-    id: 'student1', name: 'Alice', email: 'student1@example.com', points: 1250, ambition: 'Devenir Astronaute', classroomId: 'classe-a', image: null, emailVerified: null, parentPassword: 'password',
+    id: 'student1', name: 'Alice', email: 'student1@example.com', points: 1250, ambition: 'Devenir Astronaute', classroomId: 'classe-a', image: null, emailVerified: null, parentPassword: 'password', role: 'ELEVE',
     etat: { id: 'etat1', eleveId: 'student1', isPunished: false, metierId: 'astronaute', metier: dummyCareers[1] },
     classe: { id: 'classe-a', nom: 'Classe 6ème A', professeurId: 'teacher-id' },
     progress: dummyProgress,
     sessionsParticipees: []
   },
    'teacher@example.com': {
-    id: 'teacher-id', name: 'Professeur Test', email: 'teacher@example.com'
-  },
+    id: 'teacher-id', name: 'Professeur Test', email: 'teacher@example.com', role: 'PROFESSEUR', image: null,
+  } as any,
    'student@example.com': {
-    id: 'student1', name: 'Alice', email: 'student1@example.com', points: 1250, ambition: 'Devenir Astronaute', classroomId: 'classe-a', image: null, emailVerified: null, parentPassword: 'password',
+    id: 'student1', name: 'Alice', email: 'student1@example.com', points: 1250, ambition: 'Devenir Astronaute', classroomId: 'classe-a', image: null, emailVerified: null, parentPassword: 'password', role: 'ELEVE',
     etat: { id: 'etat1', eleveId: 'student1', isPunished: false, metierId: 'astronaute', metier: dummyCareers[1] },
     classe: { id: 'classe-a', nom: 'Classe 6ème A', professeurId: 'teacher-id' },
     progress: dummyProgress,
     sessionsParticipees: []
   },
   'student1@example.com': {
-    id: 'student1', name: 'Alice', email: 'student1@example.com', points: 1250, ambition: 'Devenir Astronaute', classroomId: 'classe-a', image: null, emailVerified: null, parentPassword: 'password',
+    id: 'student1', name: 'Alice', email: 'student1@example.com', points: 1250, ambition: 'Devenir Astronaute', classroomId: 'classe-a', image: null, emailVerified: null, parentPassword: 'password', role: 'ELEVE',
     etat: { id: 'etat1', eleveId: 'student1', isPunished: false, metierId: 'astronaute', metier: dummyCareers[1] },
     classe: { id: 'classe-a', nom: 'Classe 6ème A', professeurId: 'teacher-id' },
     progress: dummyProgress,
     sessionsParticipees: []
   },
   'student2': {
-    id: 'student2', name: 'Bob', email: 'student2@example.com', points: 980, ambition: 'Explorer les fonds marins', classroomId: 'classe-a', image: null, emailVerified: null, parentPassword: null,
+    id: 'student2', name: 'Bob', email: 'student2@example.com', points: 980, ambition: 'Explorer les fonds marins', classroomId: 'classe-a', image: null, emailVerified: null, parentPassword: null, role: 'ELEVE',
     etat: { id: 'etat2', eleveId: 'student2', isPunished: false, metierId: null, metier: null },
     classe: { id: 'classe-a', nom: 'Classe 6ème A', professeurId: 'teacher-id' },
     progress: [],

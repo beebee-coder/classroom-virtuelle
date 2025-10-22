@@ -1,11 +1,8 @@
 
 import type { Prisma, Reaction as PrismaReaction, Message as PrismaMessage, StudentProgress, Announcement as PrismaAnnouncement, Classroom, User, Metier, CoursSession, Leaderboard, Task } from '@prisma/client';
-import { TaskType, TaskCategory, TaskDifficulty, Role, ProgressStatus, ValidationType } from '@prisma/client';
 
-
-export type { Reaction, Message as PrismaMessage, StudentProgress, Announcement as PrismaAnnouncement, Classroom, User, Metier, CoursSession, Task } from '@prisma/client';
-export { TaskType, TaskCategory, TaskDifficulty, Role, ProgressStatus, ValidationType };
-
+// Re-export all enums and types from Prisma
+export * from '@prisma/client';
 
 export type ClassroomWithUsers = Prisma.ClassroomGetPayload<{
     include: { eleves: true, professeur: true }
@@ -104,12 +101,6 @@ export type CoursSessionWithRelations = CoursSession & {
     spotlightedParticipantId?: string | null;
 };
 
-
-
-// Competition System Types
-export type { Leaderboard } from '@prisma/client';
-
-
 // Validation Types
 export type TaskForProfessorValidation = StudentProgress & {
   task: Task;
@@ -118,8 +109,3 @@ export type TaskForProfessorValidation = StudentProgress & {
     name: string | null;
   };
 };
-
-
-
-
-
