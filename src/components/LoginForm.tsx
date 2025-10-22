@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -12,7 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { AlertCircle, Loader2 } from 'lucide-react';
 
 const GoogleIcon = () => (
-    <svg className="h-5 w-5" viewBox="0 0 24 24">
+    <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24">
         <path
             d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
             fill="#4285F4"
@@ -34,20 +34,15 @@ const GoogleIcon = () => (
 
 
 export function LoginForm() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const errorParam = searchParams.get('error');
-  const role = searchParams.get('role');
-  const initialEmail = role === 'student' ? 'student1@example.com' : role === 'teacher' ? 'teacher@example.com' : '';
-  const emailPlaceholder = role === 'student' ? 'student@example.com' : 'teacher@example.com';
-
-  const [email, setEmail] = useState(initialEmail);
-  const [password, setPassword] = useState('password'); // Demo password
+  
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    setEmail(initialEmail)
-  }, [initialEmail]);
+  const [selectedRole, setSelectedRole] = useState<'teacher' | 'student' | null>(null);
 
   useEffect(() => {
     if (errorParam === 'CredentialsSignin') {
@@ -57,99 +52,101 @@ export function LoginForm() {
     }
   }, [errorParam]);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
+  const handleDummyLogin = (role: 'teacher' | 'student') => {
     setLoading(true);
-
-    try {
-      await signIn('credentials', {
-        redirect: true,
-        email,
-        password,
-        callbackUrl: searchParams.get('callbackUrl') || '/',
-      });
-      // If signIn is successful, the page will redirect and this part of the
-      // code will not be reached. If it fails, NextAuth redirects back to
-      // this page with an `error` URL parameter, which is handled by the useEffect.
-    } catch (err) {
-      // This will catch network errors or other unexpected issues.
-      setError("Une erreur inattendue est survenue. Veuillez réessayer.");
-    } finally {
-      setLoading(false);
+    // Simulate login and redirect
+    if (role === 'teacher') {
+      router.push('/teacher');
+    } else {
+      router.push('/student/student1'); // Redirect to a dummy student ID
     }
   };
+
+  const handleRoleSelection = (role: 'teacher' | 'student') => {
+    setSelectedRole(role);
+    setEmail(role === 'teacher' ? 'teacher@example.com' : 'student1@example.com');
+    setPassword('password');
+  }
+
+  if (selectedRole) {
+     return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Connexion (Test)</CardTitle>
+          <CardDescription>Connexion en tant que {selectedRole === 'teacher' ? 'Professeur' : 'Élève'}.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={(e) => { e.preventDefault(); handleDummyLogin(selectedRole); }} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                readOnly
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Mot de passe</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                readOnly
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Se connecter
+            </Button>
+            <Button variant="link" onClick={() => setSelectedRole(null)}>Retour</Button>
+          </form>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Connexion</CardTitle>
-        <CardDescription>Entrez vos identifiants ou utilisez Google pour accéder à votre tableau de bord.</CardDescription>
+        <CardTitle>Accès à la démo</CardTitle>
+        <CardDescription>Choisissez un rôle pour accéder à l'application avec des données de test.</CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-             <Button 
-                variant="outline" 
-                className="w-full"
-                onClick={() => signIn('google', { callbackUrl: '/' })}
-                disabled={loading}
-              >
-               <GoogleIcon /> Se connecter avec Google
-            </Button>
-
-            <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">
-                    OU
-                    </span>
-                </div>
+      <CardContent className="space-y-4">
+        <Button 
+          variant="outline" 
+          className="w-full"
+          onClick={() => handleRoleSelection('teacher')}
+          disabled={loading}
+        >
+          Accéder comme Professeur
+        </Button>
+        <Button 
+          variant="outline" 
+          className="w-full"
+          onClick={() => handleRoleSelection('student')}
+          disabled={loading}
+        >
+          Accéder comme Élève
+        </Button>
+        <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
             </div>
-
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder={emailPlaceholder}
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  disabled={loading}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Mot de passe</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  disabled={loading}
-                />
-              </div>
-              
-              {error && (
-                 <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Erreur de connexion</AlertTitle>
-                    <AlertDescription>
-                        {error}
-                    </AlertDescription>
-                 </Alert>
-              )}
-
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Se connecter
-              </Button>
-            </form>
+            <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                OU
+                </span>
+            </div>
         </div>
+         <Button 
+            variant="outline" 
+            className="w-full"
+            onClick={() => alert('La connexion Google est désactivée en mode démo.')}
+            disabled={loading}
+          >
+           <GoogleIcon /> Se connecter avec Google
+        </Button>
       </CardContent>
     </Card>
   );
