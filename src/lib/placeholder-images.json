@@ -1,3 +1,46 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero-image",
+      "description": "A bright and modern living room with large windows.",
+      "imageUrl": "https://images.unsplash.com/photo-1583329550487-0fa300a4cd1a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxtb2Rlcm4lMjBpbnRlcmlvcnxlbnwwfHx8fDE3NjEwODY3Nzl8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "modern interior"
+    },
+    {
+      "id": "feature-1",
+      "description": "A designer choosing colors from a palette for a room.",
+      "imageUrl": "https://images.unsplash.com/photo-1608556984704-fa578c96e6eb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxjb2xvciUyMHBhbGV0dGV8ZW58MHx8fHwxNzYxMDY1MzAyfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "color palette"
+    },
+    {
+      "id": "feature-2",
+      "description": "A 3D model of a kitchen layout on a tablet.",
+      "imageUrl": "https://images.unsplash.com/photo-1664153672323-e281ea365a10?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHwzZCUyMG1vZGVsfGVufDB8fHx8MTc2MTA2NTIwMnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "3d model"
+    },
+    {
+      "id": "feature-3",
+      "description": "Two people collaborating over a blueprint.",
+      "imageUrl": "https://images.unsplash.com/photo-1668874184010-87aa286683dd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxjb2xsYWJvcmF0aW9uJTIwdG9vbHN8ZW58MHx8fHwxNzYxMTI4NjgzfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "collaboration tools"
+    },
+    {
+      "id": "avatar-1",
+      "description": "Portrait of a smiling woman.",
+      "imageUrl": "https://images.unsplash.com/photo-1542596768-5d1d21f1cf98?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxwZXJzb24lMjBzbWlsaW5nfGVufDB8fHx8MTc2MTA4MjM0NXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person smiling"
+    },
+    {
+      "id": "avatar-2",
+      "description": "Portrait of a man with glasses, looking like an architect.",
+      "imageUrl": "https://images.unsplash.com/photo-1611106014541-c82a68648bd9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxhcmNoaXRlY3QlMjBwb3J0cmFpdHxlbnwwfHx8fDE3NjEwNjMxMDN8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "architect portrait"
+    },
+    {
+      "id": "avatar-3",
+      "description": "Portrait of a woman with short hair, smiling.",
+      "imageUrl": "https://images.unsplash.com/photo-1750764700420-4dc267342dbe?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxkZXNpZ25lciUyMHByb2ZpbGV8ZW58MHx8fHwxNzYxMTI4Njg0fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "designer profile"
+    }
+  ]
 }
