@@ -1,8 +1,8 @@
-// src/lib/actions/session.actions.ts - Version corrigée
+// src/lib/actions/session.actions.ts - Version corrigée avec les nouvelles fonctions Pusher
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { pusherServer } from '../pusher/server';
+import { pusherTrigger } from '../pusher/server';
 
 export async function createCoursSession(professeurId: string, studentIds: string[]) {
     try {
@@ -19,7 +19,7 @@ export async function createCoursSession(professeurId: string, studentIds: strin
         console.log(`[ACTION] - ID de session généré: ${sessionId}. Déclenchement de Pusher...`);
         
         // Appel sécurisé à Pusher avec gestion d'erreur
-        const pusherResponse = await pusherServer.trigger(
+        const pusherResponse = await pusherTrigger(
             `presence-classe-${classroomId}`, 
             'session-started', 
             {
@@ -91,7 +91,7 @@ export async function spotlightParticipant(sessionId: string, participantId: str
         console.log(`[SPOTLIGHT] Spotlighting participant ${participantId} in session ${sessionId}`);
         const channelName = `presence-session-${sessionId}`;
         
-        const pusherResponse = await pusherServer.trigger(
+        const pusherResponse = await pusherTrigger(
             channelName, 
             'participant-spotlighted', 
             { 
@@ -128,7 +128,7 @@ export async function endCoursSession(sessionId: string) {
         const channelName = `presence-session-${sessionId}`;
         
         // Notifier la fin de session sur le channel de session
-        await pusherServer.trigger(
+        await pusherTrigger(
             channelName, 
             'session-ended', 
             { 
@@ -138,7 +138,7 @@ export async function endCoursSession(sessionId: string) {
         );
 
         // Notifier sur le channel de classe
-        await pusherServer.trigger(
+        await pusherTrigger(
             'presence-classe-classe-a', 
             'session-ended', 
             { 
@@ -173,7 +173,7 @@ export async function broadcastTimerEvent(sessionId: string, event: string, data
         console.log(`[TIMER] Broadcasting timer event ${event} for session ${sessionId}`);
         const channel = `presence-session-${sessionId}`;
         
-        const pusherResponse = await pusherServer.trigger(
+        const pusherResponse = await pusherTrigger(
             channel, 
             event, 
             { 
