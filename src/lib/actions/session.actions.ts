@@ -16,18 +16,22 @@ export async function createCoursSession(professeurId: string, studentIds: strin
         const sessionId = `session-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
         const classroomId = 'classe-a';
 
+        const payload = {
+            sessionId: sessionId,
+            invitedStudentIds: studentIds,
+            professeurId: professeurId,
+            timestamp: new Date().toISOString()
+        };
+
         console.log(`[ACTION] - ID de session généré: ${sessionId}. Déclenchement de Pusher...`);
+        console.log(`[ACTION] - Envoi de l'événement 'session-started' sur le canal 'presence-classe-${classroomId}' avec le payload:`, payload);
+
         
         // Appel sécurisé à Pusher avec gestion d'erreur
         const pusherResponse = await pusherTrigger(
             `presence-classe-${classroomId}`, 
             'session-started', 
-            {
-                sessionId: sessionId,
-                invitedStudentIds: studentIds,
-                professeurId: professeurId,
-                timestamp: new Date().toISOString()
-            }
+            payload
         );
 
         if (pusherResponse.status !== 200) {
