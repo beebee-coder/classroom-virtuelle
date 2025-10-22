@@ -46,6 +46,29 @@ export default function StudentPageClient({
     const { toast } = useToast();
     const router = useRouter();
 
+    const handleAcceptInvitation = useCallback(async (invitation: SessionInvitation) => {
+        console.log('✅ [ELEVE] - Acceptation de l\'invitation:', invitation.sessionId);
+        setIsJoiningSession(true);
+        
+        try {
+            setSessionInvitation(null);
+            toast({
+                title: 'Connexion...',
+                description: 'Rejoignement la session vidéo',
+            });
+            router.push(`/session/${invitation.sessionId}`);
+        } catch (error) {
+            console.error('❌ [ELEVE] - Erreur lors de la connexion à la session:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Erreur de connexion',
+                description: 'Impossible de rejoindre la session',
+            });
+        } finally {
+            setIsJoiningSession(false);
+        }
+    }, [router, toast]);
+
     const handleInvitation = useCallback((data: SessionInvitation) => {
         console.log('📨 [ELEVE] - Nouvelle invitation de session reçue:', data);
         setSessionInvitation(data);
@@ -113,29 +136,6 @@ export default function StudentPageClient({
             console.error('❌ [ELEVE] - Erreur d\'abonnement aux invitations:', error);
         }
     }, [student?.id, handleInvitation]);
-
-    const handleAcceptInvitation = useCallback(async (invitation: SessionInvitation) => {
-        console.log('✅ [ELEVE] - Acceptation de l\'invitation:', invitation.sessionId);
-        setIsJoiningSession(true);
-        
-        try {
-            setSessionInvitation(null);
-            toast({
-                title: 'Connexion...',
-                description: 'Rejoignement la session vidéo',
-            });
-            router.push(`/session/${invitation.sessionId}`);
-        } catch (error) {
-            console.error('❌ [ELEVE] - Erreur lors de la connexion à la session:', error);
-            toast({
-                variant: 'destructive',
-                title: 'Erreur de connexion',
-                description: 'Impossible de rejoindre la session',
-            });
-        } finally {
-            setIsJoiningSession(false);
-        }
-    }, [router, toast]);
 
     const handleDeclineInvitation = useCallback(() => {
         console.log('❌ [ELEVE] - Refus de l\'invitation');
