@@ -3,7 +3,7 @@ import type { Prisma, Reaction as PrismaReaction, Message as PrismaMessage, Stud
 import { TaskType, TaskCategory, TaskDifficulty, Role, ProgressStatus, ValidationType } from '@prisma/client';
 
 
-export type { Reaction, Message as PrismaMessage, StudentProgress, Announcement as PrismaAnnouncement, Classroom, User, Metier, CoursSession, Leaderboard, Task } from '@prisma/client';
+export type { Reaction, Message as PrismaMessage, StudentProgress, Announcement as PrismaAnnouncement, Classroom, User, Metier, CoursSession, Task } from '@prisma/client';
 export { TaskType, TaskCategory, TaskDifficulty, Role, ProgressStatus, ValidationType };
 
 
@@ -118,6 +118,7 @@ export type TaskForProfessorValidation = StudentProgress & {
     name: string | null;
   };
 };
+
 
 
 
