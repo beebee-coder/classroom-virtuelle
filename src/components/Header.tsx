@@ -10,27 +10,32 @@ export default function Header() {
         <div className="flex items-center gap-6">
           <Link href="/" className="flex items-center space-x-2">
             <Mountain className="h-6 w-6 text-primary" />
-            <span className="font-bold">HomeCanvas</span>
+            <span className="font-bold">Classroom Connector</span>
           </Link>
           <nav className="hidden items-center space-x-6 text-sm font-medium md:flex">
             <Link
-              href="#features"
+              href="/#features"
               className="transition-colors hover:text-foreground/80 text-foreground/60"
             >
-              Features
+              Fonctionnalités
             </Link>
             <Link
-              href="#testimonials"
+              href="/#contact"
               className="transition-colors hover:text-foreground/80 text-foreground/60"
             >
-              Testimonials
+              Contact
             </Link>
           </nav>
         </div>
         
         <div className="flex items-center gap-4">
-          <div className="hidden md:flex">
-            <Button>Get Started</Button>
+          <div className="hidden md:flex items-center gap-2">
+            <Button variant="ghost" asChild>
+              <Link href="/login">Se connecter</Link>
+            </Button>
+            <Button asChild>
+              <Link href="/login">S'inscrire</Link>
+            </Button>
           </div>
           <Sheet>
             <SheetTrigger asChild>
@@ -44,22 +49,25 @@ export default function Header() {
                 <SheetClose asChild>
                   <Link href="/" className="flex items-center gap-2 text-lg font-semibold mb-4">
                     <Mountain className="h-6 w-6 text-primary" />
-                    <span>HomeCanvas</span>
+                    <span>Classroom Connector</span>
                   </Link>
                 </SheetClose>
                 <SheetClose asChild>
-                  <Link href="#features" className="text-muted-foreground hover:text-foreground">
-                    Features
+                  <Link href="/#features" className="text-muted-foreground hover:text-foreground">
+                    Fonctionnalités
                   </Link>
                 </SheetClose>
                 <SheetClose asChild>
-                  <Link href="#testimonials" className="text-muted-foreground hover:text-foreground">
-                    Testimonials
+                  <Link href="/#contact" className="text-muted-foreground hover:text-foreground">
+                    Contact
                   </Link>
                 </SheetClose>
-                <div className="mt-4">
+                <div className="mt-4 pt-4 border-t">
                   <SheetClose asChild>
-                    <Button className="w-full">Get Started</Button>
+                    <Button className="w-full mb-2" variant="ghost" asChild><Link href="/login">Se connecter</Link></SheetClose>
+                  </SheetClose>
+                   <SheetClose asChild>
+                    <Button className="w-full" asChild><Link href="/login">S'inscrire</Link></Button>
                   </SheetClose>
                 </div>
               </nav>

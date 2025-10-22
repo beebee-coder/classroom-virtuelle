@@ -10,24 +10,24 @@ export default function Footer() {
         <div className="flex flex-col items-center gap-4 px-8 md:flex-row md:gap-2 md:px-0">
           <Link href="/" className="flex items-center space-x-2">
             <Mountain className="h-6 w-6 text-primary" />
-            <span className="font-bold">HomeCanvas</span>
+            <span className="font-bold">Classroom Connector</span>
           </Link>
         </div>
         <p className="text-center text-sm leading-loose text-muted-foreground md:text-left">
-          © {currentYear} HomeCanvas. All Rights Reserved.
+          © {currentYear} Classroom Connector. Tous droits réservés.
         </p>
         <nav className="flex gap-4 sm:gap-6">
           <Link
             href="#"
             className="text-sm font-medium text-muted-foreground hover:text-foreground"
           >
-            Terms
+            Conditions
           </Link>
           <Link
             href="#"
             className="text-sm font-medium text-muted-foreground hover:text-foreground"
           >
-            Privacy
+            Confidentialité
           </Link>
         </nav>
       </div>
