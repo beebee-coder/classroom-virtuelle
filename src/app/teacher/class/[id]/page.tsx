@@ -4,6 +4,7 @@ import ClassPageClient from './ClassPageClient';
 import { getAuthSession } from '@/lib/session';
 import { getClassAnnouncements } from '@/lib/actions/announcement.actions';
 import { ClassroomWithDetails, StudentForCard } from '@/lib/types';
+import { User } from 'next-auth';
 
 
 // DUMMY DATA
@@ -65,9 +66,11 @@ export default async function ClassPage({ params }: { params: { id: string } }) 
   const classroomId = params.id;
   const session = await getAuthSession();
 
-  if (!session || session.user.role !== 'PROFESSEUR') {
-      redirect('/login')
+  if (!session?.user || session.user.role !== 'PROFESSEUR') {
+      redirect('/login');
   }
+
+  const user = session.user;
 
   // Fetch classroom data - USING DUMMY DATA
   const classroom = dummyClassrooms[classroomId];
@@ -78,5 +81,5 @@ export default async function ClassPage({ params }: { params: { id: string } }) 
 
   const announcements = await getClassAnnouncements(classroom.id);
   
-  return <ClassPageClient classroom={classroom} teacher={session.user} announcements={announcements} />;
+  return <ClassPageClient classroom={classroom} teacher={user} announcements={announcements} />;
 }
