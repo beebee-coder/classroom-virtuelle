@@ -17,6 +17,7 @@ export async function getOrCreateConversation(
     initiatorId: initiatorId,
     receiverId: receiverId,
     createdAt: new Date(),
+    updatedAt: new Date(),
     messages: [
       { 
         id: 'msg1', 

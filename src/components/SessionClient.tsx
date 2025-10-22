@@ -17,11 +17,14 @@ import { endCoursSession } from '@/lib/actions';
 import { VideoPlayer } from './VideoPlayer';
 import { PresenceChannel } from 'pusher-js';
 
+// Use a more generic role type to avoid conflicts
+type SessionRole = 'PROFESSEUR' | 'ELEVE';
+
 interface SessionClientProps {
   sessionId: string;
   initialStudents: PrismaUser[];
   initialTeacher: PrismaUser;
-  currentUserRole: Role;
+  currentUserRole: SessionRole;
   currentUserId: string;
 }
 

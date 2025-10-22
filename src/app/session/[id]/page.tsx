@@ -30,14 +30,14 @@ function getDummySessionData(sessionId: string) {
         emailVerified: null,
         parentPassword: null,
         ambition: null,
-        points: null,
+        points: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
-        classroomId: null,
+        classeId: null,
     };
     
     // Pour la démo, on prend tous les élèves de la classe A
-    const students: User[] = allDummyStudents.filter(s => s.classroomId === 'classe-a') as unknown as User[];
+    const students: User[] = allDummyStudents.filter(s => s.classeId === 'classe-a') as unknown as User[];
 
     const participants = [teacher, ...students];
 

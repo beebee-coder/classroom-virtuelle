@@ -1,4 +1,4 @@
-// src/lib/types.ts - Version corrigée
+// src/lib/types.ts - Version corrigée avec solution alternative
 
 import type { 
     Prisma, 
@@ -15,15 +15,6 @@ import type {
     Conversation
 } from '@prisma/client';
 
-import {
-    Role,
-    TaskType,
-    TaskCategory,
-    TaskDifficulty,
-    ValidationType,
-    ProgressStatus
-} from '@prisma/client';
-
 // Ré-exporter les types et énumérations de Prisma pour un accès centralisé
 export { 
     type Prisma, 
@@ -37,15 +28,51 @@ export {
     type Reaction, 
     type Message, 
     type Announcement, 
-    type Conversation,
-    Role,
-    TaskType,
-    TaskCategory,
-    TaskDifficulty,
-    ValidationType,
-    ProgressStatus
+    type Conversation
 };
 
+// Définir manuellement les enums si Prisma ne les exporte pas
+export enum Role {
+    ELEVE = 'ELEVE',
+    PROFESSEUR = 'PROFESSEUR'
+}
+
+export enum TaskType {
+    DAILY = 'DAILY',
+    WEEKLY = 'WEEKLY',
+    MONTHLY = 'MONTHLY'
+}
+
+export enum TaskCategory {
+    MATH = 'MATH',
+    LANGUAGE = 'LANGUAGE',
+    SCIENCE = 'SCIENCE',
+    HISTORY = 'HISTORY',
+    ART = 'ART',
+    SPORT = 'SPORT',
+    HOME = 'HOME',
+    SOCIAL = 'SOCIAL'
+}
+
+export enum TaskDifficulty {
+    EASY = 'EASY',
+    MEDIUM = 'MEDIUM',
+    HARD = 'HARD'
+}
+
+export enum ValidationType {
+    AUTOMATIC = 'AUTOMATIC',
+    PARENT = 'PARENT',
+    PROFESSOR = 'PROFESSOR'
+}
+
+export enum ProgressStatus {
+    PENDING_ASSIGNMENT = 'PENDING_ASSIGNMENT',
+    IN_PROGRESS = 'IN_PROGRESS',
+    PENDING_VALIDATION = 'PENDING_VALIDATION',
+    VERIFIED = 'VERIFIED',
+    REJECTED = 'REJECTED'
+}
 
 /**
  * Type pour un élève avec son état actuel et le métier choisi.
@@ -125,7 +152,7 @@ export type FullConversation = Prisma.ConversationGetPayload<{
             select: { id: true, name: true, image: true }
         };
     }
-}>
+}>;
 
 /**
  * Type pour une annonce avec les informations sur son auteur.
@@ -166,19 +193,15 @@ export type CareerWithTheme = Metier & {
     accentColor: string;
     cursor: string;
     imageUrl?: string;
-  }
-}
+  };
+};
 
 /**
  * Type pour une session de cours, incluant les participants, le professeur et la classe.
  */
 export type CoursSessionWithRelations = Prisma.CoursSessionGetPayload<{
     include: {
-        participants: {
-            include: {
-                user: true
-            }
-        },
+        participants: true,
         professeur: true,
         classe: true
     }

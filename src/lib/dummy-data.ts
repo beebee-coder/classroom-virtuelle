@@ -1,25 +1,147 @@
-
-// src/lib/dummy-data.ts
-import { StudentWithStateAndCareer, AppTask, Metier, StudentForCard, ClassroomWithDetails, StudentProgress } from '@/lib/types';
-import { Role, ProgressStatus, TaskType, TaskCategory, TaskDifficulty, ValidationType } from '@prisma/client';
-
+// src/lib/dummy-data.ts - Version corrigée
+import { 
+    StudentWithStateAndCareer, 
+    AppTask, 
+    Metier, 
+    StudentForCard, 
+    ClassroomWithDetails, 
+    StudentProgress,
+    Role,
+    ProgressStatus,
+    TaskType,
+    TaskCategory,
+    TaskDifficulty,
+    ValidationType
+} from '@/lib/types';
 
 export const dummyCareers: Metier[] = [
-    { id: 'pompier', nom: 'Pompier', description: 'Sauve des vies et combat le feu.', icon: 'Flame', theme: '{"backgroundColor":"from-red-500 to-orange-500","textColor":"text-white","primaryColor":"22 84% 44%","accentColor":"45 93% 47%","cursor":"cursor-crosshair"}' },
-    { id: 'astronaute', nom: 'Astronaute', description: 'Explore l\'espace et les étoiles.', icon: 'Rocket', theme: '{"backgroundColor":"from-blue-800 to-indigo-900","textColor":"text-white","primaryColor":"217 91% 60%","accentColor":"262 84% 60%","cursor":"cursor-pointer"}' },
-    { id: 'devjeux', nom: 'DevJeux', description: 'Crée des mondes virtuels.', icon: 'Gamepad2', theme: '{"backgroundColor":"from-purple-600 to-blue-600","textColor":"text-white","primaryColor":"250 84% 60%","accentColor":"280 84% 60%","cursor":"cursor-grab"}' },
+    { 
+        id: 'pompier', 
+        nom: 'Pompier', 
+        description: 'Sauve des vies et combat le feu.', 
+        icon: 'Flame', 
+        theme: {
+            backgroundColor: "from-red-500 to-orange-500",
+            textColor: "text-white",
+            primaryColor: "22 84% 44%",
+            accentColor: "45 93% 47%",
+            cursor: "cursor-crosshair"
+        } 
+    },
+    { 
+        id: 'astronaute', 
+        nom: 'Astronaute', 
+        description: 'Explore l\'espace et les étoiles.', 
+        icon: 'Rocket', 
+        theme: {
+            backgroundColor: "from-blue-800 to-indigo-900",
+            textColor: "text-white",
+            primaryColor: "217 91% 60%",
+            accentColor: "262 84% 60%",
+            cursor: "cursor-pointer"
+        } 
+    },
+    { 
+        id: 'devjeux', 
+        nom: 'DevJeux', 
+        description: 'Crée des mondes virtuels.', 
+        icon: 'Gamepad2', 
+        theme: {
+            backgroundColor: "from-purple-600 to-blue-600",
+            textColor: "text-white",
+            primaryColor: "250 84% 60%",
+            accentColor: "280 84% 60%",
+            cursor: "cursor-grab"
+        } 
+    },
 ];
 
 export const dummyTasks: AppTask[] = [
-    { id: 'task1', title: 'Faire son lit', description: 'Un lit bien fait...', points: 10, type: 'DAILY', category: 'HOME', difficulty: 'EASY', validationType: 'PARENT', requiresProof: false, attachmentUrl: null, isActive: true, startTime: null, duration: null, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'task2', title: 'Lire 15 minutes', description: 'Un chapitre par jour...', points: 15, type: 'DAILY', category: 'LANGUAGE', difficulty: 'EASY', validationType: 'PARENT', requiresProof: false, attachmentUrl: null, isActive: true, startTime: null, duration: null, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'task3', title: 'Ranger sa chambre', description: 'Un espace propre...', points: 50, type: 'WEEKLY', category: 'HOME', difficulty: 'MEDIUM', validationType: 'PARENT', requiresProof: true, attachmentUrl: null, isActive: true, startTime: null, duration: null, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'task4', title: 'Exercice de maths', description: 'Résoudre une série...', points: 70, type: 'WEEKLY', category: 'MATH', difficulty: 'MEDIUM', validationType: 'PROFESSOR', requiresProof: true, attachmentUrl: null, isActive: true, startTime: null, duration: null, createdAt: new Date(), updatedAt: new Date() },
+    { 
+        id: 'task1', 
+        title: 'Faire son lit', 
+        description: 'Un lit bien fait...', 
+        points: 10, 
+        type: TaskType.DAILY, 
+        category: TaskCategory.HOME, 
+        difficulty: TaskDifficulty.EASY, 
+        validationType: ValidationType.PARENT, 
+        requiresProof: false, 
+        attachmentUrl: null, 
+        isActive: true, 
+        startTime: null, 
+        duration: null 
+    },
+    { 
+        id: 'task2', 
+        title: 'Lire 15 minutes', 
+        description: 'Un chapitre par jour...', 
+        points: 15, 
+        type: TaskType.DAILY, 
+        category: TaskCategory.LANGUAGE, 
+        difficulty: TaskDifficulty.EASY, 
+        validationType: ValidationType.PARENT, 
+        requiresProof: false, 
+        attachmentUrl: null, 
+        isActive: true, 
+        startTime: null, 
+        duration: null 
+    },
+    { 
+        id: 'task3', 
+        title: 'Ranger sa chambre', 
+        description: 'Un espace propre...', 
+        points: 50, 
+        type: TaskType.WEEKLY, 
+        category: TaskCategory.HOME, 
+        difficulty: TaskDifficulty.MEDIUM, 
+        validationType: ValidationType.PARENT, 
+        requiresProof: true, 
+        attachmentUrl: null, 
+        isActive: true, 
+        startTime: null, 
+        duration: null 
+    },
+    { 
+        id: 'task4', 
+        title: 'Exercice de maths', 
+        description: 'Résoudre une série...', 
+        points: 70, 
+        type: TaskType.WEEKLY, 
+        category: TaskCategory.MATH, 
+        difficulty: TaskDifficulty.MEDIUM, 
+        validationType: ValidationType.PROFESSOR, 
+        requiresProof: true, 
+        attachmentUrl: null, 
+        isActive: true, 
+        startTime: null, 
+        duration: null 
+    },
 ];
 
 const studentProgress: StudentProgress[] = [
-    { id: 'p1', studentId: 'student1', taskId: 'task1', status: 'VERIFIED', completionDate: new Date(), pointsAwarded: 10, submissionUrl: null, accuracy: 100, recipeName: null, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'p2', studentId: 'student1', taskId: 'task3', status: 'PENDING_VALIDATION', completionDate: new Date(), pointsAwarded: 0, submissionUrl: 'https://example.com/proof', accuracy: null, recipeName: null, createdAt: new Date(), updatedAt: new Date() }
+    { 
+        id: 'p1', 
+        studentId: 'student1', 
+        taskId: 'task1', 
+        status: ProgressStatus.VERIFIED, 
+        completionDate: new Date(), 
+        pointsAwarded: 10, 
+        submissionUrl: null, 
+        accuracy: 100, 
+        recipeName: null 
+    },
+    { 
+        id: 'p2', 
+        studentId: 'student1', 
+        taskId: 'task3', 
+        status: ProgressStatus.PENDING_VALIDATION, 
+        completionDate: new Date(), 
+        pointsAwarded: 0, 
+        submissionUrl: 'https://example.com/proof', 
+        accuracy: null, 
+        recipeName: null 
+    }
 ];
 
 type TempStudent = {
@@ -49,7 +171,6 @@ type TempStudent = {
     sessionsParticipees: any[];
 };
 
-
 export const allDummyStudents: TempStudent[] = [
     { 
         id: 'student1', 
@@ -61,7 +182,7 @@ export const allDummyStudents: TempStudent[] = [
         image: null, 
         emailVerified: null, 
         parentPassword: 'password', 
-        role: 'ELEVE', 
+        role: Role.ELEVE, 
         etat: { 
             id: 'etat1', 
             eleveId: 'student1', 
@@ -87,7 +208,7 @@ export const allDummyStudents: TempStudent[] = [
         image: null, 
         emailVerified: null, 
         parentPassword: null, 
-        role: 'ELEVE', 
+        role: Role.ELEVE, 
         etat: { 
             id: 'etat2', 
             eleveId: 'student2', 
@@ -113,7 +234,7 @@ export const allDummyStudents: TempStudent[] = [
         image: null, 
         emailVerified: null, 
         parentPassword: null, 
-        role: 'ELEVE', 
+        role: Role.ELEVE, 
         etat: { 
             id: 'etat3', 
             eleveId: 'student3', 
@@ -139,7 +260,7 @@ export const allDummyStudents: TempStudent[] = [
         image: null, 
         emailVerified: null, 
         parentPassword: null, 
-        role: 'ELEVE', 
+        role: Role.ELEVE, 
         etat: { 
             id: 'etat4', 
             eleveId: 'student4', 
@@ -165,7 +286,7 @@ export const allDummyStudents: TempStudent[] = [
         image: null, 
         emailVerified: null, 
         parentPassword: null, 
-        role: 'ELEVE', 
+        role: Role.ELEVE, 
         etat: { 
             id: 'etat5', 
             eleveId: 'student5', 
@@ -191,7 +312,7 @@ export const allDummyStudents: TempStudent[] = [
         image: null, 
         emailVerified: null, 
         parentPassword: null, 
-        role: 'ELEVE', 
+        role: Role.ELEVE, 
         etat: { 
             id: 'etat6', 
             eleveId: 'student6', 
@@ -217,7 +338,7 @@ export const allDummyStudents: TempStudent[] = [
         image: null, 
         emailVerified: null, 
         parentPassword: null, 
-        role: 'ELEVE', 
+        role: Role.ELEVE, 
         etat: { 
             id: 'etat7', 
             eleveId: 'student7', 
@@ -243,7 +364,7 @@ export const allDummyStudents: TempStudent[] = [
         image: null, 
         emailVerified: null, 
         parentPassword: null, 
-        role: 'ELEVE', 
+        role: Role.ELEVE, 
         etat: { 
             id: 'etat8', 
             eleveId: 'student8', 
@@ -269,7 +390,7 @@ export const allDummyStudents: TempStudent[] = [
         image: null, 
         emailVerified: null, 
         parentPassword: null, 
-        role: 'ELEVE', 
+        role: Role.ELEVE, 
         etat: { 
             id: 'etat9', 
             eleveId: 'student9', 
@@ -295,7 +416,7 @@ export const allDummyStudents: TempStudent[] = [
         image: null, 
         emailVerified: null, 
         parentPassword: null, 
-        role: 'ELEVE', 
+        role: Role.ELEVE, 
         etat: { 
             id: 'etat10', 
             eleveId: 'student10', 
@@ -322,7 +443,7 @@ export const allDummyStudents: TempStudent[] = [
         image: null, 
         emailVerified: null, 
         parentPassword: null, 
-        role: 'ELEVE', 
+        role: Role.ELEVE, 
         etat: { 
             id: 'etat11', 
             eleveId: 'student11', 
@@ -348,7 +469,7 @@ export const allDummyStudents: TempStudent[] = [
         image: null, 
         emailVerified: null, 
         parentPassword: null, 
-        role: 'ELEVE', 
+        role: Role.ELEVE, 
         etat: { 
             id: 'etat12', 
             eleveId: 'student12', 
@@ -375,7 +496,7 @@ export const allDummyStudents: TempStudent[] = [
         image: null, 
         emailVerified: null, 
         parentPassword: null, 
-        role: 'ELEVE', 
+        role: Role.ELEVE, 
         etat: { 
             id: 'etat21', 
             eleveId: 'student21', 
@@ -401,7 +522,7 @@ export const allDummyStudents: TempStudent[] = [
         image: null, 
         emailVerified: null, 
         parentPassword: null, 
-        role: 'ELEVE', 
+        role: Role.ELEVE, 
         etat: { 
             id: 'etat22', 
             eleveId: 'student22', 

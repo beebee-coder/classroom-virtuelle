@@ -28,7 +28,11 @@ model User {
   classe                  Classroom?             @relation("EleveDe", fields: [classeId], references: [id])
   classeId                String?
 
+  // Relations en tant que professeur
+  classesEnseignees       Classroom[]            @relation("ProfesseurDe")
   sessionsCrees           CoursSession[]         @relation("SessionProfesseur")
+  
+  // Relations en tant qu'élève
   sessionsParticipees     Participant[]
   
   annonces                Announcement[]
@@ -218,7 +222,6 @@ model Conversation {
   @@unique([initiatorId, receiverId])
 }
 
-
 // ==============================================================
 // MODÈLES POUR LA SESSION VIDÉO
 // ==============================================================
@@ -277,7 +280,6 @@ model RaisedHand {
   @@unique([studentId, sessionId])
 }
 
-
 // ==============================================================
 // MODÈLE CLASSEMENT
 // ==============================================================
@@ -295,7 +297,6 @@ model Leaderboard {
   bestStreak     Int       @default(0)
   updatedAt      DateTime  @updatedAt
 }
-
 
 // ==============================================================
 // ENUMS
