@@ -18,15 +18,25 @@ export function CareerThemeWrapper({ career, children }: CareerThemeWrapperProps
   useEffect(() => {
     // Si un métier est sélectionné, on applique son thème
     if (career && career.theme) {
-      const careerTheme = career.theme as any;
+      let careerTheme: any;
+      try {
+        // Le thème est stocké en tant que String JSON, il faut le parser
+        careerTheme = typeof career.theme === 'string' ? JSON.parse(career.theme) : career.theme;
+      } catch (e) {
+        console.error("Failed to parse career theme:", e);
+        careerTheme = null;
+      }
+      
       setTheme(careerTheme);
       
-      document.documentElement.style.setProperty('--primary', careerTheme.primaryColor);
-      document.documentElement.style.setProperty('--accent', careerTheme.accentColor);
-      
-      // Ajoute la classe du curseur au body
-      if (careerTheme.cursor) {
-        document.body.classList.add(careerTheme.cursor);
+      if (careerTheme) {
+        document.documentElement.style.setProperty('--primary', careerTheme.primaryColor);
+        document.documentElement.style.setProperty('--accent', careerTheme.accentColor);
+        
+        // Ajoute la classe du curseur au body
+        if (careerTheme.cursor) {
+          document.body.classList.add(careerTheme.cursor);
+        }
       }
       
     } else {
@@ -40,11 +50,12 @@ export function CareerThemeWrapper({ career, children }: CareerThemeWrapperProps
     return () => {
       document.documentElement.style.removeProperty('--primary');
       document.documentElement.style.removeProperty('--accent');
-      if (theme?.cursor) {
-        document.body.classList.remove(theme.cursor);
+      const currentTheme = theme; // Capture theme value at the time of effect
+      if (currentTheme?.cursor) {
+        document.body.classList.remove(currentTheme.cursor);
       }
     };
-  }, [career, pathname]); // Se ré-exécute si le métier ou la page change
+  }, [career, pathname, theme]); // Se ré-exécute si le métier ou la page change
 
   const backgroundClass = theme?.backgroundColor || 'bg-background';
   const textClass = theme?.textColor || 'text-foreground';

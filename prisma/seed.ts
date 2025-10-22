@@ -11,7 +11,7 @@ async function main() {
     data: {
       email: 'teacher@example.com',
       name: 'Professeur Test',
-      role: Role.PROFESSEUR,
+      role: 'PROFESSEUR',
     },
   });
   console.log(`👨‍🏫 Created teacher: ${teacher.name} (${teacher.email})`);
@@ -38,7 +38,7 @@ async function main() {
     data: {
       email: 'student1@example.com',
       name: 'Alice',
-      role: Role.ELEVE,
+      role: 'ELEVE',
       classroomId: classA.id,
       ambition: 'Devenir Astronaute',
     },
@@ -50,7 +50,7 @@ async function main() {
     data: {
       email: 'student2@example.com',
       name: 'Bob',
-      role: Role.ELEVE,
+      role: 'ELEVE',
       classroomId: classA.id,
       ambition: 'Explorer les fonds marins'
     },
@@ -62,7 +62,7 @@ async function main() {
     data: {
       email: 'student3@example.com',
       name: 'Charlie',
-      role: Role.ELEVE,
+      role: 'ELEVE',
       classroomId: classB.id,
       ambition: 'Créer des jeux vidéo'
     },
@@ -74,7 +74,7 @@ async function main() {
     data: {
       email: 'student4@example.com',
       name: 'Diana',
-      role: Role.ELEVE,
+      role: 'ELEVE',
       classroomId: classB.id,
       ambition: 'Devenir chef cuisinier'
     },
@@ -92,21 +92,27 @@ async function main() {
     { nom: 'Artiste', description: 'Exprime sa créativité.', icon: 'Paintbrush', theme: { backgroundColor: 'from-pink-500 to-rose-500', textColor: 'text-white', primaryColor: '320 84% 60%', accentColor: '340 84% 60%', cursor: 'cursor-alias' } },
     { nom: 'Écologiste', description: 'Protège la planète.', icon: 'Leaf', theme: { backgroundColor: 'from-lime-500 to-emerald-600', textColor: 'text-white', primaryColor: '120 73% 40%', accentColor: '140 73% 40%', cursor: 'cursor-zoom-in' } },
   ];
-  await prisma.metier.createMany({ data: metiers });
+  
+  const metiersData = metiers.map(metier => ({
+    ...metier,
+    theme: JSON.stringify(metier.theme),
+  }));
+
+  await prisma.metier.createMany({ data: metiersData });
   console.log('🛠️ Created default careers');
 
 
   // Créer des tâches
   const tasks = [
     // Tâches quotidiennes
-    { title: 'Faire son lit', description: 'Un lit bien fait, une journée bien commencée !', points: 10, type: TaskType.DAILY, category: TaskCategory.HOME, difficulty: TaskDifficulty.EASY, validationType: ValidationType.PARENT },
-    { title: 'Lire 15 minutes', description: 'Un chapitre par jour pour voyager.', points: 15, type: TaskType.DAILY, category: TaskCategory.LANGUAGE, difficulty: TaskDifficulty.EASY, validationType: ValidationType.PARENT },
+    { title: 'Faire son lit', description: 'Un lit bien fait, une journée bien commencée !', points: 10, type: 'DAILY', category: 'HOME', difficulty: 'EASY', validationType: 'PARENT' },
+    { title: 'Lire 15 minutes', description: 'Un chapitre par jour pour voyager.', points: 15, type: 'DAILY', category: 'LANGUAGE', difficulty: 'EASY', validationType: 'PARENT' },
     // Tâches hebdomadaires
-    { title: 'Ranger sa chambre', description: 'Un espace propre pour des idées claires.', points: 50, type: TaskType.WEEKLY, category: TaskCategory.HOME, difficulty: TaskDifficulty.MEDIUM, validationType: ValidationType.PARENT, requiresProof: true },
-    { title: 'Exercice de maths', description: 'Résoudre une série de problèmes complexes.', points: 70, type: TaskType.WEEKLY, category: TaskCategory.MATH, difficulty: TaskDifficulty.MEDIUM, validationType: ValidationType.PROFESSOR, requiresProof: true },
+    { title: 'Ranger sa chambre', description: 'Un espace propre pour des idées claires.', points: 50, type: 'WEEKLY', category: 'HOME', difficulty: 'MEDIUM', validationType: 'PARENT', requiresProof: true },
+    { title: 'Exercice de maths', description: 'Résoudre une série de problèmes complexes.', points: 70, type: 'WEEKLY', category: 'MATH', difficulty: 'MEDIUM', validationType: 'PROFESSOR', requiresProof: true },
     // Tâches mensuelles
-    { title: 'Projet créatif mensuel', description: 'Réaliser une recette de cuisine et la présenter.', points: 200, type: TaskType.MONTHLY, category: TaskCategory.ART, difficulty: TaskDifficulty.HARD, validationType: ValidationType.PARENT, requiresProof: true },
-    { title: 'Exposé scientifique', description: 'Préparer et présenter un sujet scientifique.', points: 250, type: TaskType.MONTHLY, category: TaskCategory.SCIENCE, difficulty: TaskDifficulty.HARD, validationType: ValidationType.PROFESSOR, requiresProof: true },
+    { title: 'Projet créatif mensuel', description: 'Réaliser une recette de cuisine et la présenter.', points: 200, type: 'MONTHLY', category: 'ART', difficulty: 'HARD', validationType: 'PARENT', requiresProof: true },
+    { title: 'Exposé scientifique', description: 'Préparer et présenter un sujet scientifique.', points: 250, type: 'MONTHLY', category: 'SCIENCE', difficulty: 'HARD', validationType: 'PROFESSOR', requiresProof: true },
   ];
 
   await prisma.task.createMany({ data: tasks as any });
