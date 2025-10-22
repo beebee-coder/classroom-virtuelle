@@ -1,12 +1,10 @@
-
-// src/app/session/[id]/page.tsx
+// src/app/session/[id]/page.tsx - Version améliorée
 import { notFound, redirect } from 'next/navigation';
 import { getAuthSession } from '@/lib/session';
 import SessionClient from '@/components/SessionClient';
 import { Suspense } from 'react';
 import { User } from '@/lib/types';
 import { allDummyStudents } from '@/lib/dummy-data';
-
 
 // Composant de chargement simple
 function SimpleSessionLoading() {
@@ -55,40 +53,41 @@ function getDummySessionData(sessionId: string) {
     };
 }
 
-
 export default async function SessionPage({ params }: { params: { id: string } }) {
-    console.log(`[SESSION PAGE] - Chargement de la page pour la session ID: ${params.id}`);
+    console.log(`🎬 [SESSION PAGE] - Chargement de la page pour la session ID: ${params.id}`);
     
     if (!params.id) {
-        console.error('[SESSION PAGE] - ID de session manquant');
+        console.error('❌ [SESSION PAGE] - ID de session manquant');
         notFound();
     }
 
     const authSession = await getAuthSession();
     
     if (!authSession?.user) {
-        console.log('[SESSION PAGE] - Aucun utilisateur authentifié, redirection vers /login.');
+        console.log('🔐 [SESSION PAGE] - Aucun utilisateur authentifié, redirection vers /login.');
         redirect('/login');
     }
     
-    console.log('[SESSION PAGE] - Utilisateur authentifié:', authSession.user);
+    console.log('✅ [SESSION PAGE] - Utilisateur authentifié:', authSession.user);
     
     const initialData = getDummySessionData(params.id);
-    
     const { students, teacher } = initialData;
 
-    // Vérification de sécurité (simplifiée pour la démo)
+    // Vérification de sécurité améliorée
     const isTeacher = authSession.user.role === 'PROFESSEUR';
     const isInvitedStudent = students.some((s: any) => s.id === authSession.user?.id);
     
     if (!isTeacher && !isInvitedStudent) {
-         console.warn(`[SESSION PAGE] - L'utilisateur ${authSession.user.id} n'est pas un participant de la session ${params.id}. Accès refusé.`);
-         notFound();
+        console.warn(`🚫 [SESSION PAGE] - L'utilisateur ${authSession.user.id} n'est pas un participant de la session ${params.id}. Accès refusé.`);
+        
+        // Option: Rediriger vers le dashboard avec un message d'erreur
+        redirect('/student/dashboard?error=not_invited');
     }
     
     const currentUserRole = authSession.user.role;
     const currentUserId = authSession.user.id;
-    console.log(`[SESSION PAGE] - Rendu du composant SessionClient avec le rôle ${currentUserRole} et l'ID ${currentUserId}.`);
+    
+    console.log(`👤 [SESSION PAGE] - Rendu du composant SessionClient avec le rôle ${currentUserRole} et l'ID ${currentUserId}.`);
 
     return (
         <Suspense fallback={<SimpleSessionLoading />}>
@@ -102,4 +101,3 @@ export default async function SessionPage({ params }: { params: { id: string } }
         </Suspense>
     );
 }
-

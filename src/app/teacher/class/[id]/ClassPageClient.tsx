@@ -1,5 +1,4 @@
-
-// src/app/teacher/class/[id]/ClassPageClient.tsx - Version avec simulation de présence
+// src/app/teacher/class/[id]/ClassPageClient.tsx - Version avec invitations
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
@@ -16,7 +15,7 @@ import { ClassroomWithDetails, StudentForCard, AnnouncementWithAuthor } from '@/
 import { User } from 'next-auth';
 import { AnnouncementCarousel } from '@/components/AnnouncementCarousel';
 import { BackButton } from '@/components/BackButton';
-import { Video, XSquare, Crown, Loader2, Wifi, WifiOff } from 'lucide-react';
+import { Video, XSquare, Crown, Loader2, Wifi, WifiOff, Bell } from 'lucide-react';
 import { pusherClient } from '@/lib/pusher/client';
 import type { PresenceChannel } from 'pusher-js';
 import { cn } from '@/lib/utils';
@@ -36,6 +35,7 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
     const [isStartingSession, setIsStartingSession] = useState<boolean>(false);
     const [onlineStudents, setOnlineStudents] = useState<string[]>([]);
     const [isSimulationMode, setIsSimulationMode] = useState<boolean>(true);
+    const [isSendingInvitations, setIsSendingInvitations] = useState<boolean>(false);
     const router = useRouter();
     const { toast } = useToast();
     const { data: session } = useSession();
@@ -124,6 +124,53 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
         );
     }, []);
 
+    const sendSessionInvitations = async (sessionId: string, studentIds: string[]) => {
+        console.log('📨 [INVITATIONS] - Envoi des invitations pour la session:', sessionId, 'aux élèves:', studentIds);
+        setIsSendingInvitations(true);
+
+        try {
+            // Envoyer les invitations via Pusher
+            for (const studentId of studentIds) {
+                const channelName = `private-user-${studentId}`;
+                console.log(`📨 [INVITATIONS] - Envoi d'invitation à l'élève ${studentId} via canal ${channelName}`);
+                
+                await fetch('/api/pusher/send-invitation', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        channel: channelName,
+                        event: 'session-invitation',
+                        data: {
+                            sessionId,
+                            teacherName: teacher.name || 'Votre professeur',
+                            classroomName: classroom.nom,
+                            timestamp: new Date().toISOString()
+                        }
+                    }),
+                });
+            }
+
+            console.log('✅ [INVITATIONS] - Toutes les invitations ont été envoyées');
+            toast({
+                title: 'Invitations envoyées !',
+                description: `Les invitations ont été envoyées à ${studentIds.length} élève(s).`,
+                duration: 3000,
+            });
+
+        } catch (error) {
+            console.error('❌ [INVITATIONS] - Erreur lors de l\'envoi des invitations:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Erreur d\'envoi',
+                description: 'Les invitations n\'ont pas pu être envoyées à tous les élèves.',
+            });
+        } finally {
+            setIsSendingInvitations(false);
+        }
+    };
+
     const handleStartSession = async () => {
         console.log('🚀 [CLIENT] - Clic sur "Démarrer la session". Élèves sélectionnés:', selectedStudents);
         
@@ -153,13 +200,16 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
 
         try {
             console.log('⏳ [CLIENT] - Appel de l\'action serveur `createCoursSession`...');
-            const session = await createCoursSession(teacher.id, onlineSelectedStudents);
+            const session = await createCoursSession(teacher.id, classroom.id, onlineSelectedStudents);
             
             if (!session?.id) {
                 throw new Error('Réponse de session invalide');
             }
 
             console.log('✅ [CLIENT] - Action serveur réussie. Session créée:', session);
+
+            // Envoyer les invitations aux élèves
+            await sendSessionInvitations(session.id, onlineSelectedStudents);
 
             toast({
                 title: 'Session créée !',
@@ -363,13 +413,13 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                     </div>
                     <Button 
                         onClick={handleStartSession} 
-                        disabled={onlineSelectedCount === 0 || isStartingSession}
+                        disabled={onlineSelectedCount === 0 || isStartingSession || isSendingInvitations}
                         className="min-w-[180px]"
                     >
-                        {isStartingSession ? (
+                        {isStartingSession || isSendingInvitations ? (
                             <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Création...
+                                {isSendingInvitations ? 'Envoi...' : 'Création...'}
                             </>
                         ) : (
                             <>
