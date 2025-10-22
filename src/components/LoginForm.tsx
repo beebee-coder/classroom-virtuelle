@@ -1,4 +1,3 @@
-
 // src/components/LoginForm.tsx
 "use client";
 
@@ -59,18 +58,22 @@ export function LoginForm() {
     setLoading(true);
     // ---=== BYPASS BACKEND ===---
     console.log(`🚀 [BYPASS] Connexion simulée pour le rôle: ${role}`);
+    
+    // Set a cookie to persist the dummy session state
+    document.cookie = `dummyRole=${role}; path=/; max-age=86400`; // Cookie expires in 1 day
+
     // Simule la connexion en redirigeant directement
-    if (role === 'teacher') {
-      router.push('/teacher/dashboard');
-    } else {
-      router.push('/student/dashboard');
-    }
+    const targetPath = role === 'teacher' ? '/teacher/dashboard' : '/student/dashboard';
+    
+    // We use router.push() which is a soft navigation.
+    // A full page reload (window.location.href) might also work if issues persist.
+    router.push(targetPath);
     // ---=========================---
   };
 
   const handleRoleSelection = (role: 'teacher' | 'student') => {
     setSelectedRole(role);
-    setEmail(role === 'teacher' ? 'teacher@example.com' : 'student1@example.com');
+    setEmail(role === 'teacher' ? 'teacher@example.com' : 'ahmed0@example.com');
     setPassword('password');
      console.log(`👤 [LOGIN] Rôle sélectionné pour la démo: ${role}`);
   }
@@ -121,7 +124,6 @@ export function LoginForm() {
                   type="submit" 
                   className="w-full font-semibold text-base py-6 shadow-inner-white"
                   disabled={loading || !selectedRole}
-                  onClick={() => selectedRole && handleDummyLogin(selectedRole)}
                   style={{
                     background: 'linear-gradient(to bottom, hsl(var(--background)), hsl(var(--muted)))',
                     color: 'hsl(var(--foreground))',

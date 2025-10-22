@@ -22,6 +22,7 @@ import { signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
 import { User } from "next-auth";
 import { ProfileAvatar } from "./ProfileAvatar";
+import { useRouter } from "next/navigation";
 
 interface UserNavProps {
     user?: User | null;
@@ -29,14 +30,17 @@ interface UserNavProps {
 
 export function UserNav({ user }: UserNavProps) {
     const { setTheme } = useTheme();
+    const router = useRouter();
 
     const handleSignOut = () => {
         // ---=== BYPASS BACKEND ===---
-        // En mode bypass, on ne peut pas appeler le vrai signOut().
-        // On simule la déconnexion en redirigeant simplement vers la page d'accueil.
-        console.log('🚪 [BYPASS] Déconnexion simulée. Redirection vers /');
-        window.location.href = '/';
-        // signOut({ callbackUrl: '/' }); // Appel original
+        console.log('🚪 [BYPASS] Déconnexion simulée.');
+        // Clear the bypass cookie
+        document.cookie = 'dummyRole=; path=/; max-age=0';
+        // Redirect to home page
+        router.push('/');
+        router.refresh(); // Force a refresh to ensure server components re-evaluate the session
+        // signOut({ callbackUrl: '/' }); // Original call
         // ---=========================---
     };
 
