@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { AnnouncementWithAuthor } from '../types';
 import { cache } from 'react';
 
+// ---=== BYPASS BACKEND ===---
 const dummyAnnouncements: AnnouncementWithAuthor[] = [
     {
         id: 'anno-1',
@@ -39,30 +40,33 @@ const dummyAnnouncements: AnnouncementWithAuthor[] = [
 ];
 
 export async function createAnnouncement(formData: FormData) {
-  // DUMMY ACTION
-  console.log('[DUMMY] Creating announcement with data:', formData);
-  revalidatePath('/');
-  revalidatePath('/teacher');
+  const title = formData.get('title');
   const target = formData.get('target') as string;
+  console.log(`📢 [BYPASS] Création d'une annonce (factice): "${title}" pour la cible: ${target}`);
+  
+  // Simule la revalidation
+  revalidatePath('/');
+  revalidatePath('/teacher/dashboard');
   if (target !== 'public') {
     revalidatePath(`/teacher/class/${target}`);
   }
+
+  // Pas de retour nécessaire car c'est une simulation
 }
 
 export const getPublicAnnouncements = cache(async (limit: number = 3): Promise<AnnouncementWithAuthor[]> => {
-    // DUMMY DATA
-    console.log('[DUMMY] Getting public announcements.');
+    console.log(`📢 [BYPASS] Récupération de ${limit} annonces publiques (factice).`);
     return dummyAnnouncements.filter(a => a.classeId === null).slice(0, limit);
 });
 
 export async function getStudentAnnouncements(studentId: string): Promise<AnnouncementWithAuthor[]> {
-    // DUMMY DATA
-    console.log('[DUMMY] Getting announcements for student:', studentId);
+    console.log(`📢 [BYPASS] Récupération des annonces pour l'élève ${studentId} (factice).`);
+    // En mode bypass, on retourne toutes les annonces pour le test.
     return dummyAnnouncements;
 }
 
 export async function getClassAnnouncements(classroomId: string): Promise<AnnouncementWithAuthor[]> {
-    // DUMMY DATA
-    console.log('[DUMMY] Getting announcements for class:', classroomId);
+    console.log(`📢 [BYPASS] Récupération des annonces pour la classe ${classroomId} (factice).`);
     return dummyAnnouncements.filter(a => a.classeId === classroomId || a.classeId === null);
 }
+// ---=========================---

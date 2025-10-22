@@ -3,19 +3,28 @@
 
 import { revalidatePath } from 'next/cache';
 
+// ---=== BYPASS BACKEND ===---
 export async function createClass(formData: FormData) {
-    // DUMMY ACTION
     const nom = formData.get('nom') as string;
-    console.log('[DUMMY] Creating class:', nom);
+    console.log(`🏫 [BYPASS] Création de la classe (factice): "${nom}"`);
+    
+    // Simule la revalidation
     revalidatePath('/teacher/classes');
-    return { id: 'new-class-id', nom, professeurId: 'teacher-id' };
+    
+    // Retourne un objet factice
+    return { id: `class-${Date.now()}`, nom, professeurId: 'teacher-id' };
 }
 
 export async function addStudentToClass(formData: FormData) {
-    // DUMMY ACTION
     const name = formData.get('name') as string;
+    const email = formData.get('email') as string;
     const classroomId = formData.get('classroomId') as string;
-    console.log(`[DUMMY] Adding student ${name} to class ${classroomId}`);
+    console.log(`🧑‍🎓 [BYPASS] Ajout de l'élève ${name} (${email}) à la classe ${classroomId} (factice)`);
+    
+    // Simule la revalidation
     revalidatePath(`/teacher/class/${classroomId}`);
-    return { id: 'new-student-id', name, email: 'new@example.com' };
+
+    // Retourne un objet factice
+    return { id: `student-${Date.now()}`, name, email };
 }
+// ---=========================---

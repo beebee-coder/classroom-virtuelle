@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-// import { signIn } from 'next-auth/react'; // ---=== BYPASS NEXT-AUTH (temporaire) ===---
+// import { signIn } from 'next-auth/react'; // ---=== BYPASS BACKEND ===---
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -54,27 +54,29 @@ export function LoginForm() {
 
   const handleDummyLogin = (role: 'teacher' | 'student') => {
     setLoading(true);
-    // ---=== BYPASS NEXT-AUTH (temporaire) ===---
+    // ---=== BYPASS BACKEND ===---
+    console.log(`🚀 [BYPASS] Connexion simulée pour le rôle: ${role}`);
     // Simule la connexion en redirigeant directement
     if (role === 'teacher') {
       router.push('/teacher/dashboard');
     } else {
       router.push('/student/dashboard');
     }
-    // ---======================================---
+    // ---=========================---
   };
 
   const handleRoleSelection = (role: 'teacher' | 'student') => {
     setSelectedRole(role);
     setEmail(role === 'teacher' ? 'teacher@example.com' : 'student1@example.com');
     setPassword('password');
+     console.log(`👤 [LOGIN] Rôle sélectionné pour la démo: ${role}`);
   }
 
   if (selectedRole) {
      return (
       <Card>
         <CardHeader>
-          <CardTitle>Connexion (Test)</CardTitle>
+          <CardTitle>Connexion (Démo)</CardTitle>
           <CardDescription>Connexion en tant que {selectedRole === 'teacher' ? 'Professeur' : 'Élève'}.</CardDescription>
         </CardHeader>
         <CardContent>

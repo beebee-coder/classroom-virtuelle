@@ -11,7 +11,7 @@ import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger 
 import Menu from '@/components/Menu';
 import { CoursSession, StudentProgress } from '@prisma/client';
 
-// DUMMY DATA
+// ---=== BYPASS BACKEND ===---
 const dummyCareers: Metier[] = [
     { id: 'pompier', nom: 'Pompier', description: 'Sauve des vies et combat le feu.', icon: 'Flame', theme: { backgroundColor: 'from-red-500 to-orange-500', textColor: 'text-white', primaryColor: '22 84% 44%', accentColor: '45 93% 47%', cursor: 'cursor-crosshair' } as any },
     { id: 'astronaute', nom: 'Astronaute', description: 'Explore l\'espace et les étoiles.', icon: 'Rocket', theme: { backgroundColor: 'from-blue-800 to-indigo-900', textColor: 'text-white', primaryColor: '217 91% 60%', accentColor: '262 84% 60%', cursor: 'cursor-pointer' } as any },
@@ -32,31 +32,14 @@ const dummyProgress: StudentProgress[] = [
 
 const dummyStudentData: { [id: string]: StudentWithStateAndCareer } = {
   'student1': {
-    id: 'student1', name: 'Alice', email: 'student1@example.com', points: 1250, ambition: 'Devenir Astronaute', classroomId: 'classe-a', image: null, emailVerified: null, parentPassword: 'password', role: 'ELEVE',
-    etat: { id: 'etat1', eleveId: 'student1', isPunished: false, metierId: 'astronaute', metier: dummyCareers[1] },
-    classe: { id: 'classe-a', nom: 'Classe 6ème A', professeurId: 'teacher-id' },
-    progress: dummyProgress,
-    sessionsParticipees: []
-  },
-   'teacher@example.com': {
-    id: 'teacher-id', name: 'Professeur Test', email: 'teacher@example.com', role: 'PROFESSEUR', image: null,
-  } as any,
-   'student@example.com': {
-    id: 'student1', name: 'Alice', email: 'student1@example.com', points: 1250, ambition: 'Devenir Astronaute', classroomId: 'classe-a', image: null, emailVerified: null, parentPassword: 'password', role: 'ELEVE',
-    etat: { id: 'etat1', eleveId: 'student1', isPunished: false, metierId: 'astronaute', metier: dummyCareers[1] },
-    classe: { id: 'classe-a', nom: 'Classe 6ème A', professeurId: 'teacher-id' },
-    progress: dummyProgress,
-    sessionsParticipees: []
-  },
-  'student1@example.com': {
-    id: 'student1', name: 'Alice', email: 'student1@example.com', points: 1250, ambition: 'Devenir Astronaute', classroomId: 'classe-a', image: null, emailVerified: null, parentPassword: 'password', role: 'ELEVE',
+    id: 'student1', name: 'Alice (Démo)', email: 'student1@example.com', points: 1250, ambition: 'Devenir Astronaute', classroomId: 'classe-a', image: null, emailVerified: null, parentPassword: 'password', role: 'ELEVE',
     etat: { id: 'etat1', eleveId: 'student1', isPunished: false, metierId: 'astronaute', metier: dummyCareers[1] },
     classe: { id: 'classe-a', nom: 'Classe 6ème A', professeurId: 'teacher-id' },
     progress: dummyProgress,
     sessionsParticipees: []
   },
   'student2': {
-    id: 'student2', name: 'Bob', email: 'student2@example.com', points: 980, ambition: 'Explorer les fonds marins', classroomId: 'classe-a', image: null, emailVerified: null, parentPassword: null, role: 'ELEVE',
+    id: 'student2', name: 'Bob (Démo)', email: 'student2@example.com', points: 980, ambition: 'Explorer les fonds marins', classroomId: 'classe-a', image: null, emailVerified: null, parentPassword: null, role: 'ELEVE',
     etat: { id: 'etat2', eleveId: 'student2', isPunished: false, metierId: null, metier: null },
     classe: { id: 'classe-a', nom: 'Classe 6ème A', professeurId: 'teacher-id' },
     progress: [],
@@ -65,16 +48,20 @@ const dummyStudentData: { [id: string]: StudentWithStateAndCareer } = {
 };
 
 async function getStudentData(id: string): Promise<StudentWithStateAndCareer | null> {
-    // DUMMY DATA
+    console.log(`🧑‍🎓 [BYPASS] Récupération des données factices pour l'élève ID: ${id}`);
     return dummyStudentData[id] || dummyStudentData['student1'];
 }
+// ---=========================---
+
 
 export default async function StudentDashboardPage({
   searchParams,
 }: {
   searchParams: { [key: string]: string | string[] | undefined };
 }) {
-  // ---=== BYPASS NEXT-AUTH (temporaire) ===---
+  console.log('🧑‍🎓 [PAGE] - Chargement du tableau de bord élève.');
+
+  // ---=== BYPASS BACKEND ===---
   // const session = await getAuthSession();
   // if (!session?.user?.id) {
   //   redirect('/login');
@@ -88,23 +75,24 @@ export default async function StudentDashboardPage({
       classeId: 'classe-a',
     }
   };
-  // ---======================================---
-
+  console.log('👤 [BYPASS] Session élève simulée :', session.user);
+  // ---=========================---
 
   const student = await getStudentData(session.user.id);
   const viewAs = searchParams.viewAs;
   const isTeacherView = viewAs === 'teacher' && session.user.role === 'PROFESSEUR';
 
   if (!student) {
+    console.error('❌ [PAGE] - Données de l\'élève non trouvées, redirection.');
     notFound();
   }
   
+  console.log('✅ [PAGE] - Données de l\'élève chargées:', student.name);
+
   // Security: a student can only see their own page
   if (session.user.role === 'ELEVE' && student.id !== session.user.id) {
-      // In dummy mode, let's just log this instead of blocking
-      console.warn(`[SECURITY] Student ${session.user.id} tried to access page of ${student.id}`);
+      console.warn(`[SECURITY] Student ${session.user.id} tried to access page of ${student.id}. Redirigé en mode bypass.`);
   }
-
 
   const metier = student.etat?.metier;
   const allCareers = isTeacherView ? dummyCareers : [];
@@ -113,6 +101,7 @@ export default async function StudentDashboardPage({
   const announcements = await getStudentAnnouncements(student.id);
   
   const tasks = dummyTasks;
+  console.log('✅ [PAGE] - Tâches et annonces chargées pour le tableau de bord.');
 
   return (
     <CareerThemeWrapper career={metier ?? undefined}>

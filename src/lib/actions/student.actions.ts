@@ -1,42 +1,22 @@
 // src/lib/actions/student.actions.ts
 'use server';
 
-import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { pusherServer } from '../pusher/server';
 
+// ---=== BYPASS BACKEND ===---
 export async function setStudentCareer(studentId: string, careerId: string | null) {
+    console.log(`🎨 [BYPASS] Changement de métier (factice) pour l'élève ${studentId} vers le métier ${careerId}`);
+
+    const classroomId = 'classe-a'; // ID de classe factice pour la démo
     
-    // Find or create the student's state based on the user ID
-    let etatEleve = await prisma.etatEleve.findUnique({
-        where: { eleveId: studentId },
+    console.log(`📡 [PUSHER] Déclenchement de "student-updated" pour l'élève ${studentId}`);
+    await pusherServer.trigger(`presence-classe-${classroomId}`, 'student-updated', {
+        studentId,
     });
-
-    if (!etatEleve) {
-        etatEleve = await prisma.etatEleve.create({
-            data: { eleveId: studentId }
-        });
-    }
-
-    // Update the state with the new career
-    await prisma.etatEleve.update({
-        where: { id: etatEleve.id },
-        data: {
-            metierId: careerId,
-        },
-    });
-
-    const student = await prisma.user.findUnique({
-      where: { id: studentId },
-      select: { classroomId: true }
-    });
-
-    if (student?.classroomId) {
-        await pusherServer.trigger(`presence-classe-${student.classroomId}`, 'student-updated', {
-            studentId,
-        });
-    }
     
-    // Revalidate the student's page to show the changes
+    // Simule la revalidation
     revalidatePath(`/student/${studentId}`);
+    revalidatePath(`/student/dashboard`);
 }
+// ---=========================---

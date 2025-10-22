@@ -9,14 +9,18 @@ import { getTasksForProfessorValidation } from '@/lib/actions/teacher.actions';
 import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import Menu from '@/components/Menu'; // Import the new Menu component
 
-// DUMMY DATA
+// ---=== BYPASS BACKEND ===---
 const dummyClassrooms = [
   { id: 'classe-a', nom: 'Classe 6ème A' },
   { id: 'classe-b', nom: 'Classe 5ème B' },
 ];
+// ---=========================---
+
 
 export default async function TeacherDashboardPage() {
-  // ---=== BYPASS NEXT-AUTH (temporaire) ===---
+  console.log('👨‍🏫 [PAGE] - Chargement du tableau de bord professeur.');
+
+  // ---=== BYPASS BACKEND ===---
   // const session = await getAuthSession();
   // if (!session?.user || session.user.role !== 'PROFESSEUR') {
   //     redirect('/login');
@@ -29,14 +33,18 @@ export default async function TeacherDashboardPage() {
         role: 'PROFESSEUR'
       }
   }
-  // ---======================================---
+  console.log('👤 [BYPASS] Session professeur simulée :', session.user);
+  // ---=========================---
   
   const user = session.user;
 
-  // Fetch only the data needed for this page - USING DUMMY DATA
+  // ---=== BYPASS BACKEND ===---
+  // Fetch only the data needed for this page
   const classrooms = dummyClassrooms;
   const tasksToValidate = await getTasksForProfessorValidation(user.id);
   const validationCount = tasksToValidate.length;
+  console.log(`✅ [PAGE] - Données prof chargées: ${classrooms.length} classes, ${validationCount} validations.`);
+  // ---=========================---
 
   return (
     <SidebarProvider>

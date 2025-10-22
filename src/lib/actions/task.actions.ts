@@ -4,36 +4,45 @@
 import { revalidatePath } from 'next/cache';
 import { Task, TaskType, TaskCategory, TaskDifficulty, ValidationType, ProgressStatus, StudentProgress } from '@prisma/client';
 
+// ---=== BYPASS BACKEND ===---
 export async function createTask(formData: FormData): Promise<Task[]> {
-  // DUMMY ACTION
-  console.log('[DUMMY] Creating task', formData.get('title'));
+  const title = formData.get('title');
+  console.log(`📝 [BYPASS] Création de la tâche (factice): "${title}"`);
   revalidatePath('/teacher/tasks');
+  // Retourne un tableau vide car la logique client est optimiste
   return [];
 }
 
 export async function updateTask(formData: FormData): Promise<Task[]> {
-  // DUMMY ACTION
-  console.log('[DUMMY] Updating task', formData.get('id'));
+  const taskId = formData.get('id');
+  const title = formData.get('title');
+  console.log(`📝 [BYPASS] Mise à jour de la tâche ${taskId} (factice): "${title}"`);
   revalidatePath('/teacher/tasks');
   return [];
 }
 
 export async function deleteTask(id: string): Promise<Task[]> {
-    // DUMMY ACTION
-    console.log('[DUMMY] Deleting task', id);
+    console.log(`🗑️ [BYPASS] Suppression de la tâche ${id} (factice)`);
     revalidatePath('/teacher/tasks');
     return [];
 }
 
 
 export async function completeTask(taskId: string, submissionUrl?: string): Promise<StudentProgress> {
-  // DUMMY ACTION
-  console.log(`[DUMMY] Completing task ${taskId} for user.`);
-  revalidatePath(`/student/some-student-id`);
+  const studentId = 'student1'; // ID factice
+  console.log(`✅ [BYPASS] Validation de la tâche ${taskId} pour l'élève ${studentId} (factice)`);
+  if (submissionUrl) {
+    console.log(`   -> Preuve soumise: ${submissionUrl}`);
+  }
+  
+  // Simule la revalidation
+  revalidatePath(`/student/${studentId}`);
+  revalidatePath(`/student/dashboard`);
 
+  // Retourne un objet de progression factice
   return {
-    id: `progress-${Math.random()}`,
-    studentId: 'some-student-id',
+    id: `progress-${Date.now()}`,
+    studentId: studentId,
     taskId: taskId,
     status: ProgressStatus.PENDING_VALIDATION,
     completionDate: new Date(),
@@ -43,3 +52,4 @@ export async function completeTask(taskId: string, submissionUrl?: string): Prom
     recipeName: null,
   };
 }
+// ---=========================---

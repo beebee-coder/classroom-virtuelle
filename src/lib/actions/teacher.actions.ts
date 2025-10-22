@@ -4,24 +4,10 @@
 import { revalidatePath } from 'next/cache';
 import { ProgressStatus, ValidationType, Role } from '@prisma/client';
 import type { TaskForProfessorValidation } from '../types';
-import { startOfDay, startOfWeek, isMonday, isFirstDayOfMonth } from 'date-fns';
 
-export async function endAllActiveSessionsForTeacher() {
-  // DUMMY ACTION
-  console.log('[DUMMY] Ending all active sessions for teacher.');
-  return;
-}
-
-export async function endAllActiveSessionsAndHideCardForTeacher() {
-    // DUMMY ACTION
-    console.log('[DUMMY] Ending sessions and hiding card.');
-    return { success: true };
-}
-
-
+// ---=== BYPASS BACKEND ===---
 export async function getTasksForProfessorValidation(teacherId: string): Promise<TaskForProfessorValidation[]> {
-    // DUMMY DATA
-    console.log('[DUMMY] Getting tasks for professor validation.');
+    console.log(`👀 [BYPASS] Récupération des tâches à valider pour le professeur ${teacherId} (factice).`);
     return [
       {
         id: 'progress1',
@@ -88,28 +74,22 @@ export interface ProfessorValidationPayload {
 }
 
 export async function validateTaskByProfessor(payload: ProfessorValidationPayload) {
-    // DUMMY ACTION
-    console.log('[DUMMY] Validating task by professor', payload);
+    console.log('👍 [BYPASS] Validation de tâche par le professeur (factice):', payload);
 
+    // Simule la revalidation
     revalidatePath('/teacher/validations');
 
+    // Simule une notification ou une mise à jour de points
     return {
         studentName: 'Élève Test',
         taskTitle: 'Tâche Test',
-        pointsAwarded: payload.pointsAwarded || 0,
+        pointsAwarded: payload.approved ? (payload.pointsAwarded || 50) : 0,
     };
 }
 
 export async function resetAllStudentData() {
-  // DUMMY ACTION
-  console.log('[DUMMY] Resetting all student data.');
+  console.log('🔄 [BYPASS] Réinitialisation de toutes les données élève (factice).');
   revalidatePath('/teacher');
   return { success: true, message: "Toutes les données des élèves ont été réinitialisées (simulation)." };
 }
-
-export async function resetPeriodicData() {
-  // DUMMY ACTION
-  console.log('[DUMMY] Resetting periodic data.');
-  revalidatePath('/teacher');
-  return { success: true, message: "La maintenance périodique a été effectuée (simulation)." };
-}
+// ---=========================---

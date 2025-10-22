@@ -5,24 +5,32 @@ import prisma from "@/lib/prisma";
 import { getAuthSession } from "@/lib/session";
 import { revalidatePath } from "next/cache";
 
+// ---=== BYPASS BACKEND ===---
 export async function updateUserProfileImage(imageUrl: string) {
   const session = await getAuthSession();
+  const userId = session?.user?.id;
 
-  if (!session?.user?.id) {
-    throw new Error("Unauthorized");
+  if (!userId) {
+    console.warn("👤 [BYPASS] Tentative de mise à jour d'image sans session. Action ignorée.");
+    throw new Error("Unauthorized (Bypassed)");
   }
 
+  console.log(`🖼️ [BYPASS] Mise à jour de l'image de profil pour l'utilisateur ${userId} avec l'URL: ${imageUrl} (factice)`);
+
   try {
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: { image: imageUrl },
-    });
+    // En mode bypass, nous ne mettons pas à jour la base de données.
+    // await prisma.user.update({
+    //   where: { id: session.user.id },
+    //   data: { image: imageUrl },
+    // });
+    console.log("   -> L'appel à la base de données a été sauté.");
 
     // Revalidate paths where the user's avatar might be displayed
     revalidatePath('/', 'layout');
     
   } catch (error) {
-    console.error("Error updating user profile image:", error);
-    throw new Error("Failed to update profile image.");
+    console.error("❌ Erreur (simulée) lors de la mise à jour de l'image de profil:", error);
+    throw new Error("Failed to update profile image (Bypassed).");
   }
 }
+// ---=========================---
