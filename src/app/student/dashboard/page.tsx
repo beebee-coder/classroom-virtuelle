@@ -1,3 +1,4 @@
+
 // src/app/student/dashboard/page.tsx
 import { Header } from '@/components/Header';
 import { notFound, redirect } from 'next/navigation';
@@ -19,15 +20,15 @@ const dummyCareers: Metier[] = [
 ];
 
 const dummyTasks: AppTask[] = [
-    { id: 'task1', title: 'Faire son lit', description: 'Un lit bien fait...', points: 10, type: TaskType.DAILY, category: TaskCategory.HOME, difficulty: TaskDifficulty.EASY, validationType: ValidationType.PARENT, requiresProof: false, attachmentUrl: null, isActive: true, startTime: null, duration: null },
-    { id: 'task2', title: 'Lire 15 minutes', description: 'Un chapitre par jour...', points: 15, type: TaskType.DAILY, category: TaskCategory.LANGUAGE, difficulty: TaskDifficulty.EASY, validationType: ValidationType.PARENT, requiresProof: false, attachmentUrl: null, isActive: true, startTime: null, duration: null },
-    { id: 'task3', title: 'Ranger sa chambre', description: 'Un espace propre...', points: 50, type: TaskType.WEEKLY, category: TaskCategory.HOME, difficulty: TaskDifficulty.MEDIUM, validationType: ValidationType.PARENT, requiresProof: true, attachmentUrl: null, isActive: true, startTime: null, duration: null },
-    { id: 'task4', title: 'Exercice de maths', description: 'Résoudre une série...', points: 70, type: TaskType.WEEKLY, category: TaskCategory.MATH, difficulty: TaskDifficulty.MEDIUM, validationType: ValidationType.PROFESSOR, requiresProof: true, attachmentUrl: null, isActive: true, startTime: null, duration: null },
+    { id: 'task1', title: 'Faire son lit', description: 'Un lit bien fait...', points: 10, type: 'DAILY', category: 'HOME', difficulty: 'EASY', validationType: 'PARENT', requiresProof: false, attachmentUrl: null, isActive: true, startTime: null, duration: null },
+    { id: 'task2', title: 'Lire 15 minutes', description: 'Un chapitre par jour...', points: 15, type: 'DAILY', category: 'LANGUAGE', difficulty: 'EASY', validationType: 'PARENT', requiresProof: false, attachmentUrl: null, isActive: true, startTime: null, duration: null },
+    { id: 'task3', title: 'Ranger sa chambre', description: 'Un espace propre...', points: 50, type: 'WEEKLY', category: 'HOME', difficulty: 'MEDIUM', validationType: 'PARENT', requiresProof: true, attachmentUrl: null, isActive: true, startTime: null, duration: null },
+    { id: 'task4', title: 'Exercice de maths', description: 'Résoudre une série...', points: 70, type: 'WEEKLY', category: 'MATH', difficulty: 'MEDIUM', validationType: 'PROFESSOR', requiresProof: true, attachmentUrl: null, isActive: true, startTime: null, duration: null },
 ];
 
 const dummyProgress: StudentProgress[] = [
-    { id: 'p1', studentId: 'student1', taskId: 'task1', status: ProgressStatus.VERIFIED, completionDate: new Date(), pointsAwarded: 10, submissionUrl: null, accuracy: 100, recipeName: null, },
-    { id: 'p2', studentId: 'student1', taskId: 'task3', status: ProgressStatus.PENDING_VALIDATION, completionDate: new Date(), pointsAwarded: 0, submissionUrl: 'https://example.com/proof', accuracy: null, recipeName: null, }
+    { id: 'p1', studentId: 'student1', taskId: 'task1', status: 'VERIFIED', completionDate: new Date(), pointsAwarded: 10, submissionUrl: null, accuracy: 100, recipeName: null, },
+    { id: 'p2', studentId: 'student1', taskId: 'task3', status: 'PENDING_VALIDATION', completionDate: new Date(), pointsAwarded: 0, submissionUrl: 'https://example.com/proof', accuracy: null, recipeName: null, }
 ];
 
 const dummyStudentData: { [id: string]: StudentWithStateAndCareer } = {
@@ -136,3 +137,5 @@ export default async function StudentDashboardPage({
     </CareerThemeWrapper>
   );
 }
+
+    
