@@ -27,37 +27,56 @@ export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
+  const sessionId = params.id;
+  console.log(`[API /session/details] - Requête reçue pour la session ID: ${sessionId}`);
+  
   const session = await getAuthSession();
   if (!session?.user) {
+    console.log('[API /session/details] - Non autorisé, pas de session utilisateur.');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const sessionId = params.id;
-
   try {
-    const coursSession = dummySessions[sessionId];
+    // ---=== DUMMY LOGIC ===---
+    // In a real app, you'd fetch from Prisma. Here, we create a dummy session on the fly.
+    const coursSession = {
+        id: sessionId,
+        participants: [dummyTeacher, ...dummyStudents], // Add all for testing
+        professeur: dummyTeacher,
+        classroom: {
+            id: 'classe-a',
+            nom: 'Classe 6ème A',
+            eleves: dummyStudents
+        }
+    };
+    // ---====================---
 
     if (!coursSession) {
+      console.log(`[API /session/details] - Session ${sessionId} non trouvée.`);
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
     // Security check: only participants can get details
     const isParticipant = coursSession.participants.some((p:any) => p.id === session.user.id);
     
-    // In a dummy setup, we might bypass this for ease of testing
-    // if (!isParticipant) {
-    //   return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    // }
+    // In a dummy setup, we bypass this for ease of testing, but log it.
+    if (!isParticipant) {
+      console.warn(`[API /session/details] - AVERTISSEMENT: L'utilisateur ${session.user.id} n'est pas un participant mais l'accès est autorisé pour la démo.`);
+    }
     
     const studentsInClass = coursSession.classroom?.eleves || [];
 
-    return NextResponse.json({ 
+    const responsePayload = { 
         session: coursSession, 
         students: studentsInClass,
         teacher: coursSession.professeur,
-    });
+    };
+    
+    console.log(`[API /session/details] - Envoi de la réponse pour la session ${sessionId}:`, responsePayload);
+    return NextResponse.json(responsePayload);
+
   } catch (error) {
-    console.error(`[API] Error fetching session details for ${sessionId}:`, error);
+    console.error(`[API /session/details] - Erreur interne du serveur pour la session ${sessionId}:`, error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

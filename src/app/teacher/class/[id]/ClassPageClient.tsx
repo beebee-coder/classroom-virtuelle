@@ -37,6 +37,7 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
     };
 
     const handleStartSession = async () => {
+        console.log('🚀 [CLIENT] - Clic sur "Démarrer la session". Élèves sélectionnés:', selectedStudents);
         if (selectedStudents.length === 0) {
             toast({
                 variant: 'destructive',
@@ -47,14 +48,19 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
         }
 
         try {
+            console.log('⏳ [CLIENT] - Appel de l\'action serveur `createCoursSession`...');
             const session = await createCoursSession(teacher.id!, selectedStudents);
+            console.log('✅ [CLIENT] - Action serveur réussie. Session créée:', session);
+
             toast({
                 title: 'Session créée !',
                 description: 'La session vidéo a été lancée.',
             });
             // Redirect to the session page
+            console.log(`🔀 [CLIENT] - Redirection vers /session/${session.id}`);
             router.push(`/session/${session.id}`);
         } catch (error) {
+            console.error('❌ [CLIENT] - Erreur lors de la création de la session:', error);
             toast({
                 variant: 'destructive',
                 title: 'Erreur',

@@ -5,24 +5,25 @@ import { revalidatePath } from 'next/cache';
 import { pusherServer } from '../pusher/server';
 
 export async function createCoursSession(professeurId: string, studentIds: string[]) {
-    // DUMMY ACTION
-    console.log(`[DUMMY] Creating course session for teacher ${professeurId} with students ${studentIds.join(', ')}`);
+    console.log(`[ACTION] - createCoursSession appelée pour le prof ${professeurId} avec les élèves:`, studentIds);
     
     const sessionId = `session-${Math.random().toString(36).substring(7)}`;
-    const classroomId = 'classe-a'; // Dummy classroom
+    const classroomId = 'classe-a'; // Dummy classroom for broadcast
 
+    console.log(`[ACTION] - ID de session généré: ${sessionId}. Déclenchement de Pusher...`);
     // The frontend expects this to be awaited, but in a real scenario,
     // this would be a "fire and forget" and we wouldn't block for it.
     await pusherServer.trigger(`presence-classe-${classroomId}`, 'session-started', {
         sessionId: sessionId,
         invitedStudentIds: studentIds,
     });
+    console.log('[ACTION] - Événement Pusher "session-started" envoyé.');
     
     studentIds.forEach(id => {
         revalidatePath(`/student/${id}`);
     });
     
-    // The error was here. The function was not returning anything, causing `session.id` to fail.
+    console.log('[ACTION] - Retourne l\'objet session.');
     return { id: sessionId, professeurId, classroomId };
 }
 
