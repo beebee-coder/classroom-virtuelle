@@ -8,24 +8,19 @@ export async function createCoursSession(professeurId: string, classroomId: stri
     try {
         console.log(`[ACTION] - createCoursSession appelée pour le prof ${professeurId}, classe ${classroomId} avec les élèves:`, studentIds);
         
-        // Validation des paramètres
         if (!professeurId || !classroomId || !studentIds || !Array.isArray(studentIds)) {
             throw new Error('Paramètres invalides: professeurId, classroomId et studentIds sont requis');
         }
 
         const sessionId = `session-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-
         console.log(`[ACTION] - ID de session généré: ${sessionId}`);
 
-        // 1. Envoyer les invitations individuelles aux élèves
         console.log(`[ACTION] - Envoi des invitations individuelles à ${studentIds.length} élève(s)...`);
         const invitationResults = await sendIndividualInvitations(sessionId, professeurId, classroomId, studentIds);
 
-        // 2. Notifier sur le canal de classe
         console.log(`[ACTION] - Notification sur le canal de classe...`);
         await notifyClassroom(sessionId, professeurId, classroomId, studentIds);
         
-        // Revalidation des chemins pour les élèves concernés
         studentIds.forEach(id => {
             revalidatePath(`/student/${id}`);
         });
@@ -49,36 +44,36 @@ export async function createCoursSession(professeurId: string, classroomId: stri
     }
 }
 
-// Fonction helper pour envoyer les invitations individuelles
 async function sendIndividualInvitations(sessionId: string, professeurId: string, classroomId: string, studentIds: string[]) {
     const results = {
         successful: [] as string[],
         failed: [] as string[]
     };
 
+    const invitationPayload = {
+        sessionId: sessionId,
+        teacherId: professeurId,
+        classroomId: classroomId,
+        classroomName: 'Classe 6ème A', // À récupérer de la base de données
+        teacherName: 'Professeur Test', // À récupérer de la base de données
+        timestamp: new Date().toISOString(),
+        type: 'session-invitation'
+    };
+
+    // D'abord, on stocke toutes les invitations
+    await fetch(`${process.env.NEXTAUTH_URL}/api/session/pending-invitations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            event: 'session-invitation',
+            data: invitationPayload
+        }),
+    });
+
     for (const studentId of studentIds) {
         try {
-            const invitationPayload = {
-                sessionId: sessionId,
-                teacherId: professeurId,
-                classroomId: classroomId,
-                classroomName: 'Classe 6ème A', // À récupérer de la base de données
-                teacherName: 'Professeur Test', // À récupérer de la base de données
-                timestamp: new Date().toISOString(),
-                type: 'session-invitation'
-            };
-
             console.log(`[ACTION] - Envoi d'invitation à l'élève ${studentId}`);
-             // 1. Stocker l'invitation pour récupération ultérieure
-             await fetch(`${process.env.NEXTAUTH_URL}/api/sessions/pending-invitations`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    channel: `private-user-${studentId}`,
-                    event: 'session-invitation',
-                    data: invitationPayload
-                }),
-            });
+            
             const pusherResponse = await pusherTrigger(
                 `private-user-${studentId}`, 
                 'session-invitation', 
@@ -102,7 +97,6 @@ async function sendIndividualInvitations(sessionId: string, professeurId: string
     return results;
 }
 
-// Fonction helper pour notifier la classe
 async function notifyClassroom(sessionId: string, professeurId: string, classroomId: string, studentIds: string[]) {
     try {
         const classPayload = {
@@ -129,7 +123,6 @@ async function notifyClassroom(sessionId: string, professeurId: string, classroo
     }
 }
 
-// ... (le reste des fonctions reste inchangé)
 export async function getSessionDetails(sessionId: string) {
     try {
         if (!sessionId) {
