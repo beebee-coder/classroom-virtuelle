@@ -35,9 +35,14 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
     const { data: session } = useSession();
 
     useEffect(() => {
-        if (!classroom.id || !session?.user?.id) return;
+        if (!classroom.id || !session?.user?.id) {
+            console.log("👨‍🏫 [PRESENCE PROF] - Conditions non remplies pour l'abonnement Pusher.", { classroomId: classroom.id, userId: session?.user?.id });
+            return;
+        }
 
         const channelName = `presence-class-${classroom.id}`;
+        console.log(`👨‍🏫 [PRESENCE PROF] - Tentative d'abonnement au canal: ${channelName}`);
+        
         try {
             const channel = pusherClient.subscribe(channelName);
 
@@ -45,18 +50,33 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                 // `members` contient tous les membres du canal.
                 // On récupère les IDs et on exclut le professeur.
                 const memberIds = Object.keys(channel.members.members);
-                setOnlineStudents(memberIds.filter(id => id !== session.user.id));
+                console.log('👨‍🏫 [PRESENCE PROF] - Mise à jour des membres. IDs reçus de Pusher:', memberIds);
+                const studentMemberIds = memberIds.filter(id => id !== session.user.id);
+                setOnlineStudents(studentMemberIds);
+                console.log('👨‍🏫 [PRESENCE PROF] - Liste des élèves en ligne mise à jour:', studentMemberIds);
             };
 
-            channel.bind('pusher:subscription_succeeded', updateOnlineMembers);
-            channel.bind('pusher:member_added', updateOnlineMembers);
-            channel.bind('pusher:member_removed', updateOnlineMembers);
+            channel.bind('pusher:subscription_succeeded', (members: any) => {
+                console.log('✅ [PRESENCE PROF] - Abonnement réussi. Membres actuels:', members.members);
+                updateOnlineMembers();
+            });
+            
+            channel.bind('pusher:member_added', (member: { id: string, info: any }) => {
+                console.log('➕ [PRESENCE PROF] - Membre ajouté:', member);
+                updateOnlineMembers();
+            });
+            
+            channel.bind('pusher:member_removed', (member: { id: string, info: any }) => {
+                 console.log('➖ [PRESENCE PROF] - Membre retiré:', member);
+                updateOnlineMembers();
+            });
 
             return () => {
+                console.log(`🔚 [PRESENCE PROF] - Désabonnement du canal ${channelName}`);
                 pusherClient.unsubscribe(channelName);
             };
         } catch (error) {
-            console.error("Failed to subscribe to Pusher channel:", error);
+            console.error("❌ [PRESENCE PROF] - Erreur lors de l'abonnement Pusher:", error);
         }
     }, [classroom.id, session?.user?.id]);
 
