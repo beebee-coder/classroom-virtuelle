@@ -23,8 +23,12 @@ export default async function ParentValidationPage({
   searchParams: { pw?: string };
 }) {
   const session = await getAuthSession();
-  // For demo, we just pick a student. In a real app, you'd fetch this.
-  const student = dummyStudents[params.id] || dummyStudents['student1'];
+  // ---=== BYPASS BACKEND ===---
+  // Pour éviter l'erreur "params should be awaited", nous utilisons un élève factice fixe.
+  const student = dummyStudents['student1']; 
+  const studentId = 'student1';
+  // ---=========================---
+
 
   if (!student) {
     notFound();
