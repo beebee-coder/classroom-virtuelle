@@ -49,13 +49,18 @@ export default function LoginPage() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     // Dummy logic for demo accounts
-    if ((email === 'teacher@example.com' || email === 'student@example.com') && password === 'password') {
-      alert(`Connexion réussie pour ${email}. Redirection en cours...`);
-      // Here you would redirect to the correct dashboard
-      // window.location.href = email.startsWith('teacher') ? '/teacher/dashboard' : '/student/dashboard';
+    if (
+      (email.toLowerCase() === 'teacher@example.com' || email.toLowerCase() === 'student@example.com') && 
+      password === 'password'
+    ) {
+      alert(`Connexion réussie pour ${email}. Redirection en cours... (simulation)`);
+      // In a real app, you would redirect here:
+      // const role = email.toLowerCase().startsWith('teacher') ? 'teacher' : 'student';
+      // window.location.href = `/${role}/dashboard`;
     } else {
-      setError('Email ou mot de passe invalide. Utilisez les comptes de démo.');
+      setError('Email ou mot de passe invalide.');
     }
   };
 
@@ -78,7 +83,7 @@ export default function LoginPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="prof@example.com"
+                placeholder="nom@example.com"
                 required
                 value={email}
                 onChange={e => setEmail(e.target.value)}
@@ -96,9 +101,9 @@ export default function LoginPage() {
                 onChange={e => setPassword(e.target.value)}
               />
             </div>
-             {error && <p className="text-sm text-destructive">{error}</p>}
-            <p className="text-xs text-muted-foreground text-center">
-              Utilisez `teacher@example.com` ou `student@example.com` avec le mot de passe `password`.
+             {error && <p className="text-sm text-destructive text-center">{error}</p>}
+            <p className="text-xs text-muted-foreground text-center px-4">
+              Utilisez <strong>teacher@example.com</strong> ou <strong>student@example.com</strong> avec le mot de passe <strong>password</strong>.
             </p>
             <Button type="submit" className="w-full">
               Se connecter
