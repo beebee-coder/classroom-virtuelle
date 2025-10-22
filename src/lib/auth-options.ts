@@ -24,7 +24,7 @@ const providers: NextAuthOptions['providers'] = [
         where: { email: credentials.email },
       });
 
-      if (!user || !user.role) {
+      if (!user) {
         return null;
       }
       
@@ -38,14 +38,13 @@ const providers: NextAuthOptions['providers'] = [
       const isValid = credentials.password === 'password';
 
       if (isValid) {
-        // Explicitly cast the user object to satisfy the expected type
         return {
           id: user.id,
           name: user.name,
           email: user.email,
           image: user.image,
-          role: user.role as Role,
-          classeId: user.classroomId || undefined,
+          role: user.role,
+          classeId: user.classeId || undefined,
         };
       }
 
@@ -116,9 +115,9 @@ export const authOptions: NextAuthOptions = {
       // Initial sign in
       if (user) {
         token.id = user.id;
-        token.role = (user as any).role;
+        token.role = user.role;
         token.picture = user.image; // ← CRITIQUE
-        token.classeId = (user as any).classeId;
+        token.classeId = user.classeId;
       }
       
       // Update session (when `update()` is called)
