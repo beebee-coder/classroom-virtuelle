@@ -13,10 +13,10 @@ import {
     KeyRound,
     Target
 } from 'lucide-react';
-import type { Classroom } from '@prisma/client';
+import type { Classroom } from '@/lib/types';
 import { CreateAnnouncementForm } from '@/components/CreateAnnouncementForm';
 import { ResetButton } from '@/components/ResetButton';
-import type { Session } from 'next-auth';
+import type { Session } from "next-auth";
 
 // Définition des éléments de menu pour une configuration centralisée
 export const menuItems = [
@@ -75,14 +75,14 @@ export const menuItems = [
         items: [
             {
                 label: "Ma Classe",
-                href: (user: Session['user']) => `/student/class/${user.classeId}`,
+                href: (user: Session['user']) => `/student/class/${user?.classeId}`,
                 icon: Users,
                 roles: ['ELEVE'],
-                condition: (user: Session['user']) => !!user.classeId,
+                condition: (user: Session['user']) => !!user?.classeId,
             },
             {
                 label: "Mon Profil de Compétences",
-                href: (user: Session['user']) => `/student/${user.id}/skills`,
+                href: (user: Session['user']) => `/student/${user?.id}/skills`,
                 icon: Target,
                 roles: ['ELEVE'],
             },
@@ -93,7 +93,7 @@ export const menuItems = [
         items: [
             {
                 label: "Espace Parental",
-                href: (user: Session['user']) => `/student/${user.id}/parent`,
+                href: (user: Session['user']) => `/student/${user?.id}/parent`,
                 icon: KeyRound,
                 roles: ['ELEVE'],
             },
@@ -104,7 +104,7 @@ export const menuItems = [
         items: [
             { 
                 label: "Profil", 
-                href: (user: Session['user']) => user.role === 'PROFESSEUR' ? '/teacher/profile' : `/student/${user.id}`, 
+                href: (user: Session['user']) => user?.role === 'PROFESSEUR' ? '/teacher/profile' : `/student/${user?.id}`, 
                 icon: UserCircle,
                 roles: ['PROFESSEUR', 'ELEVE'],
             },

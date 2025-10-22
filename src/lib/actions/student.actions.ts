@@ -2,7 +2,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { pusherServer } from '../pusher/server';
+import { pusherTrigger } from '../pusher/server';
 import { StudentWithStateAndCareer } from '../types';
 import { dummyStudentData } from '../dummy-data';
 
@@ -20,7 +20,7 @@ export async function setStudentCareer(studentId: string, careerId: string | nul
     const classroomId = 'classe-a'; // ID de classe factice pour la démo
     
     console.log(`📡 [PUSHER] Déclenchement de "student-updated" pour l'élève ${studentId}`);
-    await pusherServer.trigger(`presence-classe-${classroomId}`, 'student-updated', {
+    await pusherTrigger(`presence-classe-${classroomId}`, 'student-updated', {
         studentId,
     });
     

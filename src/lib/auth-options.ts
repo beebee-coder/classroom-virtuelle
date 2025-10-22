@@ -4,7 +4,7 @@ import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
 import prisma from '@/lib/prisma';
-import { User as PrismaUser } from '@prisma/client';
+import { User as PrismaUser, Role } from '@prisma/client';
 
 const providers: NextAuthOptions['providers'] = [
   CredentialsProvider({
@@ -31,7 +31,7 @@ const providers: NextAuthOptions['providers'] = [
       const isValid = credentials.password === 'password';
 
       if (isValid) {
-        return user;
+        return user as any;
       }
 
       return null;

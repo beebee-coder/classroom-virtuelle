@@ -9,7 +9,7 @@ import { CheckCircle } from "lucide-react";
 
 export default async function ProfessorValidationPage() {
   const session = await getAuthSession();
-  if (session?.user.role !== "PROFESSEUR") {
+  if (session?.user?.role !== "PROFESSEUR") {
     redirect("/login");
   }
 

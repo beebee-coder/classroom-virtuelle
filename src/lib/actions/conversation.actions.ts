@@ -1,7 +1,7 @@
 // src/lib/actions/conversation.actions.ts
 'use server';
 
-import { pusherServer } from '@/lib/pusher/server';
+import { pusherTrigger } from '@/lib/pusher/server';
 import { FullConversation } from '@/lib/types';
 
 
@@ -23,16 +23,18 @@ export async function getOrCreateConversation(
         id: 'msg1', 
         message: 'Bonjour ! Ceci est une conversation de test.', 
         senderId: initiatorId, 
-        senderName: 'Utilisateur Initiateur', 
         createdAt: new Date(), 
+        updatedAt: new Date(),
         conversationId: `conv-${initiatorId}-${receiverId}`,
         classroomId: null,
-        isQuestion: null,
+        isQuestion: false,
         directMessageSenderId: null,
+        sender: { id: initiatorId, name: 'Utilisateur Initiateur', image: null },
+        reactions: [],
       }
     ],
-    initiator: { id: initiatorId, name: 'Utilisateur Initiateur' },
-    receiver: { id: receiverId, name: 'Utilisateur Destinataire' },
+    initiator: { id: initiatorId, name: 'Utilisateur Initiateur', image: null },
+    receiver: { id: receiverId, name: 'Utilisateur Destinataire', image: null },
   };
 }
 
@@ -54,7 +56,7 @@ export async function sendDirectMessage(formData: FormData) {
     };
 
     const channelName = `private-conversation-${conversationId}`;
-    await pusherServer.trigger(channelName, 'new-dm', newMessage);
+    await pusherTrigger(channelName, 'new-dm', newMessage);
 
     return newMessage;
 }

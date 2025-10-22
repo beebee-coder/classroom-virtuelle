@@ -12,7 +12,7 @@ export async function trackStudentActivity(activeSeconds: number) {
     const session = await getAuthSession();
     const userId = session?.user?.id;
     
-    if (!userId || session.user.role !== 'ELEVE') {
+    if (!userId || session?.user?.role !== 'ELEVE') {
       console.log('👤 [SERVEUR - Heartbeat] Action ignorée: Non-élève.');
       return { success: true, pointsAwarded: 0, reason: 'Not an authenticated student' };
     }

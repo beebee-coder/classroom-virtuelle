@@ -2,7 +2,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { ProgressStatus, Task } from '@prisma/client';
+import { Task, ProgressStatus } from '@/lib/types';
 
 type DetailedFeedback = { taste: number, presentation: number, autonomy: number, comment: string };
 

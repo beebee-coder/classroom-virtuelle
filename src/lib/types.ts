@@ -1,4 +1,3 @@
-
 // src/lib/types.ts
 
 import type { Prisma, Reaction as PrismaReaction, Message as PrismaMessage, StudentProgress, Announcement as PrismaAnnouncement, Classroom, User, Metier, CoursSession, Leaderboard, Task } from '@prisma/client';
@@ -73,6 +72,12 @@ export type FullConversation = Prisma.ConversationGetPayload<{
         messages: {
             orderBy: {
                 createdAt: 'asc'
+            },
+            include: {
+                sender: {
+                    select: { id: true, name: true, image: true }
+                },
+                reactions: true
             }
         };
         initiator: { 

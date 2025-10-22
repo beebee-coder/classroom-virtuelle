@@ -1,7 +1,7 @@
 // src/lib/actions/chat.actions.ts
 'use server';
 
-import { pusherServer } from '@/lib/pusher/server';
+import { pusherTrigger } from '@/lib/pusher/server';
 import { ReactionWithUser, MessageWithReactions } from '../types';
 
 // ---=== BYPASS BACKEND ===---
@@ -78,7 +78,7 @@ export async function sendMessage(formData: FormData) {
     };
 
     console.log('📡 [PUSHER] Déclenchement de "new-message" avec:', newMessage);
-    await pusherServer.trigger(`presence-classe-${classroomId}`, 'new-message', newMessage);
+    await pusherTrigger(`presence-classe-${classroomId}`, 'new-message', newMessage);
 
     return newMessage;
 }
@@ -97,13 +97,13 @@ export async function toggleReaction(messageId: string, emoji: string) {
 
     // Pour la démo, on simule toujours un ajout. Le client gère l'état visuel.
     console.log('📡 [PUSHER] Déclenchement de "reaction-update" avec:', { messageId, reaction: reactionData, action: 'added' });
-    await pusherServer.trigger(`presence-classe-${classroomId}`, 'reaction-update', { messageId, reaction: reactionData, action: 'added' });
+    await pusherTrigger(`presence-classe-${classroomId}`, 'reaction-update', { messageId, reaction: reactionData, action: 'added' });
 }
 
 export async function deleteChatHistory(classroomId: string) {
     console.log(`🗑️ [BYPASS] Effacement de l'historique du chat pour la classe ${classroomId} (factice).`);
     
     console.log('📡 [PUSHER] Déclenchement de "history-cleared".');
-    await pusherServer.trigger(`presence-classe-${classroomId}`, 'history-cleared', {});
+    await pusherTrigger(`presence-classe-${classroomId}`, 'history-cleared', {});
 }
 // ---=========================---

@@ -29,7 +29,11 @@ function getDummySessionData(sessionId: string) {
         image: null,
         emailVerified: null,
         parentPassword: null,
-        classeId: null,
+        ambition: null,
+        points: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        classroomId: null,
     };
     
     // Pour la démo, on prend tous les élèves de la classe A

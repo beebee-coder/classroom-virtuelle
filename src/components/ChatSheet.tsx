@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import type { MessageWithReactions, ReactionWithUser } from '@/lib/types';
-import type { Role } from '@prisma/client';
+import type { Role } from '@/lib/types';
 
 const EMOJIS = ['👍', '❤️', '😂', '😯', '😢', '🤔'];
 
@@ -179,10 +179,10 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
                   <div key={msg.id} className={cn('flex items-end gap-2 group', msg.senderId === userId && 'flex-row-reverse')}>
                     <Avatar className="h-8 w-8">
                       <AvatarImage src={`https://api.dicebear.com/7.x/pixel-art/svg?seed=${msg.senderId}`} />
-                      <AvatarFallback>{msg.senderName?.charAt(0) || 'U'}</AvatarFallback>
+                      <AvatarFallback>{msg.sender.name?.charAt(0) || 'U'}</AvatarFallback>
                     </Avatar>
                     <div className={cn('rounded-lg p-3 max-w-xs relative', msg.senderId === userId ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
-                      <p className="text-sm font-bold mb-1">{msg.senderName}</p>
+                      <p className="text-sm font-bold mb-1">{msg.sender.name}</p>
                       <p className="text-sm break-words">{msg.message}</p>
                       <p className="text-xs opacity-70 mt-1 text-right">{format(new Date(msg.createdAt), 'HH:mm')}</p>
                        <div className="absolute -bottom-3 flex gap-1">

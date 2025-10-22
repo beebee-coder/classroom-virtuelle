@@ -2,7 +2,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { Task, TaskType, TaskCategory, TaskDifficulty, ValidationType, ProgressStatus, StudentProgress } from '@prisma/client';
+import { Task, ProgressStatus, StudentProgress } from '@/lib/types';
 
 // ---=== BYPASS BACKEND ===---
 export async function createTask(formData: FormData): Promise<Task[]> {

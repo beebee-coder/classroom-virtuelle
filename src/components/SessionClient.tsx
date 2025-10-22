@@ -14,10 +14,11 @@ import { StudentSessionControls } from './StudentSessionControls';
 import SessionLoading from './SessionLoading';
 import { endCoursSession } from '@/lib/actions';
 import { VideoPlayer } from './VideoPlayer';
+import { PresenceChannel } from 'pusher-js';
 
 interface SessionClientProps {
   sessionId: string;
-  initialStudents: StudentForCard[];
+  initialStudents: User[];
   initialTeacher: User;
   currentUserRole: Role;
   currentUserId: string;
@@ -79,7 +80,7 @@ export default function SessionClient({
   useEffect(() => {
     if (!localStream) return;
 
-    const channel = pusherClient.subscribe(channelName);
+    const channel = pusherClient.subscribe(channelName) as PresenceChannel;
     console.log(`Subscribed to ${channelName}`);
 
     channel.bind('pusher:subscription_succeeded', () => {
@@ -185,10 +186,12 @@ export default function SessionClient({
   if (!localStream) {
     return <SessionLoading />;
   }
+  
+  const currentUser = currentUserRole === "PROFESSEUR" ? initialTeacher : initialStudents.find(s=>s.id === currentUserId)
 
   return (
     <div className="flex flex-col h-screen bg-background text-foreground">
-       <Header user={currentUserRole === "PROFESSEUR" ? initialTeacher : initialStudents.find(s=>s.id === currentUserId)} />
+       <Header user={currentUser} />
 
       <div className="flex-1 flex flex-col md:flex-row p-4 gap-4 overflow-hidden">
         {/* Main Video Grid */}
@@ -196,7 +199,7 @@ export default function SessionClient({
           <div className="relative rounded-lg overflow-hidden border bg-muted">
             <video ref={userVideoRef} muted autoPlay playsInline className="h-full w-full object-cover" />
             <div className="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
-              {currentUserRole === 'PROFESSEUR' ? initialTeacher.name : initialStudents.find(s=>s.id === currentUserId)?.name} (Vous)
+              {currentUser?.name} (Vous)
             </div>
           </div>
           {peers.map(peerData => (
