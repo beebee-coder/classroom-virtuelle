@@ -104,7 +104,7 @@ export const menuItems = [
         items: [
             { 
                 label: "Profil", 
-                href: (user: Session['user']) => user.role === 'PROFESSEUR' ? '/teacher/profile' : `/student/${user.id}`, 
+                href: (user: Session['user']) => user.role === 'Role.PROFESSEUR' ? '/teacher/profile' : `/student/${user.id}`, 
                 icon: UserCircle,
                 roles: ['PROFESSEUR', 'ELEVE'] as Role[],
             },

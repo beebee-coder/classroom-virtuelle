@@ -18,7 +18,7 @@ const dummyTasks: Task[] = [
 
 export default async function TasksPage() {
   const session = await getAuthSession();
-  if (session?.user.role !== "PROFESSEUR") {
+  if (session?.user.role !== Role.PROFESSEUR) {
     redirect("/login");
   }
 
