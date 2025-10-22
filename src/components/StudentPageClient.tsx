@@ -46,10 +46,13 @@ export default function StudentPageClient({ student, announcements, allCareers, 
         if (!student.classeId || isTeacherView) return;
 
         const channelName = `presence-classe-${student.classeId}`;
+        console.log(`🧑‍🎓 [PUSHER] Abonnement au canal: ${channelName}`);
         const channel = pusherClient.subscribe(channelName);
 
         const handleSessionStarted = (data: { sessionId: string; invitedStudentIds: string[]; professeurId: string }) => {
+            console.log("🧑‍🎓 [PUSHER] Événement 'session-started' reçu:", data);
             if (data.invitedStudentIds.includes(student.id)) {
+                console.log(`✅ [PUSHER] L'élève ${student.id} est invité. Affichage de la carte.`);
                 setSessionInvitation({ sessionId: data.sessionId, professeurId: data.professeurId });
                 toast({
                     title: "Nouvelle session !",
@@ -61,6 +64,7 @@ export default function StudentPageClient({ student, announcements, allCareers, 
         channel.bind('session-started', handleSessionStarted);
 
         return () => {
+            console.log(`🔚 [PUSHER] Désabonnement du canal: ${channelName}`);
             channel.unbind('session-started', handleSessionStarted);
             pusherClient.unsubscribe(channelName);
         };
