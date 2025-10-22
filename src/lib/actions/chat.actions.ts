@@ -6,8 +6,46 @@ import { ReactionWithUser, MessageWithReactions } from '../types';
 
 // ---=== BYPASS BACKEND ===---
 const dummyMessages: MessageWithReactions[] = [
-    { id: '1', message: 'Bonjour la classe ! Ceci est un message de test.', senderId: 'teacher-id', senderName: 'Professeur Test', classroomId: 'classe-a', createdAt: new Date(Date.now() - 60000), reactions: [], isQuestion: false, conversationId: null, directMessageSenderId: null, },
-    { id: '2', message: 'Bonjour Monsieur !', senderId: 'student1', senderName: 'Alice', classroomId: 'classe-a', createdAt: new Date(Date.now() - 30000), reactions: [{ id: 'r1', emoji: '👍', userId: 'teacher-id', messageId: '2', user: { id: 'teacher-id', name: 'Professeur Test'} }], isQuestion: false, conversationId: null, directMessageSenderId: null, },
+    { 
+        id: '1', 
+        message: 'Bonjour la classe ! Ceci est un message de test.', 
+        senderId: 'teacher-id', 
+        classroomId: 'classe-a', 
+        createdAt: new Date(Date.now() - 60000), 
+        updatedAt: new Date(Date.now() - 60000),
+        isQuestion: false, 
+        conversationId: null, 
+        directMessageSenderId: null,
+        sender: {
+            id: 'teacher-id',
+            name: 'Professeur Test',
+            image: null,
+        },
+        reactions: [],
+    },
+    { 
+        id: '2', 
+        message: 'Bonjour Monsieur !', 
+        senderId: 'student1', 
+        classroomId: 'classe-a', 
+        createdAt: new Date(Date.now() - 30000), 
+        updatedAt: new Date(Date.now() - 30000),
+        isQuestion: false, 
+        conversationId: null, 
+        directMessageSenderId: null,
+        sender: {
+            id: 'student1',
+            name: 'Alice',
+            image: null,
+        },
+        reactions: [{ 
+            id: 'r1', 
+            emoji: '👍', 
+            userId: 'teacher-id', 
+            messageId: '2', 
+            user: { id: 'teacher-id', name: 'Professeur Test'} 
+        }],
+    },
 ];
 
 export async function getMessages(classroomId: string): Promise<MessageWithReactions[]> {
@@ -26,12 +64,17 @@ export async function sendMessage(formData: FormData) {
         message: messageContent,
         classroomId,
         senderId: 'current-user-id', // En mode bypass, l'ID est générique
-        senderName: "Vous (Démo)",
         createdAt: new Date(),
-        reactions: [],
+        updatedAt: new Date(),
         isQuestion: false,
         conversationId: null,
         directMessageSenderId: null,
+        sender: {
+            id: 'current-user-id',
+            name: "Vous (Démo)",
+            image: null
+        },
+        reactions: [],
     };
 
     console.log('📡 [PUSHER] Déclenchement de "new-message" avec:', newMessage);
