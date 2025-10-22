@@ -3,8 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import ClassPageClient from './ClassPageClient';
 import { getAuthSession } from '@/lib/session';
 import { getClassAnnouncements } from '@/lib/actions/announcement.actions';
-import { ClassroomWithDetails, StudentForCard } from '@/lib/types';
-import { User } from '@prisma/client';
+import { ClassroomWithDetails, StudentForCard, Role } from '@/lib/types';
 
 // DUMMY DATA
 const allDummyStudents: StudentForCard[] = [
@@ -80,5 +79,3 @@ export default async function ClassPage({ params }: { params: { id: string } }) 
   
   return <ClassPageClient classroom={classroom} teacher={session.user} announcements={announcements} />;
 }
-
-    
