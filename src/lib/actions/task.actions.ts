@@ -50,6 +50,8 @@ export async function completeTask(taskId: string, submissionUrl?: string): Prom
     pointsAwarded: 0,
     accuracy: null,
     recipeName: null,
+    createdAt: new Date(),
+    updatedAt: new Date()
   };
 }
 // ---=========================---

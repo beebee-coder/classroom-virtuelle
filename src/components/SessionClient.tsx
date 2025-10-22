@@ -3,7 +3,8 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { pusherClient } from '@/lib/pusher/client';
-import type { User } from '@/lib/types';
+import type { User as PrismaUser } from '@prisma/client';
+import type { Role } from '@/lib/types';
 import SimplePeer, { Instance as PeerInstance, SignalData } from 'simple-peer';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -18,9 +19,9 @@ import { PresenceChannel } from 'pusher-js';
 
 interface SessionClientProps {
   sessionId: string;
-  initialStudents: User[];
-  initialTeacher: User;
-  currentUserRole: 'PROFESSEUR' | 'ELEVE';
+  initialStudents: PrismaUser[];
+  initialTeacher: PrismaUser;
+  currentUserRole: Role;
   currentUserId: string;
 }
 
@@ -43,7 +44,7 @@ export default function SessionClient({
   const [peers, setPeers] = useState<PeerData[]>([]);
   const peersRef = useRef<PeerData[]>([]);
   const userVideoRef = useRef<HTMLVideoElement>(null);
-  const [sessionParticipants, setSessionParticipants] = useState<User[]>([initialTeacher, ...initialStudents]);
+  const [sessionParticipants, setSessionParticipants] = useState<PrismaUser[]>([initialTeacher, ...initialStudents]);
 
   const channelName = `presence-session-${sessionId}`;
 
@@ -230,4 +231,3 @@ export default function SessionClient({
     </div>
   );
 }
-```

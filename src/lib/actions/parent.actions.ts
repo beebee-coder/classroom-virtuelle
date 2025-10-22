@@ -2,7 +2,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { Task, ProgressStatus } from '@/lib/types';
+import { Task } from '@/lib/types';
 
 type DetailedFeedback = { taste: number, presentation: number, autonomy: number, comment: string };
 
@@ -37,6 +37,8 @@ export async function getTasksForValidation(studentId: string): Promise<(Task & 
             isActive: true,
             startTime: null,
             duration: null,
+            createdAt: new Date(),
+            updatedAt: new Date()
         },
         {
             id: 'task-bed',
@@ -53,6 +55,8 @@ export async function getTasksForValidation(studentId: string): Promise<(Task & 
             isActive: true,
             startTime: null,
             duration: null,
+            createdAt: new Date(),
+            updatedAt: new Date()
         }
     ] as (Task & { progressId: string })[];
 }

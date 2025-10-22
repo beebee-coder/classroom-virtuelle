@@ -17,13 +17,12 @@ export async function getOrCreateConversation(
     initiatorId: initiatorId,
     receiverId: receiverId,
     createdAt: new Date(),
-    updatedAt: new Date(),
     messages: [
       { 
         id: 'msg1', 
         message: 'Bonjour ! Ceci est une conversation de test.', 
         senderId: initiatorId, 
-        createdAt: new Date(), 
+        createdAt: new Date(),
         conversationId: `conv-${initiatorId}-${receiverId}`,
         classroomId: null,
         isQuestion: false,

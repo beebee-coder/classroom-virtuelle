@@ -31,7 +31,7 @@ const providers: NextAuthOptions['providers'] = [
       const isValid = credentials.password === 'password';
 
       if (isValid) {
-        return user as any;
+        return user;
       }
 
       return null;
@@ -128,7 +128,7 @@ export const authOptions: NextAuthOptions = {
       console.log('🔑 [AUTH] - Callback de session. Token reçu:', JSON.stringify(token, null, 2));
       if (token && session.user) {
         session.user.id = token.id as string;
-        session.user.role = token.role as 'PROFESSEUR' | 'ELEVE';
+        session.user.role = token.role as Role;
         session.user.classeId = token.classeId as string | undefined;
         session.user.image = token.picture as string | undefined; // ← CRITIQUE
         console.log('✅ [AUTH] - Session enrichie:', JSON.stringify(session.user, null, 2));
@@ -142,4 +142,3 @@ export const authOptions: NextAuthOptions = {
     signIn: '/login',
   },
 };
-```
