@@ -15,31 +15,22 @@ import { StudentCarousel } from '@/components/StudentCarousel'; // Importer le n
 export default async function HomePage() {
   console.log('🏠 [PAGE] - Chargement de la page d\'accueil.');
 
-  // ---=== BYPASS BACKEND ===---
-  // const session = await getAuthSession();
-  const session = null; // Simule un utilisateur non connecté pour afficher la page publique
-  console.log('👤 [BYPASS] Session simulée (visiteur) :', session);
-  // ---=========================---
+  const session = await getAuthSession();
   
-  const announcements = await getPublicAnnouncements(2); // Limiter à 2 pour l'espace
-
   // Redirect logged-in users to their respective dashboards
   if (session?.user) {
-    console.log('👤 [PAGE] - Session utilisateur trouvée:', JSON.stringify(session.user, null, 2));
+    console.log('👤 [PAGE] - Session utilisateur trouvée, redirection...');
     if (session.user.role === 'PROFESSEUR') {
-      console.log('Redirecting to /teacher/dashboard');
       redirect('/teacher/dashboard');
     } else if (session.user.role === 'ELEVE') {
-      console.log('Redirecting to /student/dashboard');
-      redirect(`/student/dashboard`);
-    } else {
-       console.warn('🤷 [PAGE] - Rôle non reconnu, pas de redirection:', session.user.role);
+      redirect('/student/dashboard');
     }
-  } else {
-    console.log('✅ [PAGE] - Affichage de la page d\'accueil pour visiteur.');
   }
 
   // Render homepage content for non-logged-in users
+  console.log('✅ [PAGE] - Affichage de la page d\'accueil pour visiteur.');
+  const announcements = await getPublicAnnouncements(2);
+
   return (
     <SidebarProvider>
       <div className="flex flex-col h-screen ">
