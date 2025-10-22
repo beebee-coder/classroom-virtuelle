@@ -1,9 +1,12 @@
+
 // src/lib/types.ts
 
-import type { Prisma, Reaction as PrismaReaction, Message as PrismaMessage, StudentProgress as PrismaStudentProgress, Announcement as PrismaAnnouncement, Classroom, User, Metier, CoursSession, Leaderboard, Task, Role, TaskType, TaskCategory, TaskDifficulty, ValidationType, ProgressStatus } from '@prisma/client';
+import type { Prisma, Classroom, User, Metier, CoursSession, Leaderboard, Task } from '@prisma/client';
 
 // Ré-exporter tous les types et énumérations de Prisma pour un accès centralisé
-export * from '@prisma/client';
+export { Role, TaskType, TaskCategory, TaskDifficulty, ValidationType, ProgressStatus } from '@prisma/client';
+export type { Prisma, Classroom, User, Metier, CoursSession, Leaderboard, Task, StudentProgress, Reaction, Message, Announcement, Conversation } from '@prisma/client';
+
 
 /**
  * Type pour un élève avec son état actuel et le métier choisi.
