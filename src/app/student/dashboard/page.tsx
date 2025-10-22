@@ -2,7 +2,7 @@
 import { Header } from '@/components/Header';
 import { notFound, redirect } from 'next/navigation';
 import { CareerThemeWrapper } from '@/components/CareerThemeWrapper';
-import { StudentWithStateAndCareer, AppTask, AnnouncementWithAuthor, Metier, TaskType, TaskCategory, TaskDifficulty, ValidationType, ProgressStatus } from '@/lib/types';
+import { StudentWithStateAndCareer, AppTask, AnnouncementWithAuthor, Metier } from '@/lib/types';
 import { getAuthSession } from '@/lib/session';
 import { ChatSheet } from '@/components/ChatSheet';
 import { getStudentAnnouncements } from '@/lib/actions/announcement.actions';
@@ -79,8 +79,9 @@ export default async function StudentDashboardPage({
   // ---=========================---
 
   const student = await getStudentData(session.user.id);
-  const viewAs = searchParams.viewAs;
-  const isTeacherView = viewAs === 'teacher' && session.user.role === 'PROFESSEUR';
+  
+  // La logique `isTeacherView` sera maintenant gérée côté client dans `StudentPageClient`
+  const isTeacherView = session.user.role === 'PROFESSEUR';
 
   if (!student) {
     console.error('❌ [PAGE] - Données de l\'élève non trouvées, redirection.');
@@ -110,7 +111,7 @@ export default async function StudentDashboardPage({
           <Header user={session.user}>
               {!isTeacherView && <SidebarTrigger />}
               {classeId && !isTeacherView && session.user.role && (
-                  <ChatSheet classroomId={classeId} userId={session.user.id} userRole={session.user.role} />
+                  <ChatSheet classroomId={classeId} userId={session.user.id} userRole={session.user.role as any} />
               )}
           </Header>
           <div className="flex flex-1">

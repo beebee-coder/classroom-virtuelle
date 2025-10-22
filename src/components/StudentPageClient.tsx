@@ -1,7 +1,8 @@
 // src/components/StudentPageClient.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { StudentWithStateAndCareer, AppTask, AnnouncementWithAuthor } from '@/lib/types';
 import type { Metier } from '@prisma/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +12,7 @@ import { TaskBoard } from '@/components/TaskBoard';
 import { CareerSelector } from '@/components/CareerSelector';
 import { AnnouncementCarousel } from '@/components/AnnouncementCarousel';
 import { BackButton } from '@/components/BackButton';
+import { Skeleton } from './ui/skeleton';
 
 interface StudentPageClientProps {
     student: StudentWithStateAndCareer;
@@ -21,14 +23,39 @@ interface StudentPageClientProps {
 }
 
 export default function StudentPageClient({ student, announcements, allCareers, isTeacherView, tasks }: StudentPageClientProps) {
-    const [currentCareer, setCurrentCareer] = useState(student.etat?.metier ?? null);
+    const [mounted, setMounted] = useState(false);
+    const searchParams = useSearchParams();
+    const viewAs = searchParams.get('viewAs');
 
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    if (!mounted) {
+        return (
+            <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-1 space-y-8">
+                        <Skeleton className="h-[250px] w-full" />
+                        <Skeleton className="h-[150px] w-full" />
+                    </div>
+                    <div className="lg:col-span-2 space-y-8">
+                        <Skeleton className="h-[200px] w-full" />
+                        <Skeleton className="h-[400px] w-full" />
+                    </div>
+                </div>
+            </main>
+        );
+    }
+    
+    const currentCareer = student.etat?.metier ?? null;
     const level = Math.floor((student.points ?? 0) / 1000);
     const progress = (((student.points ?? 0) % 1000) / 1000) * 100;
+    const isTeacherViewing = viewAs === 'teacher' && isTeacherView;
 
     return (
         <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            {isTeacherView && (
+            {isTeacherViewing && (
                  <div className="mb-6">
                     <BackButton />
                 </div>
@@ -99,7 +126,7 @@ export default function StudentPageClient({ student, announcements, allCareers, 
                         </CardContent>
                     </Card>
 
-                    {isTeacherView && (
+                    {isTeacherViewing && (
                         <Card>
                             <CardHeader>
                                 <CardTitle>Changer le métier de l'élève</CardTitle>
