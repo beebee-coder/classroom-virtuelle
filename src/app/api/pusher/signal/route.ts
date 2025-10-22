@@ -1,5 +1,5 @@
 // src/app/api/pusher/signal/route.ts
-import { pusherServer } from '@/lib/pusher/server';
+import { pusherTrigger } from '@/lib/pusher/server';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
@@ -13,7 +13,7 @@ export async function POST(request: Request) {
 
     // On déclenche l'événement sur le canal avec les données reçues.
     // L'ID de l'appelant (userId) est déjà dans le corps de la requête.
-    await pusherServer.trigger(channelName, 'signal', {
+    await pusherTrigger(channelName, 'signal', {
       userId: userId, // Qui envoie le signal
       signal: signal,
     }, { socket_id: socket_id });

@@ -1,5 +1,5 @@
 // src/app/api/pusher/auth/route.ts
-import { pusherServer } from '@/lib/pusher/server';
+import { authenticateUser } from '@/lib/pusher/server';
 import { getAuthSession } from '@/lib/session';
 import { NextResponse } from 'next/server';
 
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     console.log('🔐 [PUSHER AUTH] - Préparation des données utilisateur pour Pusher:', userData);
     
     // Pour les canaux de présence, les données utilisateur sont requises
-    const authResponse = await pusherServer.authenticateUser(socketId, userData);
+    const authResponse = await authenticateUser(socketId, userData);
     
     console.log('✅ [PUSHER AUTH] - Authentification réussie. Réponse envoyée au client.');
     return NextResponse.json(authResponse);
