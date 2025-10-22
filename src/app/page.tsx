@@ -19,9 +19,9 @@ export default async function HomePage() {
   // Redirect logged-in users to their respective dashboards
   if (session?.user) {
     if (session.user.role === 'PROFESSEUR') {
-      redirect('/teacher');
+      redirect('/teacher/dashboard');
     } else if (session.user.role === 'ELEVE') {
-      redirect(`/student/${session.user.id}`);
+      redirect(`/student/dashboard`);
     }
   }
 

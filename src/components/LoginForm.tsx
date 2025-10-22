@@ -56,9 +56,9 @@ export function LoginForm() {
     setLoading(true);
     // Simulate login and redirect
     if (role === 'teacher') {
-      router.push('/teacher');
+      router.push('/teacher/dashboard');
     } else {
-      router.push('/student/student1'); // Redirect to a dummy student ID
+      router.push('/student/dashboard'); // Redirect to a dummy student ID
     }
   };
 
