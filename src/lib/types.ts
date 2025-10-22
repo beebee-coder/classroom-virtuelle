@@ -12,7 +12,10 @@ import type {
     Reaction, 
     Message, 
     Announcement, 
-    Conversation,
+    Conversation
+} from '@prisma/client';
+
+import {
     Role,
     TaskType,
     TaskCategory,
@@ -35,12 +38,12 @@ export {
     type Message, 
     type Announcement, 
     type Conversation,
-    type Role,
-    type TaskType,
-    type TaskCategory,
-    type TaskDifficulty,
-    type ValidationType,
-    type ProgressStatus
+    Role,
+    TaskType,
+    TaskCategory,
+    TaskDifficulty,
+    ValidationType,
+    ProgressStatus
 };
 
 

@@ -27,7 +27,11 @@ export async function getOrCreateConversation(
         classroomId: null,
         isQuestion: false,
         directMessageSenderId: null,
-        sender: { id: initiatorId, name: 'Utilisateur Initiateur', image: null },
+        sender: {
+          id: initiatorId,
+           image: null,
+          name: null
+        },
         reactions: [],
       }
     ],
