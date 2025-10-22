@@ -32,11 +32,8 @@ function getDummySessionData(sessionId: string) {
         classeId: null,
     };
     
-    // Pour la démo, on prend quelques élèves
-    const students = [
-        dummyStudentData['student8'], 
-        dummyStudentData['student10']
-    ].filter(Boolean); // Filtre au cas où les ID ne seraient pas trouvés
+    // Pour la démo, on prend tous les élèves de la classe A
+    const students = Object.values(dummyStudentData).filter(s => s.classroomId === 'classe-a');
 
     const participants = [teacher, ...students];
 
@@ -57,7 +54,6 @@ function getDummySessionData(sessionId: string) {
 export default async function SessionPage({ params }: { params: { id: string } }) {
     console.log(`[SESSION PAGE] - Chargement de la page pour la session ID: ${params.id}`);
     
-    // Validation du paramètre sessionId
     if (!params.id) {
         console.error('[SESSION PAGE] - ID de session manquant');
         notFound();
@@ -72,19 +68,15 @@ export default async function SessionPage({ params }: { params: { id: string } }
     
     console.log('[SESSION PAGE] - Utilisateur authentifié:', authSession.user);
     
-    // Utiliser les données factices au lieu d'un appel fetch
     const initialData = getDummySessionData(params.id);
     
-    if (!initialData) {
-        console.error(`[SESSION PAGE] - Aucune donnée factice pour la session ${params.id}, redirection vers le tableau de bord.`);
-        redirect(authSession.user.role === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard');
-    }
-    
-    const { session, students, teacher } = initialData;
+    const { students, teacher } = initialData;
 
-    // Vérification de sécurité : s'assurer que l'utilisateur fait partie de la session
-    const isParticipant = session.participants.some((p: any) => p.id === authSession.user.id);
-    if (!isParticipant) {
+    // Vérification de sécurité (simplifiée pour la démo)
+    const isTeacher = authSession.user.role === 'PROFESSEUR';
+    const isInvitedStudent = students.some((s: any) => s.id === authSession.user.id);
+    
+    if (!isTeacher && !isInvitedStudent) {
          console.warn(`[SESSION PAGE] - L'utilisateur ${authSession.user.id} n'est pas un participant de la session ${params.id}. Accès refusé.`);
          notFound();
     }
@@ -97,7 +89,6 @@ export default async function SessionPage({ params }: { params: { id: string } }
         <Suspense fallback={<SimpleSessionLoading />}>
             <SessionClient
                 sessionId={params.id}
-                initialSession={session as any}
                 initialStudents={students as any[]}
                 initialTeacher={teacher}
                 currentUserRole={currentUserRole}
