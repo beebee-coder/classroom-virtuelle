@@ -11,6 +11,8 @@ export async function createCoursSession(professeurId: string, studentIds: strin
     const sessionId = `session-${Math.random().toString(36).substring(7)}`;
     const classroomId = 'classe-a'; // Dummy classroom
 
+    // The frontend expects this to be awaited, but in a real scenario,
+    // this would be a "fire and forget" and we wouldn't block for it.
     await pusherServer.trigger(`presence-classe-${classroomId}`, 'session-started', {
         sessionId: sessionId,
         invitedStudentIds: studentIds,
@@ -20,6 +22,7 @@ export async function createCoursSession(professeurId: string, studentIds: strin
         revalidatePath(`/student/${id}`);
     });
     
+    // The error was here. The function was not returning anything, causing `session.id` to fail.
     return { id: sessionId, professeurId, classroomId };
 }
 
