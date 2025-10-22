@@ -1,11 +1,23 @@
-
 // src/lib/types.ts
 
-import type { Prisma, Classroom, User, Metier, CoursSession, Leaderboard, Task } from '@prisma/client';
+import type { Prisma, Classroom, User, Metier, CoursSession, Leaderboard, Task, StudentProgress, Reaction, Message, Announcement, Conversation } from '@prisma/client';
 
-// Ré-exporter tous les types et énumérations de Prisma pour un accès centralisé
-export { Role, TaskType, TaskCategory, TaskDifficulty, ValidationType, ProgressStatus } from '@prisma/client';
-export type { Prisma, Classroom, User, Metier, CoursSession, Leaderboard, Task, StudentProgress, Reaction, Message, Announcement, Conversation } from '@prisma/client';
+// Ré-exporter les types et énumérations de Prisma pour un accès centralisé
+export { type Prisma, type Classroom, type User, type Metier, type CoursSession, type Leaderboard, type Task, type StudentProgress, type Reaction, type Message, type Announcement, type Conversation };
+
+// Exporter explicitement les énumérations
+export const Role = Prisma.Role;
+export const TaskType = Prisma.TaskType;
+export const TaskCategory = Prisma.TaskCategory;
+export const TaskDifficulty = Prisma.TaskDifficulty;
+export const ValidationType = Prisma.ValidationType;
+export const ProgressStatus = Prisma.ProgressStatus;
+export type Role = (typeof Role)[keyof typeof Role];
+export type TaskType = (typeof TaskType)[keyof typeof TaskType];
+export type TaskCategory = (typeof TaskCategory)[keyof typeof TaskCategory];
+export type TaskDifficulty = (typeof TaskDifficulty)[keyof typeof TaskDifficulty];
+export type ValidationType = (typeof ValidationType)[keyof typeof ValidationType];
+export type ProgressStatus = (typeof ProgressStatus)[keyof typeof ProgressStatus];
 
 
 /**
