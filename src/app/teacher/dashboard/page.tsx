@@ -19,10 +19,10 @@ export default async function TeacherDashboardPage() {
   console.log('👨‍🏫 [PAGE] - Chargement du tableau de bord professeur.');
 
   const session = await getAuthSession();
-  if (!session || session.user.role !== 'PROFESSEUR') {
+  if (!session || !session.user || session.user.role !== 'PROFESSEUR') {
     redirect('/login');
   }
-  const user = session!.user;
+  const user = session.user;
 
   // ---=== BYPASS BACKEND ===---
   // Fetch only the data needed for this page
