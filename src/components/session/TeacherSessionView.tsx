@@ -1,6 +1,7 @@
 // src/components/session/TeacherSessionView.tsx
 'use client';
 
+import { useSession } from 'next-auth/react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { User, Role } from '@/lib/types';
 import { Participant } from '@/components/Participant';
