@@ -25,9 +25,11 @@ export function Header({ user, children }: HeaderProps) {
           <span>Classroom Connector</span>
         </Link>
         <nav className="flex items-center gap-2 sm:gap-4">
-          <Button variant="ghost" asChild>
-            <Link href="/librairie-metiers">Métiers</Link>
-          </Button>
+          {user && (
+            <Button variant="ghost" asChild>
+              <Link href="/librairie-metiers">Métiers</Link>
+            </Button>
+          )}
            {children}
            <ThemeToggle />
           <UserNav user={user} />
