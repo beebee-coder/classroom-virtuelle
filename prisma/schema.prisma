@@ -291,3 +291,13 @@ model RecipeFeedback {
   comment      String?
   createdAt    DateTime        @default(now())
 }
+enum Role {
+  ELEVE
+  PROFESSEUR
+}
+
+enum TaskType {
+  DAILY
+  WEEKLY
+  MONTHLY
+}

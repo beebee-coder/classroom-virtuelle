@@ -20,7 +20,7 @@ export default async function HomePage() {
   // Redirect logged-in users to their respective dashboards
   if (session?.user) {
     console.log('👤 [PAGE] - Session utilisateur trouvée, redirection...');
-    if (session.user.role === 'PROFESSEUR') {
+    if (session.user.role === Role.PROFESSEUR) {
       redirect('/teacher/dashboard');
     } else if (session.user.role === 'ELEVE') {
       redirect('/student/dashboard');
