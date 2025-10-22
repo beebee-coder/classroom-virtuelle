@@ -1,7 +1,7 @@
+// This file will be replaced by the content of `src/app/teacher/page.tsx` from the reference.
+// For now, it's just a placeholder to make routing work.
+import { redirect } from 'next/navigation';
+
 export default function TeacherDashboard() {
-  return (
-    <div className="flex items-center justify-center min-h-screen">
-      <h1 className="text-3xl font-bold">Tableau de bord du Professeur</h1>
-    </div>
-  );
+    redirect('/teacher');
 }
