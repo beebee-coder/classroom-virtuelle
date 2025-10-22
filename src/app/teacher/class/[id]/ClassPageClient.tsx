@@ -1,7 +1,7 @@
-// src/app/teacher/class/[id]/ClassPageClient.tsx - Version corrigée
+// src/app/teacher/class/[id]/ClassPageClient.tsx
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -15,7 +15,9 @@ import { ClassroomWithDetails, StudentForCard, AnnouncementWithAuthor } from '@/
 import { User } from 'next-auth';
 import { AnnouncementCarousel } from '@/components/AnnouncementCarousel';
 import { BackButton } from '@/components/BackButton';
-import { Video, XSquare, Crown, Loader2 } from 'lucide-react';
+import { Video, XSquare, Crown, Loader2, Wifi } from 'lucide-react';
+import { pusherClient } from '@/lib/pusher/client';
+import { cn } from '@/lib/utils';
 
 interface ClassPageClientProps {
     classroom: ClassroomWithDetails;
@@ -26,8 +28,33 @@ interface ClassPageClientProps {
 export default function ClassPageClient({ classroom, teacher, announcements }: ClassPageClientProps) {
     const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
     const [isStartingSession, setIsStartingSession] = useState<boolean>(false);
+    const [onlineStudents, setOnlineStudents] = useState<string[]>([]);
     const router = useRouter();
     const { toast } = useToast();
+
+    useEffect(() => {
+        if (!classroom.id) return;
+
+        const channelName = `presence-class-${classroom.id}`;
+        const channel = pusherClient.subscribe(channelName);
+
+        const updateOnlineMembers = () => {
+            // `members` contient tous les membres du canal, y compris l'utilisateur actuel
+            const memberIds = Object.keys(channel.members.members);
+            // Exclure le professeur de la liste des élèves en ligne
+            const studentMemberIds = memberIds.filter(id => id !== teacher.id);
+            setOnlineStudents(studentMemberIds);
+        };
+
+        channel.bind('pusher:subscription_succeeded', updateOnlineMembers);
+        channel.bind('pusher:member_added', updateOnlineMembers);
+        channel.bind('pusher:member_removed', updateOnlineMembers);
+
+        return () => {
+            pusherClient.unsubscribe(channelName);
+        };
+    }, [classroom.id, teacher.id]);
+
 
     // Validation des props
     if (!classroom?.id || !teacher?.id) {
@@ -55,12 +82,14 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
     const handleStartSession = async () => {
         console.log('🚀 [CLIENT] - Clic sur "Démarrer la session". Élèves sélectionnés:', selectedStudents);
         
+        const onlineSelectedStudents = selectedStudents.filter(id => onlineStudents.includes(id));
+        
         // Validation des sélections
-        if (selectedStudents.length === 0) {
+        if (onlineSelectedStudents.length === 0) {
             toast({
                 variant: 'destructive',
-                title: 'Aucun élève sélectionné',
-                description: 'Veuillez sélectionner au moins un élève pour démarrer la session.',
+                title: 'Aucun élève sélectionné en ligne',
+                description: 'Veuillez sélectionner au moins un élève actuellement en ligne pour démarrer la session.',
             });
             return;
         }
@@ -79,7 +108,7 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
 
         try {
             console.log('⏳ [CLIENT] - Appel de l\'action serveur `createCoursSession`...');
-            const session = await createCoursSession(teacher.id, selectedStudents);
+            const session = await createCoursSession(teacher.id, onlineSelectedStudents);
             
             if (!session?.id) {
                 throw new Error('Réponse de session invalide');
@@ -89,7 +118,7 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
 
             toast({
                 title: 'Session créée !',
-                description: `Session vidéo lancée avec ${selectedStudents.length} élève(s).`,
+                description: `Session vidéo lancée avec ${onlineSelectedStudents.length} élève(s).`,
                 duration: 3000,
             });
 
@@ -166,7 +195,7 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                         Liste des Élèves ({classroom.eleves?.length || 0})
                     </CardTitle>
                     <CardDescription>
-                        Sélectionnez les élèves pour démarrer une session vidéo.
+                        Sélectionnez les élèves <span className="font-bold text-green-600">en ligne</span> pour démarrer une session vidéo.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -178,14 +207,17 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                            {sortedStudents.map((student, index) => (
+                            {sortedStudents.map((student, index) => {
+                                const isOnline = onlineStudents.includes(student.id);
+                                return (
                                 <Card 
                                     key={student.id} 
-                                    className={`transition-all duration-200 ${
+                                    className={cn(`transition-all duration-200`,
                                         selectedStudents.includes(student.id) 
                                             ? 'ring-2 ring-primary shadow-md' 
-                                            : 'hover:shadow-sm'
-                                    }`}
+                                            : 'hover:shadow-sm',
+                                        !isOnline && 'opacity-60 bg-muted/50'
+                                    )}
                                 >
                                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                         <CardTitle className="text-sm font-medium truncate max-w-[120px]">
@@ -194,7 +226,8 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                                         <Checkbox
                                             checked={selectedStudents.includes(student.id)}
                                             onCheckedChange={() => handleSelectStudent(student.id)}
-                                            disabled={isStartingSession}
+                                            disabled={isStartingSession || !isOnline}
+                                            aria-label={`Sélectionner ${student.name}`}
                                         />
                                     </CardHeader>
                                     <CardContent className="text-center">
@@ -219,6 +252,11 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                                                     <XSquare className="h-4 w-4 text-destructive-foreground" />
                                                 </div>
                                             )}
+                                            {isOnline && (
+                                                <div title="En ligne" className="absolute -top-1 -left-1 bg-background rounded-full p-0.5">
+                                                    <div className="h-3 w-3 rounded-full bg-green-500 animate-pulse"></div>
+                                                </div>
+                                            )}
                                         </div>
                                         <p className="text-xs text-muted-foreground mt-2 truncate">
                                             {student.email || 'Aucun email'}
@@ -228,7 +266,7 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                                         </p>
                                     </CardContent>
                                 </Card>
-                            ))}
+                            )})}
                         </div>
                     )}
                 </CardContent>
@@ -241,7 +279,7 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                     </div>
                     <Button 
                         onClick={handleStartSession} 
-                        disabled={selectedStudents.length === 0 || isStartingSession}
+                        disabled={selectedStudents.filter(id => onlineStudents.includes(id)).length === 0 || isStartingSession}
                         className="min-w-[180px]"
                     >
                         {isStartingSession ? (
@@ -252,7 +290,7 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                         ) : (
                             <>
                                 <Video className="mr-2 h-4 w-4" />
-                                Démarrer la session ({selectedStudents.length})
+                                Démarrer la session ({selectedStudents.filter(id => onlineStudents.includes(id)).length})
                             </>
                         )}
                     </Button>
