@@ -1,83 +1,57 @@
 // src/lib/actions/conversation.actions.ts
 'use server';
 
-import prisma from '@/lib/prisma';
-import { getAuthSession } from '@/lib/session';
 import { pusherServer } from '@/lib/pusher/server';
-import { revalidatePath } from 'next/cache';
+import { FullConversation } from '@/lib/types';
+
 
 export async function getOrCreateConversation(
   initiatorId: string,
   receiverId: string
-) {
-  if (initiatorId === receiverId) {
-    throw new Error('Cannot create conversation with self');
-  }
+): Promise<FullConversation> {
+  // DUMMY DATA
+  console.log(`[DUMMY] Getting or creating conversation between ${initiatorId} and ${receiverId}`);
 
-  // Check if a conversation already exists between these two users
-  let conversation = await prisma.conversation.findFirst({
-    where: {
-      OR: [
-        { initiatorId: initiatorId, receiverId: receiverId },
-        { initiatorId: receiverId, receiverId: initiatorId },
-      ],
-    },
-    include: {
-        messages: {
-            orderBy: {
-                createdAt: 'asc'
-            }
-        },
-        initiator: { select: { name: true, id: true }},
-        receiver: { select: { name: true, id: true }},
-    }
-  });
-
-  if (!conversation) {
-    conversation = await prisma.conversation.create({
-      data: {
-        initiatorId,
-        receiverId,
-      },
-      include: {
-        messages: true,
-        initiator: { select: { name: true, id: true }},
-        receiver: { select: { name: true, id: true }},
+  return {
+    id: `conv-${initiatorId}-${receiverId}`,
+    initiatorId: initiatorId,
+    receiverId: receiverId,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    messages: [
+      { 
+        id: 'msg1', 
+        message: 'Bonjour ! Ceci est une conversation de test.', 
+        senderId: initiatorId, 
+        senderName: 'Utilisateur Initiateur', 
+        createdAt: new Date(), 
+        conversationId: `conv-${initiatorId}-${receiverId}`,
+        classroomId: null,
+        isQuestion: null,
+        directMessageSenderId: null,
       }
-    });
-  }
-
-  return conversation;
+    ],
+    initiator: { id: initiatorId, name: 'Utilisateur Initiateur' },
+    receiver: { id: receiverId, name: 'Utilisateur Destinataire' },
+  };
 }
 
 
 export async function sendDirectMessage(formData: FormData) {
-    const session = await getAuthSession();
+    // DUMMY ACTION
     const messageContent = formData.get('message') as string;
     const conversationId = formData.get('conversationId') as string;
     
-    if (!session?.user) throw new Error("Unauthorized");
-    if (!messageContent || !conversationId) throw new Error("Message and conversation ID are required.");
+    console.log(`[DUMMY] Sending DM "${messageContent}" in conversation ${conversationId}`);
 
-    const conversation = await prisma.conversation.findUnique({
-        where: { id: conversationId }
-    });
-
-    if (!conversation) throw new Error("Conversation not found");
-
-    // Ensure sender is part of the conversation
-    if (session.user.id !== conversation.initiatorId && session.user.id !== conversation.receiverId) {
-        throw new Error("Unauthorized to send message in this conversation");
-    }
-
-    const newMessage = await prisma.message.create({
-        data: {
-            message: messageContent,
-            conversationId,
-            senderId: session.user.id,
-            senderName: session.user.name ?? "Utilisateur",
-        },
-    });
+    const newMessage = {
+        id: `msg-${Math.random()}`,
+        message: messageContent,
+        conversationId,
+        senderId: 'current-user-id', // This would be the session user ID
+        senderName: "Vous",
+        createdAt: new Date(),
+    };
 
     const channelName = `private-conversation-${conversationId}`;
     await pusherServer.trigger(channelName, 'new-dm', newMessage);

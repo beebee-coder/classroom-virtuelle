@@ -4,12 +4,17 @@ import { Header } from '@/components/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, CheckCircle, Megaphone } from 'lucide-react';
 import Link from 'next/link';
-import prisma from '@/lib/prisma';
 import { getAuthSession } from '@/lib/session';
 import { redirect } from 'next/navigation';
 import { getTasksForProfessorValidation } from '@/lib/actions/teacher.actions';
 import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import Menu from '@/components/Menu'; // Import the new Menu component
+
+// DUMMY DATA
+const dummyClassrooms = [
+  { id: 'classe-a', nom: 'Classe 6ème A' },
+  { id: 'classe-b', nom: 'Classe 5ème B' },
+];
 
 export default async function TeacherPage() {
   const session = await getAuthSession();
@@ -19,11 +24,8 @@ export default async function TeacherPage() {
   }
   const user = session.user;
 
-  // Fetch only the data needed for this page
-  const classrooms = await prisma.classroom.findMany({
-    where: { professeurId: user.id },
-    select: { id: true, nom: true }
-  });
+  // Fetch only the data needed for this page - USING DUMMY DATA
+  const classrooms = dummyClassrooms;
   const tasksToValidate = await getTasksForProfessorValidation(user.id);
   const validationCount = tasksToValidate.length;
 
