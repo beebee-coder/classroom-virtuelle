@@ -11,8 +11,8 @@ import { BackButton } from '@/components/BackButton';
 
 // DUMMY DATA
 const dummyStudents: {[key: string]: { id: string, name: string, parentPassword?: string }} = {
-    'student1': { id: 'student1', name: 'Alice', parentPassword: 'hashedpassword' },
-    'student2': { id: 'student2', name: 'Bob' },
+    'student1': { id: 'student1', name: 'Alice', parentPassword: 'hashedpassword' }, // Simulate password is set
+    'student2': { id: 'student2', name: 'Bob' }, // Simulate password is not set
 }
 
 export default async function ParentValidationPage({
@@ -23,7 +23,8 @@ export default async function ParentValidationPage({
   searchParams: { pw?: string };
 }) {
   const session = await getAuthSession();
-  const student = dummyStudents[params.id];
+  // For demo, we just pick a student. In a real app, you'd fetch this.
+  const student = dummyStudents[params.id] || dummyStudents['student1'];
 
   if (!student) {
     notFound();
@@ -31,13 +32,11 @@ export default async function ParentValidationPage({
 
   const password = searchParams.pw;
   let isAuthenticated = false;
-  let hasPasswordSet = false;
+  // In our dummy data, if parentPassword exists, it means it's "set".
+  const hasPasswordSet = !!student.parentPassword;
   
-  if (student.parentPassword) {
-      hasPasswordSet = true;
-      if (password) {
-          isAuthenticated = await verifyParentPassword(student.id, password);
-      }
+  if (hasPasswordSet && password) {
+      isAuthenticated = await verifyParentPassword(student.id, password);
   }
 
   const tasksForValidation = isAuthenticated ? await getTasksForValidation(student.id) : [];
@@ -48,6 +47,7 @@ export default async function ParentValidationPage({
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="max-w-4xl mx-auto">
           <div className="mb-8">
+             {/* The back button is useful if a parent gets here from the student dashboard */}
             <BackButton />
           </div>
           <Card>
@@ -61,14 +61,14 @@ export default async function ParentValidationPage({
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {(!hasPasswordSet || !isAuthenticated) && (
+              {hasPasswordSet && !isAuthenticated && (
                 <Alert variant="destructive" className="mb-6">
                   <ShieldAlert className="h-4 w-4" />
                   <AlertTitle>Accès Sécurisé</AlertTitle>
                   <AlertDescription>
-                    {hasPasswordSet 
-                      ? "Le mot de passe fourni est incorrect. Veuillez réessayer." 
-                      : "Cet espace est protégé par un mot de passe. Veuillez en définir un pour continuer."}
+                    {password 
+                        ? "Le mot de passe fourni est incorrect. Veuillez réessayer." 
+                        : "Cet espace est protégé par mot de passe."}
                   </AlertDescription>
                 </Alert>
               )}
