@@ -42,25 +42,26 @@ export default async function HomePage() {
   // Render homepage content for non-logged-in users
   return (
     <SidebarProvider>
-      <div className="flex flex-col h-screen">
+      <div className="flex flex-col h-screen ">
         <Header user={null}>
           <SidebarTrigger />
         </Header>
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 overflow-hidden ">
           <Sidebar>
             <SidebarContent>
               {/* Remplacer les cartes statiques par le carrousel dynamique */}
-               <div className="p-4">
+               <div className="p-4 ">
                 <h2 className="font-semibold text-lg mb-4 text-center">Au Cœur des Sessions</h2>
                 <StudentCarousel />
               </div>
             </SidebarContent>
           </Sidebar>
           <SidebarInset>
-             <main className="flex-1 flex items-center justify-center p-4 lg:p-8">
-              <Card className="w-full max-w-6xl">
+             <main className="flex-1 flex items-center justify-center bg-gray-200 p-1  min-h-screen
+              ">
+              <Card className="w-full max-w-28xl h-full   ">
                 <CardContent className="p-8">
-                  <div className="container mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                  <div className="container mx-auto  grid grid-cols-1 lg:grid-cols-2 gap-12 items-center  mt-20">
                     
                     {/* Hero Section */}
                     <div className="text-center lg:text-left">
@@ -81,7 +82,7 @@ export default async function HomePage() {
 
                     {/* Announcements Section */}
                     <div className="space-y-6">
-                       <h2 className="text-3xl font-bold text-center lg:text-left">Annonces Récentes</h2>
+                       <h2 className="text-3xl font-bold text-center ">Annonces Récentes</h2>
                         {announcements.length > 0 ? (
                             announcements.map((announcement: AnnouncementWithAuthor) => (
                               <Card key={announcement.id}>
