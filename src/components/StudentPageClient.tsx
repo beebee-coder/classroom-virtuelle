@@ -1,3 +1,4 @@
+
 // src/components/StudentPageClient.tsx
 'use client';
 
