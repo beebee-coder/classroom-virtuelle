@@ -1,7 +1,7 @@
 // src/app/student/[id]/parent/TaskValidationClient.tsx
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,8 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import type { Task } from '@prisma/client';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { ShieldAlert } from 'lucide-react';
 
 type ValidationTask = Task & { progressId: string };
 
@@ -36,7 +38,7 @@ export function TaskValidationClient({
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
-  const [password, setPassword] = useState('');
+  const [password, setPassword] = useState(searchParams.get('pw') || '');
   const [tasks, setTasks] = useState(initialTasksForValidation);
 
   // State for detailed feedback modal
@@ -137,21 +139,32 @@ export function TaskValidationClient({
 
   if (!isAuthenticated) {
     return (
-      <form onSubmit={handlePasswordSubmit} className="space-y-4">
-        <p>Veuillez saisir le mot de passe parental pour accéder à cet espace.</p>
-        <div className="flex flex-col sm:flex-row gap-2">
-            <Input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Mot de passe parental"
-            />
-            <Button type="submit">
-                <Send />
-                Accéder
-            </Button>
+        <div className='space-y-6'>
+            {hasPasswordSet && searchParams.get('pw') && !isAuthenticated && (
+                <Alert variant="destructive">
+                  <ShieldAlert className="h-4 w-4" />
+                  <AlertTitle>Accès Sécurisé</AlertTitle>
+                  <AlertDescription>
+                    Le mot de passe fourni est incorrect. Veuillez réessayer.
+                  </AlertDescription>
+                </Alert>
+              )}
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                <p>Veuillez saisir le mot de passe parental pour accéder à cet espace.</p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                    <Input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Mot de passe parental"
+                    />
+                    <Button type="submit">
+                        <Send />
+                        Accéder
+                    </Button>
+                </div>
+            </form>
         </div>
-      </form>
     );
   }
 

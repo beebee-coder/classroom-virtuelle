@@ -8,6 +8,7 @@ import { KeyRound, ShieldAlert } from 'lucide-react';
 import { verifyParentPassword, getTasksForValidation } from '@/lib/actions/parent.actions';
 import { TaskValidationClient } from './TaskValidationClient';
 import { BackButton } from '@/components/BackButton';
+import { Suspense } from 'react';
 
 // DUMMY DATA
 const dummyStudents: {[key: string]: { id: string, name: string, parentPassword?: string }} = {
@@ -17,32 +18,27 @@ const dummyStudents: {[key: string]: { id: string, name: string, parentPassword?
 
 export default async function ParentValidationPage({
   params,
-  searchParams,
+  searchParams, // This is now safe to be passed down
 }: {
   params: { id: string };
   searchParams: { pw?: string };
 }) {
   const session = await getAuthSession();
   // ---=== BYPASS BACKEND ===---
-  // Pour éviter l'erreur "params should be awaited", nous utilisons un élève factice fixe.
+  // The logic is simplified here. We just fetch the student and tasks.
+  // The authentication logic is now fully handled in the client component.
   const student = dummyStudents['student1']; 
   const studentId = 'student1';
   // ---=========================---
-
 
   if (!student) {
     notFound();
   }
 
-  const password = searchParams.pw;
-  let isAuthenticated = false;
-  // In our dummy data, if parentPassword exists, it means it's "set".
   const hasPasswordSet = !!student.parentPassword;
   
-  if (hasPasswordSet && password) {
-      isAuthenticated = await verifyParentPassword(student.id, password);
-  }
-
+  // We still need to check auth server-side to decide if we should even load the tasks.
+  const isAuthenticated = hasPasswordSet && searchParams.pw ? await verifyParentPassword(student.id, searchParams.pw) : false;
   const tasksForValidation = isAuthenticated ? await getTasksForValidation(student.id) : [];
 
   return (
@@ -65,26 +61,15 @@ export default async function ParentValidationPage({
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {hasPasswordSet && !isAuthenticated && (
-                <Alert variant="destructive" className="mb-6">
-                  <ShieldAlert className="h-4 w-4" />
-                  <AlertTitle>Accès Sécurisé</AlertTitle>
-                  <AlertDescription>
-                    {password 
-                        ? "Le mot de passe fourni est incorrect. Veuillez réessayer." 
-                        : "Cet espace est protégé par mot de passe."}
-                  </AlertDescription>
-                </Alert>
-              )}
-              
-              <TaskValidationClient
-                studentId={student.id}
-                studentName={student.name || 'l\'élève'}
-                initialTasksForValidation={tasksForValidation}
-                isAuthenticated={isAuthenticated}
-                hasPasswordSet={hasPasswordSet}
-              />
-
+              <Suspense fallback={<div>Chargement...</div>}>
+                 <TaskValidationClient
+                    studentId={student.id}
+                    studentName={student.name || 'l\'élève'}
+                    initialTasksForValidation={tasksForValidation}
+                    isAuthenticated={isAuthenticated}
+                    hasPasswordSet={hasPasswordSet}
+                  />
+              </Suspense>
             </CardContent>
           </Card>
         </div>
