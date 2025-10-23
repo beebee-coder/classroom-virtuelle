@@ -133,6 +133,7 @@ export default function SessionClient({
         userId: currentUserId,
         target: targetUserId,
         signal,
+        isReturnSignal: !initiator, // Marquer comme signal de retour si nous ne sommes pas l'initiateur
       });
     });
 
@@ -154,7 +155,7 @@ export default function SessionClient({
         userId: currentUserId,
         target: callerId,
         signal,
-        isReturnSignal: true, // Indicate this is a return signal
+        isReturnSignal: true, // Ceci est un signal de retour
       });
     });
     
@@ -188,26 +189,36 @@ export default function SessionClient({
       if (member.id === currentUserId) return;
       console.log(`➕ [PUSHER] - Nouveau participant rejoint: ${member.id}`);
       setOnlineUserIds(prev => [...prev, member.id]);
-      const peer = createPeer(member.id, true, localStream);
-      setPeers(prev => [...prev.filter(p => p.id !== member.id), { id: member.id, peer }]);
-      peersRef.current = [...peersRef.current.filter(p => p.id !== member.id), { id: member.id, peer }];
+      
+      // On ne crée PAS de nouveau peer ici, on attend son signal "d'offre".
+      // C'est lui l'initiateur pour les connexions avec les membres existants.
     });
 
     // Signal WebRTC initial ou de retour
     channel.bind('signal', (data: SignalData & { target: string, isReturnSignal?: boolean }) => {
       if (data.target !== currentUserId) return;
-      console.log(`📡 [PUSHER] - Signal reçu de ${data.userId}`);
+      console.log(`📡 [PUSHER] - Signal reçu de ${data.userId}. isReturnSignal: ${!!data.isReturnSignal}`);
       
       const peerData = peersRef.current.find(p => p.id === data.userId);
 
-      if (peerData) {
-         console.log(`   -> Peer existant trouvé. Application du signal.`);
-         peerData.peer.signal(data.signal);
+      if (data.isReturnSignal) {
+        if (peerData) {
+            console.log(`   -> Signal de retour. Application au peer existant.`);
+            peerData.peer.signal(data.signal);
+        } else {
+             console.warn(`   -> Signal de retour reçu mais aucun peer initiateur trouvé pour ${data.userId}.`);
+        }
       } else {
-        console.log(`   -> Nouveau peer. Création d'un peer de réponse.`);
-        const peer = addPeer(data.signal, data.userId, localStream);
-        setPeers(prev => [...prev.filter(p => p.id !== data.userId), { id: data.userId, peer }]);
-        peersRef.current = [...peersRef.current.filter(p => p.id !== data.userId), { id: data.userId, peer }];
+         if (peerData) {
+            console.log(`   -> Signal d'offre reçu, mais un peer existe déjà. Application du signal.`);
+            peerData.peer.signal(data.signal);
+        } else {
+            console.log(`   -> Signal d'offre reçu. Création d'un nouveau peer de réponse.`);
+            const peer = addPeer(data.signal, data.userId, localStream);
+            const newPeerData = { id: data.userId, peer };
+            setPeers(prev => [...prev.filter(p => p.id !== data.userId), newPeerData]);
+            peersRef.current = [...peersRef.current.filter(p => p.id !== data.userId), newPeerData];
+        }
       }
     });
 
