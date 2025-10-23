@@ -6,8 +6,8 @@ datasource db {
 }
 
 generator client {
-  provider        = "prisma-client-js"
-  binaryTargets   = ["native", "debian-openssl-3.0.x"]
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 // ==================================
@@ -16,59 +16,59 @@ generator client {
 
 // Dans le modèle Classroom, modifiez comme suit :
 model Classroom {
-  id           String         @id @default(cuid())
-  nom          String
-  professeurId String
-  professeur   User           @relation("ClassProfesseurs", fields: [professeurId], references: [id])
-  eleves       User[]         @relation("ClassEleves")
+  id            String         @id @default(cuid())
+  nom           String
+  professeurId  String
+  professeur    User           @relation("ClassProfesseurs", fields: [professeurId], references: [id])
+  eleves        User[]         @relation("ClassEleves")
   announcements Announcement[]
-  messages     Message[]
-  sessions     CoursSession[]
+  messages      Message[]
+  sessions      CoursSession[]
 
   @@index([professeurId])
 }
 
 // Dans le modèle User, AJOUTEZ ces champs :
 model User {
-  id               String        @id @default(cuid())
-  name             String?
-  email            String?       @unique
-  emailVerified    DateTime?
-  image            String?
-  parentPassword   String?       @db.VarChar(255)
-  role             Role          @default(ELEVE)
-  ambition         String?
-  points           Int           @default(0)
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-  
+  id             String    @id @default(cuid())
+  name           String?
+  email          String?   @unique
+  emailVerified  DateTime?
+  image          String?
+  parentPassword String?   @db.VarChar(255)
+  role           Role      @default(ELEVE)
+  ambition       String?
+  points         Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
   // Relations
-  classeId         String?
-  classe           Classroom?    @relation("ClassEleves", fields: [classeId], references: [id])
-  etat             EtatEleve?
-  
+  classeId String?
+  classe   Classroom? @relation("ClassEleves", fields: [classeId], references: [id])
+  etat     EtatEleve?
+
   // AJOUT: Relations opposées pour Classroom et CoursSession
-  classesEnseignees Classroom[]  @relation("ClassProfesseurs") // ← AJOUT
+  classesEnseignees  Classroom[]    @relation("ClassProfesseurs") // ← AJOUT
   sessionsEnseignees CoursSession[] // ← AJOUT
-  
-  sessionsParticipees CoursSession[] @relation("Participants")
-  announcements    Announcement[]
-  messages         Message[]
-  reactions        Reaction[]
-  progress         StudentProgress[]
-  leaderboardEntry Leaderboard?
-  conversationsAsInitiator Conversation[] @relation("Initiator")
-  conversationsAsReceiver  Conversation[] @relation("Receiver")
+
+  sessionsParticipees      CoursSession[]    @relation("Participants")
+  announcements            Announcement[]
+  messages                 Message[]
+  reactions                Reaction[]
+  progress                 StudentProgress[]
+  leaderboardEntry         Leaderboard?
+  conversationsAsInitiator Conversation[]    @relation("Initiator")
+  conversationsAsReceiver  Conversation[]    @relation("Receiver")
 
   @@index([classeId])
 }
 
 model Metier {
-  id          String    @id @default(cuid())
+  id          String      @id @default(cuid())
   nom         String
   description String
   icon        String
-  theme       Json      // Stocke les couleurs, curseur, etc.
+  theme       Json // Stocke les couleurs, curseur, etc.
   eleves      EtatEleve[]
 }
 
@@ -84,38 +84,36 @@ model EtatEleve {
 }
 
 model CoursSession {
-  id              String   @id @default(cuid())
-  professeurId    String
-  professeur      User     @relation(fields: [professeurId], references: [id]) // Cette relation doit avoir un champ opposé dans User
-  classroomId     String?
-  classe          Classroom? @relation(fields: [classroomId], references: [id])
-  createdAt       DateTime @default(now())
-  endedAt         DateTime?
-  participants    User[]   @relation("Participants")
-  whiteboardControllerId String?  @unique
+  id                       String     @id @default(cuid())
+  professeurId             String
+  professeur               User       @relation(fields: [professeurId], references: [id]) // Cette relation doit avoir un champ opposé dans User
+  classroomId              String?
+  classe                   Classroom? @relation(fields: [classroomId], references: [id])
+  createdAt                DateTime   @default(now())
+  endedAt                  DateTime?
+  participants             User[]     @relation("Participants")
+  whiteboardControllerId   String?    @unique
   spotlightedParticipantId String?
-  
+
   @@index([professeurId])
   @@index([classroomId])
 }
 
-
 model Task {
-  id              String            @id @default(cuid())
-  title           String
-  description     String
-  points          Int
-  type            TaskType          // DAILY, WEEKLY, MONTHLY
-  category        TaskCategory      // MATH, LANGUAGE, etc.
-  difficulty      TaskDifficulty    // EASY, MEDIUM, HARD
-  validationType  ValidationType    // AUTOMATIC, PARENT, PROFESSOR
-  requiresProof   Boolean           @default(false)
-  attachmentUrl   String?
-  isActive        Boolean           @default(true)
-  progress        StudentProgress[]
-  startTime       DateTime?         // Pour les tâches programmées
-  duration        Int?              // Durée en minutes
-
+  id             String            @id @default(cuid())
+  title          String
+  description    String
+  points         Int
+  type           TaskType // DAILY, WEEKLY, MONTHLY
+  category       TaskCategory // MATH, LANGUAGE, etc.
+  difficulty     TaskDifficulty // EASY, MEDIUM, HARD
+  validationType ValidationType // AUTOMATIC, PARENT, PROFESSOR
+  requiresProof  Boolean           @default(false)
+  attachmentUrl  String?
+  isActive       Boolean           @default(true)
+  progress       StudentProgress[]
+  startTime      DateTime? // Pour les tâches programmées
+  duration       Int? // Durée en minutes
 }
 
 model StudentProgress {
@@ -126,10 +124,10 @@ model StudentProgress {
   task           Task           @relation(fields: [taskId], references: [id])
   status         ProgressStatus @default(PENDING_ASSIGNMENT)
   completionDate DateTime?
-  submissionUrl  String?        // URL de la preuve (image, etc.)
+  submissionUrl  String? // URL de la preuve (image, etc.)
   pointsAwarded  Int            @default(0)
-  accuracy       Float?         // Précision pour les quiz (0-100)
-  recipeName     String?        // Pour la tâche de cuisine
+  accuracy       Float? // Précision pour les quiz (0-100)
+  recipeName     String? // Pour la tâche de cuisine
 
   @@unique([studentId, taskId])
   @@index([studentId])
@@ -137,34 +135,34 @@ model StudentProgress {
 }
 
 model Leaderboard {
-  id             String   @id @default(cuid())
-  studentId      String   @unique
-  student        User     @relation(fields: [studentId], references: [id])
-  dailyPoints    Int      @default(0)
-  weeklyPoints   Int      @default(0)
-  monthlyPoints  Int      @default(0)
-  totalPoints    Int      @default(0)
-  completedTasks Int      @default(0)
-  currentStreak  Int      @default(0)
-  bestStreak     Int      @default(0)
-  rank           Int      @default(0)
+  id             String    @id @default(cuid())
+  studentId      String    @unique
+  student        User      @relation(fields: [studentId], references: [id])
+  dailyPoints    Int       @default(0)
+  weeklyPoints   Int       @default(0)
+  monthlyPoints  Int       @default(0)
+  totalPoints    Int       @default(0)
+  completedTasks Int       @default(0)
+  currentStreak  Int       @default(0)
+  bestStreak     Int       @default(0)
+  rank           Int       @default(0)
   lastTaskDate   DateTime?
-  updatedAt      DateTime @updatedAt
+  updatedAt      DateTime  @updatedAt
 }
 
 model Message {
-  id              String      @id @default(cuid())
-  message         String
-  createdAt       DateTime    @default(now())
-  senderId        String
-  sender          User        @relation(fields: [senderId], references: [id])
-  senderName      String
-  classroomId     String?
-  classroom       Classroom?  @relation(fields: [classroomId], references: [id])
-  reactions       Reaction[]
-  isQuestion      Boolean?
-  conversationId  String?
-  conversation    Conversation? @relation(fields: [conversationId], references: [id])
+  id                    String        @id @default(cuid())
+  message               String
+  createdAt             DateTime      @default(now())
+  senderId              String
+  sender                User          @relation(fields: [senderId], references: [id])
+  senderName            String
+  classroomId           String?
+  classroom             Classroom?    @relation(fields: [classroomId], references: [id])
+  reactions             Reaction[]
+  isQuestion            Boolean?
+  conversationId        String?
+  conversation          Conversation? @relation(fields: [conversationId], references: [id])
   directMessageSenderId String? // Champ dupliqué pour le filtre
 
   @@index([senderId])
@@ -173,27 +171,26 @@ model Message {
 }
 
 model Reaction {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   emoji     String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User    @relation(fields: [userId], references: [id])
   userId    String
-  message   Message  @relation(fields: [messageId], references: [id])
+  message   Message @relation(fields: [messageId], references: [id])
   messageId String
 
   @@index([userId])
   @@index([messageId])
 }
 
-
 model Announcement {
-  id           String     @id @default(cuid())
-  title        String
-  content      String
-  authorId     String
-  author       User       @relation(fields: [authorId], references: [id])
-  classeId     String?
-  classe       Classroom? @relation(fields: [classeId], references: [id])
-  createdAt    DateTime   @default(now())
+  id            String     @id @default(cuid())
+  title         String
+  content       String
+  authorId      String
+  author        User       @relation(fields: [authorId], references: [id])
+  classeId      String?
+  classe        Classroom? @relation(fields: [classeId], references: [id])
+  createdAt     DateTime   @default(now())
   attachmentUrl String?
 
   @@index([authorId])

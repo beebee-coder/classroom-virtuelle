@@ -4,8 +4,7 @@ import { notFound, redirect } from 'next/navigation';
 import { getAuthSession } from '@/lib/session';
 import { Header } from '@/components/Header';
 import { StudentClassView } from '@/components/StudentClassView';
-import { User } from '@/lib/types';
-import { StudentForCard } from '@/lib/types';
+import { User, StudentForCard } from '@/lib/types';
 
 
 export type ClassroomWithStudents = {
