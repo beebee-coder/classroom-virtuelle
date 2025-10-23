@@ -5,12 +5,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import styles from './Menu.module.css';
-import type { Classroom } from '@prisma/client';
+import type { Classroom } from '@/lib/types';
 import { menuItems } from '@/lib/constants';
-import type { Session } from "next-auth";
+import type { DummySession } from "@/lib/session";
 
 interface MenuProps {
-  user: Session['user'];
+  user: DummySession['user'];
   classrooms?: Pick<Classroom, 'id' | 'nom'>[];
   validationCount?: number;
 }
@@ -19,9 +19,9 @@ interface MenuProps {
 interface MenuItem {
   label: string;
   roles: string[]; // Use string[] for Role
-  condition?: (user: Session['user']) => boolean;
+  condition?: (user: DummySession['user']) => boolean;
   component?: React.ElementType;
-  href?: string | ((user: Session['user']) => string);
+  href?: string | ((user: DummySession['user']) => string);
   icon?: React.ElementType;
 }
 

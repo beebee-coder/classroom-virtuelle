@@ -3,7 +3,6 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
 import type { Instance as PeerInstance } from 'simple-peer';
 import * as SimplePeer from 'simple-peer';
 
@@ -16,6 +15,7 @@ import { StudentSessionView } from './session/StudentSessionView';
 import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';
 import { endCoursSession } from '@/lib/actions';
+import { DummySession, getAuthSession } from '@/lib/session';
 
 // Définition de types locaux
 type UnderstandingStatus = 'understood' | 'confused' | 'lost' | 'none';
@@ -39,7 +39,7 @@ export default function SessionClient({
 }: SessionClientProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const { data: session } = useSession();
+  const [session, setSession] = useState<DummySession | null>(null);
   
   // États principaux
   const [loading, setLoading] = useState(true);
@@ -57,6 +57,14 @@ export default function SessionClient({
   const allSessionUsers: SessionParticipant[] = [initialTeacher, ...initialStudents];
   const peersRef = useRef<PeerData[]>([]);
   const screenPeerRef = useRef<PeerInstance | null>(null);
+
+  useEffect(() => {
+    async function fetchSession() {
+      const sessionData = await getAuthSession();
+      setSession(sessionData);
+    }
+    fetchSession();
+  }, []);
 
   // ---=== 1. GESTION DES FLUX MÉDIAS ===---
   useEffect(() => {

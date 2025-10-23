@@ -5,12 +5,11 @@ import Link from 'next/link';
 import { School } from 'lucide-react';
 import { UserNav } from './UserNav';
 import { Button } from './ui/button';
-import { User } from 'next-auth';
 import { ThemeToggle } from './ThemeToggle';
-import type { Session } from 'next-auth';
+import type { User } from '@/lib/types';
 
 interface HeaderProps {
-  user?: Session['user'] | null;
+  user?: User | null;
   children?: React.ReactNode;
 }
 

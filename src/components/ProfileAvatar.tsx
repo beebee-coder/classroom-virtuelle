@@ -3,15 +3,15 @@
 'use client';
 
 import { useTransition, useState, useEffect } from 'react';
-import { User } from 'next-auth';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CloudinaryUploadWidget } from '@/components/CloudinaryUploadWidget';
 import { updateUserProfileImage } from '@/lib/actions/user.actions';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Camera, Loader2 } from 'lucide-react';
-import { useSession } from 'next-auth/react';
 import { ImageDebugger } from './ImageDebugger';
+import type { User } from '@/lib/types';
+
 
 interface ProfileAvatarProps {
   user: User;
@@ -23,19 +23,14 @@ interface ProfileAvatarProps {
 export function ProfileAvatar({ user, isInteractive = false, className, children }: ProfileAvatarProps) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
-  const { update, data: session } = useSession();
   const [isUploading, setIsUploading] = useState(false);
   const [debugImageUrl, setDebugImageUrl] = useState<string | null>(null);
+  const [currentImageUrl, setCurrentImageUrl] = useState(user.image);
 
   const handleUploadSuccess = (result: any) => {
-   // console.log('=== DÉBUT UPLOAD AVATAR ===');
-    
     if (result.event === 'success') {
       const imageUrl = result.info.secure_url || result.info.url;
-     // console.log('🖼️ [AVATAR] URL image extraite:', imageUrl);
-      
       if (!imageUrl) {
-       // console.error('❌ [AVATAR] Aucune URL valide trouvée');
         toast({
           variant: 'destructive',
           title: 'Erreur',
@@ -49,24 +44,17 @@ export function ProfileAvatar({ user, isInteractive = false, className, children
 
       startTransition(async () => {
         try {
-         // console.log('🚀 [AVATAR] Début transition - appel action serveur...');
-          
           await updateUserProfileImage(imageUrl);
-         // console.log('✅ [AVATAR] Action serveur terminée.');
-
-         // console.log('🔄 [AVATAR] Mise à jour session NextAuth...');
-          await update({ image: imageUrl });
-         // console.log('✅ [AVATAR] Session mise à jour.');
+          
+          // Mettre à jour l'état local pour refléter le changement
+          setCurrentImageUrl(imageUrl);
 
           toast({
             title: '✅ Photo mise à jour!',
             description: 'Votre photo de profil a été changée avec succès.',
           });
 
-         // console.log('=== UPLOAD AVATAR RÉUSSI ===');
-
         } catch (error) {
-         // console.error('❌ [AVATAR] Erreur lors de la mise à jour:', error);
           toast({
             variant: 'destructive',
             title: 'Erreur',
@@ -74,15 +62,11 @@ export function ProfileAvatar({ user, isInteractive = false, className, children
           });
         } finally {
           setIsUploading(false);
-          // Hide debugger after a delay
           setTimeout(() => setDebugImageUrl(null), 5000);
         }
       });
     }
   };
-
-  const currentImageUrl = session?.user?.image ?? user.image ?? null;
- // console.log('🖼️ [AVATAR] Image actuelle à afficher:', currentImageUrl);
 
   const interactiveAvatar = (
     <>
@@ -95,7 +79,6 @@ export function ProfileAvatar({ user, isInteractive = false, className, children
               if (!loaded || isUploading) return;
               e.preventDefault();
               e.stopPropagation();
-             // console.log('📸 [AVATAR] Ouverture widget...');
               open();
             }} 
             className={cn(

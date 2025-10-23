@@ -17,7 +17,8 @@ import { KeyRound } from 'lucide-react';
 import { endCoursSession } from '@/lib/actions';
 import { CareerSelector } from '@/components/CareerSelector'; // Assumant que ce composant existe
 import { useActivityTracker } from '@/hooks/useActivityTracker';
-import { useSession } from 'next-auth/react';
+import { DummySession, getAuthSession } from '@/lib/session';
+
 interface StudentPageClientProps {
     student: StudentWithStateAndCareer;
     announcements: AnnouncementWithAuthor[];
@@ -44,20 +45,29 @@ export default function StudentPageClient({
     tasks 
 }: StudentPageClientProps) {
     const [activeTab, setActiveTab] = useState('tasks');
+    const [session, setSession] = useState<DummySession | null>(null);
     const [sessionInvitation, setSessionInvitation] = useState<SessionInvitation | null>(null);
     const [isJoiningSession, setIsJoiningSession] = useState(false);
     const { toast } = useToast();
     const router = useRouter();
-    const { data: session, status } = useSession();
+
+    useEffect(() => {
+      async function fetchSession() {
+        const sessionData = await getAuthSession();
+        setSession(sessionData);
+      }
+      fetchSession();
+    }, []);
+
     const classroomId = student?.classeId || 'classe-a';
     // Le hook ne doit être actif que si l'utilisateur est authentifié.
-    const isActivityTrackerEnabled = status === 'authenticated' && !!session?.user?.id && !!session?.user?.classeId;
+    const isActivityTrackerEnabled = !!session?.user?.id && !!session?.user?.classeId;
     console.log('👨‍🎓 [ELEVE] - Données complètes student:', student);
 
     const { onlineUsers } = useActivityTracker(
         student?.id,
         classroomId, // Utiliser la variable calculée
-  true
+        isActivityTrackerEnabled
     );
      // Vérifiez que les données sont présentes
     console.log('👨‍🎓 [ELEVE] - Données de présence:', {

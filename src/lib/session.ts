@@ -1,7 +1,4 @@
 // src/lib/session.ts
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "./auth-options";
-import type { Session } from 'next-auth';
 import { headers } from 'next/headers';
 import { Role } from "./types";
 import { allDummyStudents } from "./dummy-data"; // Importer les données
@@ -10,7 +7,20 @@ import { allDummyStudents } from "./dummy-data"; // Importer les données
 // Cette fonction simule la récupération d'une session pour le développement
 // sans nécessiter une véritable authentification. Elle se base sur un cookie.
 
-export const getAuthSession = async (): Promise<Session | null> => {
+export type DummySession = {
+    user?: {
+        id: string;
+        name?: string | null;
+        email?: string | null;
+        image?: string | null;
+        role?: Role;
+        classeId?: string;
+    };
+    expires: string;
+};
+
+
+export const getAuthSession = async (): Promise<DummySession | null> => {
     
     // Tente de récupérer le cookie 'dummyRole'
     const headersList = headers();
@@ -37,10 +47,10 @@ export const getAuthSession = async (): Promise<Session | null> => {
         if (role === 'student') {
              console.log('🕵️ [SESSION BYPASS] - Session ÉLÈVE simulée active.');
              // Utilise le premier élève des données factices pour la cohérence des ID
-             const student = allDummyStudents.find(s => s.email === 'ahmed0@example.com');
+             const student = allDummyStudents.find(s => s.email === 'ahmed@example.com');
              
              if (!student) {
-                console.error("❌ [SESSION BYPASS] - Élève de démo (ahmed0@example.com) non trouvé.");
+                console.error("❌ [SESSION BYPASS] - Élève de démo (ahmed@example.com) non trouvé.");
                 return null;
              }
 
@@ -51,14 +61,14 @@ export const getAuthSession = async (): Promise<Session | null> => {
                     email: student.email,
                     image: student.image ?? `https://api.dicebear.com/7.x/pixel-art/svg?seed=${student.id}`,
                     role: Role.ELEVE,
-                    classeId: student.classeId,
+                    classeId: student.classroomId,
                 },
                  expires: new Date(Date.now() + 3600 * 1000).toISOString(),
             };
         }
     }
     
-    console.log('🕵️ [SESSION BYPASS] - Aucune session simulée active. Utilisation de NextAuth.');
+    console.log('🕵️ [SESSION BYPASS] - Aucune session simulée active.');
     // Comportement par défaut si aucun cookie de simulation n'est trouvé
-    return getServerSession(authOptions);
+    return null;
 };

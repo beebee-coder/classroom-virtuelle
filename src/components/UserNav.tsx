@@ -15,34 +15,24 @@ import {
     DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { Avatar } from "@/components/ui/avatar"
 import Link from "next/link"
 import { LogIn, LogOut, Sun, Moon, Monitor, Camera } from "lucide-react"
-import { signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
-import { User } from "next-auth";
 import { ProfileAvatar } from "./ProfileAvatar";
-import { useRouter } from "next/navigation";
-import type { Session } from 'next-auth';
+import type { DummySession } from "@/lib/session";
+
 
 interface UserNavProps {
-    user?: Session['user'] | null;
+    user?: DummySession['user'] | null;
 }
 
 export function UserNav({ user }: UserNavProps) {
     const { setTheme } = useTheme();
-    const router = useRouter();
 
     const handleSignOut = () => {
-        // ---=== BYPASS BACKEND ===---
         console.log('🚪 [BYPASS] Déconnexion simulée.');
-        // Clear the bypass cookie
         document.cookie = 'dummyRole=; path=/; max-age=0';
-        
-        // Force a full page reload to the homepage.
-        // This is more reliable than router.push + router.refresh for clearing session state.
         window.location.href = '/';
-        // ---=========================---
     };
 
     if (!user) {
@@ -60,7 +50,7 @@ export function UserNav({ user }: UserNavProps) {
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative h-8 w-8 rounded-full">
-                     <ProfileAvatar user={user as User} isInteractive={false} />
+                     <ProfileAvatar user={user} isInteractive={false} />
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="end" forceMount>
@@ -79,7 +69,7 @@ export function UserNav({ user }: UserNavProps) {
                             Profil
                         </Link>
                     </DropdownMenuItem>
-                    <ProfileAvatar user={user as User} isInteractive={true}>
+                    <ProfileAvatar user={user} isInteractive={true}>
                          <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                             <Camera className="mr-2" />
                             Changer la photo

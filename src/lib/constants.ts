@@ -16,7 +16,7 @@ import {
 import type { Classroom } from '@/lib/types';
 import { CreateAnnouncementForm } from '@/components/CreateAnnouncementForm';
 import { ResetButton } from '@/components/ResetButton';
-import type { Session } from "next-auth";
+import type { DummySession } from "@/lib/session";
 
 // Définition des éléments de menu pour une configuration centralisée
 export const menuItems = [
@@ -75,17 +75,17 @@ export const menuItems = [
         items: [
             {
                 label: "Ma Classe",
-                href: (user: Session['user']) => `/student/class/${user?.classeId}`,
+                href: (user: DummySession['user']) => `/student/class/${user?.classeId}`,
                 icon: Users,
                 roles: ['ELEVE'],
-                condition: (user: Session['user']) => !!user?.classeId,
+                condition: (user: DummySession['user']) => !!user?.classeId,
             },
             {
                 label: "Mon Profil de Compétences",
-                href: (user: Session['user']) => `/student/${user?.id}/skills`,
+                href: (user: DummySession['user']) => `/student/${user?.id}/skills`,
                 icon: Target,
                 roles: ['ELEVE'],
-                condition: (user: Session['user']) => !!user?.id,
+                condition: (user: DummySession['user']) => !!user?.id,
             },
         ],
     },
@@ -94,10 +94,10 @@ export const menuItems = [
         items: [
             {
                 label: "Espace Parental",
-                href: (user: Session['user']) => `/student/${user?.id}/parent`,
+                href: (user: DummySession['user']) => `/student/${user?.id}/parent`,
                 icon: KeyRound,
                 roles: ['ELEVE'],
-                condition: (user: Session['user']) => !!user?.id,
+                condition: (user: DummySession['user']) => !!user?.id,
             },
         ]
     },
@@ -106,10 +106,10 @@ export const menuItems = [
         items: [
             { 
                 label: "Profil", 
-                href: (user: Session['user']) => user?.role === 'PROFESSEUR' ? '/teacher/profile' : `/student/${user?.id}`, 
+                href: (user: DummySession['user']) => user?.role === 'PROFESSEUR' ? '/teacher/profile' : `/student/${user?.id}`, 
                 icon: UserCircle,
                 roles: ['PROFESSEUR', 'ELEVE'],
-                condition: (user: Session['user']) => !!user?.id,
+                condition: (user: DummySession['user']) => !!user?.id,
             },
             { 
                 label: "Paramètres", 
