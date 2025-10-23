@@ -31,4 +31,5 @@ const nextConfig = {
   },
 };
 
+// Force cache invalidation
 module.exports = nextConfig;
