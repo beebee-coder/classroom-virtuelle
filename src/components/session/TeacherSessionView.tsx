@@ -12,6 +12,8 @@ import { Card } from '../ui/card';
 import { ParticipantList } from './ParticipantList';
 import { TeacherSessionControls } from '../TeacherSessionControls';
 import { ComprehensionLevel } from '../StudentSessionControls';
+import { DocumentViewer } from '../DocumentViewer';
+import { CameraManager } from '../CameraManager';
 
 export function TeacherSessionView({
     sessionId,
@@ -27,6 +29,8 @@ export function TeacherSessionView({
     currentUserId,
     onScreenShare,
     isScreenSharing,
+    activeTool,
+    onToolChange
 }: {
     sessionId: string;
     localStream: MediaStream | null;
@@ -41,6 +45,8 @@ export function TeacherSessionView({
     currentUserId: string;
     onScreenShare: () => void;
     isScreenSharing: boolean;
+    activeTool: string;
+    onToolChange: (tool: string) => void;
 }) {
     const remoteStreamsMap = new Map(remoteParticipants.map(p => [p.id, p.stream]));
     
@@ -50,27 +56,39 @@ export function TeacherSessionView({
     
     if (!currentUserId || !teacher) return null;
 
+    const renderActiveTool = () => {
+        if (screenStream) {
+             return (
+                <Card className="w-full h-full p-2 bg-black">
+                    <Participant
+                        stream={screenStream}
+                        isLocal={true}
+                        isTeacher={true}
+                        participantUserId={currentUserId}
+                        displayName="Votre partage d'écran"
+                    />
+                </Card>
+            );
+        }
+
+        switch(activeTool) {
+            case 'document':
+                return <DocumentViewer />;
+            case 'camera':
+                return <CameraManager />;
+            case 'whiteboard':
+            default:
+                return <Whiteboard />;
+        }
+    };
+
     return (
         <div className="flex-1 flex min-h-0 py-6 gap-4">
             {/* --- Colonne Principale : Espace de travail & Vidéos --- */}
             <div className="flex-1 flex flex-col gap-4">
                 {/* Espace de contenu : Tableau blanc ou Partage d'écran */}
                 <div className="flex-1">
-                    {screenStream ? (
-                        <Card className="w-full h-full p-2 bg-black">
-                            <Participant
-                                stream={screenStream}
-                                isLocal={true}
-                                isTeacher={true}
-                                participantUserId={currentUserId}
-                                displayName="Votre partage d'écran"
-                            />
-                        </Card>
-                    ) : (
-                        <div className='h-full w-full'>
-                            <Whiteboard />
-                        </div>
-                    )}
+                   {renderActiveTool()}
                 </div>
 
                 {/* Bandeau de vidéos (Filmstrip) */}
@@ -126,8 +144,8 @@ export function TeacherSessionView({
                  <TeacherSessionControls
                     onScreenShare={onScreenShare}
                     isScreenSharing={isScreenSharing}
-                    raisedHands={Array.from(raisedHands)}
-                    onLowerHand={(userId) => {}}
+                    activeTool={activeTool}
+                    onToolChange={onToolChange}
                 />
                  <ParticipantList allSessionUsers={allSessionUsers} onlineUserIds={onlineUserIds} currentUserId={currentUserId} />
                  <UnderstandingTracker students={students} understandingStatus={understandingStatus} />

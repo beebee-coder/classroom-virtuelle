@@ -14,14 +14,14 @@ import { TeacherSessionView } from './session/TeacherSessionView';
 import { StudentSessionView } from './session/StudentSessionView';
 import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';
-import { endCoursSession, broadcastTimerEvent } from '@/lib/actions';
+import { endCoursSession, broadcastTimerEvent, broadcastActiveTool } from '@/lib/actions';
 import { DummySession, getAuthSession } from '@/lib/session';
 import { ComprehensionLevel } from './StudentSessionControls';
 
 // Définition de types locaux
-type UnderstandingStatus = 'understood' | 'confused' | 'lost' | 'none';
 type PeerData = { id: string; peer: PeerInstance };
 type SignalData = { userId: string; signal: any };
+export type ActiveTool = 'whiteboard' | 'document' | 'quiz' | 'camera';
 
 interface SessionClientProps {
   sessionId: string;
@@ -55,6 +55,7 @@ export default function SessionClient({
   const [raisedHands, setRaisedHands] = useState<Set<string>>(new Set());
   const [understandingStatus, setUnderstandingStatus] = useState<Map<string, ComprehensionLevel>>(new Map());
   const [isEndingSession, setIsEndingSession] = useState(false);
+  const [activeTool, setActiveTool] = useState<string>('whiteboard');
 
   // Nouveaux états pour le minuteur
   const [timerDuration, setTimerDuration] = useState(INITIAL_TIMER_DURATION);
@@ -308,6 +309,12 @@ export default function SessionClient({
         setIsTimerRunning(data.isRunning);
     });
 
+    // Changement d'outil actif
+    channel.bind('active-tool-changed', (data: { tool: string }) => {
+      console.log(`[PUSHER] Active tool changed to: ${data.tool}`);
+      setActiveTool(data.tool);
+    });
+
 
     return () => {
       console.log(`🔌 [PUSHER] - Nettoyage des abonnements pour la session ${sessionId}`);
@@ -384,6 +391,13 @@ export default function SessionClient({
     setUnderstandingStatus(prev => new Map(prev).set(currentUserId, status));
   };
 
+  const handleToolChange = (tool: string) => {
+    // Optimistic update
+    setActiveTool(tool);
+    // Broadcast to other users
+    broadcastActiveTool(sessionId, tool);
+  };
+
 
   // Formatage du temps pour l'affichage
   const formatTime = (seconds: number) => {
@@ -426,6 +440,8 @@ export default function SessionClient({
             currentUserId={currentUserId}
             onScreenShare={toggleScreenShare}
             isScreenSharing={!!screenStream}
+            activeTool={activeTool}
+            onToolChange={handleToolChange}
           />
         ) : (
           <StudentSessionView
@@ -439,6 +455,7 @@ export default function SessionClient({
             onLeaveSession={handleLeaveSession}
             currentUnderstanding={understandingStatus.get(currentUserId) || ComprehensionLevel.NONE}
             currentUserId={currentUserId}
+            activeTool={activeTool}
           />
         )}
       </main>

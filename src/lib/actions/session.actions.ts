@@ -245,6 +245,37 @@ export async function broadcastTimerEvent(sessionId: string, event: string, data
     }
 }
 
+export async function broadcastActiveTool(sessionId: string, tool: string) {
+    try {
+        if (!sessionId || !tool) {
+            throw new Error('sessionId et tool sont requis');
+        }
+
+        console.log(`[TOOL] Broadcasting active tool ${tool} for session ${sessionId}`);
+        const channel = `presence-session-${sessionId}`;
+        
+        await pusherTrigger(
+            channel, 
+            'active-tool-changed', 
+            { 
+                tool,
+                sessionId,
+                timestamp: new Date().toISOString()
+            }
+        );
+
+        return { success: true, tool, sessionId };
+        
+    } catch (error) {
+        console.error('[TOOL] - Erreur:', error);
+        throw new Error(
+            error instanceof Error 
+                ? `Échec de la diffusion de l'outil: ${error.message}`
+                : 'Erreur inconnue lors de la diffusion de l\'outil'
+        );
+    }
+}
+
 export async function updateStudentSessionStatus(
   sessionId: string,
   status: { isHandRaised?: boolean; understanding?: ComprehensionLevel }

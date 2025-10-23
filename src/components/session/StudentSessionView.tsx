@@ -8,6 +8,9 @@ import { Loader2 } from 'lucide-react';
 import { StudentSessionControls, ComprehensionLevel } from '../StudentSessionControls';
 import { updateStudentSessionStatus } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
+import { Whiteboard } from '../Whiteboard';
+import { DocumentViewer } from '../DocumentViewer';
+import { CameraManager } from '../CameraManager';
 
 interface StudentSessionViewProps {
     sessionId: string;
@@ -20,6 +23,7 @@ interface StudentSessionViewProps {
     onLeaveSession: () => void;
     currentUnderstanding: ComprehensionLevel;
     currentUserId: string;
+    activeTool: string;
 }
 
 export function StudentSessionView({
@@ -33,6 +37,7 @@ export function StudentSessionView({
     onLeaveSession,
     currentUnderstanding,
     currentUserId,
+    activeTool,
 }: StudentSessionViewProps) {
     const { toast } = useToast();
 
@@ -59,29 +64,37 @@ export function StudentSessionView({
     };
 
     const renderMainContent = () => {
-        if (!spotlightedUser || !spotlightedStream) {
-            return (
-                <Card className="aspect-video w-full h-full flex items-center justify-center bg-muted rounded-lg">
-                    <div className="text-center text-muted-foreground">
-                        <Loader2 className="animate-spin h-8 w-8 mx-auto" />
-                        <p className="mt-2">En attente de la connexion...</p>
+        switch(activeTool) {
+            case 'document':
+                return <DocumentViewer />;
+            case 'camera':
+                 // Pour l'élève, la vue caméra principale est celle de la personne en vedette
+                if (!spotlightedUser || !spotlightedStream) {
+                    return (
+                        <Card className="aspect-video w-full h-full flex items-center justify-center bg-muted rounded-lg">
+                            <div className="text-center text-muted-foreground">
+                                <Loader2 className="animate-spin h-8 w-8 mx-auto" />
+                                <p className="mt-2">En attente de la connexion...</p>
+                            </div>
+                        </Card>
+                    );
+                }
+                return (
+                    <div className="w-full h-full">
+                        <Participant 
+                            stream={spotlightedStream}
+                            isLocal={false} 
+                            isSpotlighted={true}
+                            isTeacher={false}
+                            participantUserId={spotlightedUser?.id ?? ''}
+                            displayName={spotlightedUser?.name ?? undefined}
+                        />
                     </div>
-                </Card>
-            );
+                );
+            case 'whiteboard':
+            default:
+                return <Whiteboard />;
         }
-        
-        return (
-            <div className="w-full h-full">
-                <Participant 
-                    stream={spotlightedStream}
-                    isLocal={false} 
-                    isSpotlighted={true}
-                    isTeacher={false}
-                    participantUserId={spotlightedUser?.id ?? ''}
-                    displayName={spotlightedUser?.name ?? undefined}
-                />
-            </div>
-        );
     };
     
     return (
