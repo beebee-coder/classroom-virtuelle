@@ -21,7 +21,8 @@ export async function pusherTrigger(channel: string, event: string, data: any, o
     }
 }
 
-// Correction de la signature pour inclure le nom du canal, requis par Pusher
-export async function authenticateUser(socketId: string, channel: string, userData: { id: string, user_info: object }) {
+// La signature de userData doit correspondre à ce qu'attend Pusher pour les canaux de présence :
+// un objet avec `user_id` et `user_info`.
+export async function authenticateUser(socketId: string, channel: string, userData: { user_id: string, user_info: object }) {
     return pusherServer.authorizeChannel(socketId, channel, userData);
 }

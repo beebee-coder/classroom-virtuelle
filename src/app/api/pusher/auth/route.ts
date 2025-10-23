@@ -1,4 +1,4 @@
-
+// src/app/api/pusher/auth/route.ts
 import { authenticateUser } from "@/lib/pusher/server";
 import { NextResponse } from "next/server";
 import { Role } from "@/lib/types";
@@ -12,8 +12,9 @@ export async function POST(request: Request) {
     // ---=== BYPASS DE SIMULATION FIABILISÉ ===---
     // En mode démo, on authentifie systématiquement l'utilisateur
     // avec des données factices mais valides pour éviter les AuthError.
+    // L'objet doit contenir user_id (string) et user_info (object).
     const userData = {
-      id: `user-id-${Math.random().toString(36).substring(7)}`,
+      user_id: `user-id-${Math.random().toString(36).substring(7)}`,
       user_info: {
         name: 'Utilisateur Démo',
         role: Role.ELEVE, // Rôle par défaut pour la simulation
