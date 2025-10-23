@@ -19,7 +19,6 @@ import { Video, XSquare, Crown, Loader2, Wifi, WifiOff } from 'lucide-react';
 import { pusherClient } from '@/lib/pusher/client';
 import type { PresenceChannel } from 'pusher-js';
 import { cn } from '@/lib/utils';
-import { useSession } from 'next-auth/react';
 
 interface ClassPageClientProps {
     classroom: ClassroomWithDetails;
@@ -34,12 +33,11 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
     const [isSendingInvitations, setIsSendingInvitations] = useState<boolean>(false);
     const router = useRouter();
     const { toast } = useToast();
-    const { data: session } = useSession();
 
     // Abonnement réel Pusher
     useEffect(() => {
-        if (!classroom.id || !session?.user?.id) {
-            console.warn("👨‍🏫 [PRESENCE PROF] - Conditions non remplies pour l'abonnement Pusher.", { classroomId: classroom.id, userId: session?.user?.id });
+        if (!classroom.id || !teacher.id) {
+            console.warn("👨‍🏫 [PRESENCE PROF] - Conditions non remplies pour l'abonnement Pusher.", { classroomId: classroom.id, userId: teacher.id });
             return;
         }
 
@@ -54,7 +52,7 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                 if (channel.members?.members) {
                     const memberIds = Object.keys(channel.members.members);
                     // On exclut l'ID du professeur de la liste des élèves en ligne
-                    const studentMemberIds = memberIds.filter(id => id !== session.user?.id);
+                    const studentMemberIds = memberIds.filter(id => id !== teacher.id);
                     setOnlineStudents(studentMemberIds);
                     console.log('📊 [PRESENCE PROF] - Mise à jour de la liste des élèves en ligne:', studentMemberIds);
                 } else {
@@ -96,7 +94,7 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                 pusherClient.unsubscribe(channelName);
             }
         };
-    }, [classroom.id, session?.user?.id, toast]);
+    }, [classroom.id, teacher.id, toast]);
 
     const handleSelectStudent = useCallback((studentId: string) => {
         if (!studentId) {
