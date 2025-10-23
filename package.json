@@ -60,6 +60,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@prisma/engines": "5.10.2",
     "@types/dotenv": "^8.2.0",
     "@types/node": "^20",
     "@types/react": "^18",
@@ -69,6 +70,9 @@
     "prisma": "5.10.2",
     "tailwindcss": "3.4.1",
     "typescript": "5.4.5"
+  },
+  "overrides": {
+    "@prisma/engines": "5.10.2"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
