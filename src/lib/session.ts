@@ -4,7 +4,7 @@ import { authOptions } from "./auth-options";
 import type { Session } from 'next-auth';
 import { headers } from 'next/headers';
 import { Role } from "./types";
-import { dummyStudentData } from "./dummy-data";
+import { allDummyStudents } from "./dummy-data"; // Importer les données
 
 // ---=== BYPASS BACKEND - LOGIQUE DE SESSION FACTICE ===---
 // Cette fonction simule la récupération d'une session pour le développement
@@ -36,7 +36,14 @@ export const getAuthSession = async (): Promise<Session | null> => {
         
         if (role === 'student') {
              console.log('🕵️ [SESSION BYPASS] - Session ÉLÈVE simulée active.');
-             const student = dummyStudentData['student1']; // Utilise le premier élève pour la démo
+             // Utilise le premier élève des données factices pour la cohérence des ID
+             const student = allDummyStudents.find(s => s.email === 'ahmed0@example.com');
+             
+             if (!student) {
+                console.error("❌ [SESSION BYPASS] - Élève de démo (ahmed0@example.com) non trouvé.");
+                return null;
+             }
+
              return {
                 user: {
                     id: student.id,
@@ -44,7 +51,7 @@ export const getAuthSession = async (): Promise<Session | null> => {
                     email: student.email,
                     image: student.image ?? `https://api.dicebear.com/7.x/pixel-art/svg?seed=${student.id}`,
                     role: Role.ELEVE,
-                    classeId: student.classe?.id,
+                    classeId: student.classeId,
                 },
                  expires: new Date(Date.now() + 3600 * 1000).toISOString(),
             };

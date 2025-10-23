@@ -14,14 +14,21 @@ import type { PresenceChannel } from 'pusher-js';
  */
 export const useActivityTracker = (userId?: string, classroomId?: string, enabled: boolean = true) => {
   const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
+  console.log('🔍 [PRESENCE HOOK DEBUG] - Paramètres reçus:', { userId, classroomId, enabled });
 
   useEffect(() => {
     // Ne pas exécuter le hook si il n'est pas activé ou si les infos sont manquantes
-    if (!enabled || !userId || !classroomId) {
+    console.log('🔍 [PRESENCE HOOK DEBUG] - useEffect exécuté avec:', { userId, classroomId, enabled });
+    
+    if (!enabled ) {
       console.log('🕵️ [PRESENCE HOOK] - En attente des informations de session ou désactivé.', { enabled, userId, classroomId });
       return;
     }
 
+    if (!userId || !classroomId) {
+      console.log('❌ [PRESENCE HOOK] - Infos manquantes:', { userId, classroomId });
+      return;
+    }
     const channelName = `presence-class-${classroomId}`;
     console.log(`🕵️ [PRESENCE ÉLÈVE] - Tentative d'abonnement au canal: ${channelName} pour l'utilisateur ${userId}`);
     

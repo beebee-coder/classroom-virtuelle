@@ -1,7 +1,8 @@
 // src/app/api/pusher/auth/route.ts
-import { authenticateUser } from "@/lib/pusher/server";
-import { NextResponse } from "next/server";
-import { Role } from "@/lib/types";
+import { NextResponse } from 'next/server';
+import { getAuthSession } from '@/lib/session';
+import { authenticateUser } from '@/lib/pusher/server';
+import { Role } from '@/lib/types';
 
 export async function POST(request: Request) {
   try {
@@ -9,19 +10,26 @@ export async function POST(request: Request) {
     const socketId = body.get('socket_id') as string;
     const channel = body.get('channel_name') as string;
 
-    // ---=== BYPASS DE SIMULATION FIABILISÉ ===---
-    // En mode démo, on authentifie systématiquement l'utilisateur
-    // avec des données factices mais valides pour éviter les AuthError.
-    // L'objet doit contenir user_id (string) et user_info (object).
+    const session = await getAuthSession();
+
+    if (!session || !session.user) {
+        console.error('❌ [PUSHER AUTH] - Échec : Aucune session utilisateur trouvée.');
+        return new NextResponse('Unauthorized', { status: 403 });
+    }
+
+    const { user } = session;
+    console.log(`✅ [PUSHER AUTH] - Session trouvée pour: ${user.name} (ID: ${user.id})`);
+
     const userData = {
-      user_id: `user-id-${Math.random().toString(36).substring(7)}`,
+      user_id: user.id,
       user_info: {
-        name: 'Utilisateur Démo',
-        role: Role.ELEVE, // Rôle par défaut pour la simulation
+        name: user.name,
+        role: user.role,
       },
     };
     
     const authResponse = await authenticateUser(socketId, channel, userData);
+    console.log('✅ [PUSHER AUTH] - Autorisation réussie. Réponse envoyée au client.');
     
     return NextResponse.json(authResponse);
 

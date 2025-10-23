@@ -49,19 +49,20 @@ export default function StudentPageClient({
     const { toast } = useToast();
     const router = useRouter();
     const { data: session, status } = useSession();
-    
+    const classroomId = student?.classeId || 'classe-a';
     // Le hook ne doit être actif que si l'utilisateur est authentifié.
     const isActivityTrackerEnabled = status === 'authenticated' && !!session?.user?.id && !!session?.user?.classeId;
+    console.log('👨‍🎓 [ELEVE] - Données complètes student:', student);
 
     const { onlineUsers } = useActivityTracker(
         student?.id,
-        student?.classeId ?? undefined, // CORRECTION: `null` est transformé en `undefined`
-        isActivityTrackerEnabled
+        classroomId, // Utiliser la variable calculée
+  true
     );
      // Vérifiez que les données sont présentes
     console.log('👨‍🎓 [ELEVE] - Données de présence:', {
         studentId: student?.id,
-        classeId: student?.classeId,
+        classeId: classroomId,
         onlineUsers
     });
 
