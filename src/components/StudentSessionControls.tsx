@@ -1,8 +1,10 @@
+
 // src/components/StudentSessionControls.tsx
 'use client';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { 
   Hand, 
   Smile, 
@@ -12,8 +14,11 @@ import {
   Monitor,
   Headphones,
   Settings,
+  HelpCircle
 } from 'lucide-react';
 import { useState } from 'react';
+import { cn } from '@/lib/utils';
+
 
 // Enum pour les niveaux de compréhension, utilisé en interne
 export enum ComprehensionLevel {
@@ -61,7 +66,7 @@ export function StudentSessionControls({
   onRaiseHand,
   isHandRaised,
   onComprehensionUpdate,
-  currentComprehension,
+  currentComprehension = ComprehensionLevel.NONE,
   onOpenChat,
   onSettings,
 }: StudentSessionControlsProps) {
@@ -69,162 +74,141 @@ export function StudentSessionControls({
   const [videoEnabled, setVideoEnabled] = useState(true);
 
   return (
-    <div className="space-y-4">
+    <Accordion type="multiple" defaultValue={['comprehension', 'interaction']} className="w-full space-y-4">
       {/* Contrôle de compréhension */}
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Ma Compréhension</CardTitle>
-          <CardDescription>
-            Indiquez votre niveau de compréhension
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-2">
-            {Object.entries(comprehensionDisplayConfig).map(([level, config]) => {
-              const isActive = currentComprehension === level;
-              const { icon: Icon, label, color, bgColor, borderColor } = config;
-              
-              return (
-                <Button
-                  key={level}
-                  variant={isActive ? "default" : "outline"}
-                  className={`h-auto py-3 flex-col gap-2 ${
-                    isActive 
-                      ? `${bgColor} ${borderColor} border-2` 
-                      : 'hover:bg-muted/50'
-                  }`}
-                  onClick={() => onComprehensionUpdate(level as ComprehensionLevel)}
-                >
-                  <Icon className={`h-5 w-5 ${isActive ? 'text-white' : color}`} />
-                  <span className="text-xs font-medium">{label}</span>
-                </Button>
-              );
-            })}
-          </div>
+        <AccordionItem value="comprehension" className="border-b-0">
+          <AccordionTrigger className="p-6">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <HelpCircle className="h-5 w-5" />
+              Ma Compréhension
+            </CardTitle>
+          </AccordionTrigger>
+          <AccordionContent>
+            <CardContent className="pt-0">
+              <p className="text-sm text-muted-foreground mb-4">Indiquez votre niveau de compréhension au professeur.</p>
+              <div className="grid grid-cols-3 gap-2">
+                {Object.entries(comprehensionDisplayConfig).map(([level, config]) => {
+                  const isActive = currentComprehension === level;
+                  const { icon: Icon, label, color, bgColor, borderColor } = config;
+                  
+                  return (
+                    <Button
+                      key={level}
+                      variant="outline"
+                      className={cn(`h-auto py-3 flex-col gap-2 transition-all`,
+                        isActive && `ring-2 ${borderColor}`
+                      )}
+                      onClick={() => onComprehensionUpdate(level as ComprehensionLevel)}
+                    >
+                      <Icon className={cn("h-5 w-5", color)} />
+                      <span className="text-xs font-medium">{label}</span>
+                    </Button>
+                  );
+                })}
+              </div>
 
-          {/* Statut actuel */}
-          {currentComprehension && currentComprehension !== ComprehensionLevel.NONE && (
-            <div className="mt-3 p-2 bg-muted rounded-lg text-center">
-              <p className="text-sm font-medium">
-                Statut: 
-                <span className={`ml-1 ${
-                  currentComprehension === ComprehensionLevel.UNDERSTOOD ? 'text-green-600' :
-                  currentComprehension === ComprehensionLevel.CONFUSED ? 'text-yellow-600' :
-                  'text-red-600'
-                }`}>
-                  {comprehensionDisplayConfig[currentComprehension]?.label}
-                </span>
-              </p>
-            </div>
-          )}
-        </CardContent>
+              {currentComprehension !== ComprehensionLevel.NONE && (
+                <div className="mt-3 p-2 bg-muted rounded-lg text-center">
+                  <p className="text-sm font-medium">
+                    Statut actuel: 
+                    <span className={cn('ml-1', comprehensionDisplayConfig[currentComprehension].color)}>
+                      {comprehensionDisplayConfig[currentComprehension].label}
+                    </span>
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </AccordionContent>
+        </AccordionItem>
       </Card>
 
       {/* Contrôles d'interaction */}
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Interagir</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {/* Lever la main */}
-          <Button
-            onClick={onRaiseHand}
-            variant={isHandRaised ? "default" : "outline"}
-            className={`w-full justify-start gap-2 ${
-              isHandRaised ? 'bg-orange-500 hover:bg-orange-600' : ''
-            }`}
-            size="lg"
-          >
-            <Hand className={`h-4 w-4 ${isHandRaised ? 'animate-bounce' : ''}`} />
-            {isHandRaised ? 'Main levée' : 'Lever la main'}
-          </Button>
+        <AccordionItem value="interaction" className="border-b-0">
+            <AccordionTrigger className="p-6">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Hand className="h-5 w-5" />
+                  Interagir
+                </CardTitle>
+            </AccordionTrigger>
+             <AccordionContent>
+                <CardContent className="space-y-3 pt-0">
+                    <Button
+                        onClick={onRaiseHand}
+                        variant={isHandRaised ? "default" : "outline"}
+                        className={cn('w-full justify-center', isHandRaised && 'bg-orange-500 hover:bg-orange-600')}
+                        size="lg"
+                    >
+                        <Hand className={cn("mr-2 h-4 w-4", isHandRaised && 'animate-bounce')} />
+                        {isHandRaised ? 'Main levée' : 'Lever la main'}
+                    </Button>
 
-          {/* Chat */}
-          {onOpenChat && (
-            <Button
-              onClick={onOpenChat}
-              variant="outline"
-              className="w-full justify-start gap-2"
-              size="lg"
-            >
-              <MessageSquare className="h-4 w-4" />
-              Ouvrir le chat
-            </Button>
-          )}
-        </CardContent>
+                    {onOpenChat && (
+                        <Button
+                        onClick={onOpenChat}
+                        variant="outline"
+                        className="w-full"
+                        size="lg"
+                        >
+                        <MessageSquare className="mr-2 h-4 w-4" />
+                        Ouvrir le chat
+                        </Button>
+                    )}
+                </CardContent>
+            </AccordionContent>
+        </AccordionItem>
       </Card>
-
+      
       {/* Contrôles média */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Paramètres Média</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <div className="flex gap-2">
-            <Button
-              variant={audioEnabled ? "default" : "outline"}
-              className="flex-1 gap-2"
-              size="sm"
-              onClick={() => setAudioEnabled(!audioEnabled)}
-            >
-              <Headphones className="h-4 w-4" />
-              {audioEnabled ? 'Audio ON' : 'Audio OFF'}
-            </Button>
-            
-            <Button
-              variant={videoEnabled ? "default" : "outline"}
-              className="flex-1 gap-2"
-              size="sm"
-              onClick={() => setVideoEnabled(!videoEnabled)}
-            >
-              <Monitor className="h-4 w-4" />
-              {videoEnabled ? 'Vidéo ON' : 'Vidéo OFF'}
-            </Button>
-          </div>
+       <Card>
+        <AccordionItem value="media" className="border-b-0">
+            <AccordionTrigger className="p-6">
+                <CardTitle className="text-lg flex items-center gap-2">
+                    <Settings className="h-5 w-5" />
+                    Paramètres Média
+                </CardTitle>
+            </AccordionTrigger>
+             <AccordionContent>
+                <CardContent className="space-y-2 pt-0">
+                     <div className="flex gap-2">
+                        <Button
+                        variant={audioEnabled ? "outline" : "secondary"}
+                        className="flex-1 gap-2"
+                        size="sm"
+                        onClick={() => setAudioEnabled(!audioEnabled)}
+                        >
+                        <Headphones className="h-4 w-4" />
+                        {audioEnabled ? 'Audio ON' : 'Audio OFF'}
+                        </Button>
+                        
+                        <Button
+                        variant={videoEnabled ? "outline" : "secondary"}
+                        className="flex-1 gap-2"
+                        size="sm"
+                        onClick={() => setVideoEnabled(!videoEnabled)}
+                        >
+                        <Monitor className="h-4 w-4" />
+                        {videoEnabled ? 'Vidéo ON' : 'Vidéo OFF'}
+                        </Button>
+                    </div>
 
-          {onSettings && (
-            <Button
-              onClick={onSettings}
-              variant="ghost"
-              className="w-full gap-2"
-              size="sm"
-            >
-              <Settings className="h-4 w-4" />
-              Paramètres avancés
-            </Button>
-          )}
-        </CardContent>
+                    {onSettings && (
+                        <Button
+                        onClick={onSettings}
+                        variant="ghost"
+                        className="w-full gap-2"
+                        size="sm"
+                        >
+                        <Settings className="h-4 w-4" />
+                        Paramètres avancés
+                        </Button>
+                    )}
+                </CardContent>
+            </AccordionContent>
+        </AccordionItem>
       </Card>
 
-      {/* Aide rapide */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Aide Rapide</CardTitle>
-          <CardDescription>
-            En cas de problème technique
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Connexion:</span>
-              <span className="text-green-500 font-medium">Stable</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Audio:</span>
-              <span className="text-green-500 font-medium">Actif</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Vidéo:</span>
-              <span className="text-green-500 font-medium">Actif</span>
-            </div>
-          </div>
-          
-          <Button variant="outline" className="w-full mt-3" size="sm">
-            Signaler un problème
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
+    </Accordion>
   );
 }

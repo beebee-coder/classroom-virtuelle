@@ -5,12 +5,16 @@
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Users, Wifi, WifiOff } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { User, Role } from '@/lib/types';
+import { Role } from '@/lib/types';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { cn } from '@/lib/utils';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
 
-type SessionParticipant = User & { role?: Role };
+type SessionParticipant = {
+    id: string;
+    name?: string | null;
+    role?: Role;
+};
 
 
 interface ParticipantListProps {
@@ -21,7 +25,7 @@ interface ParticipantListProps {
 
 export function ParticipantList({ allSessionUsers, onlineUserIds, currentUserId }: ParticipantListProps) {
     return (
-        <Card className="flex flex-col">
+        <Card className="flex flex-col bg-background/80">
              <Accordion type="single" collapsible defaultValue="participants">
                 <AccordionItem value="participants" className="border-b-0">
                     <AccordionTrigger className="p-6">

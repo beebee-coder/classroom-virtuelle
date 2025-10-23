@@ -1,3 +1,4 @@
+
 // src/components/session/TeacherSessionView.tsx
 'use client';
 
@@ -50,7 +51,7 @@ export function TeacherSessionView({
 }) {
     const remoteStreamsMap = new Map(remoteParticipants.map(p => [p.id, p.stream]));
     
-    const studentsWithRaisedHands = allSessionUsers.filter(u => u.role === 'ELEVE' && raisedHands.has(u.id));
+    const studentsWithRaisedHands = allSessionUsers.filter(u => u.role === 'ELEVE' && raisedHands.has(u.id)) as User[];
     const students = allSessionUsers.filter(u => u.role === 'ELEVE') as User[];
     const teacher = allSessionUsers.find(u => u.role === 'PROFESSEUR');
     
@@ -141,15 +142,19 @@ export function TeacherSessionView({
 
             {/* --- Colonne de Droite : Outils Interactifs --- */}
             <div className="w-72 flex flex-col gap-4 min-h-0">
-                 <TeacherSessionControls
-                    onScreenShare={onScreenShare}
-                    isScreenSharing={isScreenSharing}
-                    activeTool={activeTool}
-                    onToolChange={onToolChange}
-                />
-                 <ParticipantList allSessionUsers={allSessionUsers} onlineUserIds={onlineUserIds} currentUserId={currentUserId} />
-                 <UnderstandingTracker students={students} understandingStatus={understandingStatus} />
-                 <HandRaiseController sessionId={sessionId} raisedHands={studentsWithRaisedHands} />
+                <ScrollArea className='h-full'>
+                    <div className='space-y-4 pr-3'>
+                        <TeacherSessionControls
+                            onScreenShare={onScreenShare}
+                            isScreenSharing={isScreenSharing}
+                            activeTool={activeTool}
+                            onToolChange={onToolChange}
+                        />
+                        <ParticipantList allSessionUsers={allSessionUsers} onlineUserIds={onlineUserIds} currentUserId={currentUserId} />
+                        <UnderstandingTracker students={students} understandingStatus={understandingStatus} />
+                        <HandRaiseController sessionId={sessionId} raisedHands={studentsWithRaisedHands} />
+                    </div>
+                </ScrollArea>
             </div>
         </div>
     );
