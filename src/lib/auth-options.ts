@@ -1,12 +1,12 @@
-
 // src/lib/auth-options.ts
 import { NextAuthOptions } from 'next-auth';
-import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
-import prisma from '@/lib/prisma';
-import { User as PrismaUser } from '@prisma/client';
 import { Role } from './types';
+import { allDummyStudents } from './dummy-data';
+
+// ---=== BYPASS: LOGIQUE SANS PRISMA ===---
+// L'adaptateur Prisma est désactivé. L'authentification est simulée.
 
 const providers: NextAuthOptions['providers'] = [
   CredentialsProvider({
@@ -19,28 +19,34 @@ const providers: NextAuthOptions['providers'] = [
       if (!credentials?.email || !credentials.password) {
         return null;
       }
-
-      const user = await prisma.user.findUnique({
-        where: { email: credentials.email },
-      });
-
-      if (!user) {
-        return null;
-      }
       
+      const isTeacher = credentials.email === 'teacher@example.com';
+      const student = allDummyStudents.find(s => s.email === credentials.email);
+
       // This is for demo purposes only. In a real application,
       // you would hash and compare passwords.
       const isValid = credentials.password === 'password';
 
       if (isValid) {
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          image: user.image,
-          role: user.role as Role,
-          classeId: user.classeId || undefined,
-        };
+        if (isTeacher) {
+            return {
+              id: 'teacher-id',
+              name: 'Professeur Test',
+              email: 'teacher@example.com',
+              image: null,
+              role: Role.PROFESSEUR,
+            };
+        }
+        if (student) {
+            return {
+              id: student.id,
+              name: student.name,
+              email: student.email,
+              image: student.image,
+              role: Role.ELEVE,
+              classeId: student.classroomId || undefined,
+            };
+        }
       }
 
       return null;
@@ -64,44 +70,13 @@ export const authOptions: NextAuthOptions = {
     logo: "https://next-auth.js.org/img/logo/logo-sm.png",
   },
   providers: providers,
-  adapter: PrismaAdapter(prisma),
+  // L'adaptateur Prisma est supprimé
   session: {
     strategy: 'jwt',
   },
   callbacks: {
     async signIn({ user, account, profile }) {
-      if (account?.provider === 'google' && profile?.email) {
-        let dbUser = await prisma.user.findUnique({
-          where: { email: profile.email },
-        });
-  
-        if (!dbUser) {
-          // Create user and their state in a transaction
-          const newUser = await prisma.$transaction(async (tx) => {
-            const createdUser = await tx.user.create({
-              data: {
-                email: profile.email!,
-                name: profile.name,
-                image: (profile as any).picture,
-                role: 'ELEVE', // Default role for new Google sign-ups
-              },
-            });
-
-            await tx.etatEleve.create({
-              data: {
-                eleveId: createdUser.id,
-              }
-            });
-
-            return createdUser;
-          });
-          dbUser = newUser;
-        }
-        // Ensure the user object passed along has the correct id and role for the session callback
-        user.id = dbUser.id;
-        (user as any).role = dbUser.role; // Use direct assignment
-        user.image = dbUser.image;
-      }
+      // La logique de création d'utilisateur est désactivée car il n'y a plus de DB
       return true;
     },
     async jwt({ token, user, trigger, session }) {

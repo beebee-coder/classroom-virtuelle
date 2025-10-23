@@ -1,21 +1,6 @@
-// src/lib/types.ts - Version corrigée
+// src/lib/types.ts - Version sans Prisma
 
-import type { 
-    Prisma,
-    User as PrismaUser,
-    Classroom as PrismaClassroom,
-    Metier as PrismaMetier,
-    CoursSession as PrismaCoursSession,
-    Leaderboard as PrismaLeaderboard,
-    Task as PrismaTask,
-    StudentProgress as PrismaStudentProgress,
-    Reaction as PrismaReaction,
-    Message as PrismaMessage,
-    Announcement as PrismaAnnouncement,
-    Conversation as PrismaConversation
-} from '@prisma/client';
-
-// Définir manuellement les enums si Prisma ne les exporte pas
+// Définir manuellement les enums car Prisma est supprimé
 export enum Role {
     ELEVE = 'ELEVE',
     PROFESSEUR = 'PROFESSEUR'
@@ -58,134 +43,167 @@ export enum ProgressStatus {
     REJECTED = 'REJECTED'
 }
 
-// Recréer les types de base à partir des types générés par Prisma
-export type User = PrismaUser;
-export type Classroom = PrismaClassroom;
-export type Metier = PrismaMetier;
-export type CoursSession = PrismaCoursSession;
-export type Leaderboard = PrismaLeaderboard;
-export type Task = PrismaTask;
-export type StudentProgress = PrismaStudentProgress;
-export type Reaction = PrismaReaction;
-export type Message = PrismaMessage;
-export type Announcement = PrismaAnnouncement;
-export type Conversation = PrismaConversation;
+// Recréer les types de base qui étaient générés par Prisma
+// Ce sont des interfaces simples pour correspondre aux données factices.
+export interface User {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+  role?: Role;
+  classeId?: string | null;
+  points?: number;
+  ambition?: string | null;
+  emailVerified?: Date | null;
+  parentPassword?: string | null;
+}
 
+export interface Classroom {
+  id: string;
+  nom: string;
+  professeurId: string;
+}
+
+export interface Metier {
+  id: string;
+  nom: string;
+  description: string;
+  icon: string;
+  theme: any; // Utiliser `any` pour la flexibilité avec les données factices JSON.
+}
+
+export interface CoursSession {
+  id: string;
+  professeurId: string;
+  classroomId: string;
+  startTime: Date;
+  endTime?: Date | null;
+}
+
+export interface Leaderboard {
+  id: string;
+  studentId: string;
+  dailyPoints: number;
+  weeklyPoints: number;
+  monthlyPoints: number;
+  totalPoints: number;
+  completedTasks: number;
+  currentStreak: number;
+  bestStreak: number;
+  rank: number;
+  updatedAt: Date;
+}
+
+export interface Task {
+  id: string;
+  title: string;
+  description: string;
+  points: number;
+  type: TaskType;
+  category: TaskCategory;
+  difficulty: TaskDifficulty;
+  validationType: ValidationType;
+  requiresProof: boolean;
+  attachmentUrl?: string | null;
+  isActive: boolean;
+  startTime?: Date | null;
+  duration?: number | null; // en minutes
+}
+
+export interface StudentProgress {
+  id: string;
+  studentId: string;
+  taskId: string;
+  status: ProgressStatus;
+  completionDate?: Date | null;
+  submissionUrl?: string | null;
+  pointsAwarded?: number | null;
+  accuracy?: number | null;
+  recipeName?: string | null;
+}
+
+export interface Reaction {
+  id: string;
+  emoji: string;
+  userId: string;
+  messageId: string;
+}
+
+export interface Message {
+  id: string;
+  message: string;
+  senderId: string;
+  classroomId?: string | null;
+  createdAt: Date;
+  isQuestion: boolean;
+  conversationId?: string | null;
+  directMessageSenderId?: string | null;
+}
+
+export interface Announcement {
+  id: string;
+  title: string;
+  content: string;
+  authorId: string;
+  classeId?: string | null;
+  createdAt: Date;
+  attachmentUrl?: string | null;
+}
+
+export interface Conversation {
+  id: string;
+  initiatorId: string;
+  receiverId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+
+// Types complexes qui étaient basés sur les relations Prisma
 
 export type SessionParticipant = Pick<User, 'id' | 'name' | 'role'>;
 
-
-/**
- * Type pour un élève avec son état actuel et le métier choisi.
- * Inclut les relations vers la classe, la progression des tâches et les sessions.
- */
-export type StudentWithStateAndCareer = Prisma.UserGetPayload<{
-    include: {
-        etat: {
-            include: {
-                metier: true
-            }
-        },
-        classe: true,
-        progress: true,
-        sessionsParticipees: true
-    }
-}> & {
-    // Assurer la compatibilité avec les données simulées
+export type StudentWithStateAndCareer = User & {
+    etat?: {
+        metier?: Metier | null;
+    } | null;
+    classe?: Classroom | null;
     progress?: StudentProgress[];
     sessionsParticipees?: any[];
 };
 
-/**
- * Type pour une réaction avec les informations de l'utilisateur qui a réagi.
- */
-export type ReactionWithUser = Prisma.ReactionGetPayload<{
-    include: {
-        user: {
-            select: { name: true, id: true }
-        }
-    }
-}>;
+export type ReactionWithUser = Reaction & {
+    user: { name?: string | null; id: string }
+};
 
-/**
- * Type pour un message, incluant l'auteur et toutes les réactions associées.
- */
-export type MessageWithReactions = Prisma.MessageGetPayload<{
-    include: {
-        sender: {
-            select: { id: true, name: true, image: true }
-        },
-        reactions: {
-            include: {
-                user: {
-                    select: { id: true, name: true }
-                }
-            }
-        }
-    }
-}>;
+export type MessageWithReactions = Message & {
+    sender: { id: string; name?: string | null; image?: string | null };
+    reactions: ReactionWithUser[];
+    senderName?: string; // Pour compatibilité avec les données factices
+};
 
-/**
- * Type de base pour une tâche, utilisé dans l'application.
- */
 export type AppTask = Task;
 
-/**
- * Type pour une conversation complète, incluant les deux participants et tous les messages.
- */
-export type FullConversation = Prisma.ConversationGetPayload<{
-    include: {
-        messages: {
-            orderBy: {
-                createdAt: 'asc'
-            },
-            include: {
-                sender: {
-                    select: { id: true, name: true, image: true }
-                },
-                reactions: true
-            }
-        };
-        initiator: { 
-            select: { id: true, name: true, image: true }
-        };
-        receiver: { 
-            select: { id: true, name: true, image: true }
-        };
-    }
-}>;
+export type FullConversation = Conversation & {
+    messages: MessageWithReactions[];
+    initiator: { id: string; name?: string | null; image?: string | null };
+    receiver: { id: string; name?: string | null; image?: string | null };
+};
 
-/**
- * Type pour une annonce avec les informations sur son auteur.
- */
-export type AnnouncementWithAuthor = Prisma.AnnouncementGetPayload<{
-    include: {
-        author: {
-            select: { name: true }
-        }
-    }
-}>;
+export type AnnouncementWithAuthor = Announcement & {
+    author: { name?: string | null };
+};
 
-/**
- * Type simplifié d'un élève pour affichage dans des cartes.
- * Contient les informations essentielles.
- */
 export type StudentForCard = Pick<User, 'id' | 'name' | 'email' | 'points' | 'image'> & {
   etat: {
     isPunished: boolean;
   } | null;
 };
 
-/**
- * Type pour une classe avec la liste détaillée de ses élèves.
- */
 export type ClassroomWithDetails = Omit<Classroom, 'professeurId'> & {
   eleves: StudentForCard[];
 };
 
-/**
- * Type pour un métier avec le thème parsé.
- */
 export type CareerWithTheme = Metier & {
   theme: {
     backgroundColor: string;
@@ -197,34 +215,20 @@ export type CareerWithTheme = Metier & {
   };
 };
 
-/**
- * Type pour une session de cours, incluant les participants, le professeur et la classe.
- */
-export type CoursSessionWithRelations = Prisma.CoursSessionGetPayload<{
-    include: {
-        participants: true,
-        professeur: true,
-        classe: true
-    }
-}>;
+export type CoursSessionWithRelations = CoursSession & {
+    participants: User[];
+    professeur: User;
+    classe: Classroom;
+};
 
-/**
- * Type pour la validation d'une tâche par un professeur.
- * Contient la progression, la tâche et l'élève concerné.
- */
-export type TaskForProfessorValidation = Prisma.StudentProgressGetPayload<{
-  include: {
-    task: true;
-    student: {
-      select: {
-        id: true;
-        name: true;
-      }
-    };
-  }
-}>;
+export type TaskForProfessorValidation = StudentProgress & {
+  task: Task;
+  student: {
+      id: string;
+      name?: string | null;
+  };
+};
 
-// Types utilitaires pour résoudre les problèmes de compatibilité
 export interface StudentState {
     id: string;
     eleveId: string;
@@ -239,7 +243,6 @@ export interface StudentClass {
     professeurId: string;
 }
 
-// Type alternatif pour les données simulées
 export type SimulatedStudent = Omit<StudentWithStateAndCareer, 'progress' | 'sessionsParticipees'> & {
     progress: StudentProgress[];
     sessionsParticipees: any[];

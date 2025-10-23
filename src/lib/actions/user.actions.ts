@@ -1,9 +1,8 @@
 // src/lib/actions/user.actions.ts
 "use server";
 
-import prisma from "@/lib/prisma";
-import { getAuthSession } from "@/lib/session";
 import { revalidatePath } from "next/cache";
+import { getAuthSession } from "@/lib/session";
 
 // ---=== BYPASS BACKEND ===---
 export async function updateUserProfileImage(imageUrl: string) {
@@ -19,10 +18,6 @@ export async function updateUserProfileImage(imageUrl: string) {
 
   try {
     // En mode bypass, nous ne mettons pas à jour la base de données.
-    // await prisma.user.update({
-    //   where: { id: session.user.id },
-    //   data: { image: imageUrl },
-    // });
     console.log("   -> L'appel à la base de données a été sauté.");
 
     // Revalidate paths where the user's avatar might be displayed

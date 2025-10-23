@@ -3,7 +3,6 @@
 
 import { revalidatePath } from 'next/cache';
 import { pusherTrigger } from '../pusher/server';
-import prisma from '../prisma';
 
 export async function createCoursSession(professeurId: string, classroomId: string, studentIds: string[]) {
     try {
