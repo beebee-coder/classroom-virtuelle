@@ -3,7 +3,7 @@
 'use client';
 
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { User, Role, SessionParticipant } from '@/lib/types';
+import { User, Role, SessionParticipant, ClassroomWithDetails } from '@/lib/types';
 import { Participant } from '@/components/Participant';
 import { StudentPlaceholder } from '../StudentPlaceholder';
 import { HandRaiseController } from '../HandRaiseController';
@@ -15,6 +15,7 @@ import { TeacherSessionControls } from '../TeacherSessionControls';
 import { ComprehensionLevel } from '../StudentSessionControls';
 import { DocumentViewer } from '../DocumentViewer';
 import { CameraManager } from '../CameraManager';
+import { ClassStudentList } from './ClassStudentList';
 
 export function TeacherSessionView({
     sessionId,
@@ -31,7 +32,8 @@ export function TeacherSessionView({
     onScreenShare,
     isScreenSharing,
     activeTool,
-    onToolChange
+    onToolChange,
+    classroom 
 }: {
     sessionId: string;
     localStream: MediaStream | null;
@@ -48,6 +50,7 @@ export function TeacherSessionView({
     isScreenSharing: boolean;
     activeTool: string;
     onToolChange: (tool: string) => void;
+    classroom?: ClassroomWithDetails;
 }) {
     const remoteStreamsMap = new Map(remoteParticipants.map(p => [p.id, p.stream]));
     
@@ -151,6 +154,14 @@ export function TeacherSessionView({
                             onToolChange={onToolChange}
                         />
                         <ParticipantList allSessionUsers={allSessionUsers} onlineUserIds={onlineUserIds} currentUserId={currentUserId} />
+                         {/* NOUVEAU : Liste de tous les élèves de la classe */}
+                         {classroom && (
+                            <ClassStudentList 
+                                classroom={classroom}
+                                onlineUserIds={onlineUserIds}
+                                currentUserId={currentUserId}
+                            />
+                        )}
                         <UnderstandingTracker students={students} understandingStatus={understandingStatus} />
                         <HandRaiseController sessionId={sessionId} raisedHands={studentsWithRaisedHands} />
                     </div>

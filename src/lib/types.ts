@@ -194,7 +194,7 @@ export type AnnouncementWithAuthor = Announcement & {
     author: { name?: string | null };
 };
 
-export type StudentForCard = Pick<User, 'id' | 'name' | 'email' | 'points' | 'image'> & {
+export type StudentForCard = Pick<User, 'id' | 'name' | 'email' | 'points' | 'image' | 'role' | 'classeId'> & {
   etat: {
     isPunished: boolean;
   } | null;

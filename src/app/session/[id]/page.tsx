@@ -3,8 +3,9 @@ import { notFound, redirect } from 'next/navigation';
 import { getAuthSession } from '@/lib/session';
 import SessionClient from '@/components/SessionClient';
 import { Suspense } from 'react';
-import { User, Role } from '@/lib/types';
+import { User, Role, ClassroomWithDetails } from '@/lib/types';
 import { getSessionDetails } from '@/lib/actions/session.actions';
+import { getClassroomWithStudents } from '@/lib/actions/classroom.actions';
 
 // Composant de chargement simple
 function SimpleSessionLoading() {
@@ -38,8 +39,23 @@ export default async function SessionPage({ params }: { params: { id: string } }
 
     // **MODIFICATION**: Récupérer les détails de la session via l'action
     let sessionDetails;
+    let classroomData: ClassroomWithDetails | null = null;
+
     try {
         sessionDetails = await getSessionDetails(params.id);
+  // NOUVEAU: Récupérer les données de la classe si c'est un professeur
+  if (authSession.user.role === 'PROFESSEUR') {
+    try {
+        // Utiliser l'ID de classe factice comme dans session.actions.ts
+        const classroomId = 'classe-a';
+        classroomData = await getClassroomWithStudents(classroomId);
+        console.log(`🏫 [SESSION PAGE] - Données de classe récupérées: ${classroomData.nom} avec ${classroomData.eleves.length} élèves`);
+    } catch (classroomError) {
+        console.warn('⚠️ [SESSION PAGE] - Impossible de récupérer les données de classe:', classroomError);
+        // On continue sans les données de classe (ne bloque pas la session)
+    }
+}
+
     } catch(e) {
         console.error('❌ [SESSION PAGE] - Impossible de récupérer les détails de la session:', e);
         // Rediriger si la session n'est pas trouvée ou en cas d'erreur
