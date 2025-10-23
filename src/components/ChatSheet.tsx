@@ -123,10 +123,10 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
     // Optimistic update
     setMessages(prev => prev.map(msg => {
         if (msg.id === messageId) {
-            const existingReaction = msg.reactions.find(r => r.userId === userId && r.emoji === emoji);
+            const existingReaction = msg.reactions.find((r: ReactionWithUser) => r.userId === userId && r.emoji === emoji);
             let newReactions;
             if (existingReaction) {
-                newReactions = msg.reactions.filter(r => r.id !== existingReaction.id);
+                newReactions = msg.reactions.filter((r: ReactionWithUser) => r.id !== existingReaction.id);
             } else {
                 newReactions = [...msg.reactions, { id: `temp-${Date.now()}`, emoji, userId, messageId, user: { id: userId, name: 'Vous' } } as ReactionWithUser];
             }
