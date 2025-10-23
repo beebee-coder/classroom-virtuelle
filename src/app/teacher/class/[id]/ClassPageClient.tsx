@@ -17,7 +17,7 @@ import { AnnouncementCarousel } from '@/components/AnnouncementCarousel';
 import { BackButton } from '@/components/BackButton';
 import { Video, XSquare, Crown, Loader2, Wifi, WifiOff } from 'lucide-react';
 import { pusherClient } from '@/lib/pusher/client';
-import type { PresenceChannel } from 'pusher-js';
+import type { PresenceChannel, Members } from 'pusher-js';
 import { cn } from '@/lib/utils';
 
 interface ClassPageClientProps {
@@ -60,22 +60,22 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                 }
             };
 
-            channel.bind('pusher:subscription_succeeded', (members: any) => {
+            channel.bind('pusher:subscription_succeeded', (members: Members) => {
                 console.log('✅ [PRESENCE PROF] - Abonnement réussi. Membres actuels:', Object.keys(members.members));
                 updateOnlineMembers();
             });
             
-            channel.bind('pusher:member_added', (member: { id: string, info: any }) => {
+            channel.bind('pusher:member_added', (member: { id: string; info: Record<string, unknown> }) => {
                 console.log('➕ [PRESENCE PROF] - Membre ajouté:', member.id);
                 updateOnlineMembers();
             });
             
-            channel.bind('pusher:member_removed', (member: { id: string, info: any }) => {
+            channel.bind('pusher:member_removed', (member: { id: string; info: Record<string, unknown> }) => {
                 console.log('➖ [PRESENCE PROF] - Membre retiré:', member.id);
                 updateOnlineMembers();
             });
 
-            channel.bind('pusher:subscription_error', (status: any) => {
+            channel.bind('pusher:subscription_error', (status: unknown) => {
                 console.error(`❌ [PRESENCE PROF] - Erreur d'abonnement au canal ${channelName}:`, status);
                 toast({
                     variant: 'destructive',
