@@ -1,6 +1,19 @@
-// src/lib/types.ts - Version corrigée avec solution alternative
+// src/lib/types.ts - Version corrigée
 
-import type { Prisma } from '@prisma/client';
+import type { 
+    Prisma,
+    User as PrismaUser,
+    Classroom as PrismaClassroom,
+    Metier as PrismaMetier,
+    CoursSession as PrismaCoursSession,
+    Leaderboard as PrismaLeaderboard,
+    Task as PrismaTask,
+    StudentProgress as PrismaStudentProgress,
+    Reaction as PrismaReaction,
+    Message as PrismaMessage,
+    Announcement as PrismaAnnouncement,
+    Conversation as PrismaConversation
+} from '@prisma/client';
 
 // Définir manuellement les enums si Prisma ne les exporte pas
 export enum Role {
@@ -46,17 +59,17 @@ export enum ProgressStatus {
 }
 
 // Recréer les types de base à partir des types générés par Prisma
-export type User = Prisma.User;
-export type Classroom = Prisma.Classroom;
-export type Metier = Prisma.Metier;
-export type CoursSession = Prisma.CoursSession;
-export type Leaderboard = Prisma.Leaderboard;
-export type Task = Prisma.Task;
-export type StudentProgress = Prisma.StudentProgress;
-export type Reaction = Prisma.Reaction;
-export type Message = Prisma.Message;
-export type Announcement = Prisma.Announcement;
-export type Conversation = Prisma.Conversation;
+export type User = PrismaUser;
+export type Classroom = PrismaClassroom;
+export type Metier = PrismaMetier;
+export type CoursSession = PrismaCoursSession;
+export type Leaderboard = PrismaLeaderboard;
+export type Task = PrismaTask;
+export type StudentProgress = PrismaStudentProgress;
+export type Reaction = PrismaReaction;
+export type Message = PrismaMessage;
+export type Announcement = PrismaAnnouncement;
+export type Conversation = PrismaConversation;
 
 
 export type SessionParticipant = Pick<User, 'id' | 'name' | 'role'>;
