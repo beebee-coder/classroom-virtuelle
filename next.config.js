@@ -31,5 +31,5 @@ const nextConfig = {
   },
 };
 
-// Force cache invalidation
+// Force cache invalidation. This comment is added to trigger a rebuild.
 module.exports = nextConfig;
