@@ -16,7 +16,8 @@ import { cn } from '@/lib/utils';
 import { KeyRound } from 'lucide-react';
 import { endCoursSession } from '@/lib/actions';
 import { CareerSelector } from '@/components/CareerSelector'; // Assumant que ce composant existe
-
+import { useActivityTracker } from '@/hooks/useActivityTracker';
+import { useSession } from 'next-auth/react';
 interface StudentPageClientProps {
     student: StudentWithStateAndCareer;
     announcements: AnnouncementWithAuthor[];
@@ -47,6 +48,14 @@ export default function StudentPageClient({
     const [isJoiningSession, setIsJoiningSession] = useState(false);
     const { toast } = useToast();
     const router = useRouter();
+    const { data: session, status } = useSession();
+
+    // Le hook ne doit être actif que si l'utilisateur est authentifié.
+    const isActivityTrackerEnabled = status === 'authenticated' && !!session?.user?.id && !!session?.user?.classeId;
+
+    // Active le suivi de présence pour l'élève connecté
+    useActivityTracker(session?.user?.id, session?.user?.classeId, isActivityTrackerEnabled);
+
 
     const handleAcceptInvitation = useCallback(async (invitation: SessionInvitation) => {
         console.log('✅ [ELEVE] - Acceptation de l\'invitation:', invitation.sessionId);
