@@ -26,11 +26,6 @@ export function TeacherSessionView({
     raisedHands,
     understandingStatus,
     currentUserId,
-    timerValue,
-    onStartTimer,
-    onPauseTimer,
-    onResetTimer,
-    onEndSession,
     onScreenShare,
     isScreenSharing,
 }: {
@@ -45,11 +40,6 @@ export function TeacherSessionView({
     raisedHands: Set<string>;
     understandingStatus: Map<string, UnderstandingStatus>;
     currentUserId: string;
-    timerValue: string;
-    onStartTimer: () => void;
-    onPauseTimer: () => void;
-    onResetTimer: () => void;
-    onEndSession: () => void;
     onScreenShare: () => void;
     isScreenSharing: boolean;
 }) {
@@ -139,11 +129,6 @@ export function TeacherSessionView({
                     isScreenSharing={isScreenSharing}
                     raisedHands={Array.from(raisedHands)}
                     onLowerHand={(userId) => {}}
-                    timerValue={timerValue}
-                    onStartTimer={onStartTimer}
-                    onPauseTimer={onPauseTimer}
-                    onResetTimer={onResetTimer}
-                    onEndSession={onEndSession}
                 />
                  <ParticipantList allSessionUsers={allSessionUsers} onlineUserIds={onlineUserIds} currentUserId={currentUserId} />
                  <UnderstandingTracker students={students} understandingStatus={understandingStatus} />

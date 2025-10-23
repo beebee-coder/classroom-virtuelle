@@ -27,11 +27,6 @@ interface TeacherSessionControlsProps {
   isScreenSharing: boolean;
   raisedHands: string[];
   onLowerHand: (userId: string) => void;
-  onStartTimer?: () => void;
-  onPauseTimer?: () => void;
-  onResetTimer?: () => void;
-  timerValue?: string;
-  onEndSession: () => void;
 }
 
 export function TeacherSessionControls({
@@ -39,11 +34,6 @@ export function TeacherSessionControls({
   isScreenSharing,
   raisedHands,
   onLowerHand,
-  onStartTimer,
-  onPauseTimer,
-  onResetTimer,
-  timerValue = '00:00',
-  onEndSession,
 }: TeacherSessionControlsProps) {
   const [activeTool, setActiveTool] = useState<string>('');
 
@@ -56,10 +46,6 @@ export function TeacherSessionControls({
 
   return (
     <div className="space-y-4">
-      <Button onClick={onEndSession} variant="destructive" size="lg" className="w-full">
-          <XCircle className="mr-2 h-5 w-5" />
-          Terminer la session pour tous
-      </Button>
       {/* Contrôles principaux */}
       <Card>
         <CardHeader className="pb-3">
@@ -86,32 +72,6 @@ export function TeacherSessionControls({
             )}
             {isScreenSharing ? 'Arrêter le partage' : 'Partager l\'écran'}
           </Button>
-
-          {/* Timer de session */}
-          <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            <div className="flex-1">
-              <p className="text-sm font-medium">Durée de session</p>
-              <p className="text-2xl font-bold font-mono">{timerValue}</p>
-            </div>
-            <div className="flex gap-1">
-              {onStartTimer && (
-                <Button variant="outline" size="icon" className="h-8 w-8" onClick={onStartTimer}>
-                  <Play className="h-4 w-4"/>
-                </Button>
-              )}
-              {onPauseTimer && (
-                <Button variant="outline" size="icon" className="h-8 w-8" onClick={onPauseTimer}>
-                  <Pause className="h-4 w-4"/>
-                </Button>
-              )}
-              {onResetTimer && (
-                <Button variant="outline" size="icon" className="h-8 w-8" onClick={onResetTimer}>
-                  <RotateCcw className="h-4 w-4"/>
-                </Button>
-              )}
-            </div>
-          </div>
         </CardContent>
       </Card>
 
