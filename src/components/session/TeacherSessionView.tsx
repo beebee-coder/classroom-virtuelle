@@ -10,6 +10,7 @@ import { UnderstandingTracker } from '../UnderstandingTracker';
 import { Whiteboard } from '../Whiteboard';
 import { Card } from '../ui/card';
 import { ParticipantList } from './ParticipantList';
+import { TeacherSessionControls } from '../TeacherSessionControls';
 
 type UnderstandingStatus = 'understood' | 'confused' | 'lost' | 'none';
 
@@ -25,6 +26,13 @@ export function TeacherSessionView({
     raisedHands,
     understandingStatus,
     currentUserId,
+    timerValue,
+    onStartTimer,
+    onPauseTimer,
+    onResetTimer,
+    onEndSession,
+    onScreenShare,
+    isScreenSharing,
 }: {
     sessionId: string;
     localStream: MediaStream | null;
@@ -37,6 +45,13 @@ export function TeacherSessionView({
     raisedHands: Set<string>;
     understandingStatus: Map<string, UnderstandingStatus>;
     currentUserId: string;
+    timerValue: string;
+    onStartTimer: () => void;
+    onPauseTimer: () => void;
+    onResetTimer: () => void;
+    onEndSession: () => void;
+    onScreenShare: () => void;
+    isScreenSharing: boolean;
 }) {
     const remoteStreamsMap = new Map(remoteParticipants.map(p => [p.id, p.stream]));
     
@@ -118,9 +133,17 @@ export function TeacherSessionView({
                 </div>
 
                  {/* Ligne 2: Espace vide pour utilisation future */}
-                <div className="flex flex-col min-h-0">
-                    <Card className="w-full h-full bg-muted/50 border-dashed"></Card>
-                </div>
+                 <TeacherSessionControls
+                    onScreenShare={onScreenShare}
+                    isScreenSharing={isScreenSharing}
+                    raisedHands={Array.from(raisedHands)}
+                    onLowerHand={(userId) => {}}
+                    timerValue={timerValue}
+                    onStartTimer={onStartTimer}
+                    onPauseTimer={onPauseTimer}
+                    onResetTimer={onResetTimer}
+                    onEndSession={onEndSession}
+                />
             </div>
 
             {/* --- Colonne de Droite : Outils Interactifs --- */}

@@ -16,6 +16,9 @@ import {
   Zap,
   Square, // Remplacement de Whiteboard
   XCircle,
+  Play,
+  Pause,
+  RotateCcw
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -93,18 +96,18 @@ export function TeacherSessionControls({
             </div>
             <div className="flex gap-1">
               {onStartTimer && (
-                <Button variant="outline" size="sm" onClick={onStartTimer}>
-                  Start
+                <Button variant="outline" size="icon" className="h-8 w-8" onClick={onStartTimer}>
+                  <Play className="h-4 w-4"/>
                 </Button>
               )}
               {onPauseTimer && (
-                <Button variant="outline" size="sm" onClick={onPauseTimer}>
-                  Pause
+                <Button variant="outline" size="icon" className="h-8 w-8" onClick={onPauseTimer}>
+                  <Pause className="h-4 w-4"/>
                 </Button>
               )}
               {onResetTimer && (
-                <Button variant="outline" size="sm" onClick={onResetTimer}>
-                  Reset
+                <Button variant="outline" size="icon" className="h-8 w-8" onClick={onResetTimer}>
+                  <RotateCcw className="h-4 w-4"/>
                 </Button>
               )}
             </div>

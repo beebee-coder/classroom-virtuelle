@@ -17,6 +17,11 @@ interface SessionHeaderProps {
     isSharingScreen: boolean;
     onToggleScreenShare: () => void;
     initialDuration: number;
+    timerTimeLeft: number;
+    isTimerRunning: boolean;
+    onStartTimer: () => void;
+    onPauseTimer: () => void;
+    onResetTimer: () => void;
 }
 
 export function SessionHeader({ 
@@ -28,6 +33,11 @@ export function SessionHeader({
     isSharingScreen,
     onToggleScreenShare,
     initialDuration,
+    timerTimeLeft,
+    isTimerRunning,
+    onStartTimer,
+    onPauseTimer,
+    onResetTimer,
 }: SessionHeaderProps) {
     
     const handleEndSessionClick = useCallback((e: React.MouseEvent) => {
@@ -55,6 +65,11 @@ export function SessionHeader({
                         isTeacher={isTeacher}
                         sessionId={sessionId}
                         initialDuration={initialDuration}
+                        timeLeft={timerTimeLeft}
+                        isTimerRunning={isTimerRunning}
+                        onStart={onStartTimer}
+                        onPause={onPauseTimer}
+                        onReset={onResetTimer}
                     />
                      {isTeacher && (
                         <VideoControls 

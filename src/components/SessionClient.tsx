@@ -14,7 +14,7 @@ import { TeacherSessionView } from './session/TeacherSessionView';
 import { StudentSessionView } from './session/StudentSessionView';
 import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';
-import { endCoursSession } from '@/lib/actions';
+import { endCoursSession, broadcastTimerEvent } from '@/lib/actions';
 import { DummySession, getAuthSession } from '@/lib/session';
 
 // Définition de types locaux
@@ -29,6 +29,8 @@ interface SessionClientProps {
   currentUserRole: Role;
   currentUserId: string;
 }
+
+const INITIAL_TIMER_DURATION = 3600; // 1 heure en secondes
 
 export default function SessionClient({
   sessionId,
@@ -52,6 +54,12 @@ export default function SessionClient({
   const [raisedHands, setRaisedHands] = useState<Set<string>>(new Set());
   const [understandingStatus, setUnderstandingStatus] = useState<Map<string, UnderstandingStatus>>(new Map());
   const [isEndingSession, setIsEndingSession] = useState(false);
+
+  // Nouveaux états pour le minuteur
+  const [timerDuration, setTimerDuration] = useState(INITIAL_TIMER_DURATION);
+  const [timerTimeLeft, setTimerTimeLeft] = useState(timerDuration);
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   const allSessionUsers: SessionParticipant[] = [initialTeacher, ...initialStudents];
   const peersRef = useRef<PeerData[]>([]);
@@ -162,6 +170,29 @@ export default function SessionClient({
     peer.signal(incomingSignal);
     return peer;
   };
+
+   // ---=== GESTION DU MINUTEUR ===---
+    const handleStartTimer = () => broadcastTimerEvent(sessionId, 'timer-started');
+    const handlePauseTimer = () => broadcastTimerEvent(sessionId, 'timer-paused');
+    const handleResetTimer = () => broadcastTimerEvent(sessionId, 'timer-reset', { duration: timerDuration });
+
+    useEffect(() => {
+        if (isTimerRunning && timerTimeLeft > 0) {
+            timerIntervalRef.current = setInterval(() => {
+                setTimerTimeLeft(prev => prev - 1);
+            }, 1000);
+        } else if (!isTimerRunning || timerTimeLeft === 0) {
+            if (timerIntervalRef.current) {
+                clearInterval(timerIntervalRef.current);
+            }
+        }
+
+        return () => {
+            if (timerIntervalRef.current) {
+                clearInterval(timerIntervalRef.current);
+            }
+        };
+    }, [isTimerRunning, timerTimeLeft]);
   
   // ---=== 3. GESTION DES ÉVÉNEMENTS PUSHER ===---
   useEffect(() => {
@@ -261,6 +292,20 @@ export default function SessionClient({
       setUnderstandingStatus(prev => new Map(prev).set(data.userId, data.status));
     });
 
+    // Événements du minuteur
+    channel.bind('timer-started', () => setIsTimerRunning(true));
+    channel.bind('timer-paused', () => setIsTimerRunning(false));
+    channel.bind('timer-reset', (data: { duration: number }) => {
+        setIsTimerRunning(false);
+        setTimerTimeLeft(data.duration);
+        setTimerDuration(data.duration);
+    });
+    channel.bind('timer-update', (data: { timeLeft: number; isRunning: boolean }) => {
+        setTimerTimeLeft(data.timeLeft);
+        setIsTimerRunning(data.isRunning);
+    });
+
+
     return () => {
       console.log(`🔌 [PUSHER] - Nettoyage des abonnements pour la session ${sessionId}`);
       channel.unbind_all();
@@ -316,6 +361,13 @@ export default function SessionClient({
     return <SessionLoading />;
   }
 
+  // Formatage du temps pour l'affichage
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
   return (
     <div className="flex flex-col h-screen bg-background">
       <SessionHeader 
@@ -326,7 +378,12 @@ export default function SessionClient({
         isEndingSession={isEndingSession}
         isSharingScreen={!!screenStream}
         onToggleScreenShare={toggleScreenShare}
-        initialDuration={3600}
+        initialDuration={timerDuration}
+        timerTimeLeft={timerTimeLeft}
+        isTimerRunning={isTimerRunning}
+        onStartTimer={handleStartTimer}
+        onPauseTimer={handlePauseTimer}
+        onResetTimer={handleResetTimer}
       />
       <main className="flex-1 flex flex-col container mx-auto px-4 sm:px-6 lg:px-8 min-h-0">
         <PermissionPrompt />
@@ -343,6 +400,10 @@ export default function SessionClient({
             raisedHands={raisedHands}
             understandingStatus={understandingStatus}
             currentUserId={currentUserId}
+            timerValue={formatTime(timerTimeLeft)}
+            onStartTimer={handleStartTimer}
+            onPauseTimer={handlePauseTimer}
+            onResetTimer={handleResetTimer}
           />
         ) : (
           <StudentSessionView
