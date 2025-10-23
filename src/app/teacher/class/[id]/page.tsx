@@ -4,7 +4,6 @@ import ClassPageClient from './ClassPageClient';
 import { getAuthSession } from '@/lib/session';
 import { getClassAnnouncements } from '@/lib/actions/announcement.actions';
 import { ClassroomWithDetails, StudentForCard } from '@/lib/types';
-import { User } from 'next-auth';
 
 
 // DUMMY DATA
