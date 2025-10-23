@@ -41,7 +41,7 @@ function SubmitButton() {
 }
 
 interface CreateAnnouncementFormProps {
-    classrooms?: { id: string; nom: string; }[];
+    classrooms?: { id: string; nom: string }[];
 }
 
 export function CreateAnnouncementForm({ classrooms = dummyClassrooms }: CreateAnnouncementFormProps) {
