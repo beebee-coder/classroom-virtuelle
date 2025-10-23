@@ -404,6 +404,9 @@ export default function SessionClient({
             onStartTimer={handleStartTimer}
             onPauseTimer={handlePauseTimer}
             onResetTimer={handleResetTimer}
+            onEndSession={handleEndSession}
+            onScreenShare={toggleScreenShare}
+            isScreenSharing={!!screenStream}
           />
         ) : (
           <StudentSessionView
@@ -414,6 +417,7 @@ export default function SessionClient({
             isHandRaised={raisedHands.has(currentUserId)}
             onToggleHandRaise={() => { /* Implémenter la logique d'émission */ }}
             onUnderstandingChange={(status) => { /* Implémenter la logique d'émission */ }}
+            onLeaveSession={handleLeaveSession}
             currentUnderstanding={understandingStatus.get(currentUserId) || 'none'}
             currentUserId={currentUserId}
           />

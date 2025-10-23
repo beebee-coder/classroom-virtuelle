@@ -6,10 +6,11 @@ import { Participant } from '@/components/Participant';
 import { User, Role, SessionParticipant } from '@/lib/types';
 import { Button } from '../ui/button';
 import { cn } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Loader2 } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+import { StudentSessionControls } from '../StudentSessionControls';
 
 type UnderstandingStatus = 'understood' | 'confused' | 'lost' | 'none';
 
@@ -22,6 +23,7 @@ interface StudentSessionViewProps {
     isHandRaised: boolean;
     onToggleHandRaise: () => void;
     onUnderstandingChange: (status: UnderstandingStatus) => void;
+    onLeaveSession: () => void;
     currentUnderstanding: UnderstandingStatus;
     currentUserId: string;
 }
@@ -34,6 +36,7 @@ export function StudentSessionView({
     isHandRaised,
     onToggleHandRaise,
     onUnderstandingChange,
+    onLeaveSession,
     currentUnderstanding,
     currentUserId,
 }: StudentSessionViewProps) {
@@ -72,51 +75,14 @@ export function StudentSessionView({
             </div>
             
             {/* Barre latérale droite : contrôles */}
-            <div className="w-1/5 flex flex-col gap-6 min-h-0">
-                 <Card>
-                    <CardHeader className="p-3">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                           Niveau de compréhension
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-3 pt-0">
-                        <TooltipProvider>
-                            <ToggleGroup type="single" value={currentUnderstanding} onValueChange={(value: string) => onUnderstandingChange(value as UnderstandingStatus || 'none')} className="w-full justify-between">
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <ToggleGroupItem value="understood" aria-label="J'ai compris" className='data-[state=on]:bg-green-500/20 data-[state=on]:text-green-600'>
-                                            <Smile className="h-5 w-5" />
-                                        </ToggleGroupItem>
-                                    </TooltipTrigger>
-                                    <TooltipContent><p>J'ai compris</p></TooltipContent>
-                                </Tooltip>
-                                 <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <ToggleGroupItem value="confused" aria-label="Je suis un peu perdu" className='data-[state=on]:bg-yellow-500/20 data-[state=on]:text-yellow-600'>
-                                            <Meh className="h-5 w-5" />
-                                        </ToggleGroupItem>
-                                    </TooltipTrigger>
-                                    <TooltipContent><p>Je suis un peu perdu</p></TooltipContent>
-                                </Tooltip>
-                                 <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <ToggleGroupItem value="lost" aria-label="Je n'ai pas compris" className='data-[state=on]:bg-red-500/20 data-[state=on]:text-red-600'>
-                                            <Frown className="h-5 w-5" />
-                                        </ToggleGroupItem>
-                                    </TooltipTrigger>
-                                    <TooltipContent><p>Je n'ai pas compris</p></TooltipContent>
-                                </Tooltip>
-                            </ToggleGroup>
-                        </TooltipProvider>
-                    </CardContent>
-                </Card>
-                <Button 
-                    onClick={onToggleHandRaise} 
-                    className={cn("w-full", isHandRaised && "bg-blue-600 hover:bg-blue-700 animate-pulse")}
-                >
-                   <Hand className="mr-2 h-5 w-5" />
-                   {isHandRaised ? 'Baisser la main' : 'Lever la main'}
-                </Button>
+            <div className="w-72 flex flex-col gap-6 min-h-0">
+                <StudentSessionControls
+                    isHandRaised={isHandRaised}
+                    onRaiseHand={onToggleHandRaise}
+                    onComprehensionUpdate={onUnderstandingChange}
+                    currentComprehension={currentUnderstanding}
+                    onLeaveSession={onLeaveSession}
+                />
             </div>
         </div>
     );
