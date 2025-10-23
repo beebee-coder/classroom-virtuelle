@@ -327,7 +327,7 @@ export default function SessionClient({
             screenStream={screenStream}
             remoteParticipants={peers.map(p => ({ id: p.id, stream: p.peer.streams[0] }))}
             spotlightedUser={allSessionUsers.find(u => u.id === spotlightedParticipantId)}
-            allSessionUsers={allSessionUsers as User[]}
+            allSessionUsers={allSessionUsers}
             onlineUserIds={onlineUserIds}
             onSpotlightParticipant={onSpotlightParticipant}
             raisedHands={raisedHands}
