@@ -49,13 +49,21 @@ export default function StudentPageClient({
     const { toast } = useToast();
     const router = useRouter();
     const { data: session, status } = useSession();
-
+    
     // Le hook ne doit être actif que si l'utilisateur est authentifié.
     const isActivityTrackerEnabled = status === 'authenticated' && !!session?.user?.id && !!session?.user?.classeId;
 
-    // Active le suivi de présence pour l'élève connecté
-    useActivityTracker(session?.user?.id, session?.user?.classeId, isActivityTrackerEnabled);
-
+    const { onlineUsers } = useActivityTracker(
+        student?.id,
+        student?.classeId ?? undefined, // CORRECTION: `null` est transformé en `undefined`
+        isActivityTrackerEnabled
+    );
+     // Vérifiez que les données sont présentes
+    console.log('👨‍🎓 [ELEVE] - Données de présence:', {
+        studentId: student?.id,
+        classeId: student?.classeId,
+        onlineUsers
+    });
 
     const handleAcceptInvitation = useCallback(async (invitation: SessionInvitation) => {
         console.log('✅ [ELEVE] - Acceptation de l\'invitation:', invitation.sessionId);
