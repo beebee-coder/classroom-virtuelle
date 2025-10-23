@@ -38,65 +38,65 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
 
     // Abonnement réel Pusher
     useEffect(() => {
-        if (classroom.id && session?.user?.id) {
-            console.log("👨‍🏫 [PRESENCE PROF] - Abonnement Pusher activé", { classroomId: classroom.id, userId: session.user.id });
+        if (!classroom.id || !session?.user?.id) {
+            console.warn("👨‍🏫 [PRESENCE PROF] - Conditions non remplies pour l'abonnement Pusher.", { classroomId: classroom.id, userId: session?.user?.id });
+            return;
+        }
 
-            const channelName = `presence-class-${classroom.id}`;
-            console.log(`👨‍🏫 [PRESENCE PROF] - Tentative d'abonnement au canal: ${channelName}`);
+        const channelName = `presence-class-${classroom.id}`;
+        console.log(`👨‍🏫 [PRESENCE PROF] - Tentative d'abonnement au canal: ${channelName}`);
             
-            try {
-                const channel = pusherClient.subscribe(channelName) as PresenceChannel;
+        let channel: PresenceChannel;
+        try {
+            channel = pusherClient.subscribe(channelName) as PresenceChannel;
 
-                const updateOnlineMembers = () => {
-                    if (channel.members?.members) {
-                        const memberIds = Object.keys(channel.members.members);
-                        console.log('👨‍🏫 [PRESENCE PROF] - Mise à jour des membres. IDs reçus de Pusher:', memberIds);
-                        const studentMemberIds = memberIds.filter(id => id !== session.user?.id);
-                        setOnlineStudents(studentMemberIds);
-                        console.log('👨‍🏫 [PRESENCE PROF] - Liste des élèves en ligne mise à jour:', studentMemberIds);
-                    }
-                };
+            const updateOnlineMembers = () => {
+                if (channel.members?.members) {
+                    const memberIds = Object.keys(channel.members.members);
+                    // On exclut l'ID du professeur de la liste des élèves en ligne
+                    const studentMemberIds = memberIds.filter(id => id !== session.user?.id);
+                    setOnlineStudents(studentMemberIds);
+                    console.log('👨‍🏫 [PRESENCE PROF] - Mise à jour de la liste des élèves en ligne:', studentMemberIds);
+                } else {
+                     console.log('👨‍🏫 [PRESENCE PROF] - Aucun membre trouvé dans le canal.');
+                }
+            };
 
-                channel.bind('pusher:subscription_succeeded', (members: any) => {
-                    console.log('✅ [PRESENCE PROF] - Abonnement réussi. Membres actuels:', members.members);
-                    updateOnlineMembers();
-                });
-                
-                channel.bind('pusher:member_added', (member: { id: string, info: any }) => {
-                    console.log('➕ [PRESENCE PROF] - Membre ajouté:', member);
-                    updateOnlineMembers();
-                });
-                
-                channel.bind('pusher:member_removed', (member: { id: string, info: any }) => {
-                    console.log('➖ [PRESENCE PROF] - Membre retiré:', member);
-                    updateOnlineMembers();
-                });
+            channel.bind('pusher:subscription_succeeded', (members: any) => {
+                console.log('✅ [PRESENCE PROF] - Abonnement réussi. Membres actuels:', Object.keys(members.members));
+                updateOnlineMembers();
+            });
+            
+            channel.bind('pusher:member_added', (member: { id: string, info: any }) => {
+                console.log('➕ [PRESENCE PROF] - Membre ajouté:', member.id);
+                updateOnlineMembers();
+            });
+            
+            channel.bind('pusher:member_removed', (member: { id: string, info: any }) => {
+                console.log('➖ [PRESENCE PROF] - Membre retiré:', member.id);
+                updateOnlineMembers();
+            });
 
-                return () => {
-                    console.log(`🔚 [PRESENCE PROF] - Désabonnement du canal ${channelName}`);
-                    pusherClient.unsubscribe(channelName);
-                };
-            } catch (error) {
-                console.error("❌ [PRESENCE PROF] - Erreur lors de l'abonnement Pusher:", error);
+            channel.bind('pusher:subscription_error', (status: any) => {
+                console.error(`❌ [PRESENCE PROF] - Erreur d'abonnement au canal ${channelName}:`, status);
                 toast({
                     variant: 'destructive',
                     title: 'Erreur de connexion temps réel',
                     description: 'Impossible de suivre la présence des élèves.',
                 });
-            }
-        }
-    }, [classroom.id, session?.user?.id, toast]);
+            });
 
-    // Validation des props
-    if (!classroom?.id || !teacher?.id) {
-        console.error('❌ [CLIENT] - Props manquants:', { classroom, teacher });
-        toast({
-            variant: 'destructive',
-            title: 'Erreur de chargement',
-            description: 'Données de classe ou professeur manquantes.',
-        });
-        return null;
-    }
+        } catch (error) {
+            console.error("💥 [PRESENCE PROF] - Erreur critique lors de l'abonnement Pusher:", error);
+        }
+
+        return () => {
+            if (channel) {
+                console.log(`🔚 [PRESENCE PROF] - Désabonnement du canal ${channelName}`);
+                pusherClient.unsubscribe(channelName);
+            }
+        };
+    }, [classroom.id, session?.user?.id, toast]);
 
     const handleSelectStudent = useCallback((studentId: string) => {
         if (!studentId) {
