@@ -75,6 +75,10 @@
     "@prisma/engines": "5.10.2"
   },
   "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts",
+    "binaryTargets": [
+      "native",
+      "debian-openssl-3.0.x"
+    ]
   }
 }
