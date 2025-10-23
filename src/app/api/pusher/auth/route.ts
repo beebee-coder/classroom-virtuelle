@@ -1,14 +1,13 @@
-// src/app/api/pusher/auth/route.ts
-import { authenticateUser } from '@/lib/pusher/server';
-import { getAuthSession } from '@/lib/session';
-import { NextResponse } from 'next/server';
-import { Role } from '@/lib/types';
+
+import { authenticateUser } from "@/lib/pusher/server";
+import { getAuthSession } from "@/lib/session";
+import { Role } from "@/lib/types";
+import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   console.log('--- 🔐 [PUSHER AUTH] - Début du processus d\'authentification ---');
   try {
-    // ---=== BYPASS DE LA SESSION POUR LA DÉMO ===---
-    // En mode bypass, la session peut ne pas être fiable. On simule un utilisateur.
+    
     const session = await getAuthSession();
     
     const userId = session?.user?.id || `user-id-${Math.random()}`;
@@ -16,17 +15,17 @@ export async function POST(request: Request) {
     const userRole = session?.user?.role || Role.ELEVE;
 
     console.log(`🙋 [PUSHER AUTH] - Session utilisateur (simulée/réelle): ${userName} (${userId})`);
-    // ---===========================================---
 
     const body = await request.formData();
     const socketId = body.get('socket_id') as string;
     const channel = body.get('channel_name') as string;
     console.log(`📡 [PUSHER AUTH] - Infos reçues: socketId=${socketId}, channel=${channel}`);
 
-    // Les données utilisateur sont requises pour les canaux de présence.
+    // CORRECTION : La structure correcte pour les canaux de présence Pusher
+    // utilise 'id' et non 'user_id'.
     const userData = {
-      id: userId,
-      user_info: {
+      id: userId,          // ← 'id' au lieu de 'user_id'
+      user_info: {         // ← 'user_info' pour les données supplémentaires
         name: userName,
         role: userRole,
       },

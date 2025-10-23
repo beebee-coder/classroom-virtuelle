@@ -106,24 +106,23 @@ export default function StudentPageClient({
             ),
         });
     }, [toast, handleAcceptInvitation]);
-
     useEffect(() => {
-        if (isTeacherView || !student?.id) return;
+        if (!student?.id) return;
     
         let channel: any;
         
         const checkMissedInvitations = async () => {
             try {
-                console.log('🤔 [ELEVE] - Vérification des invitations manquées...');
+                console.log('📨 [ELEVE] - Vérification des invitations manquées...');
                 const response = await fetch(`/api/session/pending-invitations?studentId=${student.id}`);
                 if (response.ok) {
                     const pendingInvitations = await response.json();
                     if (pendingInvitations.length > 0) {
                         const latestInvitation = pendingInvitations[0].data;
-                        console.log('📨 [ELEVE] - Invitation manquée trouvée et traitée:', latestInvitation);
+                        console.log('📨 [ELEVE] - Invitation manquée trouvée:', latestInvitation);
                         handleInvitation(latestInvitation);
                     } else {
-                         console.log('👍 [ELEVE] - Aucune invitation manquée trouvée.');
+                        console.log('✅ [ELEVE] - Aucune invitation manquée trouvée.');
                     }
                 }
             } catch (error) {
@@ -134,28 +133,29 @@ export default function StudentPageClient({
         checkMissedInvitations();
     
         const channelName = `private-user-${student.id}`;
-        console.log(`📡 [ELEVE] - Abonnement aux invitations sur le canal: ${channelName}`);
+        console.log('📨 [ELEVE] - Abonnement aux invitations sur le canal:', channelName);
     
         try {
             channel = pusherClient.subscribe(channelName);
+            
             channel.bind('session-invitation', handleInvitation);
+            
             channel.bind('pusher:subscription_succeeded', () => {
-                console.log(`✅ [ELEVE] - Abonnement réussi au canal ${channelName}`);
-            });
-             channel.bind('pusher:subscription_error', (status: any) => {
-                console.error(`❌ [ELEVE] - Erreur d'abonnement au canal ${channelName}:`, status);
+                console.log('✅ [ELEVE] - Abonnement aux invitations réussi');
             });
     
+            // CORRECTION : Ne pas unsubscribe dans le cleanup
             return () => {
+                console.log('🔚 [ELEVE] - Nettoyage des écouteurs seulement');
                 if (channel) {
-                    console.log(`🔚 [ELEVE] - Désabonnement du canal ${channelName}`);
-                    pusherClient.unsubscribe(channelName);
+                    channel.unbind('session-invitation', handleInvitation);
+                    // NE PAS appeler pusherClient.unsubscribe() ici
                 }
             };
         } catch (error) {
-            console.error('💥 [ELEVE] - Erreur critique d\'abonnement à Pusher:', error);
+            console.error('❌ [ELEVE] - Erreur d\'abonnement aux invitations:', error);
         }
-    }, [student?.id, isTeacherView, handleInvitation]);
+    }, [student?.id, handleInvitation]);
 
     const handleDeclineInvitation = useCallback(() => {
         console.log('🚫 [ELEVE] - Invitation refusée.');
