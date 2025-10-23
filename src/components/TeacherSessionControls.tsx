@@ -18,7 +18,9 @@ import {
   XCircle,
   Play,
   Pause,
-  RotateCcw
+  RotateCcw,
+  FileText,
+  Camera
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -39,9 +41,9 @@ export function TeacherSessionControls({
 
   const tools = [
     { id: 'whiteboard', name: 'Tableau Blanc', icon: Square, description: 'Ouvrir le tableau blanc partagé' },
-    { id: 'poll', name: 'Sondage', icon: MessageSquare, description: 'Créer un sondage rapide' },
+    { id: 'document', name: 'Document', icon: FileText, description: 'Partager un document' },
     { id: 'quiz', name: 'Quiz', icon: Award, description: 'Lancer un quiz interactif' },
-    { id: 'breakout', name: 'Groupes', icon: Users, description: 'Créer des salles de sous-groupes' },
+    { id: 'camera', name: 'Camera', icon: Camera, description: 'Gérer les caméras' },
   ];
 
   return (
