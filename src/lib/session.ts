@@ -14,7 +14,7 @@ export type DummySession = {
         email?: string | null;
         image?: string | null;
         role?: Role;
-        classeId?: string;
+        classeId?: string | null;
     };
     expires: string;
 };
