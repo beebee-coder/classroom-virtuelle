@@ -1,11 +1,10 @@
-
 //src/app/student/class/[id]/page.tsx
 
 import { notFound, redirect } from 'next/navigation';
 import { getAuthSession } from '@/lib/session';
 import { Header } from '@/components/Header';
 import { StudentClassView } from '@/components/StudentClassView';
-import { User } from '@prisma/client';
+import { User } from '@/lib/types';
 import { StudentForCard } from '@/lib/types';
 
 
