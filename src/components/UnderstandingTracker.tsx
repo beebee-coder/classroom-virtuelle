@@ -72,9 +72,9 @@ export function UnderstandingTracker({ students, understandingStatus }: Understa
                     <CardContent className="space-y-4 pt-0">
                         <div className="flex justify-around text-center">
                         {Object.entries(counts).map(([key, value]) => {
-                            if (key === 'none') return null;
+                             if (key === 'none') return null;
                             const config = statusConfig[key as keyof typeof statusConfig];
-                            if (!config) return null; // Safety check
+                             if (!config) return null;
                             const Icon = config.icon;
                             return (
                             <div key={key} className="flex flex-col items-center">
@@ -91,6 +91,7 @@ export function UnderstandingTracker({ students, understandingStatus }: Understa
                             {students.map(student => {
                                 const status = understandingStatus.get(student.id) || 'none';
                                 const config = statusConfig[status];
+                                if (!config) return null; // Correction ici
                                 const Icon = config.icon;
 
                                 return (
