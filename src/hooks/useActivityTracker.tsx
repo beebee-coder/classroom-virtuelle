@@ -1,4 +1,4 @@
-// src/hooks/useActivityTracker.tsx - Version corrigée avec simulation
+// src/hooks/useActivityTracker.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -14,14 +14,8 @@ export const useActivityTracker = (userId?: string, classroomId?: string) => {
   const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
 
   useEffect(() => {
-    // Simulation pour le développement - toujours considérer l'utilisateur comme en ligne
     if (!userId || !classroomId) {
-      console.log('🕵️ [PRESENCE HOOK] - Conditions non remplies, utilisation de la simulation.', { userId, classroomId });
-      
-      // Simulation: ajouter quelques élèves en ligne
-      const mockOnlineUsers = ['student10', 'student8', 'student5'];
-      setOnlineUsers(mockOnlineUsers);
-      console.log('🎮 [PRESENCE SIMULATION] - Utilisateurs en ligne simulés:', mockOnlineUsers);
+      console.log('🕵️ [PRESENCE HOOK] - Conditions non remplies pour l\'abonnement.', { userId, classroomId });
       return;
     }
 
@@ -33,12 +27,10 @@ export const useActivityTracker = (userId?: string, classroomId?: string) => {
 
       channel.bind('pusher:subscription_succeeded', (members: any) => {
         console.log(`✅ [PRESENCE HOOK] - Abonnement réussi au canal ${channelName}`);
-        console.log(`👥 [PRESENCE HOOK] - Membres en ligne:`, members);
         
-        // Extraire les IDs des utilisateurs en ligne
         const userList = Object.keys(members.members || {});
         setOnlineUsers(userList);
-        console.log(`📊 [PRESENCE HOOK] - Liste des utilisateurs en ligne:`, userList);
+        console.log(`📊 [PRESENCE HOOK] - Liste initiale des utilisateurs en ligne:`, userList);
       });
       
       channel.bind('pusher:member_added', (member: any) => {
@@ -53,11 +45,6 @@ export const useActivityTracker = (userId?: string, classroomId?: string) => {
       
       channel.bind('pusher:subscription_error', (status: any) => {
         console.error(`❌ [PRESENCE HOOK] - Erreur d'abonnement au canal ${channelName}:`, status);
-        
-        // Fallback: simulation en cas d'erreur
-        const mockOnlineUsers = [userId, 'student10', 'student8'];
-        setOnlineUsers(mockOnlineUsers);
-        console.log('🎮 [PRESENCE FALLBACK] - Utilisation de données simulées:', mockOnlineUsers);
       });
 
       // Se désabonner du canal lorsque le composant est démonté
@@ -67,11 +54,6 @@ export const useActivityTracker = (userId?: string, classroomId?: string) => {
       };
     } catch (error) {
       console.error(`❌ [PRESENCE HOOK] - Erreur lors de la tentative d'abonnement:`, error);
-      
-      // Fallback en cas d'erreur
-      const mockOnlineUsers = [userId, 'student10', 'student8'];
-      setOnlineUsers(mockOnlineUsers);
-      console.log('🎮 [PRESENCE ERROR FALLBACK] - Utilisation de données simulées:', mockOnlineUsers);
     }
   }, [userId, classroomId]);
 

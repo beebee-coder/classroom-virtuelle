@@ -15,7 +15,7 @@ import { ClassroomWithDetails, StudentForCard, AnnouncementWithAuthor } from '@/
 import { User } from 'next-auth';
 import { AnnouncementCarousel } from '@/components/AnnouncementCarousel';
 import { BackButton } from '@/components/BackButton';
-import { Video, XSquare, Crown, Loader2, Wifi, WifiOff, Bell } from 'lucide-react';
+import { Video, XSquare, Crown, Loader2, Wifi, WifiOff } from 'lucide-react';
 import { pusherClient } from '@/lib/pusher/client';
 import type { PresenceChannel } from 'pusher-js';
 import { cn } from '@/lib/utils';
@@ -27,31 +27,19 @@ interface ClassPageClientProps {
     announcements: AnnouncementWithAuthor[];
 }
 
-// ID de l'élève de démo connecté
-const SIMULATED_ONLINE_STUDENT_ID = 'student1';
-
 export default function ClassPageClient({ classroom, teacher, announcements }: ClassPageClientProps) {
     const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
     const [isStartingSession, setIsStartingSession] = useState<boolean>(false);
     const [onlineStudents, setOnlineStudents] = useState<string[]>([]);
-    const [isSimulationMode, setIsSimulationMode] = useState<boolean>(true);
     const [isSendingInvitations, setIsSendingInvitations] = useState<boolean>(false);
     const router = useRouter();
     const { toast } = useToast();
     const { data: session } = useSession();
 
-    // Simulation de présence pour le développement
+    // Abonnement réel Pusher
     useEffect(() => {
-        if (isSimulationMode) {
-            console.log('🎮 [PRESENCE SIMULATION] - Seul l\'élève connecté (ID: student1) est affiché comme en ligne.');
-            setOnlineStudents([SIMULATED_ONLINE_STUDENT_ID]);
-        }
-    }, [isSimulationMode]);
-
-    // Abonnement réel Pusher (désactivé en simulation)
-    useEffect(() => {
-        if (!isSimulationMode && classroom.id && session?.user?.id) {
-            console.log("👨‍🏫 [PRESENCE PROF] - Abonnement réel Pusher activé", { classroomId: classroom.id, userId: session.user.id });
+        if (classroom.id && session?.user?.id) {
+            console.log("👨‍🏫 [PRESENCE PROF] - Abonnement Pusher activé", { classroomId: classroom.id, userId: session.user.id });
 
             const channelName = `presence-class-${classroom.id}`;
             console.log(`👨‍🏫 [PRESENCE PROF] - Tentative d'abonnement au canal: ${channelName}`);
@@ -90,16 +78,14 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                 };
             } catch (error) {
                 console.error("❌ [PRESENCE PROF] - Erreur lors de l'abonnement Pusher:", error);
-                // Retour à la simulation en cas d'erreur
-                setIsSimulationMode(true);
                 toast({
                     variant: 'destructive',
-                    title: 'Erreur de présence',
-                    description: 'Mode simulation activé',
+                    title: 'Erreur de connexion temps réel',
+                    description: 'Impossible de suivre la présence des élèves.',
                 });
             }
         }
-    }, [classroom.id, session?.user?.id, isSimulationMode, toast]);
+    }, [classroom.id, session?.user?.id, toast]);
 
     // Validation des props
     if (!classroom?.id || !teacher?.id) {
@@ -148,6 +134,7 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
         }
 
         setIsStartingSession(true);
+        setIsSendingInvitations(true);
 
         try {
             console.log('⏳ [CLIENT] - Appel de l\'action serveur `createCoursSession`...');
@@ -159,32 +146,36 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
 
             console.log('✅ [CLIENT] - Action serveur réussie. Session créée:', session);
 
+           if (session.invitationResults) {
+            const { successful, failed } = session.invitationResults;
             toast({
                 title: 'Session créée et invitations envoyées !',
-                description: `Session vidéo lancée avec ${onlineSelectedStudents.length} élève(s).`,
-                duration: 3000,
-            });
-
-            console.log(`🔀 [CLIENT] - Redirection vers /session/${session.id}`);
-            router.push(`/session/${session.id}`);
-
-        } catch (error: unknown) {
-            console.error('❌ [CLIENT] - Erreur lors de la création de la session:', error);
-            
-            const errorMessage = error instanceof Error 
-                ? error.message 
-                : 'Une erreur inconnue est survenue';
-
-            toast({
-                variant: 'destructive',
-                title: 'Erreur de création de session',
-                description: errorMessage,
+                description: `Session vidéo lancée avec ${successful.length} élève(s). ${failed.length > 0 ? `${failed.length} échec(s) d'envoi.` : ''}`,
                 duration: 5000,
             });
-        } finally {
-            setIsStartingSession(false);
         }
-    };
+
+        console.log(`🔀 [CLIENT] - Redirection vers /session/${session.id}`);
+        router.push(`/session/${session.id}`);
+
+    } catch (error: unknown) {
+        console.error('❌ [CLIENT] - Erreur lors de la création de la session:', error);
+        
+        const errorMessage = error instanceof Error 
+            ? error.message 
+            : 'Une erreur inconnue est survenue';
+
+        toast({
+            variant: 'destructive',
+            title: 'Erreur de création de session',
+            description: errorMessage,
+            duration: 5000,
+        });
+    } finally {
+        setIsStartingSession(false);
+        setIsSendingInvitations(false);
+    }
+};
 
     // Tri sécurisé des élèves
     const sortedStudents = [...(classroom.eleves || [])].sort((a, b) => {
@@ -221,30 +212,8 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                 <div className="flex gap-2">
                     <CreateAnnouncementForm classrooms={[classroom]} />
                     <AddStudentForm classroomId={classroom.id} />
-                    
-                    {/* Bouton de contrôle de simulation */}
-                    <Button
-                        variant={isSimulationMode ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setIsSimulationMode(!isSimulationMode)}
-                        className="gap-2"
-                    >
-                        {isSimulationMode ? <Wifi className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
-                        {isSimulationMode ? 'Simulation' : 'Réel'}
-                    </Button>
                 </div>
             </div>
-            
-            {/* Indicateur de mode */}
-            {isSimulationMode && (
-                <div className="mb-4 p-3 bg-yellow-100 border border-yellow-300 rounded-lg">
-                    <div className="flex items-center gap-2 text-yellow-800">
-                        <Wifi className="h-4 w-4" />
-                        <span className="font-medium">Mode simulation activé</span>
-                        <span className="text-sm">- Présence des élèves simulée pour le développement</span>
-                    </div>
-                </div>
-            )}
             
             {announcements && announcements.length > 0 && (
                 <div className="mb-8">
@@ -360,13 +329,13 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                     </div>
                     <Button 
                         onClick={handleStartSession} 
-                        disabled={onlineSelectedCount === 0 || isStartingSession}
+                        disabled={onlineSelectedCount === 0 || isStartingSession || isSendingInvitations}
                         className="min-w-[180px]"
                     >
-                        {isStartingSession ? (
+                        {isStartingSession || isSendingInvitations ? (
                             <>
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Création...
+                                {isSendingInvitations ? 'Envoi des invitations...' : 'Création...'}
                             </>
                         ) : (
                             <>

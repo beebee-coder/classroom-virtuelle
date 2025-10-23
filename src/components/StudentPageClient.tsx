@@ -99,7 +99,9 @@ export default function StudentPageClient({
 
     useEffect(() => {
         if (!student?.id) return;
-
+    
+        let channel: any;
+        
         const checkMissedInvitations = async () => {
             try {
                 console.log('📨 [ELEVE] - Vérification des invitations manquées...');
@@ -116,21 +118,26 @@ export default function StudentPageClient({
                 console.error('❌ [ELEVE] - Erreur lors de la vérification des invitations manquées:', error);
             }
         };
-
+    
         checkMissedInvitations();
-
+    
         const channelName = `private-user-${student.id}`;
         console.log('📨 [ELEVE] - Abonnement aux invitations sur le canal:', channelName);
-
+    
         try {
-            const channel = pusherClient.subscribe(channelName);
+            channel = pusherClient.subscribe(channelName);
             channel.bind('session-invitation', handleInvitation);
             channel.bind('pusher:subscription_succeeded', () => {
                 console.log('✅ [ELEVE] - Abonnement aux invitations réussi');
             });
+    
+            // CORRECTION : Ne pas se désabonner immédiatement
             return () => {
-                console.log('🔚 [ELEVE] - Désabonnement des invitations');
-                pusherClient.unsubscribe(channelName);
+                console.log('🔚 [ELEVE] - Nettoyage des abonnements (unbind seulement)');
+                if (channel) {
+                    channel.unbind('session-invitation', handleInvitation);
+                    // NE PAS appeler pusherClient.unsubscribe() ici
+                }
             };
         } catch (error) {
             console.error('❌ [ELEVE] - Erreur d\'abonnement aux invitations:', error);

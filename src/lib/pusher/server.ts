@@ -11,24 +11,16 @@ const pusherServer = new Pusher({
   useTLS: true,
 });
 
-// Wrapper function to handle Pusher logic.
-// It will silently fail in development if credentials are not set,
-// which is the desired behavior for simulation.
-export async function pusherTrigger(channel: string, event: string, data: any) {
-  try {
-    await pusherServer.trigger(channel, event, data);
-  } catch (error) {
-    console.error(`🔴 [PUSHER SERVER ERROR] Failed to trigger event on channel ${channel}:`, error);
-    // In simulation mode, we just log the error and continue.
-  }
+export async function pusherTrigger(channel: string, event: string, data: any, options?: { socket_id?: string }) {
+    try {
+        await pusherServer.trigger(channel, event, data, options);
+    } catch (error) {
+        console.error(`🔴 [PUSHER SERVER ERROR] Failed to trigger event on channel ${channel}:`, error);
+        // Ne pas relancer l'erreur en production pour ne pas casser la requête, mais la loguer.
+        // En développement, une erreur ici indique un problème de configuration.
+    }
 }
 
-// These functions are kept for API compatibility with the client-side auth endpoint.
-export async function authorizeChannel(socketId: string, channelName: string) {
-    const channelData = { user_id: 'simulated-user' }; // Dummy data
-    return pusherServer.authorizeChannel(socketId, channelName, channelData);
-}
-
-export async function authenticateUser(socketId: string, user: any) {
-    return pusherServer.authenticateUser(socketId, user);
+export async function authenticateUser(socketId: string, userData: { id: string, user_info: object }) {
+    return pusherServer.authenticateUser(socketId, userData);
 }
