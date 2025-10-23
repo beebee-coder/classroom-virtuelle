@@ -1,3 +1,4 @@
+
 // src/lib/dummy-data.ts - Version corrigée
 import { 
     StudentWithStateAndCareer, 
@@ -63,7 +64,7 @@ export const dummyTasks: AppTask[] = [
         description: 'Un lit bien fait...', 
         points: 10, 
         type: TaskType.DAILY, 
-        category: TaskCategory.HOME, 
+        category: TaskCategory.HOME,
         difficulty: TaskDifficulty.EASY, 
         validationType: ValidationType.PARENT, 
         requiresProof: false, 
@@ -356,7 +357,7 @@ export const allDummyStudents: TempStudent[] = [
     },
     { 
         id: 'student8',
-        name: 'Leila', 
+        name: 'Leila',
         email: 'leila@example.com', 
         points: 920, 
         ambition: 'Soigner les animaux', 
@@ -580,3 +581,5 @@ export const lightClassrooms = Object.values(dummyClassrooms).map(c => ({
     nom: c.nom,
     _count: { eleves: c.eleves.length }
 }));
+
+    
