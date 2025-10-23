@@ -103,22 +103,19 @@ export function StudentSessionView({
             <div className="flex-1 flex flex-col min-h-0">
                 <div className="w-full h-full relative">
                     {renderMainContent()}
-                     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
-                        <div className="p-2 bg-background/80 backdrop-blur-sm rounded-lg border">
-                           <Participant
-                                stream={localStream}
-                                isLocal={true}
-                                isTeacher={false}
-                                participantUserId={currentUserId}
-                                displayName="Vous"
-                            />
-                        </div>
-                    </div>
                 </div>
             </div>
             
             {/* Barre latérale droite : contrôles */}
             <div className="w-72 flex flex-col gap-6 min-h-0">
+                 <Participant
+                    stream={localStream}
+                    isLocal={true}
+                    isTeacher={false}
+                    participantUserId={currentUserId}
+                    displayName="Vous"
+                    isHandRaised={isHandRaised}
+                />
                 <StudentSessionControls
                     isHandRaised={isHandRaised}
                     onRaiseHand={handleToggleHandRaise}
