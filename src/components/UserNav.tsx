@@ -38,10 +38,10 @@ export function UserNav({ user }: UserNavProps) {
         console.log('🚪 [BYPASS] Déconnexion simulée.');
         // Clear the bypass cookie
         document.cookie = 'dummyRole=; path=/; max-age=0';
-        // Redirect to home page
-        router.push('/');
-        router.refresh(); // Force a refresh to ensure server components re-evaluate the session
-        // signOut({ callbackUrl: '/' }); // Original call
+        
+        // Force a full page reload to the homepage.
+        // This is more reliable than router.push + router.refresh for clearing session state.
+        window.location.href = '/';
         // ---=========================---
     };
 
