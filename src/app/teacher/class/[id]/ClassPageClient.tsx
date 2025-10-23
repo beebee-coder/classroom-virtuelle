@@ -56,7 +56,7 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                     // On exclut l'ID du professeur de la liste des élèves en ligne
                     const studentMemberIds = memberIds.filter(id => id !== session.user?.id);
                     setOnlineStudents(studentMemberIds);
-                    console.log('👨‍🏫 [PRESENCE PROF] - Mise à jour de la liste des élèves en ligne:', studentMemberIds);
+                    console.log('📊 [PRESENCE PROF] - Mise à jour de la liste des élèves en ligne:', studentMemberIds);
                 } else {
                      console.log('👨‍🏫 [PRESENCE PROF] - Aucun membre trouvé dans le canal.');
                 }
@@ -111,9 +111,10 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
     }, []);
 
     const handleStartSession = async () => {
-        console.log('🚀 [CLIENT] - Clic sur "Démarrer la session". Élèves sélectionnés:', selectedStudents);
+        console.log('🚀 [CLIENT] - Clic sur "Démarrer la session".');
         
         const onlineSelectedStudents = selectedStudents.filter(id => onlineStudents.includes(id));
+        console.log('🎯 [CLIENT] - Élèves en ligne sélectionnés pour l\'invitation:', onlineSelectedStudents);
         
         if (onlineSelectedStudents.length === 0) {
             toast({

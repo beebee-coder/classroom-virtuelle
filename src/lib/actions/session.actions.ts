@@ -7,7 +7,7 @@ import prisma from '../prisma';
 
 export async function createCoursSession(professeurId: string, classroomId: string, studentIds: string[]) {
     try {
-        console.log(`[ACTION] - createCoursSession appelée pour le prof ${professeurId}, classe ${classroomId} avec les élèves:`, studentIds);
+        console.log(`🚀 [ACTION] - Démarrage de la création de session pour prof ${professeurId}, classe ${classroomId}`);
         
         if (!professeurId || !classroomId || !studentIds || !Array.isArray(studentIds)) {
             throw new Error('Paramètres invalides: professeurId, classroomId et studentIds sont requis');
@@ -15,15 +15,16 @@ export async function createCoursSession(professeurId: string, classroomId: stri
 
         // SIMULATION: Create a fake session ID
         const sessionId = `session-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-        console.log(`[ACTION] - ID de session généré (factice): ${sessionId}`);
+        console.log(`🆔 [ACTION] - ID de session généré (factice): ${sessionId}`);
 
         const invitationResults = await sendIndividualInvitations(sessionId, professeurId, classroomId, studentIds);
 
+        // Revalidate the path for each invited student
         studentIds.forEach(id => {
             revalidatePath(`/student/${id}`);
         });
         
-        console.log('[ACTION] - Création de session terminée avec succès');
+        console.log('✅ [ACTION] - Création de session terminée avec succès.');
         return { 
             id: sessionId, 
             professeurId, 
@@ -33,7 +34,7 @@ export async function createCoursSession(professeurId: string, classroomId: stri
         };
         
     } catch (error) {
-        console.error('[ACTION] - Erreur lors de la création de la session:', error);
+        console.error('💥 [ACTION] - Erreur critique lors de la création de la session:', error);
         throw new Error(
             error instanceof Error 
                 ? `Échec de la création de session: ${error.message}`
@@ -43,12 +44,13 @@ export async function createCoursSession(professeurId: string, classroomId: stri
 }
 
 async function sendIndividualInvitations(sessionId: string, professeurId: string, classroomId: string, studentIds: string[]) {
+    console.log(`📨 [INVITATIONS] - Début du processus d'envoi pour la session ${sessionId}`);
     const results = {
         successful: [] as string[],
         failed: [] as string[]
     };
 
-    // DUMMY DATA
+    // DUMMY DATA - In a real app, you would fetch this from the database.
     const classroomName = 'Classe de Démo';
     const teacherName = 'Professeur Test';
 
@@ -61,8 +63,10 @@ async function sendIndividualInvitations(sessionId: string, professeurId: string
         timestamp: new Date().toISOString(),
         type: 'session-invitation'
     };
+    
+    console.log('📦 [INVITATIONS] - Payload de l\'invitation préparé:', invitationPayload);
 
-    // Stocker l'invitation en mémoire (via API route)
+    // Stocker l'invitation en mémoire (via API route) pour les élèves qui se connectent en retard
     const apiRoute = process.env.NEXTAUTH_URL
       ? `${process.env.NEXTAUTH_URL}/api/session/pending-invitations`
       : 'http://localhost:3000/api/session/pending-invitations';
@@ -75,25 +79,26 @@ async function sendIndividualInvitations(sessionId: string, professeurId: string
             data: invitationPayload
         }),
     });
+    console.log('📝 [INVITATIONS] - Invitation stockée dans le cache des invitations en attente.');
 
     for (const studentId of studentIds) {
+        const channelName = `private-user-${studentId}`;
         try {
-            console.log(`[ACTION] - Envoi d'invitation à l'élève ${studentId}`);
-            
+            console.log(`📡 [INVITATIONS] - Tentative d'envoi à ${studentId} sur le canal ${channelName}`);
             await pusherTrigger(
-                `private-user-${studentId}`, 
+                channelName, 
                 'session-invitation', 
                 invitationPayload
             );
             results.successful.push(studentId);
-
+            console.log(`✅ [INVITATIONS] - Succès de l'envoi pour ${studentId}.`);
         } catch (error) {
-            console.error(`[ACTION] - Erreur lors de l'envoi de l'invitation à ${studentId}:`, error);
+            console.error(`❌ [INVITATIONS] - Échec de l'envoi pour ${studentId}:`, error);
             results.failed.push(studentId);
         }
     }
 
-    console.log(`[ACTION] - Résumé des invitations: ${results.successful.length} succès, ${results.failed.length} échecs`);
+    console.log(`📊 [INVITATIONS] - Résumé: ${results.successful.length} succès, ${results.failed.length} échecs.`);
     return results;
 }
 
@@ -157,10 +162,12 @@ export async function endCoursSession(sessionId: string) {
         if (!sessionId) {
             throw new Error('sessionId est requis');
         }
-        console.log(`[ACTION] - Fin de la session ${sessionId}`);
+        console.log(`🔚 [ACTION] - Fin de la session ${sessionId}`);
 
+        // ---=== BYPASS: Données factices ===---
         const sessionDetails = { classroomId: 'classe-a' }; 
         const classroomId = sessionDetails.classroomId;
+        // ---===================================---
 
         if (!classroomId) {
             throw new Error("Impossible de trouver la classe associée à la session.");
@@ -171,11 +178,11 @@ export async function endCoursSession(sessionId: string) {
             endedAt: new Date().toISOString()
         };
         
+        console.log(`📡 [ACTION] - Envoi de 'session-ended' au canal de session: presence-session-${sessionId}`);
         await pusherTrigger(`presence-session-${sessionId}`, 'session-ended', eventData);
-        console.log(`[ACTION] - Événement 'session-ended' envoyé sur le canal de session.`);
-
+        
+        console.log(`📡 [ACTION] - Envoi de 'session-ended' au canal de classe: presence-classe-${classroomId}`);
         await pusherTrigger(`presence-classe-${classroomId}`, 'session-ended', eventData);
-        console.log(`[ACTION] - Événement 'session-ended' envoyé sur le canal de classe.`);
 
         return { 
             id: sessionId, 
@@ -183,7 +190,7 @@ export async function endCoursSession(sessionId: string) {
         };
         
     } catch (error) {
-        console.error('[ACTION] - Erreur lors de la fin de session:', error);
+        console.error('💥 [ACTION] - Erreur lors de la fin de session:', error);
         throw new Error('Impossible de terminer la session');
     }
 }
