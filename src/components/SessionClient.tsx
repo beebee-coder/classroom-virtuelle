@@ -39,7 +39,6 @@ export default function SessionClient({
 }: SessionClientProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const [session, setSession] = useState<DummySession | null>(null);
   
   // États principaux
   const [loading, setLoading] = useState(true);
@@ -57,14 +56,6 @@ export default function SessionClient({
   const allSessionUsers: SessionParticipant[] = [initialTeacher, ...initialStudents];
   const peersRef = useRef<PeerData[]>([]);
   const screenPeerRef = useRef<PeerInstance | null>(null);
-
-  useEffect(() => {
-    async function fetchSession() {
-      const sessionData = await getAuthSession();
-      setSession(sessionData);
-    }
-    fetchSession();
-  }, []);
 
   // ---=== 1. GESTION DES FLUX MÉDIAS ===---
   useEffect(() => {
@@ -340,6 +331,7 @@ export default function SessionClient({
             onSpotlightParticipant={onSpotlightParticipant}
             raisedHands={raisedHands}
             understandingStatus={understandingStatus}
+            currentUserId={currentUserId}
           />
         ) : (
           <StudentSessionView
@@ -351,6 +343,7 @@ export default function SessionClient({
             onToggleHandRaise={() => { /* Implémenter la logique d'émission */ }}
             onUnderstandingChange={(status) => { /* Implémenter la logique d'émission */ }}
             currentUnderstanding={understandingStatus.get(currentUserId) || 'none'}
+            currentUserId={currentUserId}
           />
         )}
       </main>

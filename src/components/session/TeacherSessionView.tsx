@@ -1,7 +1,6 @@
 // src/components/session/TeacherSessionView.tsx
 'use client';
 
-import { useSession } from 'next-auth/react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { User, Role, SessionParticipant } from '@/lib/types';
 import { Participant } from '@/components/Participant';
@@ -25,6 +24,7 @@ export function TeacherSessionView({
     onSpotlightParticipant,
     raisedHands,
     understandingStatus,
+    currentUserId,
 }: {
     sessionId: string;
     localStream: MediaStream | null;
@@ -36,17 +36,15 @@ export function TeacherSessionView({
     onSpotlightParticipant: (participantId: string) => void;
     raisedHands: Set<string>;
     understandingStatus: Map<string, UnderstandingStatus>;
+    currentUserId: string;
 }) {
-    const { data: session } = useSession();
-    const localUserId = session?.user.id;
-    
     const remoteStreamsMap = new Map(remoteParticipants.map(p => [p.id, p.stream]));
     
     const studentsWithRaisedHands = allSessionUsers.filter(u => u.role === 'ELEVE' && raisedHands.has(u.id));
     const students = allSessionUsers.filter(u => u.role === 'ELEVE') as User[];
     const teacher = allSessionUsers.find(u => u.role === 'PROFESSEUR');
     
-    if (!localUserId || !teacher) return null;
+    if (!currentUserId || !teacher) return null;
 
     return (
         <div className="flex-1 flex min-h-0 py-6 gap-4">
@@ -108,7 +106,7 @@ export function TeacherSessionView({
                                 stream={screenStream}
                                 isLocal={true}
                                 isTeacher={true}
-                                participantUserId={localUserId}
+                                participantUserId={currentUserId}
                                 displayName="Votre partage d'écran"
                             />
                         </Card>
@@ -127,7 +125,7 @@ export function TeacherSessionView({
 
             {/* --- Colonne de Droite : Outils Interactifs --- */}
             <div className="w-72 flex flex-col gap-4 min-h-0">
-                 <ParticipantList allSessionUsers={allSessionUsers} onlineUserIds={onlineUserIds} currentUserId={localUserId} />
+                 <ParticipantList allSessionUsers={allSessionUsers} onlineUserIds={onlineUserIds} currentUserId={currentUserId} />
                  <UnderstandingTracker students={students} understandingStatus={understandingStatus} />
                  <HandRaiseController sessionId={sessionId} raisedHands={studentsWithRaisedHands} />
             </div>

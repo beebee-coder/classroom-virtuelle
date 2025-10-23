@@ -8,7 +8,6 @@ import { Button } from '../ui/button';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Loader2 } from 'lucide-react';
-import { useSession } from 'next-auth/react';
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
@@ -24,6 +23,7 @@ interface StudentSessionViewProps {
     onToggleHandRaise: () => void;
     onUnderstandingChange: (status: UnderstandingStatus) => void;
     currentUnderstanding: UnderstandingStatus;
+    currentUserId: string;
 }
 
 export function StudentSessionView({
@@ -35,9 +35,8 @@ export function StudentSessionView({
     onToggleHandRaise,
     onUnderstandingChange,
     currentUnderstanding,
+    currentUserId,
 }: StudentSessionViewProps) {
-    const { data: session } = useSession();
-    const localUserId = session?.user.id;
 
     const renderMainContent = () => {
         if (!spotlightedUser || !spotlightedStream) {
