@@ -44,7 +44,7 @@ export async function createCoursSession(professeurId: string, classroomId: stri
 }
 
 async function sendIndividualInvitations(sessionId: string, professeurId: string, classroomId: string, studentIds: string[]) {
-    console.log(`📨 [INVITATIONS] - Début du processus d'envoi pour la session ${sessionId}`);
+    console.log(`📨 [ACTION - INVITATIONS] - Début de l'envoi pour la session ${sessionId}`);
     const results = {
         successful: [] as string[],
         failed: [] as string[]
@@ -64,7 +64,7 @@ async function sendIndividualInvitations(sessionId: string, professeurId: string
         type: 'session-invitation'
     };
     
-    console.log('📦 [INVITATIONS] - Payload de l\'invitation préparé:', invitationPayload);
+    console.log('📦 [ACTION - INVITATIONS] - Payload préparé:', invitationPayload);
 
     // Stocker l'invitation en mémoire (via API route) pour les élèves qui se connectent en retard
     const apiRoute = process.env.NEXTAUTH_URL
@@ -79,26 +79,26 @@ async function sendIndividualInvitations(sessionId: string, professeurId: string
             data: invitationPayload
         }),
     });
-    console.log('📝 [INVITATIONS] - Invitation stockée dans le cache des invitations en attente.');
+    console.log('📝 [ACTION - INVITATIONS] - Invitation stockée dans le cache des invitations en attente.');
 
     for (const studentId of studentIds) {
         const channelName = `private-user-${studentId}`;
         try {
-            console.log(`📡 [INVITATIONS] - Tentative d'envoi à ${studentId} sur le canal ${channelName}`);
+            console.log(`📡 [ACTION - INVITATIONS] - Envoi à ${studentId} sur le canal ${channelName}`);
             await pusherTrigger(
                 channelName, 
                 'session-invitation', 
                 invitationPayload
             );
             results.successful.push(studentId);
-            console.log(`✅ [INVITATIONS] - Succès de l'envoi pour ${studentId}.`);
+            console.log(`✅ [ACTION - INVITATIONS] - Succès de l'envoi pour ${studentId}.`);
         } catch (error) {
-            console.error(`❌ [INVITATIONS] - Échec de l'envoi pour ${studentId}:`, error);
+            console.error(`❌ [ACTION - INVITATIONS] - Échec de l'envoi pour ${studentId}:`, error);
             results.failed.push(studentId);
         }
     }
 
-    console.log(`📊 [INVITATIONS] - Résumé: ${results.successful.length} succès, ${results.failed.length} échecs.`);
+    console.log(`📊 [ACTION - INVITATIONS] - Résumé: ${results.successful.length} succès, ${results.failed.length} échecs.`);
     return results;
 }
 

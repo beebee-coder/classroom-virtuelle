@@ -120,6 +120,7 @@ export default function SessionClient({
 
   // ---=== 2. GESTION DES CONNEXIONS PEER-TO-PEER ===---
   const createPeer = (targetUserId: string, initiator: boolean, stream: MediaStream): PeerInstance => {
+    console.log(`🤝 [PEER] - Création d'un peer pour ${targetUserId}. Initiateur: ${initiator}`);
     const peer = new SimplePeer.default({
       initiator,
       trickle: false,
@@ -127,6 +128,7 @@ export default function SessionClient({
     });
 
     peer.on('signal', signal => {
+      console.log(`📤 [PEER] - Envoi du signal de ${currentUserId} vers ${targetUserId}`);
       signalViaAPI({
         channelName: `presence-session-${sessionId}`,
         userId: currentUserId,
@@ -139,6 +141,7 @@ export default function SessionClient({
   };
 
   const addPeer = (incomingSignal: any, callerId: string, stream: MediaStream): PeerInstance => {
+    console.log(`📥 [PEER] - Ajout d'un peer pour répondre à ${callerId}`);
     const peer = new SimplePeer.default({
       initiator: false,
       trickle: false,
@@ -146,6 +149,7 @@ export default function SessionClient({
     });
     
     peer.on('signal', signal => {
+      console.log(`✅ [PEER] - Envoi du signal de retour de ${currentUserId} à ${callerId}`);
       signalViaAPI({
         channelName: `presence-session-${sessionId}`,
         userId: currentUserId,
@@ -170,6 +174,7 @@ export default function SessionClient({
     channel.bind('pusher:subscription_succeeded', (members: any) => {
       const otherUsers = Object.keys(members.members).filter(id => id !== currentUserId);
       setOnlineUserIds(Object.keys(members.members));
+      console.log(`✅ [PUSHER] - Abonnement réussi à la session ${sessionId}. Participants:`, otherUsers);
       
       const newPeers: PeerData[] = otherUsers.map(userId => {
         const peer = createPeer(userId, true, localStream);
@@ -182,6 +187,7 @@ export default function SessionClient({
     // Quand un nouvel utilisateur rejoint
     channel.bind('pusher:member_added', (member: any) => {
       if (member.id === currentUserId) return;
+      console.log(`➕ [PUSHER] - Nouveau participant rejoint: ${member.id}`);
       setOnlineUserIds(prev => [...prev, member.id]);
       const peer = createPeer(member.id, true, localStream);
       setPeers(prev => [...prev.filter(p => p.id !== member.id), { id: member.id, peer }]);
@@ -191,24 +197,24 @@ export default function SessionClient({
     // Signal WebRTC initial ou de retour
     channel.bind('signal', (data: SignalData & { target: string, isReturnSignal?: boolean }) => {
       if (data.target !== currentUserId) return;
+      console.log(`📡 [PUSHER] - Signal reçu de ${data.userId}`);
       
       const peerData = peersRef.current.find(p => p.id === data.userId);
 
-      if (data.isReturnSignal) {
-        // C'est un signal de retour, on signale simplement le peer existant
-        peerData?.peer.signal(data.signal);
+      if (peerData) {
+         console.log(`   -> Peer existant trouvé. Application du signal.`);
+         peerData.peer.signal(data.signal);
       } else {
-        // C'est un signal initial, on crée un nouveau peer pour répondre
-        if (!peerData) {
-            const peer = addPeer(data.signal, data.userId, localStream);
-            setPeers(prev => [...prev.filter(p => p.id !== data.userId), { id: data.userId, peer }]);
-            peersRef.current = [...peersRef.current.filter(p => p.id !== data.userId), { id: data.userId, peer }];
-        }
+        console.log(`   -> Nouveau peer. Création d'un peer de réponse.`);
+        const peer = addPeer(data.signal, data.userId, localStream);
+        setPeers(prev => [...prev.filter(p => p.id !== data.userId), { id: data.userId, peer }]);
+        peersRef.current = [...peersRef.current.filter(p => p.id !== data.userId), { id: data.userId, peer }];
       }
     });
 
     // Quand un utilisateur quitte
     channel.bind('pusher:member_removed', (member: any) => {
+      console.log(`➖ [PUSHER] - Participant parti: ${member.id}`);
       setOnlineUserIds(prev => prev.filter(id => id !== member.id));
       const peerToRemove = peersRef.current.find(p => p.id === member.id);
       peerToRemove?.peer.destroy();
@@ -218,17 +224,20 @@ export default function SessionClient({
 
     // Fin de session
     channel.bind('session-ended', () => {
+      console.log('🔚 [PUSHER] - Événement de fin de session reçu.');
       toast({ title: 'Session terminée', description: 'Le professeur a mis fin à la session.' });
       router.push(currentUserRole === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard');
     });
 
     // Mise en vedette
     channel.bind('participant-spotlighted', (data: { participantId: string }) => {
+       console.log(`🌟 [PUSHER] - Mise en vedette de ${data.participantId}`);
       setSpotlightedParticipantId(data.participantId);
     });
 
     // Main levée
     channel.bind('hand-raise-update', (data: { userId: string; isRaised: boolean }) => {
+      console.log(`✋ [PUSHER] - Main ${data.isRaised ? 'levée' : 'baissée'} par ${data.userId}`);
       setRaisedHands(prev => {
         const newSet = new Set(prev);
         data.isRaised ? newSet.add(data.userId) : newSet.delete(data.userId);
@@ -238,10 +247,12 @@ export default function SessionClient({
 
     // Statut de compréhension
     channel.bind('understanding-update', (data: { userId: string; status: UnderstandingStatus }) => {
+      console.log(`🤔 [PUSHER] - Statut de compréhension de ${data.userId} : ${data.status}`);
       setUnderstandingStatus(prev => new Map(prev).set(data.userId, data.status));
     });
 
     return () => {
+      console.log(`🔌 [PUSHER] - Nettoyage des abonnements pour la session ${sessionId}`);
       channel.unbind_all();
       pusherClient.unsubscribe(channelName);
     };
