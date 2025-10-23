@@ -21,7 +21,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { createAnnouncement } from '@/lib/actions';
-import { ClassroomWithDetails } from '@/lib/types';
 
 // DUMMY DATA for classrooms
 const dummyClassrooms = [
