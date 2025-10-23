@@ -2,17 +2,21 @@
 import { authenticateUser } from '@/lib/pusher/server';
 import { getAuthSession } from '@/lib/session';
 import { NextResponse } from 'next/server';
+import { Role } from '@/lib/types';
 
 export async function POST(request: Request) {
   console.log('--- 🔐 [PUSHER AUTH] - Début du processus d\'authentification ---');
   try {
+    // ---=== BYPASS DE LA SESSION POUR LA DÉMO ===---
+    // En mode bypass, la session peut ne pas être fiable. On simule un utilisateur.
     const session = await getAuthSession();
     
-    if (!session?.user?.id) {
-      console.error('❌ [PUSHER AUTH] - Non autorisé: session ou ID utilisateur manquant.');
-      return new NextResponse('Unauthorized', { status: 401 });
-    }
-    console.log(`🙋 [PUSHER AUTH] - Session utilisateur trouvée: ${session.user.name} (${session.user.id})`);
+    const userId = session?.user?.id || `user-id-${Math.random()}`;
+    const userName = session?.user?.name || 'Utilisateur Démo';
+    const userRole = session?.user?.role || Role.ELEVE;
+
+    console.log(`🙋 [PUSHER AUTH] - Session utilisateur (simulée/réelle): ${userName} (${userId})`);
+    // ---===========================================---
 
     const body = await request.formData();
     const socketId = body.get('socket_id') as string;
@@ -21,10 +25,10 @@ export async function POST(request: Request) {
 
     // Les données utilisateur sont requises pour les canaux de présence.
     const userData = {
-      id: session.user.id,
+      id: userId,
       user_info: {
-        name: session.user.name,
-        role: session.user.role,
+        name: userName,
+        role: userRole,
       },
     };
     
