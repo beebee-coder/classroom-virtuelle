@@ -1,7 +1,7 @@
 // src/lib/actions/classroom.actions.ts - NOUVEAU FICHIER
 'use server';
 
-import { ClassroomWithDetails, User } from '@/lib/types';
+import { ClassroomWithDetails, User, Role } from '@/lib/types';
 
 // Données factices pour la démonstration
 const MOCK_CLASSROOM_DATA: ClassroomWithDetails = {
@@ -14,7 +14,7 @@ const MOCK_CLASSROOM_DATA: ClassroomWithDetails = {
             email: 'alice@demo.com',
             points: 150,
             image: null,
-            role: 'ELEVE',
+            role: Role.ELEVE,
             classeId: 'classe-a'
         },
         {
@@ -23,7 +23,7 @@ const MOCK_CLASSROOM_DATA: ClassroomWithDetails = {
             email: 'bruno@demo.com',
             points: 120,
             image: null,
-            role: 'ELEVE',
+            role: Role.ELEVE,
             classeId: 'classe-a'
         },
         {
@@ -32,7 +32,7 @@ const MOCK_CLASSROOM_DATA: ClassroomWithDetails = {
             email: 'clara@demo.com', 
             points: 180,
             image: null,
-            role: 'ELEVE',
+            role: Role.ELEVE,
             classeId: 'classe-a'
         },
         {
@@ -41,7 +41,7 @@ const MOCK_CLASSROOM_DATA: ClassroomWithDetails = {
             email: 'david@demo.com',
             points: 90,
             image: null, 
-            role: 'ELEVE',
+            role: Role.ELEVE,
             classeId: 'classe-a'
         }
     ]
