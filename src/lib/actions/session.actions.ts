@@ -3,6 +3,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { pusherTrigger } from '../pusher/server';
+import { getAuthSession } from '../session';
 
 export async function createCoursSession(professeurId: string, classroomId: string, studentIds: string[]) {
     try {
@@ -242,6 +243,30 @@ export async function broadcastTimerEvent(sessionId: string, event: string, data
         );
     }
 }
+
+export async function updateStudentSessionStatus(
+  sessionId: string,
+  status: { isHandRaised?: boolean; understanding?: 'understood' | 'confused' | 'lost' | 'none' }
+) {
+  const session = await getAuthSession();
+  if (!session?.user?.id) {
+    throw new Error('Utilisateur non authentifié');
+  }
+  const userId = session.user.id;
+
+  const channel = `presence-session-${sessionId}`;
+
+  if (status.isHandRaised !== undefined) {
+    await pusherTrigger(channel, 'hand-raise-update', { userId, isRaised: status.isHandRaised });
+  }
+
+  if (status.understanding !== undefined) {
+    await pusherTrigger(channel, 'understanding-update', { userId, status: status.understanding });
+  }
+
+  return { success: true };
+}
+
 
 // Types pour TypeScript
 export interface SessionData {

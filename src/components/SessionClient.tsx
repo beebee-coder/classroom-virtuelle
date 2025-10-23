@@ -371,6 +371,19 @@ export default function SessionClient({
     return <SessionLoading />;
   }
 
+  const handleToggleHandRaise = (isRaised: boolean) => {
+    setRaisedHands(prev => {
+        const newSet = new Set(prev);
+        isRaised ? newSet.add(currentUserId) : newSet.delete(currentUserId);
+        return newSet;
+    });
+  };
+
+  const handleUnderstandingChange = (status: UnderstandingStatus) => {
+    setUnderstandingStatus(prev => new Map(prev).set(currentUserId, status));
+  };
+
+
   // Formatage du temps pour l'affichage
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -410,11 +423,6 @@ export default function SessionClient({
             raisedHands={raisedHands}
             understandingStatus={understandingStatus}
             currentUserId={currentUserId}
-            timerValue={formatTime(timerTimeLeft)}
-            onStartTimer={handleStartTimer}
-            onPauseTimer={handlePauseTimer}
-            onResetTimer={handleResetTimer}
-            onEndSession={handleEndSession}
             onScreenShare={toggleScreenShare}
             isScreenSharing={!!screenStream}
           />
@@ -425,8 +433,8 @@ export default function SessionClient({
             spotlightedStream={spotlightedStream}
             spotlightedUser={allSessionUsers.find(u => u.id === spotlightedParticipantId)}
             isHandRaised={raisedHands.has(currentUserId)}
-            onToggleHandRaise={() => { /* Implémenter la logique d'émission */ }}
-            onUnderstandingChange={(status) => { /* Implémenter la logique d'émission */ }}
+            onToggleHandRaise={handleToggleHandRaise}
+            onUnderstandingChange={handleUnderstandingChange}
             onLeaveSession={handleLeaveSession}
             currentUnderstanding={understandingStatus.get(currentUserId) || 'none'}
             currentUserId={currentUserId}

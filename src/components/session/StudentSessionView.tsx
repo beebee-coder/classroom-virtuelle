@@ -11,6 +11,8 @@ import { Loader2 } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { StudentSessionControls } from '../StudentSessionControls';
+import { updateStudentSessionStatus } from '@/lib/actions';
+import { useToast } from '@/hooks/use-toast';
 
 type UnderstandingStatus = 'understood' | 'confused' | 'lost' | 'none';
 
@@ -21,7 +23,7 @@ interface StudentSessionViewProps {
     spotlightedStream: MediaStream | null;
     spotlightedUser: SessionParticipant | null | undefined;
     isHandRaised: boolean;
-    onToggleHandRaise: () => void;
+    onToggleHandRaise: (isRaised: boolean) => void;
     onUnderstandingChange: (status: UnderstandingStatus) => void;
     onLeaveSession: () => void;
     currentUnderstanding: UnderstandingStatus;
@@ -40,6 +42,29 @@ export function StudentSessionView({
     currentUnderstanding,
     currentUserId,
 }: StudentSessionViewProps) {
+    const { toast } = useToast();
+
+    const handleToggleHandRaise = async () => {
+        const newHandRaiseState = !isHandRaised;
+        onToggleHandRaise(newHandRaiseState); // Optimistic update
+        try {
+            await updateStudentSessionStatus(sessionId, { isHandRaised: newHandRaiseState });
+        } catch {
+            toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de mettre à jour le statut de la main levée.'});
+            onToggleHandRaise(!newHandRaiseState); // Revert on failure
+        }
+    };
+    
+    const handleUnderstandingUpdate = async (status: 'compris' | 'confus' | 'perdu') => {
+        const newStatus = currentUnderstanding === status ? 'none' : status;
+        onUnderstandingChange(newStatus); // Optimistic update
+        try {
+            await updateStudentSessionStatus(sessionId, { understanding: newStatus });
+        } catch {
+            toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de mettre à jour le statut de compréhension.'});
+            onUnderstandingChange(currentUnderstanding); // Revert on failure
+        }
+    };
 
     const renderMainContent = () => {
         if (!spotlightedUser || !spotlightedStream) {
@@ -91,8 +116,8 @@ export function StudentSessionView({
             <div className="w-72 flex flex-col gap-6 min-h-0">
                 <StudentSessionControls
                     isHandRaised={isHandRaised}
-                    onRaiseHand={onToggleHandRaise}
-                    onComprehensionUpdate={onUnderstandingChange}
+                    onRaiseHand={handleToggleHandRaise}
+                    onComprehensionUpdate={handleUnderstandingUpdate}
                     currentComprehension={currentUnderstanding}
                 />
             </div>
