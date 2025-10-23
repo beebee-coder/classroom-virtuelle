@@ -15,11 +15,44 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 
+// Enum pour les niveaux de compréhension, utilisé en interne
+export enum ComprehensionLevel {
+  UNDERSTOOD = 'understood',
+  CONFUSED = 'confused',
+  LOST = 'lost',
+  NONE = 'none',
+}
+
+// Objet de configuration pour l'affichage (traduction et style)
+const comprehensionDisplayConfig = {
+  [ComprehensionLevel.UNDERSTOOD]: { 
+    icon: Smile, 
+    label: 'Compris', 
+    color: 'text-green-500',
+    bgColor: 'bg-green-500/10',
+    borderColor: 'border-green-500'
+  },
+  [ComprehensionLevel.CONFUSED]: { 
+    icon: Meh, 
+    label: 'Confus', 
+    color: 'text-yellow-500',
+    bgColor: 'bg-yellow-500/10',
+    borderColor: 'border-yellow-500'
+  },
+  [ComprehensionLevel.LOST]: { 
+    icon: Frown, 
+    label: 'Perdu', 
+    color: 'text-red-500',
+    bgColor: 'bg-red-500/10',
+    borderColor: 'border-red-500'
+  },
+};
+
 interface StudentSessionControlsProps {
   onRaiseHand: () => void;
   isHandRaised: boolean;
-  onComprehensionUpdate: (level: 'compris' | 'confus' | 'perdu') => void;
-  currentComprehension?: 'compris' | 'confus' | 'perdu';
+  onComprehensionUpdate: (level: ComprehensionLevel) => void;
+  currentComprehension?: ComprehensionLevel;
   onOpenChat?: () => void;
   onSettings?: () => void;
 }
@@ -35,33 +68,6 @@ export function StudentSessionControls({
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
 
-  const comprehensionLevels = [
-    { 
-      level: 'compris' as const, 
-      icon: Smile, 
-      label: 'Compris', 
-      color: 'text-green-500',
-      bgColor: 'bg-green-500/10',
-      borderColor: 'border-green-500'
-    },
-    { 
-      level: 'confus' as const, 
-      icon: Meh, 
-      label: 'Confus', 
-      color: 'text-yellow-500',
-      bgColor: 'bg-yellow-500/10',
-      borderColor: 'border-yellow-500'
-    },
-    { 
-      level: 'perdu' as const, 
-      icon: Frown, 
-      label: 'Perdu', 
-      color: 'text-red-500',
-      bgColor: 'bg-red-500/10',
-      borderColor: 'border-red-500'
-    }
-  ];
-
   return (
     <div className="space-y-4">
       {/* Contrôle de compréhension */}
@@ -74,8 +80,9 @@ export function StudentSessionControls({
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-2">
-            {comprehensionLevels.map(({ level, icon: Icon, label, color, bgColor, borderColor }) => {
+            {Object.entries(comprehensionDisplayConfig).map(([level, config]) => {
               const isActive = currentComprehension === level;
+              const { icon: Icon, label, color, bgColor, borderColor } = config;
               
               return (
                 <Button
@@ -86,7 +93,7 @@ export function StudentSessionControls({
                       ? `${bgColor} ${borderColor} border-2` 
                       : 'hover:bg-muted/50'
                   }`}
-                  onClick={() => onComprehensionUpdate(level)}
+                  onClick={() => onComprehensionUpdate(level as ComprehensionLevel)}
                 >
                   <Icon className={`h-5 w-5 ${isActive ? 'text-white' : color}`} />
                   <span className="text-xs font-medium">{label}</span>
@@ -96,16 +103,16 @@ export function StudentSessionControls({
           </div>
 
           {/* Statut actuel */}
-          {currentComprehension && (
+          {currentComprehension && currentComprehension !== ComprehensionLevel.NONE && (
             <div className="mt-3 p-2 bg-muted rounded-lg text-center">
               <p className="text-sm font-medium">
                 Statut: 
                 <span className={`ml-1 ${
-                  currentComprehension === 'compris' ? 'text-green-600' :
-                  currentComprehension === 'confus' ? 'text-yellow-600' :
+                  currentComprehension === ComprehensionLevel.UNDERSTOOD ? 'text-green-600' :
+                  currentComprehension === ComprehensionLevel.CONFUSED ? 'text-yellow-600' :
                   'text-red-600'
                 }`}>
-                  {comprehensionLevels.find(c => c.level === currentComprehension)?.label}
+                  {comprehensionDisplayConfig[currentComprehension]?.label}
                 </span>
               </p>
             </div>

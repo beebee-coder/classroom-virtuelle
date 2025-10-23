@@ -1,21 +1,13 @@
 // src/components/session/StudentSessionView.tsx
 'use client';
 
-import { Hand, Smile, Meh, Frown } from 'lucide-react';
 import { Participant } from '@/components/Participant';
-import { User, Role, SessionParticipant } from '@/lib/types';
-import { Button } from '../ui/button';
-import { cn } from '@/lib/utils';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { SessionParticipant } from '@/lib/types';
+import { Card } from '../ui/card';
 import { Loader2 } from 'lucide-react';
-import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
-import { StudentSessionControls } from '../StudentSessionControls';
+import { StudentSessionControls, ComprehensionLevel } from '../StudentSessionControls';
 import { updateStudentSessionStatus } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
-
-type UnderstandingStatus = 'understood' | 'confused' | 'lost' | 'none';
-
 
 interface StudentSessionViewProps {
     sessionId: string;
@@ -24,9 +16,9 @@ interface StudentSessionViewProps {
     spotlightedUser: SessionParticipant | null | undefined;
     isHandRaised: boolean;
     onToggleHandRaise: (isRaised: boolean) => void;
-    onUnderstandingChange: (status: UnderstandingStatus) => void;
+    onUnderstandingChange: (status: ComprehensionLevel) => void;
     onLeaveSession: () => void;
-    currentUnderstanding: UnderstandingStatus;
+    currentUnderstanding: ComprehensionLevel;
     currentUserId: string;
 }
 
@@ -55,8 +47,8 @@ export function StudentSessionView({
         }
     };
     
-    const handleUnderstandingUpdate = async (status: 'compris' | 'confus' | 'perdu') => {
-        const newStatus = currentUnderstanding === status ? 'none' : status;
+    const handleUnderstandingUpdate = async (status: ComprehensionLevel) => {
+        const newStatus = currentUnderstanding === status ? ComprehensionLevel.NONE : status;
         onUnderstandingChange(newStatus); // Optimistic update
         try {
             await updateStudentSessionStatus(sessionId, { understanding: newStatus });

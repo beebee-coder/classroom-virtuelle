@@ -11,8 +11,7 @@ import { Whiteboard } from '../Whiteboard';
 import { Card } from '../ui/card';
 import { ParticipantList } from './ParticipantList';
 import { TeacherSessionControls } from '../TeacherSessionControls';
-
-type UnderstandingStatus = 'understood' | 'confused' | 'lost' | 'none';
+import { ComprehensionLevel } from '../StudentSessionControls';
 
 export function TeacherSessionView({
     sessionId,
@@ -38,7 +37,7 @@ export function TeacherSessionView({
     onlineUserIds: string[];
     onSpotlightParticipant: (participantId: string) => void;
     raisedHands: Set<string>;
-    understandingStatus: Map<string, UnderstandingStatus>;
+    understandingStatus: Map<string, ComprehensionLevel>;
     currentUserId: string;
     onScreenShare: () => void;
     isScreenSharing: boolean;

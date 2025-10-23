@@ -16,6 +16,7 @@ import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';
 import { endCoursSession, broadcastTimerEvent } from '@/lib/actions';
 import { DummySession, getAuthSession } from '@/lib/session';
+import { ComprehensionLevel } from './StudentSessionControls';
 
 // Définition de types locaux
 type UnderstandingStatus = 'understood' | 'confused' | 'lost' | 'none';
@@ -52,7 +53,7 @@ export default function SessionClient({
   
   // États d'interaction
   const [raisedHands, setRaisedHands] = useState<Set<string>>(new Set());
-  const [understandingStatus, setUnderstandingStatus] = useState<Map<string, UnderstandingStatus>>(new Map());
+  const [understandingStatus, setUnderstandingStatus] = useState<Map<string, ComprehensionLevel>>(new Map());
   const [isEndingSession, setIsEndingSession] = useState(false);
 
   // Nouveaux états pour le minuteur
@@ -289,7 +290,7 @@ export default function SessionClient({
     });
 
     // Statut de compréhension
-    channel.bind('understanding-update', (data: { userId: string; status: UnderstandingStatus }) => {
+    channel.bind('understanding-update', (data: { userId: string; status: ComprehensionLevel }) => {
       console.log(`🤔 [PUSHER] - Statut de compréhension de ${data.userId} : ${data.status}`);
       setUnderstandingStatus(prev => new Map(prev).set(data.userId, data.status));
     });
@@ -379,7 +380,7 @@ export default function SessionClient({
     });
   };
 
-  const handleUnderstandingChange = (status: UnderstandingStatus) => {
+  const handleUnderstandingChange = (status: ComprehensionLevel) => {
     setUnderstandingStatus(prev => new Map(prev).set(currentUserId, status));
   };
 
@@ -436,7 +437,7 @@ export default function SessionClient({
             onToggleHandRaise={handleToggleHandRaise}
             onUnderstandingChange={handleUnderstandingChange}
             onLeaveSession={handleLeaveSession}
-            currentUnderstanding={understandingStatus.get(currentUserId) || 'none'}
+            currentUnderstanding={understandingStatus.get(currentUserId) || ComprehensionLevel.NONE}
             currentUserId={currentUserId}
           />
         )}

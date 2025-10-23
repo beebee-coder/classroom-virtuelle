@@ -10,25 +10,24 @@ import { cn } from '@/lib/utils';
 import { ScrollArea } from './ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { useState, useEffect, useRef } from 'react';
-
-type UnderstandingStatus = 'understood' | 'confused' | 'lost' | 'none';
+import { ComprehensionLevel } from './StudentSessionControls';
 
 interface UnderstandingTrackerProps {
   students: User[];
-  understandingStatus: Map<string, UnderstandingStatus>;
+  understandingStatus: Map<string, ComprehensionLevel>;
 }
 
 const statusConfig = {
-  understood: { icon: Smile, color: 'text-green-500', label: 'Compris' },
-  confused: { icon: Meh, color: 'text-yellow-500', label: 'Confus' },
-  lost: { icon: Frown, color: 'text-red-500', label: 'Perdu' },
-  none: { icon: HelpCircle, color: 'text-muted-foreground', label: 'Pas de statut' },
+  [ComprehensionLevel.UNDERSTOOD]: { icon: Smile, color: 'text-green-500', label: 'Compris' },
+  [ComprehensionLevel.CONFUSED]: { icon: Meh, color: 'text-yellow-500', label: 'Confus' },
+  [ComprehensionLevel.LOST]: { icon: Frown, color: 'text-red-500', label: 'Perdu' },
+  [ComprehensionLevel.NONE]: { icon: HelpCircle, color: 'text-muted-foreground', label: 'Pas de statut' },
 };
 
 export function UnderstandingTracker({ students, understandingStatus }: UnderstandingTrackerProps) {
   const [accordionValue, setAccordionValue] = useState<string | undefined>('tracker');
   const [hasNewStatus, setHasNewStatus] = useState(false);
-  const prevStatusRef = useRef<Map<string, UnderstandingStatus>>();
+  const prevStatusRef = useRef<Map<string, ComprehensionLevel>>();
 
   useEffect(() => {
     if (accordionValue === undefined && prevStatusRef.current && prevStatusRef.current !== understandingStatus) {
@@ -44,11 +43,15 @@ export function UnderstandingTracker({ students, understandingStatus }: Understa
     }
   };
 
-
   const getStatusCounts = () => {
-    const counts: Record<UnderstandingStatus, number> = { understood: 0, confused: 0, lost: 0, none: 0 };
+    const counts: Record<ComprehensionLevel, number> = { 
+        [ComprehensionLevel.UNDERSTOOD]: 0, 
+        [ComprehensionLevel.CONFUSED]: 0, 
+        [ComprehensionLevel.LOST]: 0, 
+        [ComprehensionLevel.NONE]: 0 
+    };
     students.forEach(student => {
-      const status = understandingStatus.get(student.id) || 'none';
+      const status = understandingStatus.get(student.id) || ComprehensionLevel.NONE;
       if (counts[status] !== undefined) {
         counts[status]++;
       }
@@ -72,15 +75,16 @@ export function UnderstandingTracker({ students, understandingStatus }: Understa
                     <CardContent className="space-y-4 pt-0">
                         <div className="flex justify-around text-center">
                         {Object.entries(counts).map(([key, value]) => {
-                             if (key === 'none') return null;
-                            const config = statusConfig[key as keyof typeof statusConfig];
-                             if (!config) return null;
+                            const levelKey = key as ComprehensionLevel;
+                            if (levelKey === ComprehensionLevel.NONE) return null;
+                            const config = statusConfig[levelKey];
+                            if (!config) return null;
                             const Icon = config.icon;
                             return (
-                            <div key={key} className="flex flex-col items-center">
-                                <Icon className={cn("h-6 w-6 mb-1", config.color)} />
-                                <span className="font-bold text-lg">{value}</span>
-                            </div>
+                                <div key={key} className="flex flex-col items-center">
+                                    <Icon className={cn("h-6 w-6 mb-1", config.color)} />
+                                    <span className="font-bold text-lg">{value}</span>
+                                </div>
                             );
                         })}
                         </div>
@@ -89,9 +93,9 @@ export function UnderstandingTracker({ students, understandingStatus }: Understa
                         <div className="space-y-2 pr-4">
                             <TooltipProvider>
                             {students.map(student => {
-                                const status = understandingStatus.get(student.id) || 'none';
+                                const status = understandingStatus.get(student.id) || ComprehensionLevel.NONE;
                                 const config = statusConfig[status];
-                                if (!config) return null; // Correction ici
+                                if (!config) return null;
                                 const Icon = config.icon;
 
                                 return (
