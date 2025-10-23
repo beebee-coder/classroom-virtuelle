@@ -64,12 +64,12 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
           let newReactions = [...msg.reactions];
           if (data.action === 'added') {
             // Éviter les doublons de réaction par utilisateur
-            const existingIndex = newReactions.findIndex(r => r.emoji === data.reaction.emoji && r.userId === data.reaction.userId);
+            const existingIndex = newReactions.findIndex((r: ReactionWithUser) => r.emoji === data.reaction.emoji && r.userId === data.reaction.userId);
             if (existingIndex === -1) {
               newReactions.push(data.reaction);
             }
           } else {
-            newReactions = newReactions.filter(r => !(r.id === data.reaction.id || (r.emoji === data.reaction.emoji && r.userId === data.reaction.userId)));
+            newReactions = newReactions.filter((r: ReactionWithUser) => !(r.id === data.reaction.id || (r.emoji === data.reaction.emoji && r.userId === data.reaction.userId)));
           }
           return { ...msg, reactions: newReactions };
         }
@@ -128,7 +128,7 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
             if (existingReaction) {
                 newReactions = msg.reactions.filter(r => r.id !== existingReaction.id);
             } else {
-                newReactions = [...msg.reactions, { id: `temp-${Date.now()}`, emoji, userId, messageId, user: { id: userId, name: 'Vous' } }];
+                newReactions = [...msg.reactions, { id: `temp-${Date.now()}`, emoji, userId, messageId, user: { id: userId, name: 'Vous' } } as ReactionWithUser];
             }
             return { ...msg, reactions: newReactions };
         }
@@ -187,11 +187,11 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
                        <div className="absolute -bottom-3 flex gap-1">
                          {msg.reactions.length > 0 && (
                             <div className="flex gap-1 bg-background border rounded-full px-2 py-0.5">
-                            {Object.entries(msg.reactions.reduce((acc, r) => {
+                            {Object.entries(msg.reactions.reduce((acc: Record<string, number>, r: ReactionWithUser) => {
                                 acc[r.emoji] = (acc[r.emoji] || 0) + 1;
                                 return acc;
-                            }, {} as Record<string, number>)).map(([emoji, count]) => (
-                                <span key={emoji} className="text-xs">{emoji} {count}</span>
+                            }, {})).map(([emoji, count]) => (
+                                <span key={emoji} className="text-xs">{emoji} {count as number}</span>
                             ))}
                             </div>
                         )}
