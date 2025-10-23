@@ -1,4 +1,3 @@
-
 // src/components/CreateAnnouncementForm.tsx
 "use client";
 
@@ -42,7 +41,7 @@ function SubmitButton() {
 }
 
 interface CreateAnnouncementFormProps {
-    classrooms?: Partial<ClassroomWithDetails>[];
+    classrooms?: { id: string; nom: string; }[];
 }
 
 export function CreateAnnouncementForm({ classrooms = dummyClassrooms }: CreateAnnouncementFormProps) {
