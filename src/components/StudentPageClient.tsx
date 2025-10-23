@@ -17,7 +17,7 @@ import { KeyRound } from 'lucide-react';
 import { endCoursSession } from '@/lib/actions';
 import { CareerSelector } from '@/components/CareerSelector'; // Assumant que ce composant existe
 import { useActivityTracker } from '@/hooks/useActivityTracker';
-import { DummySession, getAuthSession } from '@/lib/session';
+import { DummySession } from '@/lib/session';
 
 interface StudentPageClientProps {
     student: StudentWithStateAndCareer;
@@ -25,6 +25,7 @@ interface StudentPageClientProps {
     allCareers: Metier[];
     isTeacherView: boolean;
     tasks: AppTask[];
+    user: DummySession['user'];
 }
 
 interface SessionInvitation {
@@ -42,26 +43,18 @@ export default function StudentPageClient({
     announcements, 
     allCareers, 
     isTeacherView, 
-    tasks 
+    tasks,
+    user,
 }: StudentPageClientProps) {
     const [activeTab, setActiveTab] = useState('tasks');
-    const [session, setSession] = useState<DummySession | null>(null);
     const [sessionInvitation, setSessionInvitation] = useState<SessionInvitation | null>(null);
     const [isJoiningSession, setIsJoiningSession] = useState(false);
     const { toast } = useToast();
     const router = useRouter();
 
-    useEffect(() => {
-      async function fetchSession() {
-        const sessionData = await getAuthSession();
-        setSession(sessionData);
-      }
-      fetchSession();
-    }, []);
-
     const classroomId = student?.classeId || 'classe-a';
     // Le hook ne doit être actif que si l'utilisateur est authentifié.
-    const isActivityTrackerEnabled = !!session?.user?.id && !!session?.user?.classeId;
+    const isActivityTrackerEnabled = !!user?.id && !!user?.classeId;
     console.log('👨‍🎓 [ELEVE] - Données complètes student:', student);
 
     const { onlineUsers } = useActivityTracker(

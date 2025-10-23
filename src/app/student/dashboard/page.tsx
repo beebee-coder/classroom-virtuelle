@@ -60,6 +60,7 @@ export default async function StudentDashboardPage() {
                   allCareers={[]} // Pas besoin de toutes les carrières ici
                   isTeacherView={false}
                   tasks={tasks}
+                  user={session.user}
               />
             </SidebarInset>
           </div>

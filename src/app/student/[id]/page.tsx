@@ -67,6 +67,7 @@ export default async function StudentProfilePage({ params }: { params: { id: str
                       allCareers={allCareers}
                       isTeacherView={isTeacherView}
                       tasks={tasks}
+                      user={viewingUser}
                   />
                 </SidebarInset>
               </div>
