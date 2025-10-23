@@ -211,7 +211,7 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <CreateAnnouncementForm classrooms={[{ id: classroom.id, nom: classroom.nom }]} />
+                    <CreateAnnouncementForm classrooms={[{id: classroom.id, nom: classroom.nom}]} />
                     <AddStudentForm classroomId={classroom.id} />
                 </div>
             </div>
