@@ -12,12 +12,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 
-// Le contenu de LoginForm est maintenant ici.
-function LoginFormContent() {
+// Component to handle logic that uses searchParams
+function LoginFormComponent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const errorParam = searchParams.get('error');
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -129,8 +129,7 @@ function LoginFormContent() {
   );
 }
 
-
-// Le contenu de LoginView est maintenant ici.
+// Main page component
 export default function LoginPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4 relative">
@@ -156,9 +155,9 @@ export default function LoginPage() {
           </p>
         </div>
         
-        {/* Envelopper avec Suspense car LoginFormContent utilise useSearchParams */}
+        {/* Wrap the component that uses searchParams in Suspense */}
         <Suspense fallback={<div className="text-center">Chargement...</div>}>
-          <LoginFormContent />
+          <LoginFormComponent />
         </Suspense>
       </div>
     </div>

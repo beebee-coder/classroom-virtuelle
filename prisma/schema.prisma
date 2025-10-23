@@ -46,7 +46,7 @@ model User {
   messages        Message[]
   conversationsInitiated Conversation[] @relation("initiator")
   conversationsReceived  Conversation[] @relation("receiver")
-  
+    leaderboardEntry Leaderboard?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 }
@@ -56,11 +56,12 @@ model User {
 model Classroom {
   id              String         @id @default(cuid())
   nom             String
-  professeurId    String
+  professeurId    String   @unique 
   professeur      User           @relation("TeacherToClass", fields: [professeurId], references: [id])
   eleves          User[]         @relation("StudentsInClass")
   sessions        CoursSession[]
   annonces        Announcement[]
+    messages     Message[]  
 }
 
 // MODÈLE SESSION DE COURS
