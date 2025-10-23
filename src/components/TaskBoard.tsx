@@ -1,3 +1,4 @@
+
 // src/components/TaskBoard.tsx
 'use client';
 
@@ -7,12 +8,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Check, CheckCircle, Clock, FileUp, Loader2, KeyRound } from 'lucide-react';
-import { ProgressStatus, Task, TaskType } from '@/lib/types';
+import { ProgressStatus, Task, TaskType, TaskCategory, TaskDifficulty, ValidationType, StudentProgress } from '@/lib/types';
 import { completeTask } from '@/lib/actions/task.actions';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { CloudinaryUploadWidget } from './CloudinaryUploadWidget';
-import type { StudentProgress } from '@prisma/client';
 import { AppTask } from '@/lib/types';
 
 
@@ -22,11 +22,11 @@ interface TaskBoardProps {
   studentId: string;
 }
 
-const taskTypeOrder: TaskType[] = ['DAILY', 'WEEKLY', 'MONTHLY'];
+const taskTypeOrder: TaskType[] = [TaskType.DAILY, TaskType.WEEKLY, TaskType.MONTHLY];
 const taskTypeTranslations: Record<TaskType, string> = {
-  'DAILY': 'Quotidien',
-  'WEEKLY': 'Hebdomadaire',
-  'MONTHLY': 'Mensuel',
+  [TaskType.DAILY]: 'Quotidien',
+  [TaskType.WEEKLY]: 'Hebdomadaire',
+  [TaskType.MONTHLY]: 'Mensuel',
 };
 
 export function TaskBoard({ tasks, studentProgress, studentId }: TaskBoardProps) {
@@ -39,11 +39,11 @@ export function TaskBoard({ tasks, studentProgress, studentId }: TaskBoardProps)
   }, [studentProgress]);
 
   const groupedTasks = useMemo(() => {
-    const groups: Record<TaskType, AppTask[]> = {
-      'DAILY': [],
-      'WEEKLY': [],
-      'MONTHLY': [],
-    };
+    const groups = Object.values(TaskType).reduce((acc, type) => {
+      acc[type] = [];
+      return acc;
+    }, {} as Record<TaskType, AppTask[]>);
+    
     tasks.forEach((task) => {
       if (groups[task.type]) {
         groups[task.type].push(task);
@@ -179,10 +179,10 @@ export function TaskBoard({ tasks, studentProgress, studentId }: TaskBoardProps)
       </TabsList>
       {taskTypeOrder.map((type) => (
         <TabsContent key={type} value={type}>
-            {groupedTasks[type].length > 0 ? (
+            {groupedTasks[type] && groupedTasks[type].length > 0 ? (
                 groupedTasks[type].map(renderTaskCard)
             ) : (
-                <p className="text-sm text-muted-foreground mt-4 text-center">Aucune tâche {taskTypeTranslations[type].toLowerCase()} pour le moment.</p>
+                <p className="text-sm text-muted-foreground mt-4 text-center">Aucune tâche {taskTypeTranslations[type]?.toLowerCase()} pour le moment.</p>
             )}
         </TabsContent>
       ))}
