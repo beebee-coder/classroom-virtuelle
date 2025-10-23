@@ -4,6 +4,7 @@
 import { revalidatePath } from 'next/cache';
 import { pusherTrigger } from '../pusher/server';
 import { getAuthSession } from '../session';
+import { ComprehensionLevel } from '@/components/StudentSessionControls';
 
 export async function createCoursSession(professeurId: string, classroomId: string, studentIds: string[]) {
     try {
@@ -246,7 +247,7 @@ export async function broadcastTimerEvent(sessionId: string, event: string, data
 
 export async function updateStudentSessionStatus(
   sessionId: string,
-  status: { isHandRaised?: boolean; understanding?: 'understood' | 'confused' | 'lost' | 'none' }
+  status: { isHandRaised?: boolean; understanding?: ComprehensionLevel }
 ) {
   const session = await getAuthSession();
   if (!session?.user?.id) {

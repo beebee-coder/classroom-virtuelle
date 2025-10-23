@@ -95,11 +95,10 @@ export default function StudentPageClient({
         console.log('📨 [ELEVE] - Nouvelle invitation de session reçue:', data);
         setSessionInvitation(data);
         
-        // Notification toast simple et non-interactive
         toast({
             title: '🎯 Invitation de session reçue !',
-            description: `Le professeur ${data.teacherName} vous a invité(e).`,
-            duration: 5000, // Le toast disparaît après 5 secondes
+            description: `Le professeur ${data.teacherName} vous a invité(e). La carte d'invitation est sur votre tableau de bord.`,
+            duration: 10000,
         });
     }, [toast]);
 
@@ -171,7 +170,7 @@ export default function StudentPageClient({
     return (
         <div className="container mx-auto p-6 space-y-6">
             {sessionInvitation && (
-                <Card className="bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0 shadow-lg animate-pulse">
+                <Card className="bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0 shadow-lg">
                     <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-4">
