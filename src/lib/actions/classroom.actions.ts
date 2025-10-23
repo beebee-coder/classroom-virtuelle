@@ -1,3 +1,4 @@
+
 // src/lib/actions/classroom.actions.ts - NOUVEAU FICHIER
 'use server';
 
@@ -15,7 +16,8 @@ const MOCK_CLASSROOM_DATA: ClassroomWithDetails = {
             points: 150,
             image: null,
             role: Role.ELEVE,
-            classeId: 'classe-a'
+            classeId: 'classe-a',
+            etat: { isPunished: false },
         },
         {
             id: 'eleve-2', 
@@ -24,7 +26,8 @@ const MOCK_CLASSROOM_DATA: ClassroomWithDetails = {
             points: 120,
             image: null,
             role: Role.ELEVE,
-            classeId: 'classe-a'
+            classeId: 'classe-a',
+            etat: { isPunished: false },
         },
         {
             id: 'eleve-3',
@@ -33,7 +36,8 @@ const MOCK_CLASSROOM_DATA: ClassroomWithDetails = {
             points: 180,
             image: null,
             role: Role.ELEVE,
-            classeId: 'classe-a'
+            classeId: 'classe-a',
+            etat: { isPunished: false },
         },
         {
             id: 'eleve-4',
@@ -42,7 +46,8 @@ const MOCK_CLASSROOM_DATA: ClassroomWithDetails = {
             points: 90,
             image: null, 
             role: Role.ELEVE,
-            classeId: 'classe-a'
+            classeId: 'classe-a',
+            etat: { isPunished: false },
         }
     ]
 };
