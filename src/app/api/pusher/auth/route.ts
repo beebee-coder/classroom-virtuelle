@@ -10,7 +10,8 @@ export async function POST(request: Request) {
     
     const session = await getAuthSession();
     
-    const userId = session?.user?.id || `user-id-${Math.random()}`;
+    // Pour la démo, on utilise des valeurs de secours si la session n'est pas trouvée
+    const userId = session?.user?.id || `user-id-${Math.random().toString(36).substring(7)}`;
     const userName = session?.user?.name || 'Utilisateur Démo';
     const userRole = session?.user?.role || Role.ELEVE;
 
@@ -21,10 +22,10 @@ export async function POST(request: Request) {
     const channel = body.get('channel_name') as string;
     console.log(`📡 [PUSHER AUTH] - Infos reçues: socketId=${socketId}, channel=${channel}`);
 
-    // CORRECTION : Structure correcte pour les canaux de présence Pusher
+    // Structure correcte pour les canaux de présence Pusher
     const userData = {
-      id: userId,        // ← 'id' au lieu de 'user_id'
-      user_info: {      // ← 'user_info' pour les données supplémentaires
+      id: userId,
+      user_info: {
         name: userName,
         role: userRole,
       },
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
     
     console.log('👤 [PUSHER AUTH] - Préparation des données utilisateur pour Pusher:', userData);
     
-    const authResponse = await authenticateUser(socketId, userData);
+    const authResponse = await authenticateUser(socketId, channel, userData);
     
     console.log('✅ [PUSHER AUTH] - Authentification réussie. Réponse envoyée au client.');
     return NextResponse.json(authResponse);
