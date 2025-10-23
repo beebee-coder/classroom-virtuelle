@@ -2,9 +2,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { Metier } from '@prisma/client';
 import { cn } from '@/lib/utils';
 import { usePathname } from 'next/navigation';
+import { Metier } from '@/lib/types';
 
 interface CareerThemeWrapperProps {
   career?: Metier;

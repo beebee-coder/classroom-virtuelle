@@ -1,3 +1,4 @@
+
 // src/components/session/ParticipantList.tsx
 'use client';
 
@@ -9,7 +10,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/
 import { cn } from '@/lib/utils';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
 
-type SessionParticipant = User & { role: Role };
+type SessionParticipant = User & { role?: Role };
 
 
 interface ParticipantListProps {

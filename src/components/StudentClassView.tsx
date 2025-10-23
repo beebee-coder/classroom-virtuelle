@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Crown, Star } from "lucide-react";
 import type { ClassroomWithStudents } from "@/app/student/class/[id]/page";
-import { User } from "@prisma/client";
 
 interface StudentClassViewProps {
   classroom: ClassroomWithStudents;

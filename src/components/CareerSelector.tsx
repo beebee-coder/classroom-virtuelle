@@ -2,12 +2,12 @@
 'use client';
 
 import { useState } from 'react';
-import type { Metier } from '@prisma/client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { setStudentCareer } from '@/lib/actions/student.actions';
 import { Loader2 } from 'lucide-react';
+import { Metier } from '@/lib/types';
 
 interface CareerSelectorProps {
   careers: Metier[];
