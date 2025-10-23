@@ -22,6 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { createAnnouncement } from '@/lib/actions';
+import { ClassroomWithDetails } from '@/lib/types';
 
 // DUMMY DATA for classrooms
 const dummyClassrooms = [
@@ -41,8 +42,7 @@ function SubmitButton() {
 }
 
 interface CreateAnnouncementFormProps {
-    // Classrooms prop is optional now as we use dummy data
-    classrooms?: { id: string; nom: string }[];
+    classrooms?: Partial<ClassroomWithDetails>[];
 }
 
 export function CreateAnnouncementForm({ classrooms = dummyClassrooms }: CreateAnnouncementFormProps) {
@@ -101,7 +101,7 @@ export function CreateAnnouncementForm({ classrooms = dummyClassrooms }: CreateA
                             <SelectContent>
                                 <SelectItem value="public">Publique (Tous)</SelectItem>
                                 {classrooms.map(classroom => (
-                                    <SelectItem key={classroom.id} value={classroom.id}>Classe: {classroom.nom}</SelectItem>
+                                    <SelectItem key={classroom.id} value={classroom.id!}>Classe: {classroom.nom}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
@@ -121,5 +121,3 @@ export function CreateAnnouncementForm({ classrooms = dummyClassrooms }: CreateA
         </Dialog>
     )
 }
-
-    
