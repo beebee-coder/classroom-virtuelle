@@ -17,6 +17,18 @@ export async function createCoursSession(professeurId: string, classroomId: stri
         const sessionId = `session-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
         console.log(`🆔 [ACTION] - ID de session généré (factice): ${sessionId}`);
 
+        // **NOUVEAU** : Sauvegarder les participants de la session
+        const sessionApiRoute = process.env.NEXTAUTH_URL
+            ? `${process.env.NEXTAUTH_URL}/api/session/${sessionId}`
+            : `http://localhost:3000/api/session/${sessionId}`;
+            
+        await fetch(sessionApiRoute, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ participants: studentIds }),
+        });
+        console.log(`[ACTION] - Participants pour la session ${sessionId} sauvegardés via l'API.`);
+
         const invitationResults = await sendIndividualInvitations(sessionId, professeurId, classroomId, studentIds);
 
         // Revalidate the path for each invited student
@@ -109,16 +121,17 @@ export async function getSessionDetails(sessionId: string) {
             throw new Error('sessionId est requis');
         }
 
-        console.log(`[SESSION] Getting session details for ${sessionId}`);
-        return {
-            id: sessionId,
-            participants: [],
-            professeur: { 
-                id: 'teacher-id', 
-                name: 'Professeur Test' 
-            },
-            createdAt: new Date().toISOString()
-        };
+        const sessionApiUrl = process.env.NEXTAUTH_URL
+            ? `${process.env.NEXTAUTH_URL}/api/session/${sessionId}`
+            : `http://localhost:3000/api/session/${sessionId}`;
+
+        const response = await fetch(sessionApiUrl);
+        
+        if (!response.ok) {
+            throw new Error(`Failed to fetch session details: ${response.statusText}`);
+        }
+
+        return await response.json();
     } catch (error) {
         console.error('[SESSION] - Erreur lors de la récupération des détails:', error);
         throw new Error('Impossible de récupérer les détails de la session');

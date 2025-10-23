@@ -1,10 +1,10 @@
-// src/app/session/[id]/page.tsx - Version améliorée
+// src/app/session/[id]/page.tsx - Version avec API
 import { notFound, redirect } from 'next/navigation';
 import { getAuthSession } from '@/lib/session';
 import SessionClient from '@/components/SessionClient';
 import { Suspense } from 'react';
 import { User, Role } from '@/lib/types';
-import { allDummyStudents } from '@/lib/dummy-data';
+import { getSessionDetails } from '@/lib/actions/session.actions';
 
 // Composant de chargement simple
 function SimpleSessionLoading() {
@@ -18,40 +18,6 @@ function SimpleSessionLoading() {
     );
 }
 
-// Fonction pour obtenir les données de session factices
-function getDummySessionData(sessionId: string) {
-    const teacher: User = { 
-        id: 'teacher-id', 
-        name: 'Professeur Test', 
-        email: 'teacher@example.com', 
-        role: 'PROFESSEUR',
-        image: null,
-        emailVerified: null,
-        parentPassword: null,
-        ambition: null,
-        points: 0,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        classeId: null,
-    };
-    
-    // Pour la démo, on prend tous les élèves
-    const students: User[] = allDummyStudents as unknown as User[];
-
-    const participants = [teacher, ...students];
-
-    return {
-        session: {
-            id: sessionId,
-            nom: `Session de démo ${sessionId.slice(0, 5)}`,
-            participants: participants.map(p => ({ id: p.id, name: p.name, role: p.role })),
-            createdAt: new Date().toISOString(),
-            status: 'active' as const
-        },
-        students: students,
-        teacher: teacher,
-    };
-}
 
 export default async function SessionPage({ params }: { params: { id: string } }) {
     console.log(`🎬 [SESSION PAGE] - Chargement de la page pour la session ID: ${params.id}`);
@@ -69,18 +35,29 @@ export default async function SessionPage({ params }: { params: { id: string } }
     }
     
     console.log('✅ [SESSION PAGE] - Utilisateur authentifié:', authSession.user);
-    
-    const initialData = getDummySessionData(params.id);
-    const { students, teacher } = initialData;
+
+    // **MODIFICATION**: Récupérer les détails de la session via l'action
+    let sessionDetails;
+    try {
+        sessionDetails = await getSessionDetails(params.id);
+    } catch(e) {
+        console.error('❌ [SESSION PAGE] - Impossible de récupérer les détails de la session:', e);
+        // Rediriger si la session n'est pas trouvée ou en cas d'erreur
+        redirect('/teacher/dashboard?error=session_not_found');
+    }
+
+    if (!sessionDetails) {
+        notFound();
+    }
+
+    const { students, teacher } = sessionDetails;
 
     // Vérification de sécurité améliorée
-    const isTeacher = authSession.user.role === 'PROFESSEUR';
+    const isTeacher = authSession.user.id === teacher.id;
     const isInvitedStudent = students.some((s: any) => s.id === authSession.user?.id);
     
     if (!isTeacher && !isInvitedStudent) {
         console.warn(`🚫 [SESSION PAGE] - L'utilisateur ${authSession.user.id} n'est pas un participant de la session ${params.id}. Accès refusé.`);
-        
-        // Option: Rediriger vers le dashboard avec un message d'erreur
         redirect('/student/dashboard?error=not_invited');
     }
     
@@ -93,8 +70,8 @@ export default async function SessionPage({ params }: { params: { id: string } }
         <Suspense fallback={<SimpleSessionLoading />}>
             <SessionClient
                 sessionId={params.id}
-                initialStudents={students as any[]}
-                initialTeacher={teacher}
+                initialStudents={students as User[]}
+                initialTeacher={teacher as User}
                 currentUserRole={currentUserRole as Role}
                 currentUserId={currentUserId}
             />
