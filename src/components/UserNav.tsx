@@ -75,7 +75,7 @@ export function UserNav({ user }: UserNavProps) {
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
                     <DropdownMenuItem asChild>
-                        <Link href={user.role === 'PROFESSEUR' ? '/teacher/profile' : `/student/${user.id}`}>
+                        <Link href={user.role === 'PROFESSEUR' ? '/teacher/profile' : `/student/dashboard`}>
                             Profil
                         </Link>
                     </DropdownMenuItem>

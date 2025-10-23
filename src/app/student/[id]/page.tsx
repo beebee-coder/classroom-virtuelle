@@ -23,18 +23,13 @@ export default async function StudentProfilePage({ params }: { params: { id: str
         redirect('/login');
     }
 
-    // Si un élève essaie d'accéder à sa propre page via l'URL avec ID,
+    // Si un élève essaie d'accéder à une page d'un autre élève,
     // on le redirige vers son tableau de bord unifié.
-    if (viewingUser.role === 'ELEVE' && viewingUser.id === params.id) {
+    if (viewingUser.role === 'ELEVE') {
         redirect('/student/dashboard');
     }
 
     // Un professeur peut voir la page d'un élève.
-    // Un élève ne peut pas voir la page d'un autre élève (logique simplifiée pour la démo).
-    if (viewingUser.role === 'ELEVE' && viewingUser.id !== params.id) {
-        redirect('/student/dashboard'); 
-    }
-    
     const student = await getStudentData(params.id);
 
     if (!student) {
