@@ -64,6 +64,7 @@ export default function SessionClient({
   const allSessionUsers: SessionParticipant[] = [initialTeacher, ...initialStudents];
   const peersRef = useRef<PeerData[]>([]);
   const screenPeerRef = useRef<PeerInstance | null>(null);
+  const channelRef = useRef<PeerInstance | null>(null);
 
   // ---=== 1. GESTION DES FLUX MÉDIAS ===---
   useEffect(() => {
@@ -199,7 +200,8 @@ export default function SessionClient({
     if (!localStream) return;
 
     const channelName = `presence-session-${sessionId}`;
-    const channel = pusherClient.subscribe(channelName);
+    const channel = pusherClient.subscribe(channelName) as any;
+    channelRef.current = channel;
     
     // Initialisation quand on rejoint
     channel.bind('pusher:subscription_succeeded', (members: any) => {
@@ -348,8 +350,16 @@ export default function SessionClient({
     console.log('🚪 [CLIENT] - Départ de la session demandé');
     localStream?.getTracks().forEach(track => track.stop());
     peersRef.current.forEach(({ peer }) => peer.destroy());
+    
+    if (channelRef.current) {
+        const channelName = `presence-session-${sessionId}`;
+        console.log(`🔌 [PUSHER] - Désabonnement manuel du canal ${channelName}`);
+        pusherClient.unsubscribe(channelName);
+        channelRef.current = null;
+    }
+
     router.push(currentUserRole === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard');
-  }, [localStream, router, currentUserRole]);
+  }, [localStream, router, currentUserRole, sessionId]);
 
   // Logique pour déterminer le flux à afficher en vedette
   const spotlightedPeer = peers.find(p => p.id === spotlightedParticipantId);
