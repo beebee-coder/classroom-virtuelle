@@ -21,13 +21,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { createAnnouncement } from '@/lib/actions';
+import { ClassroomWithDetails } from '@/lib/types';
 
-// DUMMY DATA for classrooms
-const dummyClassrooms = [
-  { id: 'classe-a', nom: 'Classe 6ème A' },
-  { id: 'classe-b', nom: 'Classe 6ème B' },
-  { id: 'classe-c', nom: 'Classe 5ème A' },
-];
 
 function SubmitButton() {
     const { pending } = useFormStatus();
@@ -40,10 +35,10 @@ function SubmitButton() {
 }
 
 interface CreateAnnouncementFormProps {
-    classrooms?: { id: string; nom: string }[];
+    classrooms: { id: string; nom: string }[];
 }
 
-export function CreateAnnouncementForm({ classrooms = dummyClassrooms }: CreateAnnouncementFormProps) {
+export function CreateAnnouncementForm({ classrooms }: CreateAnnouncementFormProps) {
     const [open, setOpen] = useState(false);
     const formRef = useRef<HTMLFormElement>(null);
     const { toast } = useToast();
