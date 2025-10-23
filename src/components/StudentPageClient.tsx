@@ -95,29 +95,14 @@ export default function StudentPageClient({
         console.log('📨 [ELEVE] - Nouvelle invitation de session reçue:', data);
         setSessionInvitation(data);
         
+        // Notification toast simple et non-interactive
         toast({
-            title: '🎯 Nouvelle invitation de session !',
-            description: `${data.teacherName} vous invite à rejoindre une session vidéo.`,
-            duration: 10000,
-            action: (
-                <div className="flex gap-2">
-                    <Button 
-                        size="sm" 
-                        onClick={() => handleAcceptInvitation(data)}
-                    >
-                        Rejoindre
-                    </Button>
-                    <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => setSessionInvitation(null)}
-                    >
-                        Ignorer
-                    </Button>
-                </div>
-            ),
+            title: '🎯 Invitation de session reçue !',
+            description: `Le professeur ${data.teacherName} vous a invité(e).`,
+            duration: 5000, // Le toast disparaît après 5 secondes
         });
-    }, [toast, handleAcceptInvitation]);
+    }, [toast]);
+
     useEffect(() => {
         if (!student?.id) return;
     
