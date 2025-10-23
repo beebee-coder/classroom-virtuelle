@@ -76,7 +76,6 @@
   "prisma": {
     "seed": "tsx prisma/seed.ts",
     "binaryTargets": [
-      "native",
       "debian-openssl-3.0.x"
     ]
   }
