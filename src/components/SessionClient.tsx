@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import type { Instance as PeerInstance } from 'simple-peer';
-import SimplePeer from 'simple-peer';
+import * as SimplePeer from 'simple-peer';
 
 import { pusherClient } from '@/lib/pusher/client';
 import { useToast } from '@/hooks/use-toast';
@@ -120,7 +120,7 @@ export default function SessionClient({
 
   // ---=== 2. GESTION DES CONNEXIONS PEER-TO-PEER ===---
   const createPeer = (targetUserId: string, initiator: boolean, stream: MediaStream): PeerInstance => {
-    const peer = new SimplePeer({
+    const peer = new SimplePeer.default({
       initiator,
       trickle: false,
       stream,
@@ -139,7 +139,7 @@ export default function SessionClient({
   };
 
   const addPeer = (incomingSignal: any, callerId: string, stream: MediaStream): PeerInstance => {
-    const peer = new SimplePeer({
+    const peer = new SimplePeer.default({
       initiator: false,
       trickle: false,
       stream,
@@ -267,10 +267,6 @@ export default function SessionClient({
         const result = await endCoursSession(sessionId);
         if (result.success) {
             toast({ title: 'Session terminée', description: 'Vous allez être redirigé.' });
-            // Simulation de la redirection après un court délai pour que l'utilisateur voie le toast
-            setTimeout(() => {
-                router.push('/teacher/dashboard');
-            }, 1500);
         } else {
             throw new Error("L'action serveur a échoué.");
         }
@@ -320,7 +316,7 @@ export default function SessionClient({
             screenStream={screenStream}
             remoteParticipants={peers.map(p => ({ id: p.id, stream: p.peer.streams[0] }))}
             spotlightedUser={allSessionUsers.find(u => u.id === spotlightedParticipantId)}
-            allSessionUsers={allSessionUsers}
+            allSessionUsers={allSessionUsers as User[]}
             onlineUserIds={onlineUserIds}
             onSpotlightParticipant={onSpotlightParticipant}
             raisedHands={raisedHands}
