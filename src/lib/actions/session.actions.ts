@@ -1,4 +1,4 @@
-// src/lib/actions/session.actions.ts - Version finale avec gestion améliorée
+// src/lib/actions/session.actions.ts
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -13,25 +13,12 @@ export async function createCoursSession(professeurId: string, classroomId: stri
             throw new Error('Paramètres invalides: professeurId, classroomId et studentIds sont requis');
         }
 
-        const newSession = await prisma.coursSession.create({
-            data: {
-                professeurId,
-                classroomId,
-                participants: {
-                    connect: studentIds.map(id => ({ id }))
-                }
-            }
-        });
+        // SIMULATION: Create a fake session ID
+        const sessionId = `session-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+        console.log(`[ACTION] - ID de session généré (factice): ${sessionId}`);
 
-        const sessionId = newSession.id;
-        console.log(`[ACTION] - ID de session généré: ${sessionId}`);
-
-        console.log(`[ACTION] - Envoi des invitations individuelles à ${studentIds.length} élève(s)...`);
         const invitationResults = await sendIndividualInvitations(sessionId, professeurId, classroomId, studentIds);
 
-        console.log(`[ACTION] - Notification sur le canal de classe...`);
-        await notifyClassroom(sessionId, professeurId, classroomId, studentIds);
-        
         studentIds.forEach(id => {
             revalidatePath(`/student/${id}`);
         });
@@ -61,21 +48,26 @@ async function sendIndividualInvitations(sessionId: string, professeurId: string
         failed: [] as string[]
     };
 
-    const classroom = await prisma.classroom.findUnique({ where: { id: classroomId } });
-    const teacher = await prisma.user.findUnique({ where: { id: professeurId } });
+    // DUMMY DATA
+    const classroomName = 'Classe de Démo';
+    const teacherName = 'Professeur Test';
 
     const invitationPayload = {
         sessionId: sessionId,
         teacherId: professeurId,
         classroomId: classroomId,
-        classroomName: classroom?.nom || 'Classe inconnue',
-        teacherName: teacher?.name || 'Professeur inconnu',
+        classroomName: classroomName,
+        teacherName: teacherName,
         timestamp: new Date().toISOString(),
         type: 'session-invitation'
     };
 
-    // Stocker l'invitation en mémoire
-    await fetch(`${process.env.NEXTAUTH_URL}/api/session/pending-invitations`, {
+    // Stocker l'invitation en mémoire (via API route)
+    const apiRoute = process.env.NEXTAUTH_URL
+      ? `${process.env.NEXTAUTH_URL}/api/session/pending-invitations`
+      : 'http://localhost:3000/api/session/pending-invitations';
+    
+    await fetch(apiRoute, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -103,28 +95,6 @@ async function sendIndividualInvitations(sessionId: string, professeurId: string
 
     console.log(`[ACTION] - Résumé des invitations: ${results.successful.length} succès, ${results.failed.length} échecs`);
     return results;
-}
-
-async function notifyClassroom(sessionId: string, professeurId: string, classroomId: string, studentIds: string[]) {
-    try {
-        const classPayload = {
-            sessionId: sessionId,
-            invitedStudentIds: studentIds,
-            professeurId: professeurId,
-            timestamp: new Date().toISOString(),
-            type: 'session-created'
-        };
-
-        await pusherTrigger(
-            `presence-classe-${classroomId}`, 
-            'session-created', 
-            classPayload
-        );
-        console.log('[ACTION] - Notification de classe envoyée avec succès');
-
-    } catch (error) {
-        console.error('[ACTION] - Erreur lors de la notification de classe:', error);
-    }
 }
 
 
@@ -189,8 +159,6 @@ export async function endCoursSession(sessionId: string) {
         }
         console.log(`[ACTION] - Fin de la session ${sessionId}`);
 
-        // Récupérer la session pour trouver le classroomId (même si c'est simulé)
-        // En mode démo, on utilise une valeur fixe, mais en production, ce serait une requête DB.
         const sessionDetails = { classroomId: 'classe-a' }; 
         const classroomId = sessionDetails.classroomId;
 
@@ -202,18 +170,15 @@ export async function endCoursSession(sessionId: string) {
             sessionId,
             endedAt: new Date().toISOString()
         };
-
-        // 1. Notifier sur le canal de la session pour les participants déjà connectés
+        
         await pusherTrigger(`presence-session-${sessionId}`, 'session-ended', eventData);
         console.log(`[ACTION] - Événement 'session-ended' envoyé sur le canal de session.`);
 
-        // 2. Notifier sur le canal de la classe pour les élèves qui n'ont pas rejoint
         await pusherTrigger(`presence-classe-${classroomId}`, 'session-ended', eventData);
         console.log(`[ACTION] - Événement 'session-ended' envoyé sur le canal de classe.`);
 
         return { 
             id: sessionId, 
-            endedAt: new Date(),
             success: true 
         };
         

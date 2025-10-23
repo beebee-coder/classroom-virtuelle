@@ -264,13 +264,23 @@ export default function SessionClient({
     if (currentUserRole !== 'PROFESSEUR') return;
     setIsEndingSession(true);
     try {
-      await endCoursSession(sessionId);
+        const result = await endCoursSession(sessionId);
+        if (result.success) {
+            toast({ title: 'Session terminée', description: 'Vous allez être redirigé.' });
+            // Simulation de la redirection après un court délai pour que l'utilisateur voie le toast
+            setTimeout(() => {
+                router.push('/teacher/dashboard');
+            }, 1500);
+        } else {
+            throw new Error("L'action serveur a échoué.");
+        }
     } catch (error) {
-      toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de terminer la session.' });
+        toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de terminer la session.' });
     } finally {
-      setIsEndingSession(false);
+        setIsEndingSession(false);
     }
-  }, [currentUserRole, sessionId, toast]);
+}, [currentUserRole, sessionId, toast, router]);
+
 
   const handleLeaveSession = useCallback(() => {
     console.log('🚪 [CLIENT] - Départ de la session demandé');
