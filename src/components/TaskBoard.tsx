@@ -1,4 +1,3 @@
-
 // src/components/TaskBoard.tsx
 'use client';
 
@@ -8,12 +7,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Check, CheckCircle, Clock, FileUp, Loader2, KeyRound } from 'lucide-react';
-import { ProgressStatus, Task, TaskType, TaskCategory, TaskDifficulty, ValidationType, StudentProgress } from '@/lib/types';
 import { completeTask } from '@/lib/actions/task.actions';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { CloudinaryUploadWidget } from './CloudinaryUploadWidget';
-import { AppTask } from '@/lib/types';
+import { AppTask, StudentProgress, Task, TaskType, ProgressStatus } from '@/lib/types';
 
 
 interface TaskBoardProps {
@@ -22,7 +20,7 @@ interface TaskBoardProps {
   studentId: string;
 }
 
-const taskTypeOrder: TaskType[] = [TaskType.DAILY, TaskType.WEEKLY, TaskType.MONTHLY];
+const taskTypeOrder = [TaskType.DAILY, TaskType.WEEKLY, TaskType.MONTHLY];
 const taskTypeTranslations: Record<TaskType, string> = {
   [TaskType.DAILY]: 'Quotidien',
   [TaskType.WEEKLY]: 'Hebdomadaire',
@@ -97,9 +95,9 @@ export function TaskBoard({ tasks, studentProgress, studentId }: TaskBoardProps)
   const getTaskStatus = (task: Task) => {
     const progress = progressMap.get(task.id);
     if (progress) {
-      if (progress.status === 'VERIFIED') return 'validated';
-      if (progress.status === 'PENDING_VALIDATION') return 'pending';
-      if (progress.status === 'REJECTED') return 'rejected';
+      if (progress.status === ProgressStatus.VERIFIED) return 'validated';
+      if (progress.status === ProgressStatus.PENDING_VALIDATION) return 'pending';
+      if (progress.status === ProgressStatus.REJECTED) return 'rejected';
     }
     return 'todo';
   };
@@ -169,7 +167,7 @@ export function TaskBoard({ tasks, studentProgress, studentId }: TaskBoardProps)
   };
 
   return (
-    <Tabs defaultValue={'DAILY'} className="w-full">
+    <Tabs defaultValue={TaskType.DAILY} className="w-full">
       <TabsList className="grid w-full grid-cols-3">
         {taskTypeOrder.map((type) => (
           <TabsTrigger key={type} value={type}>
