@@ -3,7 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import { getAuthSession } from '@/lib/session';
 import SessionClient from '@/components/SessionClient';
 import { Suspense } from 'react';
-import { User } from '@/lib/types';
+import { User, Role } from '@/lib/types';
 import { allDummyStudents } from '@/lib/dummy-data';
 
 // Composant de chargement simple
@@ -95,7 +95,7 @@ export default async function SessionPage({ params }: { params: { id: string } }
                 sessionId={params.id}
                 initialStudents={students as any[]}
                 initialTeacher={teacher}
-                currentUserRole={currentUserRole}
+                currentUserRole={currentUserRole as Role}
                 currentUserId={currentUserId}
             />
         </Suspense>

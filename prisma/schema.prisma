@@ -14,6 +14,21 @@ generator client {
 // Modèles de données
 // ==================================
 
+// Dans le modèle Classroom, modifiez comme suit :
+model Classroom {
+  id           String         @id @default(cuid())
+  nom          String
+  professeurId String
+  professeur   User           @relation("ClassProfesseurs", fields: [professeurId], references: [id])
+  eleves       User[]         @relation("ClassEleves")
+  announcements Announcement[]
+  messages     Message[]
+  sessions     CoursSession[]
+
+  @@index([professeurId])
+}
+
+// Dans le modèle User, AJOUTEZ ces champs :
 model User {
   id               String        @id @default(cuid())
   name             String?
@@ -26,9 +41,16 @@ model User {
   points           Int           @default(0)
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
+  
+  // Relations
   classeId         String?
-  classe           Classroom?    @relation(fields: [classeId], references: [id])
+  classe           Classroom?    @relation("ClassEleves", fields: [classeId], references: [id])
   etat             EtatEleve?
+  
+  // AJOUT: Relations opposées pour Classroom et CoursSession
+  classesEnseignees Classroom[]  @relation("ClassProfesseurs") // ← AJOUT
+  sessionsEnseignees CoursSession[] // ← AJOUT
+  
   sessionsParticipees CoursSession[] @relation("Participants")
   announcements    Announcement[]
   messages         Message[]
@@ -39,19 +61,6 @@ model User {
   conversationsAsReceiver  Conversation[] @relation("Receiver")
 
   @@index([classeId])
-}
-
-model Classroom {
-  id           String         @id @default(cuid())
-  nom          String
-  professeurId String
-  professeur   User           @relation(fields: [professeurId], references: [id])
-  eleves       User[]
-  announcements Announcement[]
-  messages     Message[]
-  sessions     CoursSession[]
-
-  @@index([professeurId])
 }
 
 model Metier {
@@ -74,11 +83,10 @@ model EtatEleve {
   @@index([metierId])
 }
 
-
 model CoursSession {
   id              String   @id @default(cuid())
   professeurId    String
-  professeur      User     @relation(fields: [professeurId], references: [id])
+  professeur      User     @relation(fields: [professeurId], references: [id]) // Cette relation doit avoir un champ opposé dans User
   classroomId     String?
   classe          Classroom? @relation(fields: [classroomId], references: [id])
   createdAt       DateTime @default(now())

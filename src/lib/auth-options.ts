@@ -28,11 +28,6 @@ const providers: NextAuthOptions['providers'] = [
         return null;
       }
       
-      // Ensure the role is of the expected type
-      if (user.role !== 'PROFESSEUR' && user.role !== 'ELEVE') {
-        return null;
-      }
-      
       // This is for demo purposes only. In a real application,
       // you would hash and compare passwords.
       const isValid = credentials.password === 'password';
@@ -43,7 +38,7 @@ const providers: NextAuthOptions['providers'] = [
           name: user.name,
           email: user.email,
           image: user.image,
-          role: user.role,
+          role: user.role as Role,
           classeId: user.classeId || undefined,
         };
       }

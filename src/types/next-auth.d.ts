@@ -1,8 +1,6 @@
 // src/types/next-auth.d.ts
 import type { DefaultSession, User } from 'next-auth';
-
-// Use a string literal union type for Role
-type Role = 'PROFESSEUR' | 'ELEVE';
+import { Role } from '@/lib/types'; // Importer depuis la source unique
 
 declare module 'next-auth' {
   /**
