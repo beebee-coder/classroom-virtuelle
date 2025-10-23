@@ -74,6 +74,9 @@ export enum ProgressStatus {
     REJECTED = 'REJECTED'
 }
 
+export type SessionParticipant = Pick<User, 'id' | 'name' | 'role'>;
+
+
 /**
  * Type pour un élève avec son état actuel et le métier choisi.
  * Inclut les relations vers la classe, la progression des tâches et les sessions.

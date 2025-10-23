@@ -3,7 +3,7 @@
 
 import { Hand, Smile, Meh, Frown } from 'lucide-react';
 import { Participant } from '@/components/Participant';
-import { User, Role } from '@/lib/types';
+import { User, Role, SessionParticipant } from '@/lib/types';
 import { Button } from '../ui/button';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -14,7 +14,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/
 
 type UnderstandingStatus = 'understood' | 'confused' | 'lost' | 'none';
 
-type SessionParticipant = User & { role: Role };
 
 interface StudentSessionViewProps {
     sessionId: string;

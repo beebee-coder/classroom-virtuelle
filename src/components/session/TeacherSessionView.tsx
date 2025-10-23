@@ -3,7 +3,7 @@
 
 import { useSession } from 'next-auth/react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { User, Role } from '@/lib/types';
+import { User, Role, SessionParticipant } from '@/lib/types';
 import { Participant } from '@/components/Participant';
 import { StudentPlaceholder } from '../StudentPlaceholder';
 import { HandRaiseController } from '../HandRaiseController';
@@ -13,8 +13,6 @@ import { Card } from '../ui/card';
 import { ParticipantList } from './ParticipantList';
 
 type UnderstandingStatus = 'understood' | 'confused' | 'lost' | 'none';
-
-type SessionParticipant = User & { role: Role };
 
 export function TeacherSessionView({
     sessionId,

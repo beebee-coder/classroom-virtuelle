@@ -9,7 +9,7 @@ import SimplePeer from 'simple-peer';
 
 import { pusherClient } from '@/lib/pusher/client';
 import { useToast } from '@/hooks/use-toast';
-import { User, Role } from '@/lib/types';
+import { User, Role, SessionParticipant } from '@/lib/types';
 import SessionLoading from './SessionLoading';
 import { TeacherSessionView } from './session/TeacherSessionView';
 import { StudentSessionView } from './session/StudentSessionView';
@@ -54,7 +54,7 @@ export default function SessionClient({
   const [understandingStatus, setUnderstandingStatus] = useState<Map<string, UnderstandingStatus>>(new Map());
   const [isEndingSession, setIsEndingSession] = useState(false);
   
-  const allSessionUsers = [initialTeacher, ...initialStudents];
+  const allSessionUsers: SessionParticipant[] = [initialTeacher, ...initialStudents];
   const peersRef = useRef<PeerData[]>([]);
   const screenPeerRef = useRef<PeerInstance | null>(null);
 
@@ -95,7 +95,7 @@ export default function SessionClient({
       toast({ title: 'Partage d\'écran arrêté' });
     } else {
       try {
-        const stream = await navigator.mediaDevices.getDisplayMedia({ cursor: true });
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
         setScreenStream(stream);
         toast({ title: 'Partage d\'écran activé' });
       } catch (error) {
