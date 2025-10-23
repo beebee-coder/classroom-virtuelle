@@ -46,10 +46,12 @@ export function UnderstandingTracker({ students, understandingStatus }: Understa
 
 
   const getStatusCounts = () => {
-    const counts = { understood: 0, confused: 0, lost: 0, none: 0 };
+    const counts: Record<UnderstandingStatus, number> = { understood: 0, confused: 0, lost: 0, none: 0 };
     students.forEach(student => {
       const status = understandingStatus.get(student.id) || 'none';
-      counts[status]++;
+      if (counts[status] !== undefined) {
+        counts[status]++;
+      }
     });
     return counts;
   };
@@ -72,9 +74,11 @@ export function UnderstandingTracker({ students, understandingStatus }: Understa
                         {Object.entries(counts).map(([key, value]) => {
                             if (key === 'none') return null;
                             const config = statusConfig[key as keyof typeof statusConfig];
+                            if (!config) return null; // Safety check
+                            const Icon = config.icon;
                             return (
                             <div key={key} className="flex flex-col items-center">
-                                <config.icon className={cn("h-6 w-6 mb-1", config.color)} />
+                                <Icon className={cn("h-6 w-6 mb-1", config.color)} />
                                 <span className="font-bold text-lg">{value}</span>
                             </div>
                             );
