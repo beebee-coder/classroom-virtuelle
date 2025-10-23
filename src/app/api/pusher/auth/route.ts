@@ -21,11 +21,10 @@ export async function POST(request: Request) {
     const channel = body.get('channel_name') as string;
     console.log(`📡 [PUSHER AUTH] - Infos reçues: socketId=${socketId}, channel=${channel}`);
 
-    // CORRECTION : La structure correcte pour les canaux de présence Pusher
-    // utilise 'id' et non 'user_id'.
+    // CORRECTION : Structure correcte pour les canaux de présence Pusher
     const userData = {
-      id: userId,          // ← 'id' au lieu de 'user_id'
-      user_info: {         // ← 'user_info' pour les données supplémentaires
+      id: userId,        // ← 'id' au lieu de 'user_id'
+      user_info: {      // ← 'user_info' pour les données supplémentaires
         name: userName,
         role: userRole,
       },
