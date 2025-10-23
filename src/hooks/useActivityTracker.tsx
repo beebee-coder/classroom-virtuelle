@@ -10,13 +10,15 @@ import type { PresenceChannel } from 'pusher-js';
  * à un canal de présence Pusher pour sa classe.
  * @param userId - L'ID de l'utilisateur actuel.
  * @param classroomId - L'ID de la classe de l'utilisateur.
+ * @param enabled - Un booléen pour activer ou désactiver le hook.
  */
-export const useActivityTracker = (userId?: string, classroomId?: string) => {
+export const useActivityTracker = (userId?: string, classroomId?: string, enabled: boolean = true) => {
   const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
 
   useEffect(() => {
-    if (!userId || !classroomId) {
-      console.log('🕵️ [PRESENCE ÉLÈVE] - Conditions non remplies pour l\'abonnement.', { userId, classroomId });
+    // Ne pas exécuter le hook si il n'est pas activé ou si les infos sont manquantes
+    if (!enabled || !userId || !classroomId) {
+      console.log('🕵️ [PRESENCE HOOK] - En attente des informations de session ou désactivé.', { enabled, userId, classroomId });
       return;
     }
 
@@ -53,14 +55,14 @@ export const useActivityTracker = (userId?: string, classroomId?: string) => {
       console.error(`❌ [PRESENCE ÉLÈVE] - Erreur critique lors de la tentative d'abonnement:`, error);
     }
 
-    // Se désabonner du canal lorsque le composant est démonté
+    // Se désabonner du canal lorsque le composant est démonté ou si le hook est désactivé
     return () => {
         if (channel) {
             console.log(`🔚 [PRESENCE ÉLÈVE] - Désabonnement du canal ${channelName}`);
             pusherClient.unsubscribe(channelName);
         }
     };
-  }, [userId, classroomId]);
+  }, [userId, classroomId, enabled]); // ré-exécuter si enabled, userId ou classroomId changent
 
   return { onlineUsers };
 };

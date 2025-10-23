@@ -10,12 +10,13 @@ export default function StudentLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { data: session } = useSession();
-  const userId = session?.user?.id;
-  const classroomId = session?.user?.classeId;
+  const { data: session, status } = useSession();
+  
+  // Le hook ne doit être actif que si l'utilisateur est authentifié.
+  const isEnabled = status === 'authenticated' && !!session?.user?.id && !!session?.user?.classeId;
 
   // Active le suivi de présence pour l'élève connecté
-  useActivityTracker(userId, classroomId);
+  useActivityTracker(session?.user?.id, session?.user?.classeId, isEnabled);
 
   return <>{children}</>;
 }
