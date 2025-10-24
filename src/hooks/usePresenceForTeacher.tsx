@@ -1,7 +1,7 @@
 // src/hooks/usePresenceForTeacher.tsx
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { pusherClient } from '@/lib/pusher/client';
 import type { PresenceChannel, Members } from 'pusher-js';
 
@@ -21,79 +21,99 @@ export const usePresenceForTeacher = (
   const [error, setError] = useState<string | null>(null);
   
   const channelRef = useRef<PresenceChannel | null>(null);
-  const isSubscribedRef = useRef(false);
-
-  const cleanupSubscription = useCallback((channelName?: string) => {
-    if (channelRef.current) {
-      try {
-        channelRef.current.unbind_all();
-        channelRef.current = null;
-      } catch (err) {
-        console.warn('Erreur lors du nettoyage du canal:', err);
-      }
-    }
-    
-    if (channelName) {
-      try {
-        pusherClient.unsubscribe(channelName);
-      } catch (err) {
-        console.warn('Erreur lors du désabonnement:', err);
-      }
-    }
-    
-    isSubscribedRef.current = false;
-    setIsConnected(false);
-    setOnlineUsers([]);
-  }, []);
 
   useEffect(() => {
+    // Validation des paramètres et de l'état "enabled"
     if (!enabled || !userId || !classroomId) {
-      cleanupSubscription();
+      if (channelRef.current) {
+        console.log('🔚 [PRESENCE PROF] - Désactivation, nettoyage du canal existant.');
+        pusherClient.unsubscribe(channelRef.current.name);
+        channelRef.current = null;
+        setIsConnected(false);
+        setOnlineUsers([]);
+      }
       return;
     }
 
     const channelName = `presence-class-${classroomId}`;
 
-    if (isSubscribedRef.current && channelRef.current?.name === channelName) {
+    // Éviter les doubles abonnements si le canal n'a pas changé
+    if (channelRef.current?.name === channelName && isConnected) {
+      console.log('⏭️ [PRESENCE PROF] - Déjà abonné et connecté, ignoré.');
       return;
     }
 
+    console.log(`🕵️ [PRESENCE PROF] - Tentative d'abonnement au canal: ${channelName}`);
+
     try {
+      // Nettoyer l'ancien canal avant de s'abonner à un nouveau
+      if (channelRef.current) {
+        pusherClient.unsubscribe(channelRef.current.name);
+      }
+      
       const channel = pusherClient.subscribe(channelName) as PresenceChannel;
       channelRef.current = channel;
-      isSubscribedRef.current = true;
-      setError(null);
 
-      channel.bind('pusher:subscription_succeeded', (data: { members: Members }) => {
+      const handleSubscriptionSucceeded = (data: { members: Members }) => {
+        console.log(`✅ [PRESENCE PROF] - Abonnement réussi au canal ${channelName}`);
         setIsConnected(true);
+        setError(null);
+        
         const userList = Object.keys(data.members || {});
-        setOnlineUsers(userList);
-      });
+        const otherUsers = userList.filter(id => id !== userId);
+        setOnlineUsers(otherUsers);
+        console.log(`📊 [PRESENCE PROF] - Élèves actuellement en ligne:`, otherUsers);
+      };
 
-      channel.bind('pusher:member_added', (member: { id: string }) => {
-        setOnlineUsers(prev => [...prev.filter(id => id !== member.id), member.id]);
-      });
-
-      channel.bind('pusher:member_removed', (member: { id: string }) => {
-        setOnlineUsers(prev => prev.filter(id => id !== member.id));
-      });
-
-      channel.bind('pusher:subscription_error', (status: any) => {
-        setError(`Erreur d'abonnement: ${status?.message || 'Erreur inconnue'}`);
-        setIsConnected(false);
-      });
-
-      return () => {
-        if (channel) {
-          channel.unbind_all();
+      const handleMemberAdded = (member: { id: string }) => {
+        if (member.id !== userId) {
+          console.log(`➕ [PRESENCE PROF] - Nouvel élève connecté:`, member.id);
+          setOnlineUsers(prev => {
+            if (!prev.includes(member.id)) {
+              return [...prev, member.id];
+            }
+            return prev;
+          });
         }
       };
 
-    } catch (error) {
-      setError(`Erreur de connexion: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+      const handleMemberRemoved = (member: { id: string }) => {
+        console.log(`➖ [PRESENCE PROF] - Élève déconnecté:`, member.id);
+        setOnlineUsers(prev => prev.filter(id => id !== member.id));
+      };
+
+      const handleSubscriptionError = (status: any) => {
+        console.error(`❌ [PRESENCE PROF] - Erreur d'abonnement au canal ${channelName}:`, status);
+        setError('Erreur de connexion au service de présence');
+        setIsConnected(false);
+      };
+
+      // Lier les événements
+      channel.bind('pusher:subscription_succeeded', handleSubscriptionSucceeded);
+      channel.bind('pusher:member_added', handleMemberAdded);
+      channel.bind('pusher:member_removed', handleMemberRemoved);
+      channel.bind('pusher:subscription_error', handleSubscriptionError);
+
+      return () => {
+        console.log(`🔚 [PRESENCE PROF] - Nettoyage des écouteurs et désabonnement du canal ${channelName}`);
+        if (channelRef.current) {
+          // Utiliser un try-catch pour le nettoyage car les unbind peuvent échouer si le canal est déjà fermé
+          try {
+            channelRef.current.unbind_all();
+            pusherClient.unsubscribe(channelName);
+          } catch(e) {
+            console.warn(`⚠️ [PRESENCE PROF] - Avertissement lors du nettoyage du canal ${channelName}:`, e)
+          }
+          channelRef.current = null;
+        }
+      };
+
+    } catch (err) {
+      console.error('💥 [PRESENCE PROF] - Erreur critique lors de l\'initialisation de Pusher:', err);
+      setError('Erreur critique de connexion');
       setIsConnected(false);
     }
-  }, [userId, classroomId, enabled, cleanupSubscription]);
+  }, [userId, classroomId, enabled, isConnected]); // isConnected ajouté pour retenter la connexion si elle échoue
 
   return { 
     onlineUsers, 

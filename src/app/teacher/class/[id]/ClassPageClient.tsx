@@ -1,7 +1,7 @@
 // src/app/teacher/class/[id]/ClassPageClient.tsx - Version avec invitations
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -34,8 +34,21 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
     const { toast } = useToast();
 
     // Utilisation du nouveau hook pour gérer la présence
-    const { onlineUsers: onlineStudents, isConnected, error: presenceError } = usePresenceForTeacher(teacher.id, classroom.id);
-    console.log('  Utilisateurs en ligne détectés:', onlineStudents);
+    const { onlineUsers: onlineStudents, isConnected, error: presenceError } = usePresenceForTeacher(
+        teacher.id, 
+        classroom.id
+    );
+
+    useEffect(() => {
+        console.log('👨‍🏫 [PRESENCE PROF] - Statut:', { 
+          onlineUsers: onlineStudents, 
+          isConnected, 
+          error: presenceError,
+          userId: teacher.id,
+          classroomId: classroom.id 
+        });
+      }, [onlineStudents, isConnected, presenceError, teacher.id, classroom.id]);
+
 
     // Afficher une erreur si la connexion de présence échoue
     if (presenceError) {
