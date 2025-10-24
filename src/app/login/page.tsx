@@ -24,8 +24,7 @@ function LoginFormComponent() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
-
+  
   useEffect(() => {
     if (errorParam === 'CredentialsSignin') {
       setError("Identifiants incorrects. Vérifiez l'email et le mot de passe (le mot de passe par défaut est 'password').");
@@ -50,16 +49,12 @@ function LoginFormComponent() {
     if (result?.error) {
       setError("Identifiants incorrects. Assurez-vous d'utiliser les comptes de démo (ex: teacher@example.com ou ahmed0@example.com avec le mot de passe 'password').");
     } else if (result?.ok) {
-      // La redirection sera gérée par le rechargement de la page
-      // ou une redirection serveur si l'utilisateur est déjà sur une page protégée.
-      // Forcer une redirection vers la racine pour déclencher la logique de redirection serveur.
       router.push('/');
-      router.refresh(); // S'assurer que l'état du serveur est mis à jour
+      router.refresh();
     }
   };
 
-  const handleRoleSelection = (role: Role) => {
-    setSelectedRole(role);
+  const handleDemoFill = (role: Role) => {
     setError('');
     if (role === 'PROFESSEUR') {
         setEmail('teacher@example.com');
@@ -128,13 +123,13 @@ function LoginFormComponent() {
 
           {/* Sélecteur de rôle pour pré-remplir les champs pour la démo */}
           <div className="space-y-2 pt-2">
-            <p className="text-center text-xs text-muted-foreground">Pour la démo, choisissez un rôle pour pré-remplir :</p>
+            <p className="text-center text-xs text-muted-foreground">Pour la démo, cliquez pour pré-remplir :</p>
             <div className="grid grid-cols-2 gap-2">
-              <Button type="button" variant={selectedRole === 'PROFESSEUR' ? 'default' : 'outline'} onClick={() => handleRoleSelection('PROFESSEUR')}>
-                Professeur
+              <Button type="button" variant="outline" onClick={() => handleDemoFill('PROFESSEUR')}>
+                En tant que Professeur
               </Button>
-              <Button type="button" variant={selectedRole === 'ELEVE' ? 'default' : 'outline'} onClick={() => handleRoleSelection('ELEVE')}>
-                Élève
+              <Button type="button" variant="outline" onClick={() => handleDemoFill('ELEVE')}>
+                En tant qu'Élève
               </Button>
             </div>
           </div>
