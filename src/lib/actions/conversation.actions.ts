@@ -2,7 +2,7 @@
 'use server';
 
 import { pusherTrigger } from '@/lib/pusher/server';
-import type { Conversation, Message, Reaction, User } from '@prisma/client';
+import type { Conversation, Message, Reaction, User } from '../types';
 
 type ReactionWithUser = Reaction & { user: Pick<User, 'id' | 'name'> };
 export type MessageWithReactions = Message & {

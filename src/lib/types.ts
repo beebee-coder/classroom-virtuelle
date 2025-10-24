@@ -1,4 +1,4 @@
-// src/lib/types.ts - Version sans Prisma
+// src/lib/types.ts - Version avec Prisma
 
 // Définir manuellement les enums car Prisma est supprimé
 export enum Role {
