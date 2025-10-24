@@ -132,7 +132,7 @@ export async function getSessionDetails(sessionId: string) {
         }
 
         const students = session.participants
-            .filter((p: User) => p.role === Role.ELEVE);
+            .filter((p) => p.role === Role.ELEVE);
 
         console.log('✅ [ACTION SESSION DETAILS] - Détails de session récupérés.');
         return {
