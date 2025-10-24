@@ -22,10 +22,18 @@ export default async function ClassPage({ params }: { params: { id: string } }) 
       redirect('/login');
   }
 
-  const user = session.user;
+  // Fetch the full teacher user object from the database
+  const teacher = await prisma.user.findUnique({
+    where: { id: session.user.id }
+  });
+  
+  if (!teacher) {
+      console.error("Teacher not found in database, redirecting to login.");
+      redirect('/login');
+  }
 
   const classroom = await prisma.classroom.findUnique({
-    where: { id: classroomId, professeurId: user.id },
+    where: { id: classroomId, professeurId: teacher.id },
     include: {
       eleves: {
         include: {
@@ -48,5 +56,5 @@ export default async function ClassPage({ params }: { params: { id: string } }) 
 
   const announcements = await getClassAnnouncements(classroom.id) as AnnouncementWithAuthor[];
   
-  return <ClassPageClient classroom={classroom as ClassroomWithStudentsAndPunishment} teacher={user} announcements={announcements} />;
+  return <ClassPageClient classroom={classroom as ClassroomWithStudentsAndPunishment} teacher={teacher} announcements={announcements} />;
 }
