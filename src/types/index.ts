@@ -11,11 +11,6 @@ import { TLStoreSnapshot } from "@tldraw/tldraw";
     info?: any;
   }
   
-  export  interface PusherMembers {
-    members: Record<string, PusherMember>;
-    count: number;
-  }
-  
   export  interface PusherSubscriptionSucceededEvent {
     members: Record<string, PusherMember>;
     count: number;
@@ -75,7 +70,6 @@ import { TLStoreSnapshot } from "@tldraw/tldraw";
   export  interface PeerData {
     id: string;
     peer: PeerInstance;
-    isConnected: boolean;
   }
   
   export  interface RemoteParticipant {

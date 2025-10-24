@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Instance as PeerInstance, SignalData as PeerSignalData } from 'simple-peer';
-import * as SimplePeer from 'simple-peer';
+import SimplePeer from 'simple-peer';
 
 import { pusherClient } from '@/lib/pusher/client';
 import { useToast } from '@/hooks/use-toast';
@@ -36,7 +36,7 @@ export default function SessionClient({
   const [loading, setLoading] = useState<boolean>(true);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
-  const [peers, setPeers] = useState<PeerData[]>([]);
+  const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
   const [spotlightedParticipantId, setSpotlightedParticipantId] = useState<string | null>(initialTeacher?.id || null);
   
@@ -57,15 +57,13 @@ export default function SessionClient({
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   const allSessionUsers: SessionParticipant[] = [initialTeacher, ...initialStudents];
-  const peersRef = useRef<PeerData[]>([]);
+  const peersRef = useRef<Map<string, PeerInstance>>(new Map());
   const screenPeerRef = useRef<PeerInstance | null>(null);
-  const channelRef = useRef<any>(null);
-  const isProcessingSignalRef = useRef<Set<string>>(new Set());
-  const pendingSignalsRef = useRef<Map<string, PeerSignalData[]>>(new Map());
-
+  
   // ---=== 1. GESTION DES FLUX MÉDIAS ===---
   useEffect(() => {
     const getMedia = async (): Promise<void> => {
+      console.log('🎬 [MEDIA] - Demande d\'accès à la caméra et au microphone...');
       try {
         const stream: MediaStream = await navigator.mediaDevices.getUserMedia({ 
           video: { width: 1280, height: 720 },
@@ -80,7 +78,6 @@ export default function SessionClient({
           title: 'Erreur Média',
           description: 'Impossible d\'accéder à votre caméra et/ou microphone.'
         });
-        setLoading(false);
       } finally {
         setLoading(false);
       }
@@ -88,12 +85,9 @@ export default function SessionClient({
     getMedia();
 
     return (): void => {
-      localStream?.getTracks().forEach(track => {
-        track.stop();
-      });
-      screenStream?.getTracks().forEach(track => {
-        track.stop();
-      });
+      console.log('🛑 [MEDIA] - Nettoyage des flux médias.');
+      localStream?.getTracks().forEach(track => track.stop());
+      screenStream?.getTracks().forEach(track => track.stop());
     };
   }, []);
 
@@ -136,25 +130,23 @@ export default function SessionClient({
     try {
       await fetch('/api/pusher/signal', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
     } catch (error) {
-      console.error('❌ [SIGNAL] - Erreur d\'envoi du signal:', error);
+      console.error('❌ [SIGNAL] - Erreur d\'envoi du signal via API:', error);
     }
   }
 
-  // ---=== 2. GESTION DES CONNEXIONS PEER-TO-PEER CORRIGÉE ===---
-  const createPeer = (targetUserId: string, initiator: boolean, stream: MediaStream): PeerInstance => {
+  // ---=== 2. GESTION DES CONNEXIONS PEER-TO-PEER ===---
+  const createPeer = useCallback((targetUserId: string, initiator: boolean): PeerInstance => {
     console.log(`🤝 [PEER] - Création d'un peer pour ${targetUserId}. Initiateur: ${initiator}`);
     
-    const peer: PeerInstance = new SimplePeer.default({
+    const peer = new SimplePeer({
       initiator,
       trickle: false,
-      stream: stream || undefined,
-      config: {
+      stream: localStream ?? undefined,
+       config: {
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
           { urls: 'stun:global.stun.twilio.com:3478' }
@@ -163,7 +155,7 @@ export default function SessionClient({
     });
 
     peer.on('signal', (signal: PeerSignalData) => {
-      console.log(`📤 [PEER] - Envoi du signal de ${currentUserId} vers ${targetUserId}`);
+      console.log(`📤 [PEER] -> Envoi du signal de ${currentUserId} vers ${targetUserId}`);
       signalViaAPI({
         channelName: `presence-session-${sessionId}`,
         userId: currentUserId,
@@ -173,275 +165,91 @@ export default function SessionClient({
       });
     });
 
-    peer.on('connect', () => {
-      console.log(`🔗 [PEER] - Connexion établie avec ${targetUserId}`);
-      setPeers(prev => prev.map(p => 
-        p.id === targetUserId ? { ...p, isConnected: true } : p
-      ));
-      peersRef.current = peersRef.current.map(p => 
-        p.id === targetUserId ? { ...p, isConnected: true } : p
-      );
+    peer.on('stream', (remoteStream: MediaStream) => {
+      console.log(`📹 [PEER] <- Flux vidéo reçu de ${targetUserId}`);
+      setRemoteStreams(prev => new Map(prev).set(targetUserId, remoteStream));
     });
 
-    peer.on('error', (error: Error) => {
-      console.error(`❌ [PEER] - Erreur avec le peer ${targetUserId}:`, error);
+    peer.on('error', (err: Error) => {
+      console.error(`❌ [PEER] - Erreur de connexion avec ${targetUserId}:`, err);
+      // Optionnel: tenter de recréer la connexion
     });
 
     peer.on('close', () => {
       console.log(`🔒 [PEER] - Connexion fermée avec ${targetUserId}`);
-      setPeers(prev => prev.filter(p => p.id !== targetUserId));
-      peersRef.current = peersRef.current.filter(p => p.id !== targetUserId);
-      pendingSignalsRef.current.delete(targetUserId);
-    });
-
-    peer.on('stream', (remoteStream: MediaStream) => {
-      console.log(`📹 [PEER] - Flux distant reçu de ${targetUserId}`);
-    });
-
-    return peer;
-  };
-
-  const addPeer = (incomingSignal: PeerSignalData, callerId: string, stream: MediaStream): PeerInstance => {
-    console.log(`📥 [PEER] - Ajout d'un peer pour répondre à ${callerId}`);
-    
-    const peer: PeerInstance = new SimplePeer.default({
-      initiator: false,
-      trickle: false,
-      stream: stream || undefined,
-      config: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:global.stun.twilio.com:3478' }
-        ]
-      }
-    });
-    
-    peer.on('signal', (signal: PeerSignalData) => {
-      console.log(`✅ [PEER] - Envoi du signal de retour de ${currentUserId} à ${callerId}`);
-      signalViaAPI({
-        channelName: `presence-session-${sessionId}`,
-        userId: currentUserId,
-        target: callerId,
-        signal,
-        isReturnSignal: true,
+      peersRef.current.delete(targetUserId);
+      setRemoteStreams(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(targetUserId);
+        return newMap;
       });
     });
-
-    peer.on('connect', () => {
-      console.log(`🔗 [PEER] - Connexion réponse établie avec ${callerId}`);
-      setPeers(prev => prev.map(p => 
-        p.id === callerId ? { ...p, isConnected: true } : p
-      ));
-      peersRef.current = peersRef.current.map(p => 
-        p.id === callerId ? { ...p, isConnected: true } : p
-      );
-    });
-
-    peer.on('error', (error: Error) => {
-      console.error(`❌ [PEER] - Erreur avec le peer réponse ${callerId}:`, error);
-    });
-
-    peer.on('stream', (remoteStream: MediaStream) => {
-      console.log(`📹 [PEER] - Flux distant reçu de ${callerId}`);
-    });
-
-    setTimeout(() => {
-      try {
-        console.log(`🎯 [PEER] - Application du signal initial à ${callerId}`);
-        peer.signal(incomingSignal);
-      } catch (error) {
-        console.error(`❌ [PEER] - Erreur lors de l'application du signal initial à ${callerId}:`, error);
-      }
-    }, 500);
     
     return peer;
-  };
+  }, [localStream, currentUserId, sessionId]);
 
-  const processPendingSignals = (userId: string, peer: PeerInstance): void => {
-    const pending = pendingSignalsRef.current.get(userId);
-    if (pending && pending.length > 0) {
-      console.log(`📨 [SIGNAL] - Traitement de ${pending.length} signaux en attente pour ${userId}`);
-      pending.forEach(signal => {
-        try {
-          peer.signal(signal);
-        } catch (error) {
-          console.error(`❌ [SIGNAL] - Erreur lors de l'application du signal en attente:`, error);
-        }
-      });
-      pendingSignalsRef.current.delete(userId);
-    }
-  };
 
-  // ---=== GESTION DU MINUTEUR ===---
-  const handleStartTimer = (): void => {
-    broadcastTimerEvent(sessionId, 'timer-started');
-  };
-
-  const handlePauseTimer = (): void => {
-    broadcastTimerEvent(sessionId, 'timer-paused');
-  };
-
-  const handleResetTimer = (): void => {
-    broadcastTimerEvent(sessionId, 'timer-reset', { duration: timerDuration });
-  };
-
+  // ---=== 3. GESTION DES ÉVÉNEMENTS PUSHER ===---
   useEffect(() => {
-    if (isTimerRunning && timerTimeLeft > 0) {
-      timerIntervalRef.current = setInterval(() => {
-        setTimerTimeLeft(prev => prev - 1);
-      }, 1000);
-    } else if (!isTimerRunning || timerTimeLeft === 0) {
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-        timerIntervalRef.current = null;
-      }
-    }
-
-    return (): void => {
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-        timerIntervalRef.current = null;
-      }
+    if (!sessionId || !localStream) {
+      // Attendre que le flux local soit prêt avant de s'abonner
+      return;
     };
-  }, [isTimerRunning, timerTimeLeft]);
-  
-  // ---=== 3. GESTION DES ÉVÉNEMENTS PUSHER CORRIGÉE ===---
-  useEffect(() => {
-    if (!sessionId) return;
 
     const channelName = `presence-session-${sessionId}`;
+    console.log(`🔌 [PUSHER] - Abonnement au canal: ${channelName}`);
     
-    if (pusherClient.channel(channelName)) {
-      console.log(`⏭️ [PUSHER] - Déjà abonné au canal ${channelName}`);
-      return;
-    }
-
     const channel = pusherClient.subscribe(channelName);
-    channelRef.current = channel;
-    
+
     const handleSubscriptionSucceeded = (members: PusherSubscriptionSucceededEvent): void => {
-      const otherUsers = Object.keys(members.members || {}).filter(id => id !== currentUserId);
+      const otherUserIds = Object.keys(members.members || {}).filter(id => id !== currentUserId);
       setOnlineUserIds(Object.keys(members.members || {}));
-      console.log(`✅ [PUSHER] - Abonnement réussi à la session ${sessionId}. Participants:`, otherUsers);
+      console.log(`✅ [PUSHER] - Abonnement réussi. ${otherUserIds.length} autre(s) participant(s) détecté(s).`);
       
-      if (!localStream) {
-        console.log('⏳ [PUSHER] - En attente du flux local...');
-        return;
-      }
-      
-      const newPeers: PeerData[] = otherUsers.map(userId => {
-        const peer = createPeer(userId, true, localStream);
-        return { id: userId, peer, isConnected: false };
+      otherUserIds.forEach(userId => {
+        const peer = createPeer(userId, true);
+        peersRef.current.set(userId, peer);
       });
-      
-      setPeers(newPeers);
-      peersRef.current = newPeers;
     };
 
     const handleMemberAdded = (member: PusherMemberEvent): void => {
       if (member.id === currentUserId) return;
-      console.log(`➕ [PUSHER] - Nouveau participant rejoint: ${member.id}`);
-      
-      setTimeout(() => {
-        setOnlineUserIds(prevUserIds => {
-          if (!prevUserIds.includes(member.id)) {
-            return [...prevUserIds, member.id];
-          }
-          return prevUserIds;
-        });
+      console.log(`➕ [PUSHER] - Nouveau participant: ${member.id}`);
+      setOnlineUserIds(prev => [...prev, member.id]);
 
-        if (!peersRef.current.find(p => p.id === member.id) && localStream) {
-          const peer = createPeer(member.id, true, localStream);
-          const newPeerData: PeerData = { id: member.id, peer, isConnected: false };
-          
-          setPeers(prev => [...prev.filter(p => p.id !== member.id), newPeerData]);
-          peersRef.current = [...peersRef.current.filter(p => p.id !== member.id), newPeerData];
-        }
-      }, 1000);
+      const peer = createPeer(member.id, true);
+      peersRef.current.set(member.id, peer);
+    };
+    
+    const handleMemberRemoved = (member: PusherMemberEvent): void => {
+      console.log(`➖ [PUSHER] - Participant parti: ${member.id}`);
+      setOnlineUserIds(prev => prev.filter(id => id !== member.id));
+
+      const peerToRemove = peersRef.current.get(member.id);
+      if (peerToRemove) {
+        peerToRemove.destroy();
+      }
     };
 
     const handleSignal = (data: IncomingSignalData): void => {
       if (data.target !== currentUserId) return;
-      if (data.userId === currentUserId) return;
-      
-      console.log(`📡 [PUSHER] - Signal reçu de ${data.userId}. isReturnSignal: ${!!data.isReturnSignal}, Type: ${data.signal.type}`);
-      
-      const signalKey = `${data.userId}-${data.signal.type}-${Date.now()}`;
-      if (isProcessingSignalRef.current.has(signalKey)) {
-        console.log(`⏭️ [SIGNAL] - Signal déjà en cours de traitement, ignoré: ${signalKey}`);
-        return;
+
+      console.log(`📡 [PUSHER] <- Signal reçu de ${data.userId}`);
+      let peer = peersRef.current.get(data.userId);
+
+      if (!peer) {
+        console.log(`🆕 [PEER] - Le peer pour ${data.userId} n'existe pas. Création d'un peer non-initiateur.`);
+        peer = createPeer(data.userId, false);
+        peersRef.current.set(data.userId, peer);
       }
-      
-      isProcessingSignalRef.current.add(signalKey);
-      
-      setTimeout(() => {
-        try {
-          const existingPeer = peersRef.current.find(p => p.id === data.userId);
 
-          if (!existingPeer) {
-            if (data.isReturnSignal) {
-              console.warn(`⚠️ [SIGNAL] - Signal de retour reçu mais aucun peer initiateur trouvé pour ${data.userId}.`);
-              return;
-            }
-            
-            console.log(`🆕 [SIGNAL] - Création d'un nouveau peer de réponse pour ${data.userId}`);
-            
-            if (!localStream) {
-              console.warn(`⏳ [SIGNAL] - Flux local non disponible, mise en attente du signal pour ${data.userId}`);
-              if (!pendingSignalsRef.current.has(data.userId)) {
-                pendingSignalsRef.current.set(data.userId, []);
-              }
-              pendingSignalsRef.current.get(data.userId)!.push(data.signal);
-              return;
-            }
-            
-            const peer = addPeer(data.signal, data.userId, localStream);
-            const newPeerData: PeerData = { id: data.userId, peer, isConnected: false };
-            
-            setPeers(prev => [...prev.filter(p => p.id !== data.userId), newPeerData]);
-            peersRef.current = [...peersRef.current.filter(p => p.id !== data.userId), newPeerData];
-            
-          } else {
-            console.log(`🎯 [SIGNAL] - Application du signal au peer existant pour ${data.userId}`);
-            
-            try {
-              existingPeer.peer.signal(data.signal);
-              
-              if (data.signal.type === 'answer' || data.signal.type === 'offer') {
-                processPendingSignals(data.userId, existingPeer.peer);
-              }
-            } catch (error) {
-              console.error(`❌ [SIGNAL] - Erreur lors de l'application du signal à ${data.userId}:`, error);
-              
-              if (!pendingSignalsRef.current.has(data.userId)) {
-                pendingSignalsRef.current.set(data.userId, []);
-              }
-              pendingSignalsRef.current.get(data.userId)!.push(data.signal);
-            }
-          }
-        } catch (error) {
-          console.error(`❌ [SIGNAL] - Erreur critique lors du traitement du signal de ${data.userId}:`, error);
-        } finally {
-          setTimeout(() => {
-            isProcessingSignalRef.current.delete(signalKey);
-          }, 1000);
-        }
-      }, 100);
-    };
-
-    const handleMemberRemoved = (member: PusherMemberEvent): void => {
-      console.log(`➖ [PUSHER] - Participant parti: ${member.id}`);
-      setOnlineUserIds(prev => prev.filter(id => id !== member.id));
-      
-      const peerToRemove = peersRef.current.find(p => p.id === member.id);
-      if (peerToRemove) {
-        peerToRemove.peer.destroy();
-        setPeers(prev => prev.filter(p => p.id !== member.id));
-        peersRef.current = peersRef.current.filter(p => p.id !== member.id);
-        pendingSignalsRef.current.delete(member.id);
+      try {
+        peer.signal(data.signal);
+      } catch (error) {
+        console.error(`💥 [PEER] - Erreur lors de l'application du signal pour ${data.userId}:`, error);
       }
     };
-
+    
     const handleSessionEnded = (): void => {
       console.log('🔚 [PUSHER] - Événement de fin de session reçu.');
       toast({ title: 'Session terminée', description: 'Le professeur a mis fin à la session.' });
@@ -467,39 +275,37 @@ export default function SessionClient({
       setUnderstandingStatus(prev => new Map(prev).set(data.userId, data.status));
     };
 
+    // --- Minuteur Events ---
     const handleTimerStarted = (): void => setIsTimerRunning(true);
     const handleTimerPaused = (): void => setIsTimerRunning(false);
-    
     const handleTimerReset = (data: TimerEvent): void => {
       setIsTimerRunning(false);
-      setTimerTimeLeft(data.duration || INITIAL_TIMER_DURATION);
-      setTimerDuration(data.duration || INITIAL_TIMER_DURATION);
+      const newDuration = data.duration || INITIAL_TIMER_DURATION;
+      setTimerTimeLeft(newDuration);
+      setTimerDuration(newDuration);
     };
 
+    // --- Outils Events ---
     const handleActiveToolChanged = (data: ToolEvent): void => {
-      console.log(`[PUSHER] Active tool changed to: ${data.tool}`);
+      console.log(`[PUSHER] - Outil actif changé pour: ${data.tool}`);
       setActiveTool(data.tool);
     };
-
     const handleDocumentUpdated = (data: DocumentEvent): void => {
-      console.log(`[PUSHER] Document URL updated: ${data.url}`);
+      console.log(`[PUSHER] - URL du document mise à jour: ${data.url}`);
       setDocumentUrl(data.url);
       setActiveTool('document');
       toast({ title: 'Document partagé', description: 'Le professeur a partagé un nouveau document.' });
     };
-
     const handleWhiteboardUpdate = (data: { senderId: string, snapshot: TLStoreSnapshot }) => {
         if (data.senderId !== currentUserId) {
             console.log(`🎨 [PUSHER] - Mise à jour du tableau blanc reçue de ${data.senderId}`);
             setWhiteboardSnapshot(data.snapshot);
         }
     };
-    
     const handleWhiteboardControllerUpdate = (data: { controllerId: string }) => {
         console.log(`🕹️ [PUSHER] - Contrôleur du tableau blanc mis à jour: ${data.controllerId}`);
         setWhiteboardControllerId(data.controllerId);
     };
-
 
     channel.bind('pusher:subscription_succeeded', handleSubscriptionSucceeded);
     channel.bind('pusher:member_added', handleMemberAdded);
@@ -515,72 +321,37 @@ export default function SessionClient({
     channel.bind('active-tool-changed', handleActiveToolChanged);
     channel.bind('document-updated', handleDocumentUpdated);
     channel.bind('whiteboard-update', handleWhiteboardUpdate);
-    channel.bind('whiteboard-controller-update', handleWhiteboardControllerUpdate); // Nouvel event
+    channel.bind('whiteboard-controller-update', handleWhiteboardControllerUpdate);
 
     return (): void => {
       console.log(`🔌 [PUSHER] - Nettoyage des abonnements pour la session ${sessionId}`);
-      
-      channel.unbind_all();
-      
+      peersRef.current.forEach(peer => peer.destroy());
+      peersRef.current.clear();
       pusherClient.unsubscribe(channelName);
-      
-      peersRef.current.forEach(({ peer }) => {
-        try {
-          peer.destroy();
-        } catch (error) {
-          console.warn('Erreur lors de la destruction du peer:', error);
-        }
-      });
-      peersRef.current = [];
-      pendingSignalsRef.current.clear();
+      channel.unbind_all();
     };
-  }, [sessionId, localStream, currentUserId, router, toast, currentUserRole]);
-
+  }, [sessionId, localStream, currentUserId, router, toast, currentUserRole, createPeer]);
+  
+  // ---=== 4. GESTION DU CYCLE DE VIE ET INTERACTIONS ===---
   useEffect(() => {
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = '';
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        console.log('👀 [SESSION] - Page devenue invisible');
-      } else {
-        console.log('👀 [SESSION] - Page redevenue visible');
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (localStream && peersRef.current.length > 0) {
-      console.log('🔄 [PEER] - Flux local disponible, recréation des peers...');
-      
-      const newPeers: PeerData[] = peersRef.current.map(({ id }) => {
-        const peer = createPeer(id, true, localStream);
-        return { id, peer, isConnected: false };
-      });
-      
-      setPeers(newPeers);
-      peersRef.current = newPeers;
+    if (isTimerRunning && timerTimeLeft > 0) {
+      timerIntervalRef.current = setInterval(() => {
+        setTimerTimeLeft(prev => prev - 1);
+      }, 1000);
+    } else if (!isTimerRunning || timerTimeLeft === 0) {
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     }
-  }, [localStream]);
-
+    return () => {
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    };
+  }, [isTimerRunning, timerTimeLeft]);
+  
   const onSpotlightParticipant = useCallback(async (participantId: string): Promise<void> => {
     if (currentUserRole !== 'PROFESSEUR') return;
     try {
       await fetch(`/api/session/${sessionId}/spotlight`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ participantId }),
       });
     } catch (error) {
@@ -593,75 +364,41 @@ export default function SessionClient({
     setIsEndingSession(true);
     try {
       const result = await endCoursSession(sessionId);
-      if (result.success) {
-        toast({ title: 'Session terminée', description: 'Vous allez être redirigé.' });
-      } else {
-        throw new Error("L'action serveur a échoué.");
-      }
+      if (!result.success) throw new Error("L'action serveur a échoué.");
     } catch (error) {
       toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de terminer la session.' });
-    } finally {
       setIsEndingSession(false);
     }
   }, [currentUserRole, sessionId, toast]);
 
   const handleLeaveSession = useCallback((): void => {
-    console.log('🚪 [CLIENT] - Départ de la session demandé');
-    localStream?.getTracks().forEach(track => track.stop());
-    peersRef.current.forEach(({ peer }) => {
-      try {
-        peer.destroy();
-      } catch (error) {
-        console.warn('Erreur lors de la destruction du peer:', error);
-      }
-    });
-    
-    if (channelRef.current) {
-      const channelName = `presence-session-${sessionId}`;
-      console.log(`🔌 [PUSHER] - Désabonnement manuel du canal ${channelName}`);
-      pusherClient.unsubscribe(channelName);
-      channelRef.current = null;
-    }
-
+    console.log('🚪 [CLIENT] - Départ volontaire de la session.');
     router.push(currentUserRole === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard');
-  }, [localStream, router, currentUserRole, sessionId]);
+  }, [router, currentUserRole]);
 
-  const spotlightedPeer = peers.find(p => p.id === spotlightedParticipantId);
   const spotlightedStream = spotlightedParticipantId === currentUserId 
     ? localStream 
-    : spotlightedPeer?.peer.streams?.[0] || null;
+    : remoteStreams.get(spotlightedParticipantId || '') || null;
 
   if (loading) {
     return <SessionLoading />;
   }
 
   const handleToggleHandRaise = (isRaised: boolean): void => {
-    setRaisedHands(prev => {
-      const newSet = new Set(prev);
-      isRaised ? newSet.add(currentUserId) : newSet.delete(currentUserId);
-      return newSet;
-    });
+    onToggleHandRaise(isRaised); // Optimistic update
   };
-
   const handleUnderstandingChange = (status: ComprehensionLevel): void => {
-    setUnderstandingStatus(prev => new Map(prev).set(currentUserId, status));
+    onUnderstandingChange(status); // Optimistic update
   };
-
   const handleToolChange = (tool: string): void => {
-    setActiveTool(tool);
     broadcastActiveTool(sessionId, tool);
   };
-  
   const handleWhiteboardControllerChange = (userId: string) => {
     broadcastWhiteboardController(sessionId, userId);
   }
 
-  const remoteParticipants: RemoteParticipant[] = peers.map(p => ({ 
-    id: p.id, 
-    stream: p.peer.streams?.[0] 
-  }));
-
-  const spotlightedUser: SessionParticipant | undefined = allSessionUsers.find(u => u.id === spotlightedParticipantId);
+  const remoteParticipants: RemoteParticipant[] = Array.from(remoteStreams.entries()).map(([id, stream]) => ({ id, stream }));
+  const spotlightedUser = allSessionUsers.find(u => u.id === spotlightedParticipantId);
 
   return (
     <div className="flex flex-col h-screen bg-background">
@@ -676,9 +413,9 @@ export default function SessionClient({
         initialDuration={timerDuration}
         timerTimeLeft={timerTimeLeft}
         isTimerRunning={isTimerRunning}
-        onStartTimer={handleStartTimer}
-        onPauseTimer={handlePauseTimer}
-        onResetTimer={handleResetTimer}
+        onStartTimer={() => broadcastTimerEvent(sessionId, 'timer-started')}
+        onPauseTimer={() => broadcastTimerEvent(sessionId, 'timer-paused')}
+        onResetTimer={() => broadcastTimerEvent(sessionId, 'timer-reset', { duration: timerDuration })}
       />
       <main className="flex-1 flex flex-col container mx-auto px-4 sm:px-6 lg:px-8 min-h-0">
         <PermissionPrompt />
