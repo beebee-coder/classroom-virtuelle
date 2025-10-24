@@ -1,6 +1,6 @@
 // src/lib/session.ts
-import { getServerSession, type Session } from 'next-auth';
-import { authOptions } from './auth-options';
+import { type Session } from 'next-auth';
+import { auth } from './auth-options';
 
 // Le type exporté `DummySession` est conservé pour éviter de casser
 // les imports dans d'autres fichiers en attendant leur migration.
@@ -9,5 +9,5 @@ export type DummySession = Session;
 
 export const getAuthSession = async (): Promise<Session | null> => {
     // Utilise la configuration centralisée pour obtenir la session côté serveur
-    return await getServerSession(authOptions);
+    return await auth();
 };

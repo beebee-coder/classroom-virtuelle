@@ -1,5 +1,6 @@
 // src/lib/auth-options.ts
-import { AuthOptions } from 'next-auth';
+import NextAuth from 'next-auth';
+import type { AuthOptions } from 'next-auth';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
@@ -24,11 +25,11 @@ export const authOptions: AuthOptions = {
         
         // Logique pour créer l'utilisateur en base s'il n'existe pas
         await prisma.user.upsert({
-            where: { email: profile.email },
+            where: { email: profile.email as string },
             update: { name: profile.name, image: profile.picture },
             create: {
                 id: profile.sub,
-                email: profile.email,
+                email: profile.email as string,
                 name: profile.name,
                 image: profile.picture,
                 role: Role.ELEVE,
@@ -88,8 +89,8 @@ export const authOptions: AuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = user.role;
-        token.classeId = user.classeId;
+        token.role = (user as any).role;
+        token.classeId = (user as any).classeId;
       }
       return token;
     },
@@ -108,3 +109,5 @@ export const authOptions: AuthOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
 };
+
+export const { handlers, auth, signIn, signOut } = NextAuth(authOptions);
