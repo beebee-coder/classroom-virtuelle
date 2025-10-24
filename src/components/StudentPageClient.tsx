@@ -64,7 +64,7 @@ export default function StudentPageClient({
     const { toast } = useToast();
     const router = useRouter();
 
-    const classroomId = student?.classeId || 'classe-a';
+    const classroomId = student?.classeId;
     console.log('🧑‍🎓 [CLIENT ÉLÈVE] - Initialisation de la page pour:', student.name);
 
     const handleAcceptInvitation = useCallback(async (invitation: SessionInvitation) => {
@@ -137,26 +137,31 @@ export default function StudentPageClient({
     
         checkMissedInvitations();
     
-        const channelName = `private-user-${student.id}`;
-        console.log(`🔌 [CLIENT ÉLÈVE] - Abonnement au canal d'invitation: ${channelName}`);
-    
-        try {
-            const channel = pusherClient.subscribe(channelName);
-            
-            channel.bind('session-invitation', handleInvitation);
-            
-            channel.bind('pusher:subscription_succeeded', () => {
-                console.log(`✅ [CLIENT ÉLÈVE] - Abonnement au canal ${channelName} réussi.`);
+        // Canal pour les invitations personnelles
+        const invitationChannelName = `private-user-${student.id}`;
+        console.log(`🔌 [CLIENT ÉLÈVE] - Abonnement au canal d'invitation: ${invitationChannelName}`);
+        const invitationChannel = pusherClient.subscribe(invitationChannelName);
+        invitationChannel.bind('session-invitation', handleInvitation);
+
+        // Canal pour la présence de la classe
+        let presenceChannel: any = null;
+        if (classroomId) {
+            const presenceChannelName = `presence-class-${classroomId}`;
+            console.log(`🔌 [CLIENT ÉLÈVE] - Abonnement au canal de présence: ${presenceChannelName}`);
+            presenceChannel = pusherClient.subscribe(presenceChannelName);
+            presenceChannel.bind('pusher:subscription_succeeded', () => {
+                console.log('✅ [ÉLÈVE] - Présence connectée à la classe');
             });
-    
-            return () => {
-                console.log(`🔌 [CLIENT ÉLÈVE] - Désabonnement du canal ${channelName}.`);
-                pusherClient.unsubscribe(channelName);
-            };
-        } catch (error) {
-            console.error('❌ [CLIENT ÉLÈVE] - Erreur d\'abonnement Pusher:', error);
         }
-    }, [student?.id, handleInvitation, toast]);
+    
+        return () => {
+            console.log(`🔌 [CLIENT ÉLÈVE] - Désabonnement des canaux.`);
+            pusherClient.unsubscribe(invitationChannelName);
+            if (presenceChannel) {
+                pusherClient.unsubscribe(presenceChannel.name);
+            }
+        };
+    }, [student?.id, classroomId, handleInvitation, toast]);
 
     const handleDeclineInvitation = useCallback(() => {
         console.log('🚫 [CLIENT ÉLÈVE] - Invitation refusée.');
