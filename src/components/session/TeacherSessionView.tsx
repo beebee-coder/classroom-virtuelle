@@ -1,4 +1,3 @@
-
 // src/components/session/TeacherSessionView.tsx
 'use client';
 
@@ -50,7 +49,7 @@ export function TeacherSessionView({
     isScreenSharing: boolean;
     activeTool: string;
     onToolChange: (tool: string) => void;
-    classroom?: ClassroomWithDetails;
+    classroom: ClassroomWithDetails | null;
 }) {
     const remoteStreamsMap = new Map(remoteParticipants.map(p => [p.id, p.stream]));
     
@@ -157,7 +156,7 @@ export function TeacherSessionView({
                                     />
                                 ) : (
                                     <StudentPlaceholder
-                                        student={student}
+                                        student={student as User}
                                         isOnline={onlineUserIds.includes(student.id)}
                                         onSpotlightParticipant={onSpotlightParticipant}
                                         isHandRaised={raisedHands.has(student.id)}

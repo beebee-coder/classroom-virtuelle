@@ -8,7 +8,7 @@ import * as SimplePeer from 'simple-peer';
 
 import { pusherClient } from '@/lib/pusher/client';
 import { useToast } from '@/hooks/use-toast';
-import { User, Role, SessionParticipant } from '@/lib/types';
+import { User, Role, SessionParticipant, ClassroomWithDetails } from '@/lib/types';
 import SessionLoading from './SessionLoading';
 import { TeacherSessionView } from './session/TeacherSessionView';
 import { StudentSessionView } from './session/StudentSessionView';
@@ -29,6 +29,7 @@ interface SessionClientProps {
   initialTeacher: User;
   currentUserRole: Role;
   currentUserId: string;
+  classroom: ClassroomWithDetails | null;
 }
 
 const INITIAL_TIMER_DURATION = 3600; // 1 heure en secondes
@@ -39,6 +40,7 @@ export default function SessionClient({
   initialTeacher,
   currentUserRole,
   currentUserId,
+  classroom,
 }: SessionClientProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -442,6 +444,7 @@ export default function SessionClient({
             isScreenSharing={!!screenStream}
             activeTool={activeTool}
             onToolChange={handleToolChange}
+            classroom={classroom}
           />
         ) : (
           <StudentSessionView

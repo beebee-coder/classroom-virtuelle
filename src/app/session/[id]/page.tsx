@@ -90,6 +90,7 @@ export default async function SessionPage({ params }: { params: { id: string } }
                 initialTeacher={teacher as User}
                 currentUserRole={currentUserRole as Role}
                 currentUserId={currentUserId}
+                classroom={classroomData}
             />
         </Suspense>
     );
