@@ -59,6 +59,8 @@ export function TeacherSessionView({
     
     if (!currentUserId || !teacher) return null;
 
+    const activeParticipantIds = [currentUserId, ...remoteParticipants.map(p => p.id)];
+
     const renderActiveTool = () => {
         if (screenStream) {
              return (
@@ -184,6 +186,8 @@ export function TeacherSessionView({
                                 classroom={classroom}
                                 onlineUserIds={onlineUserIds}
                                 currentUserId={currentUserId}
+                                activeParticipantIds={activeParticipantIds}
+                                sessionId={sessionId}
                             />
                         )}
                         <UnderstandingTracker students={students} understandingStatus={understandingStatus} />
