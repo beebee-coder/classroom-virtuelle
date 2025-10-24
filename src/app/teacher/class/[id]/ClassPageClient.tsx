@@ -1,7 +1,7 @@
 // src/app/teacher/class/[id]/ClassPageClient.tsx - Version avec invitations
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -14,10 +14,10 @@ import { AddStudentForm } from './AddStudentForm';
 import { ClassroomWithDetails, StudentForCard, AnnouncementWithAuthor, User } from '@/lib/types';
 import { AnnouncementCarousel } from '@/components/AnnouncementCarousel';
 import { BackButton } from '@/components/BackButton';
-import { Video, XSquare, Crown, Loader2, Wifi, WifiOff } from 'lucide-react';
-import { pusherClient } from '@/lib/pusher/client';
-import type { PresenceChannel, Members } from 'pusher-js';
+import { Video, XSquare, Crown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { usePresenceForTeacher } from '@/hooks/usePresenceForTeacher';
+
 
 interface ClassPageClientProps {
     classroom: ClassroomWithDetails;
@@ -28,72 +28,21 @@ interface ClassPageClientProps {
 export default function ClassPageClient({ classroom, teacher, announcements }: ClassPageClientProps) {
     const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
     const [isStartingSession, setIsStartingSession] = useState<boolean>(false);
-    const [onlineStudents, setOnlineStudents] = useState<string[]>([]);
     const [isSendingInvitations, setIsSendingInvitations] = useState<boolean>(false);
     const router = useRouter();
     const { toast } = useToast();
 
-    // Abonnement réel Pusher
-    useEffect(() => {
-        if (!classroom.id || !teacher.id) {
-            console.warn("👨‍🏫 [PRESENCE PROF] - Conditions non remplies pour l'abonnement Pusher.", { classroomId: classroom.id, userId: teacher.id });
-            return;
-        }
+    // Utilisation du nouveau hook pour gérer la présence
+    const { onlineUsers: onlineStudents, isConnected, error: presenceError } = usePresenceForTeacher(teacher.id, classroom.id);
 
-        const channelName = `presence-class-${classroom.id}`;
-        console.log(`👨‍🏫 [PRESENCE PROF] - Tentative d'abonnement au canal: ${channelName}`);
-            
-        let channel: PresenceChannel;
-        try {
-            channel = pusherClient.subscribe(channelName) as PresenceChannel;
-
-            const updateOnlineMembers = () => {
-                if (channel.members?.members) {
-                    const memberIds = Object.keys(channel.members.members);
-                    // On exclut l'ID du professeur de la liste des élèves en ligne
-                    const studentMemberIds = memberIds.filter(id => id !== teacher.id);
-                    setOnlineStudents(studentMemberIds);
-                    console.log('📊 [PRESENCE PROF] - Mise à jour de la liste des élèves en ligne:', studentMemberIds);
-                } else {
-                     console.log('👨‍🏫 [PRESENCE PROF] - Aucun membre trouvé dans le canal.');
-                }
-            };
-
-            channel.bind('pusher:subscription_succeeded', (members: Members) => {
-                console.log('✅ [PRESENCE PROF] - Abonnement réussi. Membres actuels:', Object.keys(members.members));
-                updateOnlineMembers();
-            });
-            
-            channel.bind('pusher:member_added', (member: { id: string; info: Record<string, unknown> }) => {
-                console.log('➕ [PRESENCE PROF] - Membre ajouté:', member.id);
-                updateOnlineMembers();
-            });
-            
-            channel.bind('pusher:member_removed', (member: { id: string; info: Record<string, unknown> }) => {
-                console.log('➖ [PRESENCE PROF] - Membre retiré:', member.id);
-                updateOnlineMembers();
-            });
-
-            channel.bind('pusher:subscription_error', (status: unknown) => {
-                console.error(`❌ [PRESENCE PROF] - Erreur d'abonnement au canal ${channelName}:`, status);
-                toast({
-                    variant: 'destructive',
-                    title: 'Erreur de connexion temps réel',
-                    description: 'Impossible de suivre la présence des élèves.',
-                });
-            });
-
-        } catch (error) {
-            console.error("💥 [PRESENCE PROF] - Erreur critique lors de l'abonnement Pusher:", error);
-        }
-
-        return () => {
-            if (channel) {
-                console.log(`🔚 [PRESENCE PROF] - Désabonnement du canal ${channelName}`);
-                pusherClient.unsubscribe(channelName);
-            }
-        };
-    }, [classroom.id, teacher.id, toast]);
+    // Afficher une erreur si la connexion de présence échoue
+    if (presenceError) {
+        toast({
+            variant: 'destructive',
+            title: 'Erreur de connexion temps réel',
+            description: 'Impossible de suivre la présence des élèves.',
+        });
+    }
 
     const handleSelectStudent = useCallback((studentId: string) => {
         if (!studentId) {
