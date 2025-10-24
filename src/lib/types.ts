@@ -12,7 +12,6 @@ import type {
     Reaction as PrismaReaction,
     Message as PrismaMessage,
     Announcement as PrismaAnnouncement,
-    Conversation as PrismaConversation,
     EtatEleve as PrismaEtatEleve,
     Role as PrismaRole,
     TaskType as PrismaTaskType,
@@ -42,7 +41,6 @@ export type StudentProgress = PrismaStudentProgress;
 export type Reaction = PrismaReaction;
 export type Message = PrismaMessage;
 export type Announcement = PrismaAnnouncement;
-export type Conversation = PrismaConversation;
 export type EtatEleve = PrismaEtatEleve;
 
 // Types complexes qui étaient basés sur les relations Prisma
@@ -64,12 +62,6 @@ export type MessageWithReactions = Message & {
 };
 
 export type AppTask = Task;
-
-export type FullConversation = Conversation & {
-    messages: MessageWithReactions[];
-    initiator: Pick<User, 'id' | 'name' | 'image'>;
-    receiver: Pick<User, 'id' | 'name' | 'image'>;
-};
 
 export type AnnouncementWithAuthor = Announcement & {
     author: { name?: string | null };
