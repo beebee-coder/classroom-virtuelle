@@ -1,4 +1,3 @@
-
 // src/components/StudentSessionControls.tsx
 'use client';
 
@@ -76,7 +75,7 @@ export function StudentSessionControls({
   return (
     <Accordion type="multiple" defaultValue={['comprehension', 'interaction']} className="w-full space-y-4">
       {/* Contrôle de compréhension */}
-      <Card>
+      <Card className="bg-background/80">
         <AccordionItem value="comprehension" className="border-b-0">
           <AccordionTrigger className="p-6">
             <CardTitle className="text-lg flex items-center gap-2">
@@ -124,7 +123,7 @@ export function StudentSessionControls({
       </Card>
 
       {/* Contrôles d'interaction */}
-      <Card>
+      <Card className="bg-background/80">
         <AccordionItem value="interaction" className="border-b-0">
             <AccordionTrigger className="p-6">
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -161,7 +160,7 @@ export function StudentSessionControls({
       </Card>
       
       {/* Contrôles média */}
-       <Card>
+       <Card className="bg-background/80">
         <AccordionItem value="media" className="border-b-0">
             <AccordionTrigger className="p-6">
                 <CardTitle className="text-lg flex items-center gap-2">
