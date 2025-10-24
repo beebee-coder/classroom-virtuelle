@@ -22,33 +22,39 @@ const dummyStudents = [
   { name: 'Fiona', color: 'bg-orange-custom', avatarSeed: 'fiona' },
 ];
 
-// Dupliquer les élèves pour un effet de boucle infini
-const duplicatedStudents = [...dummyStudents, ...dummyStudents];
-
 export function StudentCarousel() {
   const plugin = React.useRef(
-    Autoplay({ delay: 0, stopOnInteraction: false, playOnInit: true })
+    Autoplay({ delay: 2000, stopOnInteraction: true })
   );
 
   return (
-    <div className="w-full overflow-hidden">
-      <div className="flex flex-col marquee-container">
-        {duplicatedStudents.map((student, index) => (
-           <div className="p-1 shrink-0" key={index}>
-              <Card className="overflow-hidden w-[200px]">
-                <CardContent className="flex flex-col items-center justify-center p-4 gap-2">
-                  <div className={cn(`w-full h-20 flex items-center justify-center rounded-md`, student.color)}>
-                    <Avatar className="h-16 w-16 border-4 border-background">
-                       <AvatarImage src={`https://api.dicebear.com/7.x/pixel-art/svg?seed=${student.avatarSeed}&backgroundColor=transparent`} />
-                       <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                  </div>
-                  <span className="font-semibold text-sm">{student.name}</span>
-                </CardContent>
-              </Card>
-            </div>
+    <Carousel
+      plugins={[plugin.current]}
+      className="w-full max-w-xs"
+      onMouseEnter={plugin.current.stop}
+      onMouseLeave={plugin.current.reset}
+      opts={{
+        align: "start",
+        loop: true,
+      }}
+    >
+      <CarouselContent>
+        {dummyStudents.map((student, index) => (
+          <CarouselItem key={index} className="p-1">
+             <Card className="overflow-hidden w-[200px]">
+              <CardContent className="flex flex-col items-center justify-center p-4 gap-2">
+                <div className={cn(`w-full h-20 flex items-center justify-center rounded-md`, student.color)}>
+                  <Avatar className="h-16 w-16 border-4 border-background">
+                     <AvatarImage src={`https://api.dicebear.com/7.x/pixel-art/svg?seed=${student.avatarSeed}&backgroundColor=transparent`} />
+                     <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                </div>
+                <span className="font-semibold text-sm">{student.name}</span>
+              </CardContent>
+            </Card>
+          </CarouselItem>
         ))}
-      </div>
-    </div>
+      </CarouselContent>
+    </Carousel>
   );
 }
