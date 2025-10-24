@@ -1,14 +1,14 @@
 // src/components/Whiteboard.tsx
 'use client';
-import { Tldraw, useEditor, Editor, getSnapshot, TLStoreSnapshot } from '@tldraw/tldraw';
+import { Tldraw, useEditor, Editor, getSnapshot, TLEditorSnapshot } from '@tldraw/tldraw';
 import '@tldraw/tldraw/tldraw.css';
 import { useEffect } from 'react';
 
 interface WhiteboardProps {
   sessionId: string;
-  initialSnapshot?: TLStoreSnapshot;
+  initialSnapshot?: TLEditorSnapshot;
   isController: boolean; // Nouveau: pour savoir si l'utilisateur actuel a le contrôle
-  onPersist?: (snapshot: TLStoreSnapshot) => void;
+  onPersist?: (snapshot: TLEditorSnapshot) => void;
 }
 
 // Composant interne pour gérer la logique de l'éditeur
@@ -20,9 +20,9 @@ function EditorManager({ onPersist, initialSnapshot, isController }: Omit<Whiteb
         if (initialSnapshot) {
             try {
                 // Ne charger que si le snapshot est différent pour éviter les re-renders
-                const currentSnapshot = getSnapshot(editor.store);
+                const currentSnapshot = editor.getSnapshot();
                 if (JSON.stringify(currentSnapshot) !== JSON.stringify(initialSnapshot)) {
-                   editor.store.loadSnapshot(initialSnapshot);
+                   editor.loadSnapshot(initialSnapshot);
                 }
             } catch (e) {
                 console.error("Erreur lors du chargement du snapshot du tableau blanc:", e);
@@ -39,7 +39,7 @@ function EditorManager({ onPersist, initialSnapshot, isController }: Omit<Whiteb
              let lastPersistedState: string | null = null;
             
             const handleChange = () => {
-                const snapshot = getSnapshot(editor.store);
+                const snapshot = editor.getSnapshot();
                 const jsonSnapshot = JSON.stringify(snapshot);
 
                 if (lastPersistedState !== jsonSnapshot) {
@@ -69,6 +69,7 @@ export function Whiteboard({ sessionId, onPersist, initialSnapshot, isController
       <Tldraw 
         key={`${sessionId}-${isController}`} // Change la clé pour forcer le re-render si le contrôle change
         persistenceKey={`whiteboard-${sessionId}`}
+        snapshot={initialSnapshot}
       >
         <EditorManager 
           onPersist={onPersist}
