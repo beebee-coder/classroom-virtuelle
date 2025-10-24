@@ -70,11 +70,12 @@ export async function deleteTask(id: string): Promise<{ success: boolean }> {
 
 export async function completeTask(taskId: string, submissionUrl?: string): Promise<StudentProgress> {
   const session = await getAuthSession();
-  const studentId = session?.user?.id;
-
-  if (!studentId || session.user.role !== 'ELEVE') {
+  
+  if (!session?.user || session.user.role !== 'ELEVE') {
     throw new Error("Authentification élève requise.");
   }
+  const studentId = session.user.id;
+
 
   // Vérifier si une progression existe déjà (pour les tâches rejetées)
   const existingProgress = await prisma.studentProgress.findFirst({
