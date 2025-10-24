@@ -9,40 +9,48 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Start seeding...');
 
-  // Créer un professeur
-  const teacher = await prisma.user.create({
-    data: {
+  // Utiliser upsert pour rendre le script idempotent
+  const teacher = await prisma.user.upsert({
+    where: { email: 'teacher@example.com' },
+    update: {},
+    create: {
       email: 'teacher@example.com',
       name: 'Professeur Test',
       role: 'PROFESSEUR',
     },
   });
-  console.log(`👨‍🏫 Created teacher: ${teacher.name} (${teacher.email})`);
+  console.log(`👨‍🏫 Ensured teacher exists: ${teacher.name} (${teacher.email})`);
 
-  // Créer des classes
-  const classA = await prisma.classroom.create({
-    data: {
+  // Créer des classes (supposant que les noms de classe sont uniques pour ce prof)
+  const classA = await prisma.classroom.upsert({
+    where: { nom_professeurId: { nom: 'Classe 6ème A', professeurId: teacher.id } },
+    update: {},
+    create: {
       nom: 'Classe 6ème A',
       professeurId: teacher.id,
     },
   });
-  console.log(`🏫 Created class: ${classA.nom}`);
+  console.log(`🏫 Ensured class exists: ${classA.nom}`);
 
-  const classB = await prisma.classroom.create({
-    data: {
+  const classB = await prisma.classroom.upsert({
+    where: { nom_professeurId: { nom: 'Classe 6ème B', professeurId: teacher.id } },
+    update: {},
+    create: {
       nom: 'Classe 6ème B',
       professeurId: teacher.id,
     },
   });
-  console.log(`🏫 Created class: ${classB.nom}`);
+  console.log(`🏫 Ensured class exists: ${classB.nom}`);
 
-  const classC = await prisma.classroom.create({
-    data: {
+  const classC = await prisma.classroom.upsert({
+    where: { nom_professeurId: { nom: 'Classe 5ème A', professeurId: teacher.id } },
+    update: {},
+    create: {
       nom: 'Classe 5ème A',
       professeurId: teacher.id,
     },
   });
-  console.log(`🏫 Created class: ${classC.nom}`);
+  console.log(`🏫 Ensured class exists: ${classC.nom}`);
 
 
   // Créer des élèves
@@ -83,13 +91,18 @@ async function main() {
   ];
 
   for (const [index, studentData] of students.entries()) {
-    // Correction: forcer l'email pour l'élève de démo "Ahmed"
     const email = studentData.name === 'Ahmed' 
       ? 'ahmed0@example.com' 
       : `${studentData.name.toLowerCase()}${index}@example.com`;
       
-    const student = await prisma.user.create({
-      data: {
+    const student = await prisma.user.upsert({
+      where: { email: email },
+      update: {
+        name: studentData.name,
+        classeId: studentData.classeId,
+        ambition: studentData.ambition,
+      },
+      create: {
         email: email,
         name: studentData.name,
         role: 'ELEVE',
@@ -97,8 +110,14 @@ async function main() {
         ambition: studentData.ambition,
       },
     });
-    await prisma.etatEleve.create({ data: { eleveId: student.id } });
-    console.log(`🎓 Created student: ${student.name}`);
+
+    // Assurer que l'état de l'élève existe aussi
+    await prisma.etatEleve.upsert({
+        where: { eleveId: student.id },
+        update: {},
+        create: { eleveId: student.id },
+    });
+    console.log(`🎓 Ensured student exists: ${student.name}`);
   }
 
 
@@ -113,13 +132,23 @@ async function main() {
     { nom: 'Écologiste', description: 'Protège la planète.', icon: 'Leaf', theme: { backgroundColor: 'from-lime-500 to-emerald-600', textColor: 'text-white', primaryColor: '120 73% 40%', accentColor: '140 73% 40%', cursor: 'cursor-zoom-in' } },
   ];
   
-  const metiersData = metiers.map(metier => ({
-    ...metier,
-    theme: JSON.stringify(metier.theme),
-  }));
-
-  await prisma.metier.createMany({ data: metiersData });
-  console.log('🛠️ Created default careers');
+  for (const metier of metiers) {
+    await prisma.metier.upsert({
+      where: { nom: metier.nom },
+      update: {
+        description: metier.description,
+        icon: metier.icon,
+        theme: JSON.stringify(metier.theme),
+      },
+      create: {
+        nom: metier.nom,
+        description: metier.description,
+        icon: metier.icon,
+        theme: JSON.stringify(metier.theme),
+      }
+    });
+  }
+  console.log('🛠️ Ensured default careers exist');
 
 
   // Créer des tâches
@@ -135,27 +164,37 @@ async function main() {
     { title: 'Exposé scientifique', description: 'Préparer et présenter un sujet scientifique.', points: 250, type: 'MONTHLY', category: 'SCIENCE', difficulty: 'HARD', validationType: 'PROFESSOR', requiresProof: true },
   ];
 
-  await prisma.task.createMany({ data: tasks as any });
-  console.log('📝 Created default tasks');
+  for (const task of tasks) {
+    await prisma.task.upsert({
+        where: { title: task.title },
+        update: { ...task },
+        create: { ...task } as any
+    });
+  }
+  console.log('📝 Ensured default tasks exist');
 
   // Créer des annonces
-  await prisma.announcement.create({
-    data: {
+  await prisma.announcement.upsert({
+    where: { title: 'Bienvenue sur Classroom Connector !' },
+    update: {},
+    create: {
       title: 'Bienvenue sur Classroom Connector !',
       content: 'C\'est la plateforme où l\'apprentissage devient une aventure. Participez, gagnez des points et explorez votre avenir !',
       authorId: teacher.id,
       // Annonce publique (pas de classeId)
     }
   });
-  await prisma.announcement.create({
-    data: {
+  await prisma.announcement.upsert({
+    where: { title: 'Rappel pour la 6ème A' },
+    update: {},
+    create: {
       title: 'Rappel pour la 6ème A',
       content: 'N\'oubliez pas de préparer vos questions pour la session de demain sur les volcans.',
       authorId: teacher.id,
       classeId: classA.id,
     }
   });
-   console.log('📢 Created default announcements');
+   console.log('📢 Ensured default announcements exist');
 
   console.log('✅ Seeding finished.');
 }
