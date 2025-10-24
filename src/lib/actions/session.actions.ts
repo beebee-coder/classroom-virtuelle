@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { pusherTrigger } from '../pusher/server';
 import { getAuthSession } from '../session';
 import { ComprehensionLevel } from '@/components/StudentSessionControls';
+import { allDummyStudents } from '../dummy-data';
 
 export async function createCoursSession(professeurId: string, classroomId: string, studentIds: string[]) {
     try {
@@ -21,7 +22,7 @@ export async function createCoursSession(professeurId: string, classroomId: stri
         // **NOUVEAU** : Sauvegarder les participants de la session
         const sessionApiRoute = process.env.NEXTAUTH_URL
             ? `${process.env.NEXTAUTH_URL}/api/session/${sessionId}`
-            : `http://localhost:3000/api/session/${sessionId}`;
+            : `/api/session/${sessionId}`;
             
         await fetch(sessionApiRoute, {
             method: 'POST',
@@ -82,7 +83,7 @@ async function sendIndividualInvitations(sessionId: string, professeurId: string
     // Stocker l'invitation en mémoire (via API route) pour les élèves qui se connectent en retard
     const apiRoute = process.env.NEXTAUTH_URL
       ? `${process.env.NEXTAUTH_URL}/api/session/pending-invitations`
-      : 'http://localhost:3000/api/session/pending-invitations';
+      : '/api/session/pending-invitations';
     
     await fetch(apiRoute, {
         method: 'POST',
@@ -122,17 +123,30 @@ export async function getSessionDetails(sessionId: string) {
             throw new Error('sessionId est requis');
         }
 
-        const sessionApiUrl = process.env.NEXTAUTH_URL
-            ? `${process.env.NEXTAUTH_URL}/api/session/${sessionId}`
-            : `http://localhost:3000/api/session/${sessionId}`;
+        // Utilisation d'une URL relative pour que l'appel fonctionne quel que soit l'environnement
+        const sessionApiUrl = `/api/session/${sessionId}`;
 
-        const response = await fetch(sessionApiUrl);
+        // En environnement serveur, on doit construire l'URL absolue
+        const host = process.env.NEXTAUTH_URL || `http://localhost:${process.env.PORT || 9002}`;
+        const absoluteUrl = new URL(sessionApiUrl, host).toString();
+
+        const response = await fetch(absoluteUrl);
         
         if (!response.ok) {
             throw new Error(`Failed to fetch session details: ${response.statusText}`);
         }
-
-        return await response.json();
+        
+        // Simuler la récupération des données complètes pour correspondre à la nouvelle structure
+        const sessionData = await response.json();
+        
+        // Enrichir les données des élèves
+        const enrichedStudents = sessionData.students.map((s: {id: string}) => {
+            const fullStudentData = allDummyStudents.find(ds => ds.id === s.id);
+            return fullStudentData || s; // Retourner les données complètes si trouvées
+        });
+        
+        return { ...sessionData, students: enrichedStudents };
+        
     } catch (error) {
         console.error('[SESSION] - Erreur lors de la récupération des détails:', error);
         throw new Error('Impossible de récupérer les détails de la session');
@@ -320,4 +334,22 @@ export interface SessionDetails {
         name: string;
     };
     createdAt: string;
+}
+
+export async function reinviteStudentToSession(sessionId: string, studentId: string, classroomId: string) {
+    try {
+        console.log(`[ACTION] Ré-invitation de l'élève ${studentId} à la session ${sessionId}`);
+        const session = await getAuthSession();
+        if (!session?.user || session.user.role !== 'PROFESSEUR') {
+            throw new Error("Seul un professeur peut ré-inviter un élève.");
+        }
+        
+        await sendIndividualInvitations(sessionId, session.user.id, classroomId, [studentId]);
+
+        revalidatePath(`/session/${sessionId}`);
+        return { success: true };
+    } catch (error) {
+        console.error(`[ACTION] Erreur lors de la ré-invitation de ${studentId}:`, error);
+        throw new Error("Impossible de ré-inviter l'élève.");
+    }
 }
