@@ -1,7 +1,5 @@
-
-import type { NextConfig } from 'next';
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   serverActions: true, // Activation explicite des Actions Serveur
   typescript: {
     ignoreBuildErrors: true,
@@ -10,7 +8,7 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   images: {
-    unoptimized: true, // Ajout de l'option de l'ancien fichier
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
@@ -46,4 +44,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;
