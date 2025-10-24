@@ -4,14 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowRight, Megaphone, Users } from 'lucide-react';
 import Link from 'next/link';
-import { getPublicAnnouncements } from '@/lib/actions/announcement.actions';
+import { getPublicAnnouncements, type AnnouncementWithAuthor } from '@/lib/actions/announcement.actions';
 import { format } from 'date-fns';
 import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { getAuthSession } from '@/lib/session';
 import { redirect } from 'next/navigation';
-import type { Announcement } from '@prisma/client';
-
-type AnnouncementWithAuthor = Announcement & { author: { name: string | null } };
 
 export default async function HomePage() {
   console.log('🏠 [PAGE] - Chargement de la page d\'accueil.');
@@ -27,7 +24,7 @@ export default async function HomePage() {
   }
   
   console.log('✅ [PAGE] - Affichage de la page d\'accueil pour visiteur.');
-  const announcements: AnnouncementWithAuthor[] = await getPublicAnnouncements(2) as AnnouncementWithAuthor[];
+  const announcements: AnnouncementWithAuthor[] = await getPublicAnnouncements(2);
 
   return (
     <SidebarProvider>
