@@ -2,6 +2,7 @@
 import { ComprehensionLevel } from "@/components/StudentSessionControls";
 import { User, Role, ClassroomWithDetails } from "@/lib/types";
 import type { Instance as PeerInstance, SignalData as PeerSignalData } from 'simple-peer';
+import { TLStoreSnapshot } from "@tldraw/tldraw";
 
 
 // Types pour Pusher
@@ -91,4 +92,9 @@ import type { Instance as PeerInstance, SignalData as PeerSignalData } from 'sim
     currentUserRole: Role;
     currentUserId: string;
     classroom: ClassroomWithDetails | null;
+  }
+
+  export interface WhiteboardUpdateEvent {
+    senderId: string;
+    snapshot: TLStoreSnapshot;
   }

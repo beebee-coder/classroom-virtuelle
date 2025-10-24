@@ -17,6 +17,7 @@ import { PermissionPrompt } from './PermissionPrompt';
 import { endCoursSession, broadcastTimerEvent, broadcastActiveTool } from '@/lib/actions';
 import { ComprehensionLevel } from './StudentSessionControls';
 import { SessionClientProps, PeerData, SignalPayload, PusherSubscriptionSucceededEvent, PusherMemberEvent, IncomingSignalData, SpotlightEvent, HandRaiseEvent, UnderstandingEvent, TimerEvent, ToolEvent, DocumentEvent, RemoteParticipant } from '@/types';
+import { TLStoreSnapshot } from '@tldraw/tldraw';
 
 const INITIAL_TIMER_DURATION = 3600; // 1 heure en secondes
 
@@ -45,6 +46,7 @@ export default function SessionClient({
   const [isEndingSession, setIsEndingSession] = useState<boolean>(false);
   const [activeTool, setActiveTool] = useState<string>('whiteboard');
   const [documentUrl, setDocumentUrl] = useState<string | null>(null);
+  const [whiteboardSnapshot, setWhiteboardSnapshot] = useState<TLStoreSnapshot | null>(null);
 
   // États pour le minuteur
   const [timerDuration, setTimerDuration] = useState<number>(INITIAL_TIMER_DURATION);
@@ -504,6 +506,14 @@ export default function SessionClient({
       toast({ title: 'Document partagé', description: 'Le professeur a partagé un nouveau document.' });
     };
 
+    const handleWhiteboardUpdate = (data: { senderId: string, snapshot: TLStoreSnapshot }) => {
+        if (data.senderId !== currentUserId) {
+            console.log(`🎨 [PUSHER] - Mise à jour du tableau blanc reçue de ${data.senderId}`);
+            setWhiteboardSnapshot(data.snapshot);
+        }
+    };
+
+
     // Lier les événements
     channel.bind('pusher:subscription_succeeded', handleSubscriptionSucceeded);
     channel.bind('pusher:member_added', handleMemberAdded);
@@ -518,24 +528,13 @@ export default function SessionClient({
     channel.bind('timer-reset', handleTimerReset);
     channel.bind('active-tool-changed', handleActiveToolChanged);
     channel.bind('document-updated', handleDocumentUpdated);
+    channel.bind('whiteboard-update', handleWhiteboardUpdate);
 
     return (): void => {
       console.log(`🔌 [PUSHER] - Nettoyage des abonnements pour la session ${sessionId}`);
       
       // Détacher tous les écouteurs
-      channel.unbind('pusher:subscription_succeeded', handleSubscriptionSucceeded);
-      channel.unbind('pusher:member_added', handleMemberAdded);
-      channel.unbind('pusher:member_removed', handleMemberRemoved);
-      channel.unbind('signal', handleSignal);
-      channel.unbind('session-ended', handleSessionEnded);
-      channel.unbind('participant-spotlighted', handleParticipantSpotlighted);
-      channel.unbind('hand-raise-update', handleHandRaiseUpdate);
-      channel.unbind('understanding-update', handleUnderstandingUpdate);
-      channel.unbind('timer-started', handleTimerStarted);
-      channel.unbind('timer-paused', handleTimerPaused);
-      channel.unbind('timer-reset', handleTimerReset);
-      channel.unbind('active-tool-changed', handleActiveToolChanged);
-      channel.unbind('document-updated', handleDocumentUpdated);
+      channel.unbind_all();
       
       pusherClient.unsubscribe(channelName);
       
@@ -768,6 +767,7 @@ const handleMemberAdded = (member: PusherMemberEvent): void => {
             currentUserId={currentUserId}
             activeTool={activeTool}
             documentUrl={documentUrl}
+            whiteboardSnapshot={whiteboardSnapshot}
           />
         )}
       </main>

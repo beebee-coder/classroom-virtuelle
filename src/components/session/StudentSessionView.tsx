@@ -10,6 +10,8 @@ import { updateStudentSessionStatus } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Whiteboard } from '../Whiteboard';
 import { DocumentViewer } from '../DocumentViewer';
+import { TLStoreSnapshot } from '@tldraw/tldraw';
+import { useState } from 'react';
 
 interface StudentSessionViewProps {
     sessionId: string;
@@ -24,6 +26,7 @@ interface StudentSessionViewProps {
     currentUserId: string;
     activeTool: string;
     documentUrl: string | null;
+    whiteboardSnapshot: TLStoreSnapshot | null;
 }
 
 export function StudentSessionView({
@@ -39,6 +42,7 @@ export function StudentSessionView({
     currentUserId,
     activeTool,
     documentUrl,
+    whiteboardSnapshot,
 }: StudentSessionViewProps) {
     const { toast } = useToast();
 
@@ -94,7 +98,13 @@ export function StudentSessionView({
                 );
             case 'whiteboard':
             default:
-                return <Whiteboard />;
+                 return (
+                    <Whiteboard
+                        sessionId={sessionId}
+                        initialSnapshot={whiteboardSnapshot ?? undefined}
+                        isReadOnly={true}
+                    />
+                );
         }
     };
     

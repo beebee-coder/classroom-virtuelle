@@ -1,4 +1,3 @@
-
 // src/components/session/TeacherSessionView.tsx
 'use client';
 
@@ -25,7 +24,9 @@ import {
 } from "@/components/ui/carousel";
 import { CloudinaryUploadWidget } from '../CloudinaryUploadWidget';
 import { Button } from '../ui/button';
-import { broadcastDocumentUrl } from '@/lib/actions';
+import { broadcastDocumentUrl, broadcastWhiteboardUpdate } from '@/lib/actions';
+import { TLStoreSnapshot } from '@tldraw/tldraw';
+
 
 interface TeacherSessionViewProps {
     sessionId: string;
@@ -86,6 +87,10 @@ export function TeacherSessionView({
             broadcastDocumentUrl(sessionId, url);
         }
     };
+
+    const handleWhiteboardPersist = (snapshot: TLStoreSnapshot) => {
+        broadcastWhiteboardUpdate(sessionId, snapshot);
+    }
 
     const renderActiveTool = () => {
         if (screenStream) {
@@ -150,7 +155,12 @@ export function TeacherSessionView({
                 );
             case 'whiteboard':
             default:
-                return <Whiteboard />;
+                return (
+                    <Whiteboard 
+                        sessionId={sessionId}
+                        onPersist={handleWhiteboardPersist}
+                    />
+                );
         }
     };
 

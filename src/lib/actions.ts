@@ -15,3 +15,4 @@ export * from './actions/teacher.actions';
 export * from './actions/activity.actions';
 export * from './actions/parent.actions';
 export * from './actions/user.actions';
+export * from './actions/whiteboard.actions';
