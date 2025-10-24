@@ -1,7 +1,7 @@
 // src/components/CloudinaryUploadWidget.tsx
 'use client';
 
-import { useState, useEffect, createContext, useCallback, useRef } from 'react';
+import { useState, useEffect, createContext, useCallback, useRef, ReactElement } from 'react';
 
 interface CloudinaryScriptContextType {
   loaded: boolean;
@@ -9,7 +9,7 @@ interface CloudinaryScriptContextType {
 
 interface CloudinaryUploadWidgetProps {
   onUpload: (result: any) => void;
-  children: (props: { open: () => void; loaded: boolean; error: string | null }) => React.ReactNode;
+  children: (props: { open: () => void; loaded: boolean; error: string | null }) => ReactElement;
 }
 
 interface CloudinaryWindow extends Window {
@@ -200,7 +200,7 @@ function CloudinaryUploadWidget({ onUpload, children }: CloudinaryUploadWidgetPr
         handleUploadCallback
       );
 
-      console.log('✅ [WIDGET] Widget Cloudinary initialisé avec succès');
+      console.log('✅ [WIDGET] Widget initialisé avec succès');
 
     } catch (err) {
       console.error('❌ [WIDGET] Erreur lors de l\'initialisation du widget:', err);
@@ -232,21 +232,25 @@ function CloudinaryUploadWidget({ onUpload, children }: CloudinaryUploadWidgetPr
       setError('Impossible d\'ouvrir le widget. Vérifiez votre connexion.');
     }
   }, [loaded]);
+  
+  const childrenElement = children({ open: openWidget, loaded, error });
 
   return (
     <CloudinaryScriptContext.Provider value={{ loaded }}>
-      {children({ open: openWidget, loaded, error })}
-      {error && (
-        <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-          <strong>Erreur Cloudinary:</strong> {error}
-          <div className="mt-1 text-xs">
-            {cloudName === 'demo' ? 
-              'Mode démo activé - configurez vos propres identifiants Cloudinary pour la production' : 
-              'Vérifiez votre configuration Cloudinary'
-            }
-          </div>
-        </div>
-      )}
+      <>
+        {childrenElement}
+        {error && (
+            <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                <strong>Erreur Cloudinary:</strong> {error}
+                <div className="mt-1 text-xs">
+                    {cloudName === 'demo' ? 
+                    'Mode démo activé - configurez vos propres identifiants Cloudinary pour la production' : 
+                    'Vérifiez votre configuration Cloudinary'
+                    }
+                </div>
+            </div>
+        )}
+      </>
     </CloudinaryScriptContext.Provider>
   );
 }
