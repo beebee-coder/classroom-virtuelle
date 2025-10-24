@@ -6,6 +6,7 @@ import { pusherTrigger } from '../pusher/server';
 import { getAuthSession } from '../session';
 import { ComprehensionLevel } from '@/components/StudentSessionControls';
 import { allDummyStudents } from '../dummy-data';
+import type { CoursSession } from '@prisma/client';
 
 export async function createCoursSession(professeurId: string, classroomId: string, studentIds: string[]) {
     console.log('🚀 [ACTION SESSION] - Début de la création de la session de cours...');
@@ -338,12 +339,8 @@ export async function updateStudentSessionStatus(
   return { success: true };
 }
 
-
 // Types pour TypeScript
-export interface SessionData {
-    id: string;
-    professeurId: string;
-    classroomId: string;
+export interface SessionData extends CoursSession {
     invitationResults?: {
         successful: string[];
         failed: string[];

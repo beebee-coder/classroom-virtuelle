@@ -2,8 +2,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { Task, StudentProgress, ProgressStatus } from '@/lib/types';
 import { getAuthSession } from '../session';
+import type { Task, StudentProgress, ProgressStatus } from '@prisma/client';
 
 // ---=== BYPASS BACKEND ===---
 export async function createTask(formData: FormData): Promise<Task[]> {
@@ -61,6 +61,7 @@ export async function completeTask(taskId: string, submissionUrl?: string): Prom
     pointsAwarded: 0,
     accuracy: null,
     recipeName: null,
+    feedback: null,
   };
 }
 // ---=========================---

@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { usePathname } from 'next/navigation';
-import { Metier } from '@/lib/types';
+import type { Metier } from '@prisma/client';
 
 interface CareerThemeWrapperProps {
   career?: Metier;

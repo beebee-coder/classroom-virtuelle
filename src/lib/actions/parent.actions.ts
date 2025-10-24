@@ -2,7 +2,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { Task } from '@/lib/types';
+import type { Task } from '@prisma/client';
 
 type DetailedFeedback = { taste: number, presentation: number, autonomy: number, comment: string };
 
@@ -37,6 +37,8 @@ export async function getTasksForValidation(studentId: string): Promise<(Task & 
             isActive: true,
             startTime: null,
             duration: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
         },
         {
             id: 'task-bed',
@@ -53,18 +55,21 @@ export async function getTasksForValidation(studentId: string): Promise<(Task & 
             isActive: true,
             startTime: null,
             duration: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
         }
     ] as (Task & { progressId: string })[];
 }
 
 export async function validateTaskByParent(
     progressId: string,
-    feedback?: DetailedFeedback | number,
+    approved: boolean,
+    feedback?: DetailedFeedback,
     recipeName?: string,
 ) {
   // DUMMY ACTION
-  console.log(`[DUMMY] Validating task by parent: ${progressId}`, { feedback, recipeName });
+  console.log(`[DUMMY] Validating task by parent: ${progressId}`, { feedback, recipeName, approved });
   revalidatePath(`/student/some-student-id/parent`);
   revalidatePath(`/student/some-student-id`);
-  return { pointsAwarded: 50 };
+  return { pointsAwarded: approved ? 50 : 0 };
 }

@@ -13,9 +13,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
-import type { Task } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ShieldAlert } from 'lucide-react';
+import type { Task } from '@prisma/client';
 
 type ValidationTask = Task & { progressId: string };
 
@@ -88,7 +88,7 @@ export function TaskValidationClient({
 
     startTransition(async () => {
       try {
-        const { pointsAwarded } = await validateTaskByParent(task.progressId);
+        const { pointsAwarded } = await validateTaskByParent(task.progressId, approved);
         toast({
           title: `Tâche ${approved ? 'approuvée' : 'rejetée'} !`,
           description: `Vous avez accordé ${pointsAwarded} points à ${studentName}.`,
@@ -105,7 +105,7 @@ export function TaskValidationClient({
 
     startTransition(async () => {
         try {
-            await validateTaskByParent(feedbackTask.progressId, { taste, presentation, autonomy, comment }, recipeName);
+            await validateTaskByParent(feedbackTask.progressId, true, { taste, presentation, autonomy, comment }, recipeName);
             toast({ title: 'Tâche validée avec succès!', description: `Le feedback détaillé a été enregistré.` });
             setTasks(currentTasks => currentTasks.filter(t => t.id !== feedbackTask.id));
             setFeedbackTask(null); // Close modal

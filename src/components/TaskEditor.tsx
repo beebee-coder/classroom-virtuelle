@@ -22,7 +22,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { createTask, updateTask, deleteTask } from "@/lib/actions/task.actions";
 import { Loader2, PlusCircle, Edit, Trash } from 'lucide-react';
-import { Task, TaskType, TaskCategory, TaskDifficulty, ValidationType } from "@/lib/types";
+import { Task, TaskType, TaskCategory, TaskDifficulty, ValidationType } from "@prisma/client";
 
 interface TaskEditorProps {
   initialTasks: Task[];
@@ -42,12 +42,10 @@ export function TaskEditor({ initialTasks }: TaskEditorProps) {
         if (editingTask) {
           formData.append('id', editingTask.id);
           await updateTask(formData);
-          setTasks(tasks.map(t => t.id === editingTask.id ? { ...t, ...Object.fromEntries(formData) } : t) as Task[]);
+          // Optimistic update might be complex, better to rely on revalidation
           toast({ title: "Tâche mise à jour avec succès !" });
         } else {
           await createTask(formData);
-          // This part is optimistic, a full refresh might be better
-          // For now, we assume the action handles revalidation
           toast({ title: "Tâche créée avec succès !" });
         }
         setDialogOpen(false);
@@ -104,7 +102,7 @@ export function TaskEditor({ initialTasks }: TaskEditorProps) {
             </div>
             <div>
               <Label htmlFor="description">Description</Label>
-              <Textarea id="description" name="description" defaultValue={editingTask?.description} required />
+              <Textarea id="description" name="description" defaultValue={editingTask?.description ?? ''} required />
             </div>
             <div>
               <Label htmlFor="points">Points</Label>

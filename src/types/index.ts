@@ -1,9 +1,10 @@
 // src/types/index.ts
 import { ComprehensionLevel } from "@/components/StudentSessionControls";
-import { User, Role, ClassroomWithDetails } from "@/lib/types";
+import type { User, Role, Classroom, EtatEleve } from '@prisma/client';
 import type { Instance as PeerInstance, SignalData as PeerSignalData } from 'simple-peer';
 import { TLStoreSnapshot } from "@tldraw/tldraw";
 
+type ClassroomWithDetails = Classroom & { eleves: (User & { etat: EtatEleve | null })[] };
 
 // Types pour Pusher
  export interface PusherMember {

@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/session';
 import { authenticateUser } from '@/lib/pusher/server';
-import { Role } from '@/lib/types';
+import type { Role } from '@prisma/client';
 
 export async function POST(request: Request) {
   console.log('🚪 [API PUSHER AUTH] - Requête d\'authentification reçue.');

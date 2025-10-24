@@ -2,7 +2,6 @@
 import { Header } from '@/components/Header';
 import { notFound, redirect } from 'next/navigation';
 import { CareerThemeWrapper } from '@/components/CareerThemeWrapper';
-import { StudentWithStateAndCareer, AppTask, AnnouncementWithAuthor, Metier } from '@/lib/types';
 import { getAuthSession } from '@/lib/session';
 import { ChatSheet } from '@/components/ChatSheet';
 import { getStudentAnnouncements } from '@/lib/actions/announcement.actions';
@@ -10,10 +9,21 @@ import { getStudentData } from '@/lib/actions/student.actions';
 import StudentPageClient from '@/components/StudentPageClient';
 import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import Menu from '@/components/Menu';
+import type { User, Metier, Announcement, StudentProgress, Task, Classroom, EtatEleve } from '@prisma/client';
 
 // DUMMY DATA
 import { dummyCareers, dummyTasks } from '@/lib/dummy-data';
 
+// Re-définir les types complexes basés sur Prisma
+type StudentWithDetails = User & {
+    classe: Classroom | null;
+    etat: (EtatEleve & { metier: Metier | null }) | null;
+    progress: StudentProgress[];
+};
+
+type AnnouncementWithAuthor = Announcement & {
+    author: { name: string | null };
+};
 
 export default async function StudentDashboardPage() {
   console.log('🧑‍🎓 [PAGE] - Chargement du tableau de bord élève.');
@@ -23,7 +33,7 @@ export default async function StudentDashboardPage() {
     redirect('/login');
   }
   
-  const student = await getStudentData(session.user.id);
+  const student: StudentWithDetails | null = await getStudentData(session.user.id);
   
   if (!student) {
     console.error('❌ [PAGE] - Données de l\'élève non trouvées, redirection.');
@@ -34,8 +44,8 @@ export default async function StudentDashboardPage() {
 
   const metier = student.etat?.metier;
   const classeId = student.classe?.id;
-  const announcements = await getStudentAnnouncements(student.id);
-  const tasks = dummyTasks;
+  const announcements = (await getStudentAnnouncements(student.id)) as AnnouncementWithAuthor[];
+  const tasks = dummyTasks as Task[];
 
   return (
     <CareerThemeWrapper career={metier ?? undefined}>
@@ -44,7 +54,7 @@ export default async function StudentDashboardPage() {
           <Header user={session.user}>
               <SidebarTrigger />
               {classeId && session.user.role && (
-                  <ChatSheet classroomId={classeId} userId={session.user.id} userRole={session.user.role as any} />
+                  <ChatSheet classroomId={classeId} userId={session.user.id} userRole={session.user.role} />
               )}
           </Header>
           <div className="flex flex-1">

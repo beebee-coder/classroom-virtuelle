@@ -2,7 +2,13 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import type { TaskForProfessorValidation } from '../types';
+import type { StudentProgress, Task, User } from '@prisma/client';
+
+type TaskForProfessorValidation = StudentProgress & {
+  task: Task;
+  student: Pick<User, 'id' | 'name'>;
+};
+
 
 // ---=== BYPASS BACKEND ===---
 export async function getTasksForProfessorValidation(teacherId: string): Promise<TaskForProfessorValidation[]> {
@@ -18,6 +24,7 @@ export async function getTasksForProfessorValidation(teacherId: string): Promise
         pointsAwarded: 0,
         accuracy: null,
         recipeName: null,
+        feedback: null,
         task: { 
             id: 'task-math', 
             title: 'Exercice de maths', 
@@ -45,6 +52,7 @@ export async function getTasksForProfessorValidation(teacherId: string): Promise
         pointsAwarded: 0,
         accuracy: null,
         recipeName: null,
+        feedback: null,
         task: { 
             id: 'task-science', 
             title: 'Exposé scientifique', 
@@ -62,7 +70,7 @@ export async function getTasksForProfessorValidation(teacherId: string): Promise
         },
         student: { id: 'student2', name: 'Bob' },
       }
-    ] as TaskForProfessorValidation[];
+    ] as unknown as TaskForProfessorValidation[];
 }
 
 export interface ProfessorValidationPayload {

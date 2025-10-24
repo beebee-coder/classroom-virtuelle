@@ -3,9 +3,11 @@ import { notFound, redirect } from 'next/navigation';
 import { getAuthSession } from '@/lib/session';
 import SessionClient from '@/components/SessionClient';
 import { Suspense } from 'react';
-import { User, Role, ClassroomWithDetails } from '@/lib/types';
 import { getSessionDetails } from '@/lib/actions/session.actions';
 import { getClassroomWithStudents } from '@/lib/actions/classroom.actions';
+import type { User, Role, Classroom, EtatEleve } from '@prisma/client';
+
+type ClassroomWithDetails = Classroom & { eleves: (User & { etat: EtatEleve | null })[] };
 
 // Composant de chargement simple
 function SimpleSessionLoading() {
@@ -76,7 +78,7 @@ export default async function SessionPage({ params }: { params: { id: string } }
         redirect('/student/dashboard?error=not_invited');
     }
     
-    const currentUserRole = authSession.user.role;
+    const currentUserRole = authSession.user.role as Role;
     const currentUserId = authSession.user.id;
     
     console.log(`👤 [SESSION PAGE] - Rendu du composant SessionClient avec le rôle ${currentUserRole} et l'ID ${currentUserId}.`);
@@ -87,7 +89,7 @@ export default async function SessionPage({ params }: { params: { id: string } }
                 sessionId={params.id}
                 initialStudents={students as User[]}
                 initialTeacher={teacher as User}
-                currentUserRole={currentUserRole as Role}
+                currentUserRole={currentUserRole}
                 currentUserId={currentUserId}
                 classroom={classroomData}
             />

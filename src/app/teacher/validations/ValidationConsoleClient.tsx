@@ -7,11 +7,16 @@ import { Button } from '@/components/ui/button';
 import { Check, Loader2, X, Star } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ProfessorValidationPayload, validateTaskByProfessor } from '@/lib/actions/teacher.actions';
-import type { TaskForProfessorValidation } from '@/lib/types';
 import Image from 'next/image';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import type { Task, StudentProgress, User } from '@prisma/client';
+
+type TaskForProfessorValidation = StudentProgress & {
+  task: Task;
+  student: Pick<User, 'id' | 'name'>;
+};
 
 interface ValidationConsoleClientProps {
   initialTasks: TaskForProfessorValidation[];

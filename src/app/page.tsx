@@ -6,10 +6,12 @@ import { ArrowRight, Megaphone, Users } from 'lucide-react';
 import Link from 'next/link';
 import { getPublicAnnouncements } from '@/lib/actions/announcement.actions';
 import { format } from 'date-fns';
-import { AnnouncementWithAuthor } from '@/lib/types';
 import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { getAuthSession } from '@/lib/session';
 import { redirect } from 'next/navigation';
+import type { Announcement, User } from '@prisma/client';
+
+type AnnouncementWithAuthor = Announcement & { author: { name: string | null } };
 
 export default async function HomePage() {
   console.log('🏠 [PAGE] - Chargement de la page d\'accueil.');
@@ -25,7 +27,7 @@ export default async function HomePage() {
   }
   
   console.log('✅ [PAGE] - Affichage de la page d\'accueil pour visiteur.');
-  const announcements = await getPublicAnnouncements(2);
+  const announcements: AnnouncementWithAuthor[] = await getPublicAnnouncements(2) as AnnouncementWithAuthor[];
 
   return (
     <SidebarProvider>

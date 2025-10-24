@@ -11,12 +11,16 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { CreateAnnouncementForm } from '@/components/CreateAnnouncementForm';
 import { AddStudentForm } from './AddStudentForm';
-import { ClassroomWithDetails, StudentForCard, AnnouncementWithAuthor, User } from '@/lib/types';
-import { AnnouncementCarousel } from '@/components/AnnouncementCarousel';
 import { BackButton } from '@/components/BackButton';
 import { Video, XSquare, Crown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePresenceForTeacher } from '@/hooks/usePresenceForTeacher';
+import { AnnouncementCarousel } from '@/components/AnnouncementCarousel';
+import type { User, Classroom, Announcement } from '@prisma/client';
+
+type AnnouncementWithAuthor = Announcement & { author: { name: string | null } };
+type StudentForCard = User & { etat: { isPunished: boolean } | null };
+type ClassroomWithDetails = Classroom & { eleves: StudentForCard[] };
 
 
 interface ClassPageClientProps {
@@ -36,7 +40,8 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
     // Utilisation du nouveau hook pour gérer la présence
     const { onlineUsers: onlineStudents, isConnected, error: presenceError } = usePresenceForTeacher(
         teacher.id, 
-        classroom.id
+        classroom.id,
+        !!teacher?.id && !!classroom?.id
     );
 
     useEffect(() => {
@@ -152,7 +157,7 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
 
     // Fonction pour générer l'avatar de façon sécurisée
     const getStudentAvatarUrl = (student: StudentForCard): string => {
-        return `https://api.dicebear.com/7.x/pixel-art/svg?seed=${student.id || 'default'}`;
+        return student.image ?? `https://api.dicebear.com/7.x/pixel-art/svg?seed=${student.id || 'default'}`;
     };
 
     const getStudentInitial = (student: StudentForCard): string => {
@@ -251,7 +256,7 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                                                 >
                                                     <AvatarImage 
                                                         src={getStudentAvatarUrl(student)} 
-                                                        alt={`Avatar de ${student.name}`}
+                                                        alt={`Avatar de ${student.name ?? ''}`}
                                                     />
                                                     <AvatarFallback>
                                                         {getStudentInitial(student)}

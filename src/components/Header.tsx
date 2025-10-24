@@ -6,10 +6,10 @@ import { School } from 'lucide-react';
 import { UserNav } from './UserNav';
 import { Button } from './ui/button';
 import { ThemeToggle } from './ThemeToggle';
-import type { User } from '@/lib/types';
+import { DummySession } from '@/lib/session';
 
 interface HeaderProps {
-  user?: User | null;
+  user?: DummySession['user'] | null;
   children?: React.ReactNode;
 }
 

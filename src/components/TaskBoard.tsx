@@ -11,11 +11,10 @@ import { completeTask } from '@/lib/actions/task.actions';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { CloudinaryUploadWidget } from './CloudinaryUploadWidget';
-import { AppTask, StudentProgress, Task, TaskType, ProgressStatus } from '@/lib/types';
-
+import type { Task, StudentProgress, TaskType, ProgressStatus } from '@prisma/client';
 
 interface TaskBoardProps {
-  tasks: AppTask[];
+  tasks: Task[];
   studentProgress: StudentProgress[];
   studentId: string;
 }
@@ -40,7 +39,7 @@ export function TaskBoard({ tasks, studentProgress, studentId }: TaskBoardProps)
     const groups = Object.values(TaskType).reduce((acc, type) => {
       acc[type] = [];
       return acc;
-    }, {} as Record<TaskType, AppTask[]>);
+    }, {} as Record<TaskType, Task[]>);
     
     tasks.forEach((task) => {
       if (groups[task.type]) {

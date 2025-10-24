@@ -8,7 +8,7 @@ import { CareerThemeWrapper } from '@/components/CareerThemeWrapper';
 import { SidebarProvider, Sidebar, SidebarContent, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { Header } from '@/components/Header';
 import Menu from '@/components/Menu';
-
+import type { User, Metier, Announcement, StudentProgress, Task, Classroom, EtatEleve } from '@prisma/client';
 
 // DUMMY DATA
 import { dummyCareers, dummyTasks } from '@/lib/dummy-data';
@@ -39,7 +39,7 @@ export default async function StudentProfilePage({ params }: { params: { id: str
     const isTeacherView = viewingUser.role === 'PROFESSEUR';
     const metier = student.etat?.metier;
     const allCareers = isTeacherView ? dummyCareers : [];
-    const announcements = await getStudentAnnouncements(student.id);
+    const announcements = (await getStudentAnnouncements(student.id)) as (Announcement & {author: {name: string | null}})[];
     const tasks = dummyTasks;
     const classeId = student.classe?.id;
 
@@ -62,7 +62,7 @@ export default async function StudentProfilePage({ params }: { params: { id: str
                 )}
                 <SidebarInset>
                   <StudentPageClient
-                      student={student}
+                      student={student as any}
                       announcements={announcements}
                       allCareers={allCareers}
                       isTeacherView={isTeacherView}

@@ -14,7 +14,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Megaphone } from "lucide-react";
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { AnnouncementWithAuthor } from "@/lib/types";
+import type { Announcement } from '@prisma/client';
+
+type AnnouncementWithAuthor = Announcement & {
+    author: { name: string | null };
+};
 
 interface AnnouncementDateProps {
   date: string | Date;

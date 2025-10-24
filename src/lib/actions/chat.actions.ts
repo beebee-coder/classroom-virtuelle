@@ -2,7 +2,13 @@
 'use server';
 
 import { pusherTrigger } from '@/lib/pusher/server';
-import { ReactionWithUser, MessageWithReactions } from '../types';
+import type { Message, Reaction, User } from '@prisma/client';
+
+type ReactionWithUser = Reaction & { user: Pick<User, 'id' | 'name'> };
+type MessageWithReactions = Message & {
+    sender: Pick<User, 'id' | 'name' | 'image'>;
+    reactions: ReactionWithUser[];
+};
 
 // ---=== BYPASS BACKEND ===---
 const dummyMessages: MessageWithReactions[] = [
@@ -10,9 +16,9 @@ const dummyMessages: MessageWithReactions[] = [
         id: '1', 
         message: 'Bonjour la classe ! Ceci est un message de test.', 
         senderId: 'teacher-id', 
-        senderName: 'Professeur Test',
         classroomId: 'classe-a', 
         createdAt: new Date(Date.now() - 60000), 
+        updatedAt: new Date(Date.now() - 60000),
         isQuestion: false, 
         conversationId: null, 
         directMessageSenderId: null,
@@ -27,9 +33,9 @@ const dummyMessages: MessageWithReactions[] = [
         id: '2', 
         message: 'Bonjour Monsieur !', 
         senderId: 'student1', 
-        senderName: 'Alice',
         classroomId: 'classe-a', 
         createdAt: new Date(Date.now() - 30000), 
+        updatedAt: new Date(Date.now() - 30000),
         isQuestion: false, 
         conversationId: null, 
         directMessageSenderId: null,
@@ -64,8 +70,8 @@ export async function sendMessage(formData: FormData) {
         message: messageContent,
         classroomId,
         senderId: 'current-user-id', // En mode bypass, l'ID est générique
-        senderName: "Vous (Démo)",
         createdAt: new Date(),
+        updatedAt: new Date(),
         isQuestion: false,
         conversationId: null,
         directMessageSenderId: null,

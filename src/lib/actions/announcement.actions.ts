@@ -2,10 +2,11 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { AnnouncementWithAuthor } from '../types';
 import { cache } from 'react';
 import { getAuthSession } from '../session';
+import type { Announcement } from '@prisma/client';
 
+type AnnouncementWithAuthor = Announcement & { author: { name: string | null } };
 // ---=== BYPASS BACKEND ===---
 const dummyAnnouncements: AnnouncementWithAuthor[] = [
     {
@@ -15,6 +16,7 @@ const dummyAnnouncements: AnnouncementWithAuthor[] = [
         author: { name: 'Professeur Test' },
         authorId: 'teacher-id',
         createdAt: new Date(),
+        updatedAt: new Date(),
         classeId: null,
         attachmentUrl: null,
     },
@@ -25,6 +27,7 @@ const dummyAnnouncements: AnnouncementWithAuthor[] = [
         author: { name: 'Professeur Test' },
         authorId: 'teacher-id',
         createdAt: new Date(Date.now() - 86400000), // Yesterday
+        updatedAt: new Date(Date.now() - 86400000),
         classeId: 'classe-a',
         attachmentUrl: null,
     },
@@ -35,6 +38,7 @@ const dummyAnnouncements: AnnouncementWithAuthor[] = [
         author: { name: 'Professeur Test' },
         authorId: 'teacher-id',
         createdAt: new Date(Date.now() - 172800000), // 2 days ago
+        updatedAt: new Date(Date.now() - 172800000),
         classeId: null,
         attachmentUrl: 'https://example.com/document.pdf',
     }
@@ -61,9 +65,10 @@ export async function createAnnouncement(formData: FormData) {
     title,
     content,
     authorId: session.user.id,
-    author: { name: session.user.name },
+    author: { name: session.user.name ?? null },
     classeId: target === 'public' ? null : target,
     createdAt: new Date(),
+    updatedAt: new Date(),
     attachmentUrl: attachmentUrl || null,
   };
   dummyAnnouncements.unshift(newAnnouncement);

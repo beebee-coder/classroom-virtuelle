@@ -2,7 +2,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { StudentWithStateAndCareer, AppTask, AnnouncementWithAuthor, Metier, SessionParticipant } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,13 +18,25 @@ import { CareerSelector } from '@/components/CareerSelector'; // Assumant que ce
 import { DummySession } from '@/lib/session';
 import { TaskBoard } from './TaskBoard';
 import { AnnouncementCarousel } from './AnnouncementCarousel';
+import type { User as PrismaUser, Metier as PrismaMetier, Announcement as PrismaAnnouncement, StudentProgress as PrismaStudentProgress, Task as PrismaTask, Classroom, EtatEleve } from '@prisma/client';
+
+// Création de types locaux pour la transition
+type StudentWithDetails = PrismaUser & {
+    classe: Classroom | null;
+    etat: (EtatEleve & { metier: PrismaMetier | null }) | null;
+    progress: PrismaStudentProgress[];
+};
+
+type AnnouncementWithAuthor = PrismaAnnouncement & {
+    author: { name: string | null };
+};
 
 interface StudentPageClientProps {
-    student: StudentWithStateAndCareer;
+    student: StudentWithDetails;
     announcements: AnnouncementWithAuthor[];
-    allCareers: Metier[];
+    allCareers: PrismaMetier[];
     isTeacherView: boolean;
-    tasks: AppTask[];
+    tasks: PrismaTask[];
     user: DummySession['user'];
 }
 
@@ -191,7 +202,7 @@ export default function StudentPageClient({
                 <CardContent className="p-6">
                     <div className="flex items-center space-x-4">
                         <Avatar className="h-16 w-16">
-                            <AvatarImage src={`https://api.dicebear.com/7.x/pixel-art/svg?seed=${student.id}`} alt={student.name || 'Élève'} />
+                            <AvatarImage src={student.image ?? `https://api.dicebear.com/7.x/pixel-art/svg?seed=${student.id}`} alt={student.name || 'Élève'} />
                             <AvatarFallback>{student.name?.charAt(0)?.toUpperCase() || 'E'}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1">

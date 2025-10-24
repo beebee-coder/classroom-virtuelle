@@ -4,29 +4,25 @@ import { notFound, redirect } from 'next/navigation';
 import { getAuthSession } from '@/lib/session';
 import { Header } from '@/components/Header';
 import { StudentClassView } from '@/components/StudentClassView';
-import { User, StudentForCard } from '@/lib/types';
+import type { User, Classroom, EtatEleve } from '@prisma/client';
 
-
-export type ClassroomWithStudents = {
-    id: string;
-    nom: string;
+export type ClassroomWithStudents = Classroom & {
     eleves: (User & {
-        etat: {
-            isPunished: boolean;
-        } | null;
+        etat: EtatEleve | null;
     })[];
 };
 
 // DUMMY DATA
-const dummyStudents: StudentForCard[] = [
-    { id: 'student1', name: 'Alice', email: 'student1@example.com', points: 1250, image: null, etat: { isPunished: false } },
-    { id: 'student2', name: 'Bob', email: 'student2@example.com', points: 980, image: null, etat: { isPunished: false } },
+const dummyStudents: (User & { etat: EtatEleve | null })[] = [
+    { id: 'student1', name: 'Alice', email: 'student1@example.com', points: 1250, image: null, etat: { id: '1', eleveId: 'student1', isPunished: false, metierId: null }, ambition: 'Devenir Astronaute', classeId: 'classe-a', emailVerified: null, parentPassword: null, role: 'ELEVE' },
+    { id: 'student2', name: 'Bob', email: 'student2@example.com', points: 980, image: null, etat: { id: '2', eleveId: 'student2', isPunished: false, metierId: null }, ambition: 'Explorer les fonds marins', classeId: 'classe-a', emailVerified: null, parentPassword: null, role: 'ELEVE' },
 ];
 
 const dummyClassroom: ClassroomWithStudents = {
     id: 'classe-a',
     nom: 'Classe 6ème A',
-    eleves: dummyStudents as any,
+    professeurId: 'teacher-id',
+    eleves: dummyStudents,
 };
 
 
@@ -51,7 +47,7 @@ export default async function StudentClassPage({ params }: { params: { id: strin
   return (
     <>
       <Header user={session.user} />
-      <StudentClassView classroom={classroom as any} />
+      <StudentClassView classroom={classroom} />
     </>
   );
 }

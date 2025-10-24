@@ -2,7 +2,19 @@
 'use server';
 
 import { pusherTrigger } from '@/lib/pusher/server';
-import { FullConversation } from '@/lib/types';
+import type { Conversation, Message, Reaction, User } from '@prisma/client';
+
+type ReactionWithUser = Reaction & { user: Pick<User, 'id' | 'name'> };
+type MessageWithReactions = Message & {
+    sender: Pick<User, 'id' | 'name' | 'image'>;
+    reactions: ReactionWithUser[];
+};
+
+type FullConversation = Conversation & {
+  messages: MessageWithReactions[];
+  initiator: Pick<User, 'id' | 'name' | 'image'>;
+  receiver: Pick<User, 'id' | 'name' | 'image'>;
+};
 
 
 export async function getOrCreateConversation(
@@ -24,6 +36,7 @@ export async function getOrCreateConversation(
         message: 'Bonjour ! Ceci est une conversation de test.', 
         senderId: initiatorId, 
         createdAt: new Date(),
+        updatedAt: new Date(),
         conversationId: `conv-${initiatorId}-${receiverId}`,
         classroomId: null,
         isQuestion: false,
@@ -31,7 +44,7 @@ export async function getOrCreateConversation(
         sender: {
           id: initiatorId,
            image: null,
-          name: null
+          name: 'Utilisateur Initiateur'
         },
         reactions: [],
       }
@@ -54,8 +67,8 @@ export async function sendDirectMessage(formData: FormData) {
         message: messageContent,
         conversationId,
         senderId: 'current-user-id', // This would be the session user ID
-        senderName: "Vous",
         createdAt: new Date(),
+        updatedAt: new Date(),
     };
 
     const channelName = `private-conversation-${conversationId}`;
