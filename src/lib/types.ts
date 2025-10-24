@@ -50,7 +50,7 @@ export interface User {
   name?: string | null;
   email?: string | null;
   image?: string | null;
-  role?: Role;
+  role: Role; // Rendu obligatoire pour correspondre à Prisma
   classeId?: string | null;
   points?: number;
   ambition?: string | null;
