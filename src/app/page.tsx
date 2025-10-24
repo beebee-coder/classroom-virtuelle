@@ -2,13 +2,12 @@
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, Megaphone } from 'lucide-react';
+import { ArrowRight, Megaphone, Users } from 'lucide-react';
 import Link from 'next/link';
 import { getPublicAnnouncements } from '@/lib/actions/announcement.actions';
 import { format } from 'date-fns';
 import { AnnouncementWithAuthor } from '@/lib/types';
 import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
-import { StudentCarousel } from '@/components/StudentCarousel';
 import { getAuthSession } from '@/lib/session';
 import { redirect } from 'next/navigation';
 
@@ -35,10 +34,18 @@ export default async function HomePage() {
         <div className="flex flex-1 overflow-hidden ">
           <Sidebar>
             <SidebarContent>
-              {/* Remplacer les cartes statiques par le carrousel dynamique */}
                <div className="p-4 ">
                 <h2 className="font-semibold text-lg mb-4 text-center">Au Cœur des Sessions</h2>
-                <StudentCarousel />
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Users className="text-primary"/> Nos Élèves</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground">
+                      Découvrez un environnement d'apprentissage dynamique et interactif où chaque élève peut s'épanouir.
+                    </p>
+                  </CardContent>
+                </Card>
               </div>
             </SidebarContent>
           </Sidebar>
