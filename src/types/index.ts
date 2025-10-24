@@ -1,6 +1,8 @@
+// src/types/index.ts
 import { ComprehensionLevel } from "@/components/StudentSessionControls";
 import { User, Role, ClassroomWithDetails } from "@/lib/types";
 import type { Instance as PeerInstance, SignalData as PeerSignalData } from 'simple-peer';
+
 
 // Types pour Pusher
  export interface PusherMember {
@@ -72,6 +74,7 @@ import type { Instance as PeerInstance, SignalData as PeerSignalData } from 'sim
   export  interface PeerData {
     id: string;
     peer: PeerInstance;
+    isConnected: boolean;
   }
   
   export  interface RemoteParticipant {
