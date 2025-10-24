@@ -120,7 +120,14 @@ export function StudentSessionView({
     
     return (
         <div className="flex flex-row flex-1 min-h-0 py-6 gap-6">
-            {/* Barre latérale gauche : contrôles et vidéo locale */}
+            {/* Colonne principale : Contenu actif */}
+            <div className="flex-1 flex flex-col min-w-0">
+                <div className="w-full h-full relative">
+                    {renderMainContent()}
+                </div>
+            </div>
+
+            {/* Barre latérale droite : contrôles et vidéo locale */}
             <div className="w-72 flex flex-col gap-6">
                  <Participant
                     stream={localStream}
@@ -141,13 +148,6 @@ export function StudentSessionView({
                         />
                     </div>
                 </ScrollArea>
-            </div>
-            
-            {/* Colonne principale : Contenu actif */}
-            <div className="flex-1 flex flex-col min-w-0">
-                <div className="w-full h-full relative">
-                    {renderMainContent()}
-                </div>
             </div>
         </div>
     );
