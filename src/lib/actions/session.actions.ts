@@ -6,7 +6,7 @@ import { pusherTrigger } from '../pusher/server';
 import { getAuthSession } from '../session';
 import { ComprehensionLevel } from '@/components/StudentSessionControls';
 import prisma from '../prisma';
-import type { CoursSession, ParticipantSession, User } from '@prisma/client';
+import type { CoursSession, User } from '@prisma/client';
 
 export async function createCoursSession(professeurId: string, classroomId: string, studentIds: string[]) {
     console.log('🚀 [ACTION SESSION] - Début de la création de la session de cours...');
@@ -18,16 +18,15 @@ export async function createCoursSession(professeurId: string, classroomId: stri
             throw new Error('Paramètres invalides: professeurId, classroomId et studentIds sont requis');
         }
 
-        // Créer la session et les participants dans une seule transaction
+        const participantIds = [professeurId, ...studentIds];
+
+        // Créer la session et connecter les participants dans une seule transaction
         const session = await prisma.coursSession.create({
             data: {
                 professeurId: professeurId,
                 classroomId: classroomId,
                 participants: {
-                    create: [
-                        { userId: professeurId }, // Ajouter le professeur comme participant
-                        ...studentIds.map(id => ({ userId: id }))
-                    ]
+                    connect: participantIds.map(id => ({ id }))
                 }
             },
             include: {
@@ -123,11 +122,7 @@ export async function getSessionDetails(sessionId: string) {
             where: { id: sessionId },
             include: {
                 professeur: true, // Inclure les détails du prof
-                participants: {
-                    include: {
-                        user: true // Inclure les détails de chaque participant
-                    }
-                }
+                participants: true // Inclure les détails de chaque participant
             }
         });
 
@@ -137,8 +132,7 @@ export async function getSessionDetails(sessionId: string) {
         }
 
         const students = session.participants
-            .filter(p => p.user.role === 'ELEVE')
-            .map(p => p.user);
+            .filter(p => p.role === 'ELEVE');
 
         console.log('✅ [ACTION SESSION DETAILS] - Détails de session récupérés.');
         return {
@@ -383,4 +377,52 @@ export async function broadcastDocumentUrl(sessionId: string, url: string) {
         console.error('💥 [ACTION DOCUMENT] - Erreur:', error);
         throw new Error("Impossible de diffuser l'URL du document.");
     }
+}
+
+export async function broadcastWhiteboardUpdate(sessionId: string, snapshot: any) {
+  console.log(`🎨 [ACTION WHITEBOARD] - Diffusion des données du tableau blanc pour la session ${sessionId}`);
+  try {
+    const session = await getAuthSession();
+    if (!session?.user) {
+      console.error('❌ [ACTION WHITEBOARD] - Tentative de diffusion non autorisée (pas de session).');
+      throw new Error('Unauthorized');
+    }
+
+    const channelName = `presence-session-${sessionId}`;
+    const eventName = 'whiteboard-update';
+
+    await pusherTrigger(channelName, eventName, {
+      senderId: session.user.id,
+      snapshot: snapshot,
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('💥 [ACTION WHITEBOARD] - Erreur lors de la diffusion des mises à jour :', error);
+    return { success: false, error: 'Failed to broadcast whiteboard update' };
+  }
+}
+
+export async function broadcastWhiteboardController(sessionId: string, controllerId: string) {
+  console.log(`🕹️ [ACTION WHITEBOARD] - Changement du contrôleur du tableau blanc pour ${controllerId} dans la session ${sessionId}`);
+  try {
+    const session = await getAuthSession();
+    if (session?.user?.role !== 'PROFESSEUR') {
+      console.error('❌ [ACTION WHITEBOARD] - Seul le professeur peut changer le contrôleur.');
+      throw new Error('Unauthorized');
+    }
+
+    const channelName = `presence-session-${sessionId}`;
+    const eventName = 'whiteboard-controller-update';
+
+    await pusherTrigger(channelName, eventName, {
+      controllerId,
+    });
+
+    revalidatePath(`/session/${sessionId}`);
+    return { success: true };
+  } catch (error) {
+    console.error('💥 [ACTION WHITEBOARD] - Erreur lors du changement de contrôleur:', error);
+    return { success: false, error: 'Failed to change whiteboard controller' };
+  }
 }

@@ -48,7 +48,7 @@ export default async function SessionPage({ params }: { params: { id: string } }
         sessionFromDb = await prisma.coursSession.findUnique({
             where: { id: params.id },
             include: {
-                participants: { include: { user: true }},
+                participants: true,
                 classe: true
             }
         });
@@ -59,8 +59,8 @@ export default async function SessionPage({ params }: { params: { id: string } }
 
         sessionDetails = {
             id: sessionFromDb.id,
-            teacher: sessionFromDb.participants.find(p => p.user.role === 'PROFESSEUR')?.user,
-            students: sessionFromDb.participants.filter(p => p.user.role === 'ELEVE').map(p => p.user),
+            teacher: sessionFromDb.participants.find(p => p.role === 'PROFESSEUR'),
+            students: sessionFromDb.participants.filter(p => p.role === 'ELEVE'),
         };
 
         if (sessionFromDb.classroomId) {
