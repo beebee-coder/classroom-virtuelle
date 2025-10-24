@@ -14,7 +14,7 @@ import { TeacherSessionView } from './session/TeacherSessionView';
 import { StudentSessionView } from './session/StudentSessionView';
 import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';
-import { endCoursSession, broadcastTimerEvent, broadcastActiveTool, broadcastWhiteboardController } from '@/lib/actions';
+import { endCoursSession, broadcastTimerEvent, broadcastActiveTool, broadcastWhiteboardController, broadcastWhiteboardUpdate, updateStudentSessionStatus } from '@/lib/actions';
 import { ComprehensionLevel } from './StudentSessionControls';
 import { SessionClientProps, PeerData, SignalPayload, PusherSubscriptionSucceededEvent, PusherMemberEvent, IncomingSignalData, SpotlightEvent, HandRaiseEvent, UnderstandingEvent, TimerEvent, ToolEvent, DocumentEvent, RemoteParticipant } from '@/types';
 import { TLStoreSnapshot } from '@tldraw/tldraw';
@@ -384,11 +384,29 @@ export default function SessionClient({
     return <SessionLoading />;
   }
 
-  const handleToggleHandRaise = (isRaised: boolean): void => {
-    onToggleHandRaise(isRaised); // Optimistic update
+  const handleToggleHandRaise = (isRaised: boolean) => {
+        const newHandRaiseState = isRaised;
+        setRaisedHands(prev => {
+            const newSet = new Set(prev);
+            newHandRaiseState ? newSet.add(currentUserId) : newSet.delete(currentUserId);
+            return newSet;
+        });
+        updateStudentSessionStatus(sessionId, { isHandRaised: newHandRaiseState }).catch(() => {
+             toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de mettre à jour le statut de la main levée.'});
+             setRaisedHands(prev => {
+                const newSet = new Set(prev);
+                !newHandRaiseState ? newSet.add(currentUserId) : newSet.delete(currentUserId);
+                return newSet;
+            });
+        });
   };
-  const handleUnderstandingChange = (status: ComprehensionLevel): void => {
-    onUnderstandingChange(status); // Optimistic update
+  const handleUnderstandingChange = (status: ComprehensionLevel) => {
+       const newStatus = understandingStatus.get(currentUserId) === status ? ComprehensionLevel.NONE : status;
+       setUnderstandingStatus(prev => new Map(prev).set(currentUserId, newStatus));
+        updateStudentSessionStatus(sessionId, { understanding: newStatus }).catch(() => {
+            toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de mettre à jour le statut de compréhension.'});
+            setUnderstandingStatus(prev => new Map(prev).set(currentUserId, understandingStatus.get(currentUserId) || ComprehensionLevel.NONE));
+        });
   };
   const handleToolChange = (tool: string): void => {
     broadcastActiveTool(sessionId, tool);
