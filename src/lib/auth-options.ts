@@ -111,5 +111,4 @@ export const authOptions: AuthOptions = {
 };
 
 // Modification pour être compatible avec Next-Auth v4
-const handlers = NextAuth(authOptions);
-export { handlers };
+export const handlers = NextAuth(authOptions);
