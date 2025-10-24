@@ -58,6 +58,7 @@ export default function SessionClient({
   const [understandingStatus, setUnderstandingStatus] = useState<Map<string, ComprehensionLevel>>(new Map());
   const [isEndingSession, setIsEndingSession] = useState(false);
   const [activeTool, setActiveTool] = useState<string>('whiteboard');
+  const [documentUrl, setDocumentUrl] = useState<string | null>(null);
 
   // Nouveaux états pour le minuteur
   const [timerDuration, setTimerDuration] = useState(INITIAL_TIMER_DURATION);
@@ -322,6 +323,15 @@ export default function SessionClient({
       setActiveTool(data.tool);
     });
 
+    // Mise à jour du document partagé
+    channel.bind('document-updated', (data: { url: string }) => {
+      console.log(`[PUSHER] Document URL updated: ${data.url}`);
+      setDocumentUrl(data.url);
+      // Forcer le passage à l'outil document si ce n'est pas déjà le cas
+      setActiveTool('document');
+      toast({ title: 'Document partagé', description: 'Le professeur a partagé un nouveau document.' });
+    });
+
 
     return () => {
       console.log(`🔌 [PUSHER] - Nettoyage des abonnements pour la session ${sessionId}`);
@@ -450,6 +460,7 @@ export default function SessionClient({
             activeTool={activeTool}
             onToolChange={handleToolChange}
             classroom={classroom}
+            documentUrl={documentUrl}
           />
         ) : (
           <StudentSessionView
@@ -464,6 +475,7 @@ export default function SessionClient({
             currentUnderstanding={understandingStatus.get(currentUserId) || ComprehensionLevel.NONE}
             currentUserId={currentUserId}
             activeTool={activeTool}
+            documentUrl={documentUrl}
           />
         )}
       </main>

@@ -353,3 +353,18 @@ export async function reinviteStudentToSession(sessionId: string, studentId: str
         throw new Error("Impossible de ré-inviter l'élève.");
     }
 }
+
+export async function broadcastDocumentUrl(sessionId: string, url: string) {
+    try {
+        if (!sessionId || !url) {
+            throw new Error('sessionId et url sont requis');
+        }
+        console.log(`[DOCUMENT] Diffusion de l'URL du document pour la session ${sessionId}`);
+        const channel = `presence-session-${sessionId}`;
+        await pusherTrigger(channel, 'document-updated', { url });
+        return { success: true };
+    } catch (error) {
+        console.error('[DOCUMENT] - Erreur:', error);
+        throw new Error("Impossible de diffuser l'URL du document.");
+    }
+}

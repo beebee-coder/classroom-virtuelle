@@ -23,6 +23,7 @@ interface StudentSessionViewProps {
     currentUnderstanding: ComprehensionLevel;
     currentUserId: string;
     activeTool: string;
+    documentUrl: string | null;
 }
 
 export function StudentSessionView({
@@ -37,6 +38,7 @@ export function StudentSessionView({
     currentUnderstanding,
     currentUserId,
     activeTool,
+    documentUrl,
 }: StudentSessionViewProps) {
     const { toast } = useToast();
 
@@ -47,7 +49,7 @@ export function StudentSessionView({
             await updateStudentSessionStatus(sessionId, { isHandRaised: newHandRaiseState });
         } catch {
             toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de mettre à jour le statut de la main levée.'});
-            onToggleHandRaise(!newHandRaise-state); // Revert on failure
+            onToggleHandRaise(!newHandRaiseState); // Revert on failure
         }
     };
     
@@ -65,7 +67,7 @@ export function StudentSessionView({
     const renderMainContent = () => {
         switch(activeTool) {
             case 'document':
-                return <DocumentViewer url={null} />; // L'URL sera mise à jour via Pusher
+                return <DocumentViewer url={documentUrl} />;
             case 'camera':
                  // Pour l'élève, la vue caméra principale est celle de la personne en vedette
                 if (!spotlightedUser || !spotlightedStream) {

@@ -15,7 +15,7 @@ import { TeacherSessionControls } from '../TeacherSessionControls';
 import { ComprehensionLevel } from '../StudentSessionControls';
 import { DocumentViewer } from '../DocumentViewer';
 import { ClassStudentList } from './ClassStudentList';
-import { Loader2 } from 'lucide-react';
+import { Loader2, UploadCloud } from 'lucide-react';
 import {
     Carousel,
     CarouselContent,
@@ -23,6 +23,9 @@ import {
     CarouselNext,
     CarouselPrevious,
 } from "@/components/ui/carousel";
+import { CloudinaryUploadWidget } from '../CloudinaryUploadWidget';
+import { Button } from '../ui/button';
+import { broadcastDocumentUrl } from '@/lib/actions';
 
 export function TeacherSessionView({
     sessionId,
@@ -38,7 +41,8 @@ export function TeacherSessionView({
     currentUserId,
     activeTool,
     onToolChange,
-    classroom 
+    classroom,
+    documentUrl,
 }: {
     sessionId: string;
     localStream: MediaStream | null;
@@ -54,6 +58,7 @@ export function TeacherSessionView({
     activeTool: string;
     onToolChange: (tool: string) => void;
     classroom: ClassroomWithDetails | null;
+    documentUrl: string | null;
 }) {
     const remoteStreamsMap = new Map(remoteParticipants.map(p => [p.id, p.stream]));
     
@@ -67,6 +72,13 @@ export function TeacherSessionView({
     if (!currentUserId || !teacher) return null;
 
     const activeParticipantIds = [currentUserId, ...remoteParticipants.map(p => p.id)];
+
+    const handleDocumentUpload = (result: any) => {
+        if (result.event === 'success') {
+            const url = result.info.secure_url;
+            broadcastDocumentUrl(sessionId, url);
+        }
+    };
 
     const renderActiveTool = () => {
         if (screenStream) {
@@ -85,7 +97,21 @@ export function TeacherSessionView({
 
         switch(activeTool) {
             case 'document':
-                return <DocumentViewer url={null} />;
+                return (
+                    <div className="h-full w-full flex flex-col gap-4">
+                        <div className="flex-1 min-h-0">
+                            <DocumentViewer url={documentUrl} />
+                        </div>
+                        <CloudinaryUploadWidget onUpload={handleDocumentUpload}>
+                            {({ open }) => (
+                                <Button onClick={() => open()} variant="outline">
+                                    <UploadCloud className="mr-2" />
+                                    Téléverser un document à partager
+                                </Button>
+                            )}
+                        </CloudinaryUploadWidget>
+                    </div>
+                );
             case 'camera':
                  const spotlightedStream = spotlightedUser?.id === currentUserId 
                     ? localStream
