@@ -74,7 +74,8 @@ const Menu: React.FC<MenuProps> = ({ user, classrooms = [], validationCount = 0 
                  // Pass necessary props to dynamic components
                  const compProps = item.label === "Créer une Annonce" ? { classrooms } : {};
                  return (
-                    <div key={item.label} className={cn(styles.button, colorClass, "justify-center")}>
+                    // Ne pas appliquer de colorClass ici pour les composants
+                    <div key={item.label} className={cn(styles.button, "justify-center")}>
                        <Comp {...compProps} />
                     </div>
                  )
