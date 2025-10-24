@@ -235,12 +235,19 @@ export default function SessionClient({
       if (data.target !== currentUserId) return;
 
       console.log(`📡 [PUSHER] <- Signal reçu de ${data.userId}`);
-      let peer = peersRef.current.get(data.userId);
+      const peer = peersRef.current.get(data.userId);
 
       if (!peer) {
-        console.log(`🆕 [PEER] - Le peer pour ${data.userId} n'existe pas. Création d'un peer non-initiateur.`);
-        peer = createPeer(data.userId, false);
-        peersRef.current.set(data.userId, peer);
+        console.warn(`⚠️ [PEER] - Peer pour ${data.userId} non trouvé lors de la réception du signal. Création d'un nouveau pair.`);
+        const newPeer = createPeer(data.userId, false);
+        peersRef.current.set(data.userId, newPeer);
+        newPeer.signal(data.signal);
+        return;
+      }
+      
+      if(peer.destroyed) {
+          console.error(`❌ [PEER] - Tentative d'envoyer un signal à un peer détruit pour ${data.userId}.`);
+          return;
       }
 
       try {
