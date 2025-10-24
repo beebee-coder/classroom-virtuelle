@@ -26,6 +26,7 @@ interface ClassPageClientProps {
 }
 
 export default function ClassPageClient({ classroom, teacher, announcements }: ClassPageClientProps) {
+    console.log(`👨‍🏫 [CLIENT CLASSE] - Initialisation pour la classe "${classroom.nom}"`);
     const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
     const [isStartingSession, setIsStartingSession] = useState<boolean>(false);
     const [isSendingInvitations, setIsSendingInvitations] = useState<boolean>(false);
@@ -34,9 +35,11 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
 
     // Utilisation du nouveau hook pour gérer la présence
     const { onlineUsers: onlineStudents, isConnected, error: presenceError } = usePresenceForTeacher(teacher.id, classroom.id);
+    console.log('  Utilisateurs en ligne détectés:', onlineStudents);
 
     // Afficher une erreur si la connexion de présence échoue
     if (presenceError) {
+        console.error('❌ [CLIENT CLASSE] - Erreur de connexion temps réel:', presenceError);
         toast({
             variant: 'destructive',
             title: 'Erreur de connexion temps réel',
@@ -46,7 +49,7 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
 
     const handleSelectStudent = useCallback((studentId: string) => {
         if (!studentId) {
-            console.warn('⚠️ [CLIENT] - ID d\'élève invalide');
+            console.warn('⚠️ [CLIENT CLASSE] - Tentative de sélection d\'un élève avec ID invalide');
             return;
         }
         setSelectedStudents(prev =>
@@ -54,13 +57,14 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                 ? prev.filter(id => id !== studentId)
                 : [...prev, studentId]
         );
+        console.log(`  Élève ${studentId} sélectionné/désélectionné.`);
     }, []);
 
     const handleStartSession = async () => {
-        console.log('🚀 [CLIENT] - Clic sur "Démarrer la session".');
+        console.log('🚀 [CLIENT CLASSE] - Clic sur "Démarrer la session".');
         
         const onlineSelectedStudents = selectedStudents.filter(id => onlineStudents.includes(id));
-        console.log('🎯 [CLIENT] - Élèves en ligne sélectionnés pour l\'invitation:', onlineSelectedStudents);
+        console.log('🎯 [CLIENT CLASSE] - Élèves en ligne sélectionnés pour l\'invitation:', onlineSelectedStudents);
         
         if (onlineSelectedStudents.length === 0) {
             toast({
@@ -72,6 +76,7 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
         }
 
         if (!teacher.id) {
+             console.error('❌ [CLIENT CLASSE] - ID du professeur manquant.');
             toast({
                 variant: 'destructive',
                 title: 'Erreur d\'authentification',
@@ -84,17 +89,18 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
         setIsSendingInvitations(true);
 
         try {
-            console.log('⏳ [CLIENT] - Appel de l\'action serveur `createCoursSession`...');
+            console.log('⏳ [CLIENT CLASSE] - Appel de l\'action serveur `createCoursSession`...');
             const session = await createCoursSession(teacher.id, classroom.id, onlineSelectedStudents);
             
             if (!session?.id) {
-                throw new Error('Réponse de session invalide');
+                throw new Error('Réponse de session invalide de l\'action serveur');
             }
 
-            console.log('✅ [CLIENT] - Action serveur réussie. Session créée:', session);
+            console.log('✅ [CLIENT CLASSE] - Action serveur réussie. Session créée:', session);
 
            if (session.invitationResults) {
             const { successful, failed } = session.invitationResults;
+            console.log(`  Résultats des invitations: ${successful.length} succès, ${failed.length} échecs.`);
             toast({
                 title: 'Session créée et invitations envoyées !',
                 description: `Session vidéo lancée avec ${successful.length} élève(s). ${failed.length > 0 ? `${failed.length} échec(s) d'envoi.` : ''}`,
@@ -102,11 +108,11 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
             });
         }
 
-        console.log(`🔀 [CLIENT] - Redirection vers /session/${session.id}`);
+        console.log(`🔀 [CLIENT CLASSE] - Redirection vers /session/${session.id}`);
         router.push(`/session/${session.id}`);
 
     } catch (error: unknown) {
-        console.error('❌ [CLIENT] - Erreur lors de la création de la session:', error);
+        console.error('💥 [CLIENT CLASSE] - Erreur lors de la création de la session:', error);
         
         const errorMessage = error instanceof Error 
             ? error.message 

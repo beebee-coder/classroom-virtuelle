@@ -12,6 +12,7 @@ import { getAuthSession } from '@/lib/session';
 import { redirect } from 'next/navigation';
 
 export default async function HomePage() {
+  console.log('🏠 [PAGE] - Chargement de la page d\'accueil.');
   const session = await getAuthSession();
 
   if (session?.user) {
@@ -19,6 +20,7 @@ export default async function HomePage() {
       session.user.role === 'PROFESSEUR'
         ? '/teacher/dashboard'
         : '/student/dashboard';
+    console.log(`  Utilisateur connecté, redirection vers ${targetPath}`);
     redirect(targetPath);
   }
   

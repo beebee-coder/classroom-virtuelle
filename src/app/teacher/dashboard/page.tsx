@@ -20,6 +20,7 @@ export default async function TeacherDashboardPage() {
 
   const session = await getAuthSession();
   if (!session || !session.user || session.user.role !== 'PROFESSEUR') {
+    console.log('  Redirection vers /login, utilisateur non authentifié ou rôle incorrect.');
     redirect('/login');
   }
   const user = session.user;

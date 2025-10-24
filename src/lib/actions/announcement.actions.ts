@@ -4,6 +4,7 @@
 import { revalidatePath } from 'next/cache';
 import { AnnouncementWithAuthor } from '../types';
 import { cache } from 'react';
+import { getAuthSession } from '../session';
 
 // ---=== BYPASS BACKEND ===---
 const dummyAnnouncements: AnnouncementWithAuthor[] = [
@@ -40,33 +41,59 @@ const dummyAnnouncements: AnnouncementWithAuthor[] = [
 ];
 
 export async function createAnnouncement(formData: FormData) {
-  const title = formData.get('title');
+  console.log('📢 [ACTION] - Création d\'une annonce...');
+  const session = await getAuthSession();
+  if (!session?.user || session.user.role !== 'PROFESSEUR') {
+      console.error('❌ [ACTION] - Tentative de création d\'annonce non autorisée.');
+      throw new Error('Unauthorized');
+  }
+
+  const title = formData.get('title') as string;
+  const content = formData.get('content') as string;
   const target = formData.get('target') as string;
-  console.log(`📢 [BYPASS] Création d'une annonce (factice): "${title}" pour la cible: ${target}`);
+  const attachmentUrl = formData.get('attachmentUrl') as string;
+
+  console.log(`  Payload: Titre="${title}", Cible="${target}"`);
+  
+  // Logique factice d'ajout
+  const newAnnouncement: AnnouncementWithAuthor = {
+    id: `anno-${Date.now()}`,
+    title,
+    content,
+    authorId: session.user.id,
+    author: { name: session.user.name },
+    classeId: target === 'public' ? null : target,
+    createdAt: new Date(),
+    attachmentUrl: attachmentUrl || null,
+  };
+  dummyAnnouncements.unshift(newAnnouncement);
+  console.log('  Annonce ajoutée à la liste factice.');
   
   // Simule la revalidation
+  console.log('  Revalidation des chemins...');
   revalidatePath('/');
   revalidatePath('/teacher/dashboard');
   if (target !== 'public') {
     revalidatePath(`/teacher/class/${target}`);
   }
-
-  // Pas de retour nécessaire car c'est une simulation
+  console.log('✅ [ACTION] - Annonce créée avec succès.');
 }
 
 export const getPublicAnnouncements = cache(async (limit: number = 3): Promise<AnnouncementWithAuthor[]> => {
-    console.log(`📢 [BYPASS] Récupération de ${limit} annonces publiques (factice).`);
+    console.log(`📢 [ACTION] - Récupération de ${limit} annonces publiques (factice).`);
     return dummyAnnouncements.filter(a => a.classeId === null).slice(0, limit);
 });
 
 export async function getStudentAnnouncements(studentId: string): Promise<AnnouncementWithAuthor[]> {
-    console.log(`📢 [BYPASS] Récupération des annonces pour l'élève ${studentId} (factice).`);
-    // En mode bypass, on retourne toutes les annonces pour le test.
-    return dummyAnnouncements;
+    console.log(`📢 [ACTION] - Récupération des annonces pour l'élève ${studentId} (factice).`);
+    // Simule la logique : l'élève voit les annonces publiques et celles de sa classe
+    // Pour la démo, on suppose que l'élève est dans la 'classe-a'
+    const studentClassId = 'classe-a';
+    return dummyAnnouncements.filter(a => a.classeId === null || a.classeId === studentClassId);
 }
 
 export async function getClassAnnouncements(classroomId: string): Promise<AnnouncementWithAuthor[]> {
-    console.log(`📢 [BYPASS] Récupération des annonces pour la classe ${classroomId} (factice).`);
+    console.log(`📢 [ACTION] - Récupération des annonces pour la classe ${classroomId} (factice).`);
     return dummyAnnouncements.filter(a => a.classeId === classroomId || a.classeId === null);
 }
 // ---=========================---
