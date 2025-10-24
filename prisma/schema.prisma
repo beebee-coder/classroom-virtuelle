@@ -1,0 +1,255 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  role          Role      @default(ELEVE)
+  ambition      String?
+  points        Int       @default(0)
+
+  // Relation avec la classe
+  classeId String?
+  classe   Classe? @relation(fields: [classeId], references: [id], onDelete: Cascade)
+
+  // Relations pour les conversations (DM)
+  initiatedConversations Conversation[] @relation("Initiator")
+  receivedConversations  Conversation[] @relation("Receiver")
+
+  // Relations avec les messages et réactions
+  messages  Message[]
+  reactions Reaction[]
+
+  // Relation avec les annonces
+  announcements Announcement[]
+
+  // Relation avec la progression des tâches
+  progress StudentProgress[]
+
+  // Relation avec les sessions de cours
+  sessionsParticipees CoursSessionParticipant[]
+
+  // Mot de passe pour l'espace parental (si c'est un élève)
+  parentPassword String?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Classe {
+  id           String @id @default(cuid())
+  nom          String
+  professeurId String
+
+  // Relation avec le professeur
+  // Note: Pas de vraie relation pour garder la flexibilité, le professeur est identifié par professeurId.
+
+  // Relation avec les élèves
+  eleves User[]
+
+  // Relation avec les annonces
+  annonces Announcement[]
+
+  // Relation avec les sessions
+  sessions CoursSession[]
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Metier {
+  id          String         @id @default(cuid())
+  nom         String
+  description String
+  icon        String
+  theme       Json // Stocker les informations de thème en JSON
+  etatsEleves StudentState[]
+}
+
+model StudentState {
+  id         String  @id @default(cuid())
+  eleveId    String  @unique
+  isPunished Boolean @default(false)
+
+  // Relation avec le métier choisi
+  metierId String?
+  metier   Metier? @relation(fields: [metierId], references: [id])
+}
+
+
+model CoursSession {
+  id          String   @id @default(cuid())
+  professeurId String
+  classroomId String
+  startTime   DateTime @default(now())
+  endTime     DateTime?
+
+  // Relation avec la classe
+  classe Classe @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+
+  // Relation avec les participants
+  participants CoursSessionParticipant[]
+}
+
+model CoursSessionParticipant {
+  id        String       @id @default(cuid())
+  sessionId String
+  userId    String
+  joinedAt  DateTime     @default(now())
+  leftAt    DateTime?
+  session   CoursSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, userId])
+}
+
+model Task {
+  id             String         @id @default(cuid())
+  title          String
+  description    String
+  points         Int
+  type           TaskType
+  category       TaskCategory
+  difficulty     TaskDifficulty
+  validationType ValidationType
+  requiresProof  Boolean        @default(false)
+  attachmentUrl  String?
+  isActive       Boolean        @default(true)
+  startTime      DateTime?
+  duration       Int? // en minutes
+
+  // Relation avec la progression des élèves
+  progress StudentProgress[]
+}
+
+model StudentProgress {
+  id             String         @id @default(cuid())
+  studentId      String
+  taskId         String
+  status         ProgressStatus @default(PENDING_ASSIGNMENT)
+  completionDate DateTime?
+  submissionUrl  String?
+  pointsAwarded  Int?
+  accuracy       Float? // Pourcentage de réussite pour les quiz
+  recipeName     String? // Pour la tâche de cuisine
+  feedback       Json? // Pour les feedbacks détaillés
+
+  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  task    Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, taskId])
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  initiatorId String
+  receiverId  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  initiator User @relation("Initiator", fields: [initiatorId], references: [id], onDelete: Cascade)
+  receiver  User @relation("Receiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  messages  Message[]
+
+  @@unique([initiatorId, receiverId])
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  message   String
+  senderId  String
+  createdAt DateTime @default(now())
+  isQuestion Boolean @default(false)
+
+  // Relation avec la conversation (pour les DMs)
+  conversationId String?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  // Relation avec la classe (pour le chat de classe)
+  classroomId String?
+  directMessageSenderId String?
+
+  sender  User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  reactions Reaction[]
+}
+
+model Reaction {
+  id        String  @id @default(cuid())
+  emoji     String
+  userId    String
+  messageId String
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, messageId, emoji])
+}
+
+model Announcement {
+  id            String   @id @default(cuid())
+  title         String
+  content       String
+  authorId      String
+  classeId      String?
+  createdAt     DateTime @default(now())
+  attachmentUrl String?
+
+  author User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  classe Classe? @relation(fields: [classeId], references: [id], onDelete: Cascade)
+}
+
+enum Role {
+  ELEVE
+  PROFESSEUR
+}
+
+enum TaskType {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum TaskCategory {
+  MATH
+  LANGUAGE
+  SCIENCE
+  HISTORY
+  ART
+  SPORT
+  HOME
+  SOCIAL
+}
+
+enum TaskDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum ValidationType {
+  AUTOMATIC
+  PARENT
+  PROFESSOR
+}
+
+enum ProgressStatus {
+  PENDING_ASSIGNMENT
+  IN_PROGRESS
+  PENDING_VALIDATION
+  VERIFIED
+  REJECTED
+}
