@@ -27,6 +27,27 @@ import { CloudinaryUploadWidget } from '../CloudinaryUploadWidget';
 import { Button } from '../ui/button';
 import { broadcastDocumentUrl } from '@/lib/actions';
 
+interface TeacherSessionViewProps {
+    sessionId: string;
+    localStream: MediaStream | null;
+    screenStream: MediaStream | null;
+    remoteParticipants: { id: string; stream: MediaStream | undefined }[];
+    spotlightedUser: SessionParticipant | undefined | null;
+    allSessionUsers: SessionParticipant[];
+    onlineUserIds: string[];
+    onSpotlightParticipant: (participantId: string) => void;
+    raisedHands: Set<string>;
+    understandingStatus: Map<string, ComprehensionLevel>;
+    currentUserId: string;
+    onScreenShare: () => void;
+    isScreenSharing: boolean;
+    activeTool: string;
+    onToolChange: (tool: string) => void;
+    classroom: ClassroomWithDetails | null;
+    documentUrl: string | null;
+}
+
+
 export function TeacherSessionView({
     sessionId,
     localStream,
@@ -45,25 +66,7 @@ export function TeacherSessionView({
     onToolChange,
     classroom,
     documentUrl,
-}: {
-    sessionId: string;
-    localStream: MediaStream | null;
-    screenStream: MediaStream | null;
-    remoteParticipants: { id: string, stream: MediaStream }[];
-    spotlightedUser: SessionParticipant | undefined | null;
-    allSessionUsers: SessionParticipant[];
-    onlineUserIds: string[];
-    onSpotlightParticipant: (participantId: string) => void;
-    raisedHands: Set<string>;
-    understandingStatus: Map<string, ComprehensionLevel>;
-    currentUserId: string;
-    onScreenShare: () => void;
-    isScreenSharing: boolean;
-    activeTool: string;
-    onToolChange: (tool: string) => void;
-    classroom: ClassroomWithDetails | null;
-    documentUrl: string | null;
-}) {
+}: TeacherSessionViewProps) {
     const remoteStreamsMap = new Map(remoteParticipants.map(p => [p.id, p.stream]));
     
     const studentsWithRaisedHands = allSessionUsers.filter(u => u.role === 'ELEVE' && raisedHands.has(u.id)) as User[];
