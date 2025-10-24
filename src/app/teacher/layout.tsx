@@ -7,6 +7,7 @@ import { getAuthSession } from '@/lib/session';
 import prisma from '@/lib/prisma';
 import { redirect } from 'next/navigation';
 import { ChatSheet } from '@/components/ChatSheet';
+import { Role } from '@prisma/client';
 
 export default async function TeacherLayout({
   children,
@@ -34,8 +35,8 @@ export default async function TeacherLayout({
       <div className="flex flex-col min-h-screen">
         <Header user={user}>
           <SidebarTrigger />
-           {firstClassroomId && (
-              <ChatSheet classroomId={firstClassroomId} userId={user.id} userRole={user.role} />
+           {firstClassroomId && user.role && (
+              <ChatSheet classroomId={firstClassroomId} userId={user.id} userRole={user.role as Role} />
             )}
         </Header>
         <div className="flex flex-1">
