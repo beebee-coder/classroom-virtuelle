@@ -1,7 +1,8 @@
 // src/components/AnnouncementCarousel.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import Autoplay from "embla-carousel-autoplay";
 import {
   Carousel,
   CarouselContent,
@@ -12,6 +13,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Megaphone } from "lucide-react";
 import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import { AnnouncementWithAuthor } from "@/lib/types";
 
 interface AnnouncementDateProps {
@@ -22,7 +24,12 @@ function FormattedDate({ date }: AnnouncementDateProps) {
   const [formattedDate, setFormattedDate] = useState('Chargement...');
 
   useEffect(() => {
-    setFormattedDate(format(new Date(date), 'dd MMMM yyyy'));
+    try {
+      setFormattedDate(format(new Date(date), 'dd MMMM yyyy', { locale: fr }));
+    } catch (e) {
+      console.error("Date formatting failed", e);
+      setFormattedDate("Date invalide");
+    }
   }, [date]);
 
   return <>{formattedDate}</>;
@@ -33,17 +40,22 @@ interface AnnouncementCarouselProps {
 }
 
 export function AnnouncementCarousel({ announcements }: AnnouncementCarouselProps) {
+  const plugin = useRef(Autoplay({ delay: 5000, stopOnInteraction: true }));
+
   if (!announcements || announcements.length === 0) {
-    return <p className="text-sm text-muted-foreground">Aucune annonce pour le moment.</p>;
+    return null; // Ne rien afficher si pas d'annonces
   }
 
   return (
     <Carousel
+      plugins={[plugin.current]}
       opts={{
         align: "start",
         loop: announcements.length > 1,
       }}
-      className="w-full max-w-xl mx-auto"
+      className="w-full"
+      onMouseEnter={plugin.current.stop}
+      onMouseLeave={plugin.current.reset}
     >
       <CarouselContent>
         {announcements.map((announcement) => (
@@ -78,8 +90,8 @@ export function AnnouncementCarousel({ announcements }: AnnouncementCarouselProp
       </CarouselContent>
       {announcements.length > 1 && (
         <>
-            <CarouselPrevious className="absolute left-[-50px] top-1/2 -translate-y-1/2" />
-            <CarouselNext className="absolute right-[-50px] top-1/2 -translate-y-1/2" />
+            <CarouselPrevious className="absolute left-[-20px] top-1/2 -translate-y-1/2" />
+            <CarouselNext className="absolute right-[-20px] top-1/2 -translate-y-1/2" />
         </>
       )}
     </Carousel>

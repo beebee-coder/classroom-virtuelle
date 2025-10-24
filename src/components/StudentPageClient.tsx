@@ -17,6 +17,8 @@ import { KeyRound } from 'lucide-react';
 import { endCoursSession } from '@/lib/actions';
 import { CareerSelector } from '@/components/CareerSelector'; // Assumant que ce composant existe
 import { DummySession } from '@/lib/session';
+import { TaskBoard } from './TaskBoard';
+import { AnnouncementCarousel } from './AnnouncementCarousel';
 
 interface StudentPageClientProps {
     student: StudentWithStateAndCareer;
@@ -52,21 +54,21 @@ export default function StudentPageClient({
     const router = useRouter();
 
     const classroomId = student?.classeId || 'classe-a';
-    console.log('👨‍🎓 [ELEVE] - Données complètes student:', student);
+    console.log('🧑‍🎓 [CLIENT ÉLÈVE] - Initialisation de la page pour:', student.name);
 
     const handleAcceptInvitation = useCallback(async (invitation: SessionInvitation) => {
-        console.log('✅ [ELEVE] - Acceptation de l\'invitation:', invitation.sessionId);
+        console.log('✅ [CLIENT ÉLÈVE] - Acceptation de l\'invitation de session:', invitation.sessionId);
         setIsJoiningSession(true);
         
         try {
             setSessionInvitation(null);
             toast({
                 title: 'Connexion...',
-                description: 'Rejoignement de la session vidéo...',
+                description: 'Rejoignement de la session vidéo en cours...',
             });
             router.push(`/session/${invitation.sessionId}`);
         } catch (error) {
-            console.error('❌ [ELEVE] - Erreur lors de la connexion à la session:', error);
+            console.error('❌ [CLIENT ÉLÈVE] - Erreur lors de la redirection vers la session:', error);
             toast({
                 variant: 'destructive',
                 title: 'Erreur de connexion',
@@ -77,12 +79,12 @@ export default function StudentPageClient({
     }, [router, toast]);
 
     const handleInvitation = useCallback((data: SessionInvitation) => {
-        console.log('📨 [ELEVE] - Nouvelle invitation de session reçue:', data);
+        console.log('📨 [CLIENT ÉLÈVE] - Nouvelle invitation de session reçue via Pusher:', data);
         setSessionInvitation(data);
         
         toast({
             title: '🎯 Invitation de session reçue !',
-            description: `Le professeur ${data.teacherName} vous a invité(e). La carte d'invitation est sur votre tableau de bord.`,
+            description: `Le professeur ${data.teacherName} vous a invité(e).`,
             duration: 10000,
         });
     }, [toast]);
@@ -90,56 +92,50 @@ export default function StudentPageClient({
     useEffect(() => {
         if (!student?.id) return;
     
-        let channel: any;
-        
         const checkMissedInvitations = async () => {
             try {
-                console.log('📨 [ELEVE] - Vérification des invitations manquées...');
+                console.log('📡 [CLIENT ÉLÈVE] - Vérification des invitations manquées...');
                 const response = await fetch(`/api/session/pending-invitations?studentId=${student.id}`);
                 if (response.ok) {
                     const pendingInvitations = await response.json();
                     if (pendingInvitations.length > 0) {
                         const latestInvitation = pendingInvitations[0].data;
-                        console.log('📨 [ELEVE] - Invitation manquée trouvée:', latestInvitation);
+                        console.log('📨 [CLIENT ÉLÈVE] - Invitation manquée trouvée:', latestInvitation);
                         handleInvitation(latestInvitation);
                     } else {
-                        console.log('✅ [ELEVE] - Aucune invitation manquée trouvée.');
+                        console.log('✅ [CLIENT ÉLÈVE] - Aucune invitation manquée.');
                     }
                 }
             } catch (error) {
-                console.error('❌ [ELEVE] - Erreur lors de la vérification des invitations manquées:', error);
+                console.error('❌ [CLIENT ÉLÈVE] - Erreur lors de la vérification des invitations manquées:', error);
             }
         };
     
         checkMissedInvitations();
     
         const channelName = `private-user-${student.id}`;
-        console.log('📨 [ELEVE] - Abonnement aux invitations sur le canal:', channelName);
+        console.log(`🔌 [CLIENT ÉLÈVE] - Abonnement au canal d'invitation: ${channelName}`);
     
         try {
-            channel = pusherClient.subscribe(channelName);
+            const channel = pusherClient.subscribe(channelName);
             
             channel.bind('session-invitation', handleInvitation);
             
             channel.bind('pusher:subscription_succeeded', () => {
-                console.log('✅ [ELEVE] - Abonnement aux invitations réussi');
+                console.log(`✅ [CLIENT ÉLÈVE] - Abonnement au canal ${channelName} réussi.`);
             });
     
-            // CORRECTION : Ne pas unsubscribe dans le cleanup
             return () => {
-                console.log('🔚 [ELEVE] - Nettoyage des écouteurs seulement');
-                if (channel) {
-                    channel.unbind('session-invitation', handleInvitation);
-                    // NE PAS appeler pusherClient.unsubscribe() ici
-                }
+                console.log(`🔌 [CLIENT ÉLÈVE] - Désabonnement du canal ${channelName}.`);
+                pusherClient.unsubscribe(channelName);
             };
         } catch (error) {
-            console.error('❌ [ELEVE] - Erreur d\'abonnement aux invitations:', error);
+            console.error('❌ [CLIENT ÉLÈVE] - Erreur d\'abonnement Pusher:', error);
         }
     }, [student?.id, handleInvitation]);
 
     const handleDeclineInvitation = useCallback(() => {
-        console.log('🚫 [ELEVE] - Invitation refusée.');
+        console.log('🚫 [CLIENT ÉLÈVE] - Invitation refusée.');
         setSessionInvitation(null);
         toast({
             title: 'Invitation refusée',
@@ -149,7 +145,6 @@ export default function StudentPageClient({
 
     const metier = student.etat?.metier;
     const completedTasks = student.progress?.filter(p => p.status === 'VERIFIED').length || 0;
-    const pendingTasks = student.progress?.filter(p => p.status === 'PENDING_VALIDATION').length || 0;
     const totalPoints = student.points || 0;
 
     return (
@@ -228,7 +223,11 @@ export default function StudentPageClient({
                 </TabsList>
 
                 <TabsContent value="tasks" className="space-y-4">
-                    {/* ... (Task content will go here) ... */}
+                    <TaskBoard 
+                        tasks={tasks}
+                        studentProgress={student.progress || []}
+                        studentId={student.id}
+                    />
                 </TabsContent>
 
                 <TabsContent value="announcements" className="space-y-4">
@@ -237,19 +236,11 @@ export default function StudentPageClient({
                             <CardContent className="p-6 text-center">
                                 <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                                 <h3 className="text-lg font-semibold">Aucune annonce</h3>
-                                <p className="text-muted-foreground">Aucune annonce n'a été publiée.</p>
+                                <p className="text-muted-foreground">Aucune annonce n'a été publiée pour le moment.</p>
                             </CardContent>
                         </Card>
                     ) : (
-                        announcements.map((announcement) => (
-                            <Card key={announcement.id}>
-                                <CardHeader>
-                                    <CardTitle>{announcement.title}</CardTitle>
-                                    <CardDescription>Par {announcement.author.name} le {new Date(announcement.createdAt).toLocaleDateString()}</CardDescription>
-                                </CardHeader>
-                                <CardContent><p>{announcement.content}</p></CardContent>
-                            </Card>
-                        ))
+                        <AnnouncementCarousel announcements={announcements} />
                     )}
                 </TabsContent>
             </Tabs>

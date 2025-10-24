@@ -3,11 +3,12 @@
 
 import { revalidatePath } from 'next/cache';
 import { Task, StudentProgress, ProgressStatus } from '@/lib/types';
+import { getAuthSession } from '../session';
 
 // ---=== BYPASS BACKEND ===---
 export async function createTask(formData: FormData): Promise<Task[]> {
   const title = formData.get('title');
-  console.log(`📝 [BYPASS] Création de la tâche (factice): "${title}"`);
+  console.log(`📝 [ACTION TÂCHE] - Création de la tâche (factice): "${title}"`);
   revalidatePath('/teacher/tasks');
   // Retourne un tableau vide car la logique client est optimiste
   return [];
@@ -16,30 +17,40 @@ export async function createTask(formData: FormData): Promise<Task[]> {
 export async function updateTask(formData: FormData): Promise<Task[]> {
   const taskId = formData.get('id');
   const title = formData.get('title');
-  console.log(`📝 [BYPASS] Mise à jour de la tâche ${taskId} (factice): "${title}"`);
+  console.log(`📝 [ACTION TÂCHE] - Mise à jour de la tâche ${taskId} (factice): "${title}"`);
   revalidatePath('/teacher/tasks');
   return [];
 }
 
 export async function deleteTask(id: string): Promise<Task[]> {
-    console.log(`🗑️ [BYPASS] Suppression de la tâche ${id} (factice)`);
+    console.log(`🗑️ [ACTION TÂCHE] - Suppression de la tâche ${id} (factice)`);
     revalidatePath('/teacher/tasks');
     return [];
 }
 
 
 export async function completeTask(taskId: string, submissionUrl?: string): Promise<StudentProgress> {
-  const studentId = 'student1'; // ID factice
-  console.log(`✅ [BYPASS] Validation de la tâche ${taskId} pour l'élève ${studentId} (factice)`);
-  if (submissionUrl) {
-    console.log(`   -> Preuve soumise: ${submissionUrl}`);
+  const session = await getAuthSession();
+  const studentId = session?.user?.id;
+
+  if (!studentId) {
+    console.error('❌ [ACTION TÂCHE] - Tentative de complétion de tâche sans session élève.');
+    throw new Error("Authentification requise.");
   }
   
-  // Simule la revalidation
-  revalidatePath(`/student/${studentId}`);
+  console.log(`✅ [ACTION TÂCHE] - L'élève ${studentId} soumet la tâche ${taskId}.`);
+  if (submissionUrl) {
+    console.log(`  -> Preuve soumise (URL): ${submissionUrl}`);
+  } else {
+    console.log(`  -> Pas de preuve soumise (validation simple ou parentale).`);
+  }
+  
+  // Simule la revalidation pour mettre à jour l'interface de l'élève
   revalidatePath(`/student/dashboard`);
+  // Revalide aussi la page des validations pour le prof
+  revalidatePath('/teacher/validations');
 
-  // Retourne un objet de progression factice
+  // Retourne un objet de progression factice pour l'UI
   return {
     id: `progress-${Date.now()}`,
     studentId: studentId,
