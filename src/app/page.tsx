@@ -8,11 +8,21 @@ import { getPublicAnnouncements } from '@/lib/actions/announcement.actions';
 import { format } from 'date-fns';
 import { AnnouncementWithAuthor } from '@/lib/types';
 import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
-import { StudentCarousel } from '@/components/StudentCarousel'; // Importer le nouveau composant
+import { StudentCarousel } from '@/components/StudentCarousel';
+import { getAuthSession } from '@/lib/session';
+import { redirect } from 'next/navigation';
 
-// This page is now fully static, which is better for performance.
-// The redirection logic for logged-in users has been moved to the login page.
 export default async function HomePage() {
+  const session = await getAuthSession();
+
+  if (session?.user) {
+    const targetPath =
+      session.user.role === 'PROFESSEUR'
+        ? '/teacher/dashboard'
+        : '/student/dashboard';
+    redirect(targetPath);
+  }
+  
   console.log('✅ [PAGE] - Affichage de la page d\'accueil pour visiteur.');
   const announcements = await getPublicAnnouncements(2);
 
