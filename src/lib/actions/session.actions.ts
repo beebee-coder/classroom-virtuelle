@@ -121,18 +121,8 @@ export async function getSessionDetails(sessionId: string) {
         const session = await prisma.coursSession.findUnique({
             where: { id: sessionId },
             include: {
-                professeur: true, // Inclure les détails du prof
-                participants: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        image: true,
-                        role: true,
-                        classeId: true,
-                        points: true,
-                    }
-                }
+                professeur: true,
+                participants: true,
             }
         });
 
@@ -142,7 +132,7 @@ export async function getSessionDetails(sessionId: string) {
         }
 
         const students = session.participants
-            .filter(p => p.role === Role.ELEVE);
+            .filter((p: User) => p.role === Role.ELEVE);
 
         console.log('✅ [ACTION SESSION DETAILS] - Détails de session récupérés.');
         return {
@@ -215,9 +205,12 @@ export async function endCoursSession(sessionId: string) {
         console.log(`  -> Envoi de 'session-ended' au canal de session: ${sessionChannel}`);
         await pusherTrigger(sessionChannel, 'session-ended', eventData);
         
-        const classChannel = `presence-classe-${classroomId}`;
-        console.log(`  -> Envoi de 'session-ended' au canal de classe: ${classChannel}`);
-        await pusherTrigger(classChannel, 'session-ended', eventData);
+        if (classroomId) {
+            const classChannel = `presence-classe-${classroomId}`;
+            console.log(`  -> Envoi de 'session-ended' au canal de classe: ${classChannel}`);
+            await pusherTrigger(classChannel, 'session-ended', eventData);
+        }
+
 
         console.log('✅ [ACTION END SESSION] - Session terminée avec succès.');
         return { 
