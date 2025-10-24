@@ -1,31 +1,28 @@
-// src/types/next-auth.d.ts
-import type { DefaultSession, User } from 'next-auth';
-import type { Role } from '@prisma/client';
+// types/next-auth.d.ts
+import NextAuth from "next-auth"
 
-declare module 'next-auth' {
-  /**
-   * Returned by `useSession`, `getSession` and received as a prop on the `SessionProvider` React Context
-   */
+declare module "next-auth" {
   interface Session {
-    user?: {
-      id: string;
-      role: Role;
-      classeId?: string | null; // Can be null
-    } & DefaultSession['user'];
+    user: {
+      id: string
+      email?: string | null
+      name?: string | null
+      image?: string | null
+      role?: string
+    }
   }
 
   interface User {
-    id: string;
-    role: Role;
-    classeId?: string | null; // Can be null
+    id: string
+    email?: string | null
+    name?: string | null
+    role?: string
   }
 }
 
-declare module 'next-auth/jwt' {
-  /** Returned by the `jwt` callback and `getToken`, when using JWT sessions */
+declare module "next-auth/jwt" {
   interface JWT {
-    id: string;
-    role: Role;
-    classeId?: string | null;
+    id: string
+    role?: string
   }
 }
