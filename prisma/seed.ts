@@ -8,66 +8,62 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Start seeding...');
 
-  // Nettoyer la base de données d'abord (optionnel - pour un environnement de développement)
+  // Nettoyer la base de données dans le bon ordre pour respecter les contraintes de clé étrangère
   console.log('🧹 Cleaning database...');
+  
+  // D'abord supprimer les données qui ont des dépendances vers d'autres tables
+  await prisma.reaction.deleteMany();
+  await prisma.message.deleteMany();
+  await prisma.studentProgress.deleteMany();
   await prisma.etatEleve.deleteMany();
-  await prisma.user.deleteMany();
   await prisma.announcement.deleteMany();
+  await prisma.coursSession.deleteMany();
+  
+  // Ensuite supprimer les utilisateurs et classes
+  await prisma.user.deleteMany();
+  await prisma.classroom.deleteMany();
   await prisma.task.deleteMany();
   await prisma.metier.deleteMany();
-  await prisma.classroom.deleteMany();
 
-  // Utiliser upsert pour rendre le script idempotent
-  const teacher = await prisma.user.upsert({
-    where: { email: 'teacher@example.com' },
-    update: {},
-    create: {
+  console.log('✅ Database cleaned successfully');
+
+  // Créer le professeur d'abord
+  const teacher = await prisma.user.create({
+    data: {
       email: 'teacher@example.com',
       name: 'Professeur Test',
       role: 'PROFESSEUR' as Role,
     },
   });
-  console.log(`👨‍🏫 Ensured teacher exists: ${teacher.name} (${teacher.email})`);
+  console.log(`👨‍🏫 Created teacher: ${teacher.name} (${teacher.email})`);
 
-  // Créer des classes avec une clé unique correcte
-  const classA = await prisma.classroom.upsert({
-    where: { 
-      id: 'classe-6eme-a'
-    },
-    update: {},
-    create: {
+  // Créer des classes
+  const classA = await prisma.classroom.create({
+    data: {
       id: 'classe-6eme-a',
       nom: 'Classe 6ème A',
       professeurId: teacher.id,
     },
   });
-  console.log(`🏫 Ensured class exists: ${classA.nom}`);
+  console.log(`🏫 Created class: ${classA.nom}`);
 
-  const classB = await prisma.classroom.upsert({
-    where: { 
-      id: 'classe-6eme-b'
-    },
-    update: {},
-    create: {
+  const classB = await prisma.classroom.create({
+    data: {
       id: 'classe-6eme-b',
       nom: 'Classe 6ème B',
       professeurId: teacher.id,
     },
   });
-  console.log(`🏫 Ensured class exists: ${classB.nom}`);
+  console.log(`🏫 Created class: ${classB.nom}`);
 
-  const classC = await prisma.classroom.upsert({
-    where: { 
-      id: 'classe-5eme-a'
-    },
-    update: {},
-    create: {
+  const classC = await prisma.classroom.create({
+    data: {
       id: 'classe-5eme-a',
       nom: 'Classe 5ème A',
       professeurId: teacher.id,
     },
   });
-  console.log(`🏫 Ensured class exists: ${classC.nom}`);
+  console.log(`🏫 Created class: ${classC.nom}`);
 
   // Créer des élèves
   const students = [
@@ -111,14 +107,8 @@ async function main() {
       ? 'ahmed0@example.com' 
       : `${studentData.name.toLowerCase()}${index}@example.com`;
       
-    const student = await prisma.user.upsert({
-      where: { email: email },
-      update: {
-        name: studentData.name,
-        classeId: studentData.classeId,
-        ambition: studentData.ambition,
-      },
-      create: {
+    const student = await prisma.user.create({
+      data: {
         email: email,
         name: studentData.name,
         role: 'ELEVE' as Role,
@@ -127,131 +117,122 @@ async function main() {
       },
     });
 
-    // Assurer que l'état de l'élève existe aussi
-    await prisma.etatEleve.upsert({
-        where: { eleveId: student.id },
-        update: {},
-        create: { eleveId: student.id },
+    // Créer l'état de l'élève
+    await prisma.etatEleve.create({
+      data: { eleveId: student.id }
     });
-    console.log(`🎓 Ensured student exists: ${student.name}`);
+    console.log(`🎓 Created student: ${student.name}`);
   }
 
-  // Créer des métiers - utiliser le nom comme clé unique (puisque c'est unique dans le schéma)
+  // Créer des métiers
   const metiers = [
     { 
       id: 'metier-pompier',
       nom: 'Pompier', 
       description: 'Sauve des vies et combat le feu.', 
       icon: 'Flame', 
-      theme: { 
+      theme: JSON.stringify({ 
         backgroundColor: 'from-red-500 to-orange-500', 
         textColor: 'text-white', 
         primaryColor: '22 84% 44%', 
         accentColor: '45 93% 47%', 
         cursor: 'cursor-crosshair' 
-      } 
+      })
     },
     { 
       id: 'metier-astronaute',
       nom: 'Astronaute', 
       description: 'Explore l\'espace et les étoiles.', 
       icon: 'Rocket', 
-      theme: { 
+      theme: JSON.stringify({ 
         backgroundColor: 'from-blue-800 to-indigo-900', 
         textColor: 'text-white', 
         primaryColor: '217 91% 60%', 
         accentColor: '262 84% 60%', 
         cursor: 'cursor-pointer' 
-      } 
+      })
     },
     { 
       id: 'metier-veterinaire',
       nom: 'Vétérinaire', 
       description: 'Soigne les animaux.', 
       icon: 'Stethoscope', 
-      theme: { 
+      theme: JSON.stringify({ 
         backgroundColor: 'from-green-400 to-teal-500', 
         textColor: 'text-white', 
         primaryColor: '142 76% 36%', 
         accentColor: '160 84% 39%', 
         cursor: 'cursor-help' 
-      } 
+      })
     },
     { 
       id: 'metier-devjeux',
       nom: 'DevJeux', 
       description: 'Crée des mondes virtuels.', 
       icon: 'Gamepad2', 
-      theme: { 
+      theme: JSON.stringify({ 
         backgroundColor: 'from-purple-600 to-blue-600', 
         textColor: 'text-white', 
         primaryColor: '250 84% 60%', 
         accentColor: '280 84% 60%', 
         cursor: 'cursor-grab' 
-      } 
+      })
     },
     { 
       id: 'metier-chef',
       nom: 'Chef', 
       description: 'Invente des plats délicieux.', 
       icon: 'ChefHat', 
-      theme: { 
+      theme: JSON.stringify({ 
         backgroundColor: 'from-yellow-400 to-amber-500', 
         textColor: 'text-black', 
         primaryColor: '38 92% 50%', 
         accentColor: '24 98% 52%', 
         cursor: 'cursor-cell' 
-      } 
+      })
     },
     { 
       id: 'metier-artiste',
       nom: 'Artiste', 
       description: 'Exprime sa créativité.', 
       icon: 'Paintbrush', 
-      theme: { 
+      theme: JSON.stringify({ 
         backgroundColor: 'from-pink-500 to-rose-500', 
         textColor: 'text-white', 
         primaryColor: '320 84% 60%', 
         accentColor: '340 84% 60%', 
         cursor: 'cursor-alias' 
-      } 
+      })
     },
     { 
       id: 'metier-ecologiste',
       nom: 'Écologiste', 
       description: 'Protège la planète.', 
       icon: 'Leaf', 
-      theme: { 
+      theme: JSON.stringify({ 
         backgroundColor: 'from-lime-500 to-emerald-600', 
         textColor: 'text-white', 
         primaryColor: '120 73% 40%', 
         accentColor: '140 73% 40%', 
         cursor: 'cursor-zoom-in' 
-      } 
+      })
     },
   ];
   
   for (const metier of metiers) {
-    await prisma.metier.upsert({
-      where: { id: metier.id },
-      update: {
-        nom: metier.nom,
-        description: metier.description,
-        icon: metier.icon,
-        theme: JSON.stringify(metier.theme),
-      },
-      create: {
+    await prisma.metier.create({
+      data: {
         id: metier.id,
         nom: metier.nom,
         description: metier.description,
         icon: metier.icon,
-        theme: JSON.stringify(metier.theme),
+        theme: metier.theme,
       }
     });
-    console.log(`🛠️ Ensured metier exists: ${metier.nom}`);
+    console.log(`🛠️ Created metier: ${metier.nom}`);
   }
 
-  // Créer des tâches avec des IDs explicites
+  // Créer des tâches
   const tasks = [
     // Tâches quotidiennes
     { 
@@ -323,31 +304,24 @@ async function main() {
   ];
 
   for (const task of tasks) {
-    await prisma.task.upsert({
-        where: { id: task.id },
-        update: task,
-        create: task,
+    await prisma.task.create({
+      data: task
     });
-    console.log(`📝 Ensured task exists: ${task.title}`);
+    console.log(`📝 Created task: ${task.title}`);
   }
 
-  // Créer des annonces avec des IDs explicites
-  await prisma.announcement.upsert({
-    where: { id: 'announcement-welcome' },
-    update: {},
-    create: {
+  // Créer des annonces
+  await prisma.announcement.create({
+    data: {
       id: 'announcement-welcome',
       title: 'Bienvenue sur Classroom Connector !',
       content: 'C\'est la plateforme où l\'apprentissage devient une aventure. Participez, gagnez des points et explorez votre avenir !',
       authorId: teacher.id,
-      // Annonce publique (pas de classeId)
     }
   });
   
-  await prisma.announcement.upsert({
-    where: { id: 'announcement-reminder-6a' },
-    update: {},
-    create: {
+  await prisma.announcement.create({
+    data: {
       id: 'announcement-reminder-6a',
       title: 'Rappel pour la 6ème A',
       content: 'N\'oubliez pas de préparer vos questions pour la session de demain sur les volcans.',
@@ -356,7 +330,7 @@ async function main() {
     }
   });
    
-  console.log('📢 Ensured default announcements exist');
+  console.log('📢 Created default announcements');
 
   console.log('✅ Seeding finished.');
 }
