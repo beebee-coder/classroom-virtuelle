@@ -3,7 +3,7 @@
 
 import React, { useEffect, useRef } from "react";
 import { Avatar, AvatarFallback } from "./ui/avatar";
-import { Mic, MicOff, Star, Video, VideoOff, Hand } from "lucide-react";
+import { Mic, MicOff, Star, Video, VideoOff, Hand, Edit } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
@@ -19,6 +19,8 @@ interface ParticipantProps {
   participantUserId: string;
   isHandRaised?: boolean;
   onSpotlightParticipant?: (participantId: string) => void;
+  onSetWhiteboardController?: (participantId: string) => void; // Nouveau
+  isWhiteboardController?: boolean; // Nouveau
 }
 
 function ParticipantComponent({ 
@@ -30,6 +32,8 @@ function ParticipantComponent({
     participantUserId,
     isHandRaised,
     onSpotlightParticipant,
+    onSetWhiteboardController,
+    isWhiteboardController,
 }: ParticipantProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { toast } = useToast();
@@ -53,12 +57,22 @@ function ParticipantComponent({
         description: `${nameToDisplay} est maintenant en vedette.`
     });
   }
+  
+  const handleSetController = () => {
+    if (!isTeacher || !onSetWhiteboardController) return;
+    onSetWhiteboardController(participantUserId);
+    toast({
+      title: 'Contrôle du tableau blanc assigné',
+      description: `${nameToDisplay} peut maintenant dessiner.`,
+    });
+  };
 
   return (
     <Card className={cn(
         "relative aspect-video bg-muted rounded-lg overflow-hidden flex items-center justify-center group text-white",
         isSpotlighted && "ring-2 ring-amber-500 shadow-lg",
-        isHandRaised && "ring-2 ring-blue-500"
+        isHandRaised && "ring-2 ring-blue-500",
+        isWhiteboardController && "ring-2 ring-green-500",
     )}>
         <video ref={videoRef} autoPlay playsInline muted={isLocal} className={cn("w-full h-full object-cover", !hasVideo && "hidden")} />
 
@@ -73,6 +87,16 @@ function ParticipantComponent({
        
         <div className="absolute bottom-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
              <TooltipProvider>
+                 {isTeacher && onSetWhiteboardController && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="secondary" size="icon" className="h-6 w-6 bg-black/50 hover:bg-black/80 border-none" onClick={handleSetController}>
+                        <Edit className={cn("h-3 w-3", isWhiteboardController && "fill-green-500 text-green-500")} />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p>Donner le contrôle du tableau</p></TooltipContent>
+                  </Tooltip>
+                 )}
                  {isTeacher && onSpotlightParticipant && (
                     <Tooltip>
                         <TooltipTrigger asChild>
@@ -107,6 +131,18 @@ function ParticipantComponent({
                         </TooltipContent>
                     </Tooltip>
                  </TooltipProvider>
+            )}
+             {isWhiteboardController && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="bg-green-500/80 backdrop-blur-sm rounded-md p-1">
+                      <Edit className="h-3 w-3 text-white" />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent><p>Contrôle du tableau blanc</p></TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
         </div>
     </Card>

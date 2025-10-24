@@ -98,3 +98,7 @@ import { TLStoreSnapshot } from "@tldraw/tldraw";
     senderId: string;
     snapshot: TLStoreSnapshot;
   }
+
+  export interface WhiteboardControllerEvent {
+    controllerId: string;
+  }

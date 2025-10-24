@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Whiteboard } from '../Whiteboard';
 import { DocumentViewer } from '../DocumentViewer';
 import { TLStoreSnapshot } from '@tldraw/tldraw';
-import { useState } from 'react';
+import { broadcastWhiteboardUpdate } from '@/lib/actions';
 
 interface StudentSessionViewProps {
     sessionId: string;
@@ -27,6 +27,7 @@ interface StudentSessionViewProps {
     activeTool: string;
     documentUrl: string | null;
     whiteboardSnapshot: TLStoreSnapshot | null;
+    whiteboardControllerId: string | null;
 }
 
 export function StudentSessionView({
@@ -43,6 +44,7 @@ export function StudentSessionView({
     activeTool,
     documentUrl,
     whiteboardSnapshot,
+    whiteboardControllerId,
 }: StudentSessionViewProps) {
     const { toast } = useToast();
 
@@ -68,13 +70,19 @@ export function StudentSessionView({
         }
     };
 
+    const handleWhiteboardPersist = (snapshot: TLStoreSnapshot) => {
+        // Seul l'élève contrôleur peut diffuser ses changements
+        if (currentUserId === whiteboardControllerId) {
+            broadcastWhiteboardUpdate(sessionId, snapshot);
+        }
+    }
+
     const renderMainContent = () => {
         switch(activeTool) {
             case 'document':
                 return <DocumentViewer url={documentUrl} />;
             case 'camera':
-                 // Pour l'élève, la vue caméra principale est celle de la personne en vedette
-                if (!spotlightedUser || !spotlightedStream) {
+                 if (!spotlightedUser || !spotlightedStream) {
                     return (
                         <Card className="aspect-video w-full h-full flex items-center justify-center bg-muted rounded-lg">
                             <div className="text-center text-muted-foreground">
@@ -102,7 +110,8 @@ export function StudentSessionView({
                     <Whiteboard
                         sessionId={sessionId}
                         initialSnapshot={whiteboardSnapshot ?? undefined}
-                        isReadOnly={true}
+                        isController={currentUserId === whiteboardControllerId}
+                        onPersist={handleWhiteboardPersist}
                     />
                 );
         }
@@ -110,14 +119,14 @@ export function StudentSessionView({
     
     return (
         <div className="flex flex-1 min-h-0 py-6 gap-6">
-            {/* Colonne principale : Vidéo en vedette */}
+            {/* Colonne principale : Contenu actif */}
             <div className="flex-1 flex flex-col min-h-0">
                 <div className="w-full h-full relative">
                     {renderMainContent()}
                 </div>
             </div>
             
-            {/* Barre latérale droite : contrôles */}
+            {/* Barre latérale droite : contrôles et vidéo locale */}
             <div className="w-72 flex flex-col gap-6 min-h-0">
                  <Participant
                     stream={localStream}
@@ -126,6 +135,7 @@ export function StudentSessionView({
                     participantUserId={currentUserId}
                     displayName="Vous"
                     isHandRaised={isHandRaised}
+                    isWhiteboardController={currentUserId === whiteboardControllerId}
                 />
                 <StudentSessionControls
                     isHandRaised={isHandRaised}

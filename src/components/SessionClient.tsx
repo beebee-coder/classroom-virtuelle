@@ -14,7 +14,7 @@ import { TeacherSessionView } from './session/TeacherSessionView';
 import { StudentSessionView } from './session/StudentSessionView';
 import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';
-import { endCoursSession, broadcastTimerEvent, broadcastActiveTool } from '@/lib/actions';
+import { endCoursSession, broadcastTimerEvent, broadcastActiveTool, broadcastWhiteboardController } from '@/lib/actions';
 import { ComprehensionLevel } from './StudentSessionControls';
 import { SessionClientProps, PeerData, SignalPayload, PusherSubscriptionSucceededEvent, PusherMemberEvent, IncomingSignalData, SpotlightEvent, HandRaiseEvent, UnderstandingEvent, TimerEvent, ToolEvent, DocumentEvent, RemoteParticipant } from '@/types';
 import { TLStoreSnapshot } from '@tldraw/tldraw';
@@ -47,6 +47,8 @@ export default function SessionClient({
   const [activeTool, setActiveTool] = useState<string>('whiteboard');
   const [documentUrl, setDocumentUrl] = useState<string | null>(null);
   const [whiteboardSnapshot, setWhiteboardSnapshot] = useState<TLStoreSnapshot | null>(null);
+  const [whiteboardControllerId, setWhiteboardControllerId] = useState<string | null>(initialTeacher?.id || null);
+
 
   // États pour le minuteur
   const [timerDuration, setTimerDuration] = useState<number>(INITIAL_TIMER_DURATION);
@@ -78,7 +80,6 @@ export default function SessionClient({
           title: 'Erreur Média',
           description: 'Impossible d\'accéder à votre caméra et/ou microphone.'
         });
-        // Continuer même sans média
         setLoading(false);
       } finally {
         setLoading(false);
@@ -112,7 +113,6 @@ export default function SessionClient({
           audio: true 
         });
         
-        // Gérer l'arrêt manuel du partage d'écran
         stream.getTracks().forEach(track => {
           track.onended = () => {
             setScreenStream(null);
@@ -175,7 +175,6 @@ export default function SessionClient({
 
     peer.on('connect', () => {
       console.log(`🔗 [PEER] - Connexion établie avec ${targetUserId}`);
-      // Mettre à jour l'état de connexion
       setPeers(prev => prev.map(p => 
         p.id === targetUserId ? { ...p, isConnected: true } : p
       ));
@@ -190,7 +189,6 @@ export default function SessionClient({
 
     peer.on('close', () => {
       console.log(`🔒 [PEER] - Connexion fermée avec ${targetUserId}`);
-      // Nettoyer le peer fermé
       setPeers(prev => prev.filter(p => p.id !== targetUserId));
       peersRef.current = peersRef.current.filter(p => p.id !== targetUserId);
       pendingSignalsRef.current.delete(targetUserId);
@@ -247,7 +245,6 @@ export default function SessionClient({
       console.log(`📹 [PEER] - Flux distant reçu de ${callerId}`);
     });
 
-    // Appliquer le signal initial après un petit délai
     setTimeout(() => {
       try {
         console.log(`🎯 [PEER] - Application du signal initial à ${callerId}`);
@@ -260,7 +257,6 @@ export default function SessionClient({
     return peer;
   };
 
-  // Fonction pour traiter les signaux en attente
   const processPendingSignals = (userId: string, peer: PeerInstance): void => {
     const pending = pendingSignalsRef.current.get(userId);
     if (pending && pending.length > 0) {
@@ -311,12 +307,10 @@ export default function SessionClient({
   
   // ---=== 3. GESTION DES ÉVÉNEMENTS PUSHER CORRIGÉE ===---
   useEffect(() => {
-    // Ne pas initialiser sans sessionId
     if (!sessionId) return;
 
     const channelName = `presence-session-${sessionId}`;
     
-    // Vérifier si déjà abonné
     if (pusherClient.channel(channelName)) {
       console.log(`⏭️ [PUSHER] - Déjà abonné au canal ${channelName}`);
       return;
@@ -325,19 +319,16 @@ export default function SessionClient({
     const channel = pusherClient.subscribe(channelName);
     channelRef.current = channel;
     
-    // Initialisation quand on rejoint
     const handleSubscriptionSucceeded = (members: PusherSubscriptionSucceededEvent): void => {
       const otherUsers = Object.keys(members.members || {}).filter(id => id !== currentUserId);
       setOnlineUserIds(Object.keys(members.members || {}));
       console.log(`✅ [PUSHER] - Abonnement réussi à la session ${sessionId}. Participants:`, otherUsers);
       
-      // Attendre que le flux local soit disponible avant de créer les peers
       if (!localStream) {
         console.log('⏳ [PUSHER] - En attente du flux local...');
         return;
       }
       
-      // Créer des connexions peer avec tous les utilisateurs existants
       const newPeers: PeerData[] = otherUsers.map(userId => {
         const peer = createPeer(userId, true, localStream);
         return { id: userId, peer, isConnected: false };
@@ -347,36 +338,34 @@ export default function SessionClient({
       peersRef.current = newPeers;
     };
 
-    // Quand un nouvel utilisateur rejoint
     const handleMemberAdded = (member: PusherMemberEvent): void => {
       if (member.id === currentUserId) return;
       console.log(`➕ [PUSHER] - Nouveau participant rejoint: ${member.id}`);
       
-      setOnlineUserIds(prevUserIds => {
-        if (!prevUserIds.includes(member.id)) {
-          return [...prevUserIds, member.id];
-        }
-        return prevUserIds;
-      });
+      setTimeout(() => {
+        setOnlineUserIds(prevUserIds => {
+          if (!prevUserIds.includes(member.id)) {
+            return [...prevUserIds, member.id];
+          }
+          return prevUserIds;
+        });
 
-      // Créer une connexion peer avec le nouvel utilisateur
-      if (!peersRef.current.find(p => p.id === member.id) && localStream) {
-        const peer = createPeer(member.id, true, localStream);
-        const newPeerData: PeerData = { id: member.id, peer, isConnected: false };
-        
-        setPeers(prev => [...prev.filter(p => p.id !== member.id), newPeerData]);
-        peersRef.current = [...peersRef.current.filter(p => p.id !== member.id), newPeerData];
-      }
+        if (!peersRef.current.find(p => p.id === member.id) && localStream) {
+          const peer = createPeer(member.id, true, localStream);
+          const newPeerData: PeerData = { id: member.id, peer, isConnected: false };
+          
+          setPeers(prev => [...prev.filter(p => p.id !== member.id), newPeerData]);
+          peersRef.current = [...peersRef.current.filter(p => p.id !== member.id), newPeerData];
+        }
+      }, 1000);
     };
 
-    // Gestion des signaux WebRTC - CORRECTION PRINCIPALE
     const handleSignal = (data: IncomingSignalData): void => {
       if (data.target !== currentUserId) return;
-      if (data.userId === currentUserId) return; // Ignorer ses propres signaux
+      if (data.userId === currentUserId) return;
       
       console.log(`📡 [PUSHER] - Signal reçu de ${data.userId}. isReturnSignal: ${!!data.isReturnSignal}, Type: ${data.signal.type}`);
       
-      // Éviter le traitement en double du même signal
       const signalKey = `${data.userId}-${data.signal.type}-${Date.now()}`;
       if (isProcessingSignalRef.current.has(signalKey)) {
         console.log(`⏭️ [SIGNAL] - Signal déjà en cours de traitement, ignoré: ${signalKey}`);
@@ -390,7 +379,6 @@ export default function SessionClient({
           const existingPeer = peersRef.current.find(p => p.id === data.userId);
 
           if (!existingPeer) {
-            // Créer un nouveau peer pour répondre
             if (data.isReturnSignal) {
               console.warn(`⚠️ [SIGNAL] - Signal de retour reçu mais aucun peer initiateur trouvé pour ${data.userId}.`);
               return;
@@ -400,7 +388,6 @@ export default function SessionClient({
             
             if (!localStream) {
               console.warn(`⏳ [SIGNAL] - Flux local non disponible, mise en attente du signal pour ${data.userId}`);
-              // Stocker le signal en attente
               if (!pendingSignalsRef.current.has(data.userId)) {
                 pendingSignalsRef.current.set(data.userId, []);
               }
@@ -415,20 +402,17 @@ export default function SessionClient({
             peersRef.current = [...peersRef.current.filter(p => p.id !== data.userId), newPeerData];
             
           } else {
-            // Peer existe déjà - appliquer le signal
             console.log(`🎯 [SIGNAL] - Application du signal au peer existant pour ${data.userId}`);
             
             try {
               existingPeer.peer.signal(data.signal);
               
-              // Traiter les signaux en attente après l'application réussie
               if (data.signal.type === 'answer' || data.signal.type === 'offer') {
                 processPendingSignals(data.userId, existingPeer.peer);
               }
             } catch (error) {
               console.error(`❌ [SIGNAL] - Erreur lors de l'application du signal à ${data.userId}:`, error);
               
-              // En cas d'erreur, mettre le signal en attente
               if (!pendingSignalsRef.current.has(data.userId)) {
                 pendingSignalsRef.current.set(data.userId, []);
               }
@@ -438,7 +422,6 @@ export default function SessionClient({
         } catch (error) {
           console.error(`❌ [SIGNAL] - Erreur critique lors du traitement du signal de ${data.userId}:`, error);
         } finally {
-          // Nettoyer après un délai
           setTimeout(() => {
             isProcessingSignalRef.current.delete(signalKey);
           }, 1000);
@@ -446,7 +429,6 @@ export default function SessionClient({
       }, 100);
     };
 
-    // Quand un utilisateur quitte
     const handleMemberRemoved = (member: PusherMemberEvent): void => {
       console.log(`➖ [PUSHER] - Participant parti: ${member.id}`);
       setOnlineUserIds(prev => prev.filter(id => id !== member.id));
@@ -512,9 +494,13 @@ export default function SessionClient({
             setWhiteboardSnapshot(data.snapshot);
         }
     };
+    
+    const handleWhiteboardControllerUpdate = (data: { controllerId: string }) => {
+        console.log(`🕹️ [PUSHER] - Contrôleur du tableau blanc mis à jour: ${data.controllerId}`);
+        setWhiteboardControllerId(data.controllerId);
+    };
 
 
-    // Lier les événements
     channel.bind('pusher:subscription_succeeded', handleSubscriptionSucceeded);
     channel.bind('pusher:member_added', handleMemberAdded);
     channel.bind('pusher:member_removed', handleMemberRemoved);
@@ -529,16 +515,15 @@ export default function SessionClient({
     channel.bind('active-tool-changed', handleActiveToolChanged);
     channel.bind('document-updated', handleDocumentUpdated);
     channel.bind('whiteboard-update', handleWhiteboardUpdate);
+    channel.bind('whiteboard-controller-update', handleWhiteboardControllerUpdate); // Nouvel event
 
     return (): void => {
       console.log(`🔌 [PUSHER] - Nettoyage des abonnements pour la session ${sessionId}`);
       
-      // Détacher tous les écouteurs
       channel.unbind_all();
       
       pusherClient.unsubscribe(channelName);
       
-      // Nettoyer tous les peers
       peersRef.current.forEach(({ peer }) => {
         try {
           peer.destroy();
@@ -551,65 +536,33 @@ export default function SessionClient({
     };
   }, [sessionId, localStream, currentUserId, router, toast, currentUserRole]);
 
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
 
-// Dans le useEffect de gestion Pusher dans SessionClient.tsx, ajouter :
-
-// Vérifier si l'utilisateur est toujours dans la session
-useEffect(() => {
-  const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-    // Empêcher la fermeture immédiate
-    event.preventDefault();
-    event.returnValue = '';
-  };
-
-  const handleVisibilityChange = () => {
-    if (document.visibilityState === 'hidden') {
-      console.log('👀 [SESSION] - Page devenue invisible');
-    } else {
-      console.log('👀 [SESSION] - Page redevenue visible');
-    }
-  };
-
-  window.addEventListener('beforeunload', handleBeforeUnload);
-  document.addEventListener('visibilitychange', handleVisibilityChange);
-
-  return () => {
-    window.removeEventListener('beforeunload', handleBeforeUnload);
-    document.removeEventListener('visibilitychange', handleVisibilityChange);
-  };
-}, []);
-
-// Et dans la gestion des membres ajoutés, ajouter un délai :
-const handleMemberAdded = (member: PusherMemberEvent): void => {
-  if (member.id === currentUserId) return;
-  console.log(`➕ [PUSHER] - Nouveau participant rejoint: ${member.id}`);
-  
-  // Attendre un peu avant de créer le peer pour s'assurer que l'utilisateur reste
-  setTimeout(() => {
-    setOnlineUserIds(prevUserIds => {
-      if (!prevUserIds.includes(member.id)) {
-        return [...prevUserIds, member.id];
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        console.log('👀 [SESSION] - Page devenue invisible');
+      } else {
+        console.log('👀 [SESSION] - Page redevenue visible');
       }
-      return prevUserIds;
-    });
+    };
 
-    // Créer une connexion peer avec le nouvel utilisateur
-    if (!peersRef.current.find(p => p.id === member.id) && localStream) {
-      const peer = createPeer(member.id, true, localStream);
-      const newPeerData: PeerData = { id: member.id, peer, isConnected: false };
-      
-      setPeers(prev => [...prev.filter(p => p.id !== member.id), newPeerData]);
-      peersRef.current = [...peersRef.current.filter(p => p.id !== member.id), newPeerData];
-    }
-  }, 1000); // Délai de 1 seconde
-};
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
-  // Recréer les peers quand le flux local devient disponible
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   useEffect(() => {
     if (localStream && peersRef.current.length > 0) {
       console.log('🔄 [PEER] - Flux local disponible, recréation des peers...');
       
-      // Recréer tous les peers avec le nouveau flux
       const newPeers: PeerData[] = peersRef.current.map(({ id }) => {
         const peer = createPeer(id, true, localStream);
         return { id, peer, isConnected: false };
@@ -673,7 +626,6 @@ const handleMemberAdded = (member: PusherMemberEvent): void => {
     router.push(currentUserRole === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard');
   }, [localStream, router, currentUserRole, sessionId]);
 
-  // Logique pour déterminer le flux à afficher en vedette
   const spotlightedPeer = peers.find(p => p.id === spotlightedParticipantId);
   const spotlightedStream = spotlightedParticipantId === currentUserId 
     ? localStream 
@@ -699,14 +651,11 @@ const handleMemberAdded = (member: PusherMemberEvent): void => {
     setActiveTool(tool);
     broadcastActiveTool(sessionId, tool);
   };
+  
+  const handleWhiteboardControllerChange = (userId: string) => {
+    broadcastWhiteboardController(sessionId, userId);
+  }
 
-  const formatTime = (seconds: number): string => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
-  // Préparer les participants distants pour la vue professeur
   const remoteParticipants: RemoteParticipant[] = peers.map(p => ({ 
     id: p.id, 
     stream: p.peer.streams?.[0] 
@@ -752,6 +701,8 @@ const handleMemberAdded = (member: PusherMemberEvent): void => {
             onToolChange={handleToolChange}
             classroom={classroom}
             documentUrl={documentUrl}
+            whiteboardControllerId={whiteboardControllerId}
+            onWhiteboardControllerChange={handleWhiteboardControllerChange}
           />
         ) : (
           <StudentSessionView
@@ -768,6 +719,7 @@ const handleMemberAdded = (member: PusherMemberEvent): void => {
             activeTool={activeTool}
             documentUrl={documentUrl}
             whiteboardSnapshot={whiteboardSnapshot}
+            whiteboardControllerId={whiteboardControllerId}
           />
         )}
       </main>

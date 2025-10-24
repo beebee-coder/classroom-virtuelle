@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/carousel";
 import { CloudinaryUploadWidget } from '../CloudinaryUploadWidget';
 import { Button } from '../ui/button';
-import { broadcastDocumentUrl, broadcastWhiteboardUpdate } from '@/lib/actions';
+import { broadcastDocumentUrl, broadcastWhiteboardUpdate, broadcastWhiteboardController } from '@/lib/actions';
 import { TLStoreSnapshot } from '@tldraw/tldraw';
 
 
@@ -46,6 +46,8 @@ interface TeacherSessionViewProps {
     onToolChange: (tool: string) => void;
     classroom: ClassroomWithDetails | null;
     documentUrl: string | null;
+    whiteboardControllerId: string | null; // Qui contrôle le TB
+    onWhiteboardControllerChange: (userId: string) => void; // Pour changer le contrôleur
 }
 
 
@@ -67,12 +69,13 @@ export function TeacherSessionView({
     onToolChange,
     classroom,
     documentUrl,
+    whiteboardControllerId,
+    onWhiteboardControllerChange,
 }: TeacherSessionViewProps) {
     const remoteStreamsMap = new Map(remoteParticipants.map(p => [p.id, p.stream]));
     
     const studentsWithRaisedHands = allSessionUsers.filter(u => u.role === 'ELEVE' && raisedHands.has(u.id)) as User[];
     
-    // Utiliser la liste complète de la classe si disponible, sinon les participants invités
     const students = classroom?.eleves || allSessionUsers.filter(u => u.role === 'ELEVE') as User[];
     
     const teacher = allSessionUsers.find(u => u.role === 'PROFESSEUR');
@@ -91,6 +94,11 @@ export function TeacherSessionView({
     const handleWhiteboardPersist = (snapshot: TLStoreSnapshot) => {
         broadcastWhiteboardUpdate(sessionId, snapshot);
     }
+
+    const handleSetWhiteboardController = (userId: string) => {
+        console.log(`🕹️ [PROF] - Clic pour donner le contrôle à ${userId}`);
+        onWhiteboardControllerChange(userId);
+    };
 
     const renderActiveTool = () => {
         if (screenStream) {
@@ -159,6 +167,7 @@ export function TeacherSessionView({
                     <Whiteboard 
                         sessionId={sessionId}
                         onPersist={handleWhiteboardPersist}
+                        isController={currentUserId === whiteboardControllerId}
                     />
                 );
         }
@@ -194,6 +203,8 @@ export function TeacherSessionView({
                                 onSpotlightParticipant={onSpotlightParticipant}
                                 displayName={teacher.name ?? ''}
                                 isHandRaised={raisedHands.has(teacher.id)}
+                                onSetWhiteboardController={handleSetWhiteboardController}
+                                isWhiteboardController={teacher.id === whiteboardControllerId}
                             />
                         </CarouselItem>
                          {/* Élèves */}
@@ -211,6 +222,8 @@ export function TeacherSessionView({
                                         onSpotlightParticipant={onSpotlightParticipant}
                                         displayName={student.name ?? ''}
                                         isHandRaised={raisedHands.has(student.id)}
+                                        onSetWhiteboardController={handleSetWhiteboardController}
+                                        isWhiteboardController={student.id === whiteboardControllerId}
                                     />
                                 ) : (
                                     <StudentPlaceholder
@@ -238,7 +251,6 @@ export function TeacherSessionView({
                             onToolChange={onToolChange}
                         />
                         <ParticipantList allSessionUsers={allSessionUsers} onlineUserIds={onlineUserIds} currentUserId={currentUserId} />
-                         {/* NOUVEAU : Liste de tous les élèves de la classe */}
                          {classroom && (
                             <ClassStudentList 
                                 classroom={classroom}
