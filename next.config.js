@@ -1,10 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Ajout pour autoriser les requêtes depuis l'environnement de développement cloud
-  allowedDevOrigins: [
-    "https://3000-firebase-studio-1761127865714.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev",
-    "https://6000-firebase-studio-1761127865714.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev",
-  ],
+  experimental: {
+    // Ajout pour autoriser les requêtes depuis l'environnement de développement cloud
+    allowedDevOrigins: [
+      "https://3000-firebase-studio-1761127865714.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev",
+      "https://6000-firebase-studio-1761127865714.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev",
+    ],
+  },
   images: {
     remotePatterns: [
       {
