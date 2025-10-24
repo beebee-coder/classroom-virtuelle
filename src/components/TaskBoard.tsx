@@ -11,7 +11,7 @@ import { completeTask } from '@/lib/actions/task.actions';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { CloudinaryUploadWidget } from './CloudinaryUploadWidget';
-import type { Task, StudentProgress, TaskType, ProgressStatus } from '@prisma/client';
+import { Task, StudentProgress, TaskType, ProgressStatus } from '@prisma/client';
 
 interface TaskBoardProps {
   tasks: Task[];

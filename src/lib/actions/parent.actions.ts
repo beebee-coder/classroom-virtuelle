@@ -3,6 +3,7 @@
 
 import { revalidatePath } from 'next/cache';
 import prisma from '../prisma';
+import { Prisma } from '@prisma/client';
 import type { Task, StudentProgress, User } from '@prisma/client';
 import { ProgressStatus } from '@prisma/client';
 
@@ -79,7 +80,7 @@ export async function validateTaskByParent(
         data: {
           status: ProgressStatus.VERIFIED,
           pointsAwarded: finalPoints,
-          feedback: feedback ? JSON.stringify(feedback) : null,
+          feedback: feedback ? JSON.stringify(feedback) : Prisma.JsonNull,
           recipeName: recipeName || null
         }
       }),
