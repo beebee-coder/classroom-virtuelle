@@ -16,7 +16,7 @@ import type { User, Metier, Announcement, StudentProgress, Task, Classroom, Etat
 type StudentWithDetails = User & {
     classe: Classroom | null;
     etat: (EtatEleve & { metier: Metier | null }) | null;
-    progress: StudentProgress[];
+    studentProgress: StudentProgress[];
 };
 
 type AnnouncementWithAuthor = Announcement & {
@@ -63,7 +63,7 @@ export default async function StudentDashboardPage() {
               </Sidebar>
             <SidebarInset>
               <StudentPageClient
-                  student={student}
+                  student={student as any}
                   announcements={announcements}
                   allCareers={[]} // Pas besoin de toutes les carrières ici
                   isTeacherView={false}
