@@ -1,5 +1,5 @@
 // app/api/auth/[...nextauth]/route.ts
-import NextAuth, { AuthOptions } from "next-auth"
+import NextAuth, { AuthOptions, User } from "next-auth"
 import { JWT } from "next-auth/jwt"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { PrismaClient } from "@prisma/client"
@@ -20,7 +20,6 @@ const authOptions: AuthOptions = {
             throw new Error("Email et mot de passe requis")
           }
 
-          // Simulation d'authentification - À ADAPTER selon votre logique
           const user = await prisma.user.findUnique({
             where: { email: credentials.email }
           })
@@ -29,18 +28,17 @@ const authOptions: AuthOptions = {
             throw new Error("Utilisateur non trouvé")
           }
 
-          // ICI: Ajoutez votre logique de vérification de mot de passe
-          // Pour l'instant, on accepte n'importe quel mot de passe
-          // const isValidPassword = await verifyPassword(credentials.password, user.passwordHash)
-          // if (!isValidPassword) {
-          //   throw new Error("Mot de passe incorrect")
-          // }
+          // Pour la démo, on accepte le mot de passe 'password'
+          if (credentials.password !== 'password') {
+             throw new Error("Mot de passe incorrect")
+          }
 
           return {
             id: user.id,
             email: user.email,
             name: user.name,
-            role: user.role
+            role: user.role,
+            classeId: user.classeId
           }
         } catch (error) {
           console.error("Erreur d'authentification:", error)
@@ -55,20 +53,22 @@ const authOptions: AuthOptions = {
   },
   pages: {
     signIn: "/login",
-    error: "/auth/error",
+    error: "/login",
   },
   callbacks: {
-    async jwt({ token, user }: { token: JWT; user?: any }) {
+    async jwt({ token, user }: { token: JWT; user?: User }) {
       if (user) {
         token.id = user.id
         token.role = user.role
+        token.classeId = user.classeId
       }
       return token
     },
     async session({ session, token }: { session: any; token: JWT }) {
       if (token && session.user) {
-        session.user.id = token.id as string
-        session.user.role = token.role as string
+        session.user.id = token.id
+        session.user.role = token.role
+        session.user.classeId = token.classeId
       }
       return session
     },
