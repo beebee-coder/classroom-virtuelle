@@ -1,3 +1,4 @@
+
 // src/components/session/TeacherSessionView.tsx
 'use client';
 
@@ -15,6 +16,13 @@ import { ComprehensionLevel } from '../StudentSessionControls';
 import { DocumentViewer } from '../DocumentViewer';
 import { ClassStudentList } from './ClassStudentList';
 import { Loader2 } from 'lucide-react';
+import {
+    Carousel,
+    CarouselContent,
+    CarouselItem,
+    CarouselNext,
+    CarouselPrevious,
+} from "@/components/ui/carousel";
 
 export function TeacherSessionView({
     sessionId,
@@ -122,11 +130,17 @@ export function TeacherSessionView({
                    {renderActiveTool()}
                 </div>
 
-                {/* Bandeau de vidéos (Filmstrip) */}
-                <ScrollArea className="w-full pb-4">
-                    <div className="flex gap-4">
+                {/* Bandeau de vidéos en carrousel */}
+                <Carousel 
+                    opts={{
+                        align: "start",
+                        dragFree: true,
+                    }}
+                    className="w-full"
+                >
+                    <CarouselContent className="-ml-4">
                         {/* Professeur */}
-                        <div className="w-48 shrink-0">
+                        <CarouselItem className="basis-1/4 md:basis-1/5 lg:basis-1/6 pl-4">
                             <Participant 
                                 key={teacher.id}
                                 stream={localStream}
@@ -138,12 +152,12 @@ export function TeacherSessionView({
                                 displayName={teacher.name ?? ''}
                                 isHandRaised={raisedHands.has(teacher.id)}
                             />
-                        </div>
+                        </CarouselItem>
                          {/* Élèves */}
                         {students.map(student => {
                             const stream = remoteStreamsMap.get(student.id);
                             return (
-                                <div className="w-48 shrink-0" key={student.id}>
+                                <CarouselItem key={student.id} className="basis-1/4 md:basis-1/5 lg:basis-1/6 pl-4">
                                 {stream ? (
                                     <Participant
                                         stream={stream}
@@ -163,11 +177,13 @@ export function TeacherSessionView({
                                         isHandRaised={raisedHands.has(student.id)}
                                     />
                                 )}
-                                </div>
+                                </CarouselItem>
                             )
                         })}
-                    </div>
-                </ScrollArea>
+                    </CarouselContent>
+                    <CarouselPrevious className="absolute left-0 top-1/2 -translate-y-1/2 z-10" />
+                    <CarouselNext className="absolute right-0 top-1/2 -translate-y-1/2 z-10" />
+                </Carousel>
             </div>
 
             {/* --- Colonne de Droite : Outils Interactifs --- */}
