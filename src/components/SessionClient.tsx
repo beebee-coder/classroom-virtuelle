@@ -552,6 +552,59 @@ export default function SessionClient({
     };
   }, [sessionId, localStream, currentUserId, router, toast, currentUserRole]);
 
+
+// Dans le useEffect de gestion Pusher dans SessionClient.tsx, ajouter :
+
+// Vérifier si l'utilisateur est toujours dans la session
+useEffect(() => {
+  const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+    // Empêcher la fermeture immédiate
+    event.preventDefault();
+    event.returnValue = '';
+  };
+
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === 'hidden') {
+      console.log('👀 [SESSION] - Page devenue invisible');
+    } else {
+      console.log('👀 [SESSION] - Page redevenue visible');
+    }
+  };
+
+  window.addEventListener('beforeunload', handleBeforeUnload);
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+
+  return () => {
+    window.removeEventListener('beforeunload', handleBeforeUnload);
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+  };
+}, []);
+
+// Et dans la gestion des membres ajoutés, ajouter un délai :
+const handleMemberAdded = (member: PusherMemberEvent): void => {
+  if (member.id === currentUserId) return;
+  console.log(`➕ [PUSHER] - Nouveau participant rejoint: ${member.id}`);
+  
+  // Attendre un peu avant de créer le peer pour s'assurer que l'utilisateur reste
+  setTimeout(() => {
+    setOnlineUserIds(prevUserIds => {
+      if (!prevUserIds.includes(member.id)) {
+        return [...prevUserIds, member.id];
+      }
+      return prevUserIds;
+    });
+
+    // Créer une connexion peer avec le nouvel utilisateur
+    if (!peersRef.current.find(p => p.id === member.id) && localStream) {
+      const peer = createPeer(member.id, true, localStream);
+      const newPeerData: PeerData = { id: member.id, peer, isConnected: false };
+      
+      setPeers(prev => [...prev.filter(p => p.id !== member.id), newPeerData]);
+      peersRef.current = [...peersRef.current.filter(p => p.id !== member.id), newPeerData];
+    }
+  }, 1000); // Délai de 1 seconde
+};
+
   // Recréer les peers quand le flux local devient disponible
   useEffect(() => {
     if (localStream && peersRef.current.length > 0) {
