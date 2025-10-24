@@ -1,176 +1,57 @@
-// src/lib/types.ts - Version avec Prisma
+// src/lib/types.ts
+// On supprime les enums et interfaces manuels pour utiliser directement les types générés par Prisma.
+// Cela garantit que nos types sont toujours synchronisés avec le schéma de la base de données.
 
-// Définir manuellement les enums car Prisma est supprimé
-export enum Role {
-    ELEVE = 'ELEVE',
-    PROFESSEUR = 'PROFESSEUR'
-}
+import type { 
+    User as PrismaUser,
+    Classroom as PrismaClassroom,
+    Metier as PrismaMetier,
+    CoursSession as PrismaCoursSession,
+    Task as PrismaTask,
+    StudentProgress as PrismaStudentProgress,
+    Reaction as PrismaReaction,
+    Message as PrismaMessage,
+    Announcement as PrismaAnnouncement,
+    Conversation as PrismaConversation,
+    EtatEleve as PrismaEtatEleve,
+    Role as PrismaRole,
+    TaskType as PrismaTaskType,
+    TaskCategory as PrismaTaskCategory,
+    TaskDifficulty as PrismaTaskDifficulty,
+    ValidationType as PrismaValidationType,
+    ProgressStatus as PrismaProgressStatus
+} from '@prisma/client';
 
-export enum TaskType {
-    DAILY = 'DAILY',
-    WEEKLY = 'WEEKLY',
-    MONTHLY = 'MONTHLY'
-}
+// Exporter les enums directement depuis Prisma
+export { 
+    PrismaRole as Role,
+    PrismaTaskType as TaskType,
+    PrismaTaskCategory as TaskCategory,
+    PrismaTaskDifficulty as TaskDifficulty,
+    PrismaValidationType as ValidationType,
+    PrismaProgressStatus as ProgressStatus
+};
 
-export enum TaskCategory {
-    MATH = 'MATH',
-    LANGUAGE = 'LANGUAGE',
-    SCIENCE = 'SCIENCE',
-    HISTORY = 'HISTORY',
-    ART = 'ART',
-    SPORT = 'SPORT',
-    HOME = 'HOME',
-    SOCIAL = 'SOCIAL'
-}
-
-export enum TaskDifficulty {
-    EASY = 'EASY',
-    MEDIUM = 'MEDIUM',
-    HARD = 'HARD'
-}
-
-export enum ValidationType {
-    AUTOMATIC = 'AUTOMATIC',
-    PARENT = 'PARENT',
-    PROFESSOR = 'PROFESSOR'
-}
-
-export enum ProgressStatus {
-    PENDING_ASSIGNMENT = 'PENDING_ASSIGNMENT',
-    IN_PROGRESS = 'IN_PROGRESS',
-    PENDING_VALIDATION = 'PENDING_VALIDATION',
-    VERIFIED = 'VERIFIED',
-    REJECTED = 'REJECTED'
-}
-
-// Recréer les types de base qui étaient générés par Prisma
-// Ce sont des interfaces simples pour correspondre aux données factices.
-export interface User {
-  id: string;
-  name?: string | null;
-  email?: string | null;
-  image?: string | null;
-  role: Role; // Rendu obligatoire pour correspondre à Prisma
-  classeId?: string | null;
-  points?: number;
-  ambition?: string | null;
-  emailVerified?: Date | null;
-  parentPassword?: string | null;
-}
-
-export interface Classroom {
-  id: string;
-  nom: string;
-  professeurId: string;
-}
-
-export interface Metier {
-  id: string;
-  nom: string;
-  description: string;
-  icon: string;
-  theme: any; // Utiliser `any` pour la flexibilité avec les données factices JSON.
-}
-
-export interface CoursSession {
-  id: string;
-  professeurId: string;
-  classroomId: string;
-  startTime: Date;
-  endTime?: Date | null;
-}
-
-export interface Leaderboard {
-  id: string;
-  studentId: string;
-  dailyPoints: number;
-  weeklyPoints: number;
-  monthlyPoints: number;
-  totalPoints: number;
-  completedTasks: number;
-  currentStreak: number;
-  bestStreak: number;
-  rank: number;
-  updatedAt: Date;
-}
-
-export interface Task {
-  id: string;
-  title: string;
-  description: string;
-  points: number;
-  type: TaskType;
-  category: TaskCategory;
-  difficulty: TaskDifficulty;
-  validationType: ValidationType;
-  requiresProof: boolean;
-  attachmentUrl?: string | null;
-  isActive: boolean;
-  startTime?: Date | null;
-  duration?: number | null; // en minutes
-}
-
-export interface StudentProgress {
-  id: string;
-  studentId: string;
-  taskId: string;
-  status: ProgressStatus;
-  completionDate?: Date | null;
-  submissionUrl?: string | null;
-  pointsAwarded?: number | null;
-  accuracy?: number | null;
-  recipeName?: string | null;
-}
-
-export interface Reaction {
-  id: string;
-  emoji: string;
-  userId: string;
-  messageId: string;
-}
-
-export interface Message {
-  id: string;
-  message: string;
-  senderId: string;
-  classroomId?: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  isQuestion: boolean;
-  conversationId?: string | null;
-  directMessageSenderId?: string | null;
-}
-
-export interface Announcement {
-  id: string;
-  title: string;
-  content: string;
-  authorId: string;
-  classeId?: string | null;
-  createdAt: Date;
-  attachmentUrl?: string | null;
-}
-
-export interface Conversation {
-  id: string;
-  initiatorId: string;
-  receiverId: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
+// Exporter les types de modèles de base
+export type User = PrismaUser;
+export type Classroom = PrismaClassroom;
+export type Metier = PrismaMetier;
+export type CoursSession = PrismaCoursSession;
+export type Task = PrismaTask;
+export type StudentProgress = PrismaStudentProgress;
+export type Reaction = PrismaReaction;
+export type Message = PrismaMessage;
+export type Announcement = PrismaAnnouncement;
+export type Conversation = PrismaConversation;
+export type EtatEleve = PrismaEtatEleve;
 
 // Types complexes qui étaient basés sur les relations Prisma
-
 export type SessionParticipant = Pick<User, 'id' | 'name' | 'role'>;
 
 export type StudentWithStateAndCareer = User & {
-    etat?: {
-        metier?: Metier | null;
-    } | null;
-    classe?: Classroom | null;
-    progress?: StudentProgress[];
-    sessionsParticipees?: any[];
+    etat: (PrismaEtatEleve & { metier: PrismaMetier | null }) | null;
+    classe: PrismaClassroom | null;
+    progress: PrismaStudentProgress[];
 };
 
 export type ReactionWithUser = Reaction & {
@@ -180,7 +61,6 @@ export type ReactionWithUser = Reaction & {
 export type MessageWithReactions = Message & {
     sender: Pick<User, 'id' | 'name' | 'image'>;
     reactions: ReactionWithUser[];
-    senderName?: string; // Pour compatibilité avec les données factices
 };
 
 export type AppTask = Task;
@@ -202,7 +82,7 @@ export type StudentForCard = Pick<User, 'id' | 'name' | 'email' | 'points' | 'im
 };
 
 export type ClassroomWithDetails = Omit<Classroom, 'professeurId'> & {
-  eleves: StudentForCard[];
+  eleves: (User & { etat: EtatEleve | null })[];
 };
 
 export type CareerWithTheme = Metier & {
@@ -226,20 +106,6 @@ export type TaskForProfessorValidation = StudentProgress & {
   task: Task;
   student: Pick<User, 'id' | 'name'>;
 };
-
-export interface StudentState {
-    id: string;
-    eleveId: string;
-    isPunished: boolean;
-    metierId: string | null;
-    metier: Metier | null;
-}
-
-export interface StudentClass {
-    id: string;
-    nom: string;
-    professeurId: string;
-}
 
 export type SimulatedStudent = Omit<StudentWithStateAndCareer, 'progress' | 'sessionsParticipees'> & {
     progress: StudentProgress[];
