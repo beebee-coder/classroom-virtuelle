@@ -20,7 +20,7 @@ function EditorManager({ onPersist, initialSnapshot, isController }: Omit<Whiteb
         if (initialSnapshot) {
             try {
                 // Ne charger que si le snapshot est différent pour éviter les re-renders
-                const currentSnapshot = editor.store.getSnapshot();
+                const currentSnapshot = getSnapshot(editor.store);
                 if (JSON.stringify(currentSnapshot) !== JSON.stringify(initialSnapshot)) {
                    editor.store.loadSnapshot(initialSnapshot);
                 }
@@ -39,7 +39,7 @@ function EditorManager({ onPersist, initialSnapshot, isController }: Omit<Whiteb
              let lastPersistedState: string | null = null;
             
             const handleChange = () => {
-                const snapshot = editor.store.getSnapshot();
+                const snapshot = getSnapshot(editor.store);
                 const jsonSnapshot = JSON.stringify(snapshot);
 
                 if (lastPersistedState !== jsonSnapshot) {
