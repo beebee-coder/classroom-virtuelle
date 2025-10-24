@@ -14,8 +14,8 @@ import { ParticipantList } from './ParticipantList';
 import { TeacherSessionControls } from '../TeacherSessionControls';
 import { ComprehensionLevel } from '../StudentSessionControls';
 import { DocumentViewer } from '../DocumentViewer';
-import { CameraManager } from '../CameraManager';
 import { ClassStudentList } from './ClassStudentList';
+import { Loader2 } from 'lucide-react';
 
 export function TeacherSessionView({
     sessionId,
@@ -79,7 +79,34 @@ export function TeacherSessionView({
             case 'document':
                 return <DocumentViewer />;
             case 'camera':
-                return <CameraManager />;
+                 const spotlightedStream = spotlightedUser?.id === currentUserId 
+                    ? localStream
+                    : remoteStreamsMap.get(spotlightedUser?.id ?? '');
+
+                if (!spotlightedUser || !spotlightedStream) {
+                    return (
+                        <Card className="aspect-video w-full h-full flex items-center justify-center bg-muted rounded-lg">
+                            <div className="text-center text-muted-foreground">
+                                <Loader2 className="animate-spin h-8 w-8 mx-auto" />
+                                <p className="mt-2">Recherche du participant en vedette...</p>
+                            </div>
+                        </Card>
+                    );
+                }
+                return (
+                    <Card className="w-full h-full p-2 bg-black">
+                         <Participant
+                            stream={spotlightedStream}
+                            isLocal={spotlightedUser.id === currentUserId}
+                            isSpotlighted={true}
+                            isTeacher={true}
+                            participantUserId={spotlightedUser.id}
+                            onSpotlightParticipant={onSpotlightParticipant}
+                            displayName={spotlightedUser.name ?? ''}
+                            isHandRaised={raisedHands.has(spotlightedUser.id)}
+                        />
+                    </Card>
+                );
             case 'whiteboard':
             default:
                 return <Whiteboard />;
@@ -115,7 +142,6 @@ export function TeacherSessionView({
                          {/* Élèves */}
                         {students.map(student => {
                             const stream = remoteStreamsMap.get(student.id);
-                            const careerName = (student as any).etat?.metier?.nom;
                             return (
                                 <div className="w-48 shrink-0" key={student.id}>
                                 {stream ? (
