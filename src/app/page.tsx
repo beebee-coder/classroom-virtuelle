@@ -12,6 +12,8 @@ import { AnnouncementWithAuthor } from '@/lib/types';
 import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { StudentCarousel } from '@/components/StudentCarousel'; // Importer le nouveau composant
 
+export const dynamic = 'force-dynamic';
+
 export default async function HomePage() {
   console.log('🏠 [PAGE] - Chargement de la page d\'accueil.');
 
