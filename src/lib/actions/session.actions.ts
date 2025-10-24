@@ -6,7 +6,7 @@ import { pusherTrigger } from '../pusher/server';
 import { getAuthSession } from '../session';
 import { ComprehensionLevel } from '@/components/StudentSessionControls';
 import prisma from '../prisma';
-import type { CoursSession, User } from '@prisma/client';
+import { Role, type CoursSession, type User } from '@prisma/client';
 
 export async function createCoursSession(professeurId: string, classroomId: string, studentIds: string[]) {
     console.log('🚀 [ACTION SESSION] - Début de la création de la session de cours...');
@@ -132,7 +132,7 @@ export async function getSessionDetails(sessionId: string) {
         }
 
         const students = session.participants
-            .filter(p => p.role === 'ELEVE');
+            .filter(p => p.role === Role.ELEVE);
 
         console.log('✅ [ACTION SESSION DETAILS] - Détails de session récupérés.');
         return {

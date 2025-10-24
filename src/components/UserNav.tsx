@@ -19,7 +19,8 @@ import Link from "next/link"
 import { LogIn, LogOut, Sun, Moon, Monitor, Camera } from "lucide-react"
 import { useTheme } from "next-themes";
 import { ProfileAvatar } from "./ProfileAvatar";
-import { signOut, type Session } from "next-auth/react";
+import { signOut } from "next-auth/react";
+import type { Session } from "next-auth";
 
 
 interface UserNavProps {

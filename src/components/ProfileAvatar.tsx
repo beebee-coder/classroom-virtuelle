@@ -13,7 +13,7 @@ import type { Session } from 'next-auth';
 
 
 interface ProfileAvatarProps {
-  user: Session['user'];
+  user: Session['user'] | null;
   isInteractive?: boolean;
   className?: string;
   children?: React.ReactNode;
