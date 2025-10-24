@@ -85,7 +85,7 @@ export function TeacherSessionView({
 
         switch(activeTool) {
             case 'document':
-                return <DocumentViewer />;
+                return <DocumentViewer url={null} />;
             case 'camera':
                  const spotlightedStream = spotlightedUser?.id === currentUserId 
                     ? localStream

@@ -10,7 +10,6 @@ import { updateStudentSessionStatus } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Whiteboard } from '../Whiteboard';
 import { DocumentViewer } from '../DocumentViewer';
-import { CameraManager } from '../CameraManager';
 
 interface StudentSessionViewProps {
     sessionId: string;
@@ -48,7 +47,7 @@ export function StudentSessionView({
             await updateStudentSessionStatus(sessionId, { isHandRaised: newHandRaiseState });
         } catch {
             toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de mettre à jour le statut de la main levée.'});
-            onToggleHandRaise(!newHandRaiseState); // Revert on failure
+            onToggleHandRaise(!newHandRaise-state); // Revert on failure
         }
     };
     
@@ -66,7 +65,7 @@ export function StudentSessionView({
     const renderMainContent = () => {
         switch(activeTool) {
             case 'document':
-                return <DocumentViewer />;
+                return <DocumentViewer url={null} />; // L'URL sera mise à jour via Pusher
             case 'camera':
                  // Pour l'élève, la vue caméra principale est celle de la personne en vedette
                 if (!spotlightedUser || !spotlightedStream) {
