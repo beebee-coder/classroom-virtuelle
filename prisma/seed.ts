@@ -167,8 +167,8 @@ async function main() {
   for (const task of tasks) {
     await prisma.task.upsert({
         where: { title: task.title },
-        update: { ...task },
-        create: { ...task } as any
+        update: task,
+        create: task,
     });
   }
   console.log('📝 Ensured default tasks exist');
@@ -207,7 +207,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
-
-    
-
-    
