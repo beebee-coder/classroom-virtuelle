@@ -1,66 +1,34 @@
-
-// src/lib/actions/classroom.actions.ts - NOUVEAU FICHIER
+// src/lib/actions/classroom.actions.ts
 'use server';
 
-import { ClassroomWithDetails, User, Role } from '@/lib/types';
+import prisma from '../prisma';
+import type { Classroom, User, EtatEleve } from '@prisma/client';
 
-// Données factices pour la démonstration
-const MOCK_CLASSROOM_DATA: ClassroomWithDetails = {
-    id: 'classe-a',
-    nom: 'Classe de Démo',
-    eleves: [
-        {
-            id: 'eleve-1',
-            name: 'Alice Martin',
-            email: 'alice@demo.com',
-            points: 150,
-            image: null,
-            role: Role.ELEVE,
-            classeId: 'classe-a',
-            etat: { isPunished: false },
-        },
-        {
-            id: 'eleve-2', 
-            name: 'Bruno Leroy',
-            email: 'bruno@demo.com',
-            points: 120,
-            image: null,
-            role: Role.ELEVE,
-            classeId: 'classe-a',
-            etat: { isPunished: false },
-        },
-        {
-            id: 'eleve-3',
-            name: 'Clara Dubois',
-            email: 'clara@demo.com', 
-            points: 180,
-            image: null,
-            role: Role.ELEVE,
-            classeId: 'classe-a',
-            etat: { isPunished: false },
-        },
-        {
-            id: 'eleve-4',
-            name: 'David Moreau',
-            email: 'david@demo.com',
-            points: 90,
-            image: null, 
-            role: Role.ELEVE,
-            classeId: 'classe-a',
-            etat: { isPunished: false },
-        }
-    ]
+type ClassroomWithDetails = Classroom & {
+    eleves: (User & {
+        etat: EtatEleve | null;
+    })[];
 };
 
-export async function getClassroomWithStudents(classroomId: string): Promise<ClassroomWithDetails> {
+export async function getClassroomWithStudents(classroomId: string): Promise<ClassroomWithDetails | null> {
     try {
         console.log(`🏫 [CLASSROOM ACTION] - Récupération de la classe ${classroomId}`);
         
-        // Simulation d'un délai de chargement
-        await new Promise(resolve => setTimeout(resolve, 500));
+        const classroom = await prisma.classroom.findUnique({
+            where: { id: classroomId },
+            include: {
+                eleves: {
+                    include: {
+                        etat: true,
+                    },
+                    orderBy: {
+                        points: 'desc'
+                    }
+                }
+            }
+        });
         
-        // Retourner les données factices
-        return MOCK_CLASSROOM_DATA;
+        return classroom as ClassroomWithDetails | null;
         
     } catch (error) {
         console.error('❌ [CLASSROOM ACTION] - Erreur:', error);

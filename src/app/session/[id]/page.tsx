@@ -1,4 +1,4 @@
-// src/app/session/[id]/page.tsx - Version avec API
+// src/app/session/[id]/page.tsx - Version avec base de données
 import { notFound, redirect } from 'next/navigation';
 import { getAuthSession } from '@/lib/session';
 import SessionClient from '@/components/SessionClient';
@@ -6,6 +6,7 @@ import { Suspense } from 'react';
 import { getSessionDetails } from '@/lib/actions/session.actions';
 import { getClassroomWithStudents } from '@/lib/actions/classroom.actions';
 import type { User, Role, Classroom, EtatEleve } from '@prisma/client';
+import prisma from '@/lib/prisma';
 
 type ClassroomWithDetails = Classroom & { eleves: (User & { etat: EtatEleve | null })[] };
 
@@ -39,31 +40,42 @@ export default async function SessionPage({ params }: { params: { id: string } }
     
     console.log('✅ [SESSION PAGE] - Utilisateur authentifié:', authSession.user);
 
-    // **MODIFICATION**: Récupérer les détails de la session via l'action
     let sessionDetails;
     let classroomData: ClassroomWithDetails | null = null;
+    let sessionFromDb;
 
     try {
-        sessionDetails = await getSessionDetails(params.id);
-        
-        // Utiliser l'ID de la classe des détails de la session si possible
-        const classroomId = 'classe-a'; // Utiliser l'ID de classe factice comme dans session.actions.ts
-        if (classroomId) {
-            try {
-                classroomData = await getClassroomWithStudents(classroomId);
-                console.log(`🏫 [SESSION PAGE] - Données de classe récupérées: ${classroomData.nom} avec ${classroomData.eleves.length} élèves`);
-            } catch (classroomError) {
-                console.warn('⚠️ [SESSION PAGE] - Impossible de récupérer les données de classe:', classroomError);
-                // On continue sans les données de classe (ne bloque pas la session)
+        sessionFromDb = await prisma.coursSession.findUnique({
+            where: { id: params.id },
+            include: {
+                participants: { include: { user: true }},
+                classe: true
             }
+        });
+        
+        if (!sessionFromDb) {
+            notFound();
         }
+
+        sessionDetails = {
+            id: sessionFromDb.id,
+            teacher: sessionFromDb.participants.find(p => p.user.role === 'PROFESSEUR')?.user,
+            students: sessionFromDb.participants.filter(p => p.user.role === 'ELEVE').map(p => p.user),
+        };
+
+        if (sessionFromDb.classroomId) {
+            classroomData = await prisma.classroom.findUnique({
+                where: { id: sessionFromDb.classroomId },
+                include: { eleves: { include: { etat: true } } }
+            }) as ClassroomWithDetails;
+        }
+
     } catch(e) {
         console.error('❌ [SESSION PAGE] - Impossible de récupérer les détails de la session:', e);
-        // Rediriger si la session n'est pas trouvée ou en cas d'erreur
         redirect('/teacher/dashboard?error=session_not_found');
     }
 
-    if (!sessionDetails) {
+    if (!sessionDetails || !sessionDetails.teacher || !sessionDetails.students) {
         notFound();
     }
     

@@ -5,8 +5,8 @@ import { revalidatePath } from 'next/cache';
 import { pusherTrigger } from '../pusher/server';
 import { getAuthSession } from '../session';
 import { ComprehensionLevel } from '@/components/StudentSessionControls';
-import { allDummyStudents } from '../dummy-data';
-import type { CoursSession } from '@prisma/client';
+import prisma from '../prisma';
+import type { CoursSession, ParticipantSession, User } from '@prisma/client';
 
 export async function createCoursSession(professeurId: string, classroomId: string, studentIds: string[]) {
     console.log('🚀 [ACTION SESSION] - Début de la création de la session de cours...');
@@ -18,33 +18,37 @@ export async function createCoursSession(professeurId: string, classroomId: stri
             throw new Error('Paramètres invalides: professeurId, classroomId et studentIds sont requis');
         }
 
-        // SIMULATION: Create a fake session ID
-        const sessionId = `session-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-        console.log(`  ID de session généré (factice): ${sessionId}`);
-
-        // **NOUVEAU** : Sauvegarder les participants de la session
-        const sessionApiRoute = process.env.NEXTAUTH_URL
-            ? `${process.env.NEXTAUTH_URL}/api/session/${sessionId}`
-            : `/api/session/${sessionId}`;
-            
-        await fetch(sessionApiRoute, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ participants: studentIds }),
+        // Créer la session et les participants dans une seule transaction
+        const session = await prisma.coursSession.create({
+            data: {
+                professeurId: professeurId,
+                classroomId: classroomId,
+                participants: {
+                    create: [
+                        { userId: professeurId }, // Ajouter le professeur comme participant
+                        ...studentIds.map(id => ({ userId: id }))
+                    ]
+                }
+            },
+            include: {
+                participants: true
+            }
         });
-        console.log(`  Participants pour la session ${sessionId} sauvegardés via l'API.`);
 
-        const invitationResults = await sendIndividualInvitations(sessionId, professeurId, classroomId, studentIds);
+        console.log(`  Session ${session.id} et ses participants créés en base de données.`);
+
+        const invitationResults = await sendIndividualInvitations(session.id, professeurId, classroomId, studentIds);
 
         // Revalidate the path for each invited student
         studentIds.forEach(id => {
             console.log(`  Revalidation du chemin pour l'élève: /student/${id}`);
+            revalidatePath(`/student/dashboard`);
             revalidatePath(`/student/${id}`);
         });
         
         console.log('✅ [ACTION SESSION] - Création de session terminée avec succès.');
         return { 
-            id: sessionId, 
+            id: session.id, 
             professeurId, 
             classroomId,
             invitationResults,
@@ -68,36 +72,23 @@ async function sendIndividualInvitations(sessionId: string, professeurId: string
         failed: [] as string[]
     };
 
-    // DUMMY DATA - In a real app, you would fetch this from the database.
-    const classroomName = 'Classe de Démo';
-    const teacherName = 'Professeur Test';
+    const classroom = await prisma.classroom.findUnique({ where: { id: classroomId } });
+    const teacher = await prisma.user.findUnique({ where: { id: professeurId } });
 
     const invitationPayload = {
         sessionId: sessionId,
         teacherId: professeurId,
         classroomId: classroomId,
-        classroomName: classroomName,
-        teacherName: teacherName,
+        classroomName: classroom?.nom || 'Classe inconnue',
+        teacherName: teacher?.name || 'Professeur',
         timestamp: new Date().toISOString(),
         type: 'session-invitation'
     };
     
     console.log('  Payload d\'invitation préparé:', invitationPayload);
 
-    // Stocker l'invitation en mémoire (via API route) pour les élèves qui se connectent en retard
-    const apiRoute = process.env.NEXTAUTH_URL
-      ? `${process.env.NEXTAUTH_URL}/api/session/pending-invitations`
-      : '/api/session/pending-invitations';
-    
-    await fetch(apiRoute, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            event: 'session-invitation',
-            data: invitationPayload
-        }),
-    });
-    console.log('  Invitation stockée dans le cache des invitations en attente.');
+    // Pas de stockage en mémoire, Pusher gère la livraison en temps réel.
+    // Pour les invitations manquées, le client pourrait faire un appel pour voir si une session active pour sa classe existe.
 
     for (const studentId of studentIds) {
         const channelName = `private-user-${studentId}`;
@@ -128,31 +119,33 @@ export async function getSessionDetails(sessionId: string) {
             throw new Error('sessionId est requis');
         }
 
-        // Utilisation d'une URL relative pour que l'appel fonctionne quel que soit l'environnement
-        const sessionApiUrl = `/api/session/${sessionId}`;
-
-        // En environnement serveur, on doit construire l'URL absolue
-        const host = process.env.NEXTAUTH_URL || `http://localhost:${process.env.PORT || 9002}`;
-        const absoluteUrl = new URL(sessionApiUrl, host).toString();
-        console.log(`  Appel de l'API interne: ${absoluteUrl}`);
-
-        const response = await fetch(absoluteUrl);
-        
-        if (!response.ok) {
-             console.error(`❌ [ACTION SESSION DETAILS] - Échec de la récupération: ${response.statusText}`);
-            throw new Error(`Failed to fetch session details: ${response.statusText}`);
-        }
-        
-        const sessionData = await response.json();
-        
-        // Enrichir les données des élèves
-        const enrichedStudents = sessionData.students.map((s: {id: string}) => {
-            const fullStudentData = allDummyStudents.find(ds => ds.id === s.id);
-            return fullStudentData || s; // Retourner les données complètes si trouvées
+        const session = await prisma.coursSession.findUnique({
+            where: { id: sessionId },
+            include: {
+                professeur: true, // Inclure les détails du prof
+                participants: {
+                    include: {
+                        user: true // Inclure les détails de chaque participant
+                    }
+                }
+            }
         });
-        
-        console.log('✅ [ACTION SESSION DETAILS] - Détails de session récupérés et enrichis.');
-        return { ...sessionData, students: enrichedStudents };
+
+        if (!session) {
+            console.error(`❌ [ACTION SESSION DETAILS] - Session non trouvée: ${sessionId}`);
+            throw new Error('Session non trouvée.');
+        }
+
+        const students = session.participants
+            .filter(p => p.user.role === 'ELEVE')
+            .map(p => p.user);
+
+        console.log('✅ [ACTION SESSION DETAILS] - Détails de session récupérés.');
+        return {
+            id: session.id,
+            teacher: session.professeur,
+            students: students,
+        };
         
     } catch (error) {
         console.error('💥 [ACTION SESSION DETAILS] - Erreur:', error);
@@ -202,16 +195,12 @@ export async function endCoursSession(sessionId: string) {
             throw new Error('sessionId est requis');
         }
 
-        // ---=== BYPASS: Données factices ===---
-        const sessionDetails = { classroomId: 'classe-a' }; 
-        const classroomId = sessionDetails.classroomId;
-        console.log(`  Classe associée (factice): ${classroomId}`);
-        // ---===================================---
+        const session = await prisma.coursSession.update({
+            where: { id: sessionId },
+            data: { endTime: new Date() }
+        });
 
-        if (!classroomId) {
-            console.error('❌ [ACTION END SESSION] - Impossible de trouver la classe associée.');
-            throw new Error("Impossible de trouver la classe associée à la session.");
-        }
+        const classroomId = session.classroomId;
 
         const eventData = { 
             sessionId,
@@ -351,11 +340,8 @@ export interface SessionData extends CoursSession {
 export interface SessionDetails {
     id: string;
     participants: any[];
-    professeur: {
-        id: string;
-        name: string;
-    };
-    createdAt: string;
+    teacher: User;
+    students: User[];
 }
 
 export async function reinviteStudentToSession(sessionId: string, studentId: string, classroomId: string) {
