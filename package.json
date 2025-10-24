@@ -3,14 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "npm run db:ensure && next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "prisma:generate": "prisma generate",
     "prisma:studio": "prisma studio",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "db:ensure": "bash -c 'pg_ctl -D ~/.postgres_data status > /dev/null 2>&1 || (pg_ctl -D ~/.postgres_data -o \"-p 5432 -k /tmp\" -l ~/.postgres_log start && sleep 2)'",
+    "db:start": "pg_ctl -D ~/.postgres_data -o \"-p 5432 -k /tmp\" -l ~/.postgres_log start",
+    "db:stop": "pg_ctl -D ~/.postgres_data stop"
   },
   "dependencies": {
     "@prisma/client": "5.17.0",
