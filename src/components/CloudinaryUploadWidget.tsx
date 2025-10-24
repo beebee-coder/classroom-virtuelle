@@ -39,22 +39,16 @@ function CloudinaryUploadWidget({ onUpload, children }: CloudinaryUploadWidgetPr
   const [error, setError] = useState<string | null>(null);
   const widgetRef = useRef<any>(null);
 
-  // Récupération des variables d'environnement avec valeurs par défaut
-  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || 'demo';
-  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || 'ml_default';
+  // Correction: Forcer les valeurs de démo pour le cloudName et le uploadPreset
+  const cloudName = 'demo';
+  const uploadPreset = 'ml_default';
 
   useEffect(() => {
     console.log('🖼️ [WIDGET] Initialisation du widget Cloudinary...');
     console.log(`🔧 [WIDGET] Configuration - Cloud: ${cloudName}, Preset: ${uploadPreset}`);
 
-    // Vérification des variables critiques
-    if (!cloudName || cloudName === 'demo') {
-      console.warn('⚠️ [WIDGET] CloudName manquant ou en mode démo - certaines fonctionnalités peuvent être limitées');
-    }
-
     const cloudinaryWindow = window as CloudinaryWindow;
 
-    // Vérifier si le script est déjà chargé
     if (cloudinaryWindow.cloudinary) {
       console.log('✅ [WIDGET] Script Cloudinary déjà chargé.');
       setLoaded(true);
@@ -62,7 +56,6 @@ function CloudinaryUploadWidget({ onUpload, children }: CloudinaryUploadWidgetPr
       return;
     }
 
-    // Vérifier si le script est en cours de chargement
     if (document.getElementById('cloudinary-upload-widget')) {
       console.log('⏳ [WIDGET] Script Cloudinary déjà en cours de chargement.');
       return;
@@ -95,7 +88,6 @@ function CloudinaryUploadWidget({ onUpload, children }: CloudinaryUploadWidgetPr
       if (document.body.contains(script)) {
         document.body.removeChild(script);
       }
-      // Nettoyer le widget
       if (widgetRef.current) {
         try {
           widgetRef.current.destroy();
@@ -105,7 +97,8 @@ function CloudinaryUploadWidget({ onUpload, children }: CloudinaryUploadWidgetPr
         }
       }
     };
-  }, [cloudName, uploadPreset]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const initializeWidget = useCallback(() => {
     const cloudinaryWindow = window as CloudinaryWindow;
@@ -121,7 +114,7 @@ function CloudinaryUploadWidget({ onUpload, children }: CloudinaryUploadWidgetPr
         cloudName: cloudName,
         uploadPreset: uploadPreset,
         folder: "classroom_connector_proofs",
-        cropping: false, // Désactivé pour éviter les erreurs avec les presets non signés
+        cropping: false,
         sources: ['local', 'url', 'camera'],
         multiple: false,
         maxFiles: 1,
@@ -156,41 +149,18 @@ function CloudinaryUploadWidget({ onUpload, children }: CloudinaryUploadWidgetPr
       const handleUploadCallback = (error: any, result: CloudinaryUploadResult) => {
         if (error) {
           console.error('❌ [WIDGET] Erreur d\'upload Cloudinary:', error);
-          
-          // Gestion spécifique des erreurs Cloudinary
-          if (error.status === 'upload preset must be whitelisted for unsigned uploads') {
-            setError('Configuration Cloudinary incorrecte. Contactez l\'administrateur.');
-          } else {
-            setError(`Erreur d'upload: ${error.status || 'Erreur inconnue'}`);
-          }
+          setError(`Erreur d'upload: ${error.statusText || 'Erreur inconnue'}`);
           return;
         }
 
         if (!result) return;
 
-        switch (result.event) {
-          case 'success':
-            console.log('✅ [WIDGET] Upload réussi:', result.info);
-            setError(null);
-            onUpload(result);
-            break;
-            
-          case 'close':
-            console.log('🚪 [WIDGET] Widget fermé.');
-            setError(null);
-            break;
-            
-          case 'abort':
-            console.log('⏹️ [WIDGET] Upload annulé.');
-            setError(null);
-            break;
-            
-          case 'display-changed':
-            // Événement normal de changement d'affichage, pas d'erreur
-            break;
-            
-          default:
-            console.log(`📦 [WIDGET] Événement ${result.event} reçu`);
+        if (result.event === 'success') {
+          console.log('✅ [WIDGET] Upload réussi:', result.info);
+          setError(null);
+          onUpload(result);
+        } else {
+          console.log(`📦 [WIDGET] Événement ${result.event} reçu`);
         }
       };
 
