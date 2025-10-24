@@ -155,7 +155,7 @@ export default function SessionClient({
     });
 
     peer.on('signal', (signal: PeerSignalData) => {
-      console.log(`📤 [PEER] -> Envoi du signal de ${currentUserId} vers ${targetUserId}`);
+      console.log(`📤 [PEER] -> Signal généré pour ${targetUserId}`);
       signalViaAPI({
         channelName: `presence-session-${sessionId}`,
         userId: currentUserId,
@@ -163,6 +163,10 @@ export default function SessionClient({
         signal,
         isReturnSignal: !initiator,
       });
+    });
+    
+    peer.on('connect', () => {
+      console.log(`🔗 [PEER] - Connexion établie avec ${targetUserId}`);
     });
 
     peer.on('stream', (remoteStream: MediaStream) => {
@@ -172,7 +176,6 @@ export default function SessionClient({
 
     peer.on('error', (err: Error) => {
       console.error(`❌ [PEER] - Erreur de connexion avec ${targetUserId}:`, err);
-      // Optionnel: tenter de recréer la connexion
     });
 
     peer.on('close', () => {
