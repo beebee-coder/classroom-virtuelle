@@ -223,9 +223,14 @@ export default function SessionClient({
 
     // Quand un nouvel utilisateur rejoint
     channel.bind('pusher:member_added', (member: any) => {
-      if (member.id === currentUserId) return;
-      console.log(`➕ [PUSHER] - Nouveau participant rejoint: ${member.id}`);
-      setOnlineUserIds(prev => [...prev, member.id]);
+        if (member.id === currentUserId) return;
+        console.log(`➕ [PUSHER] - Nouveau participant rejoint: ${member.id}`);
+        setOnlineUserIds(prevUserIds => {
+            if (!prevUserIds.includes(member.id)) {
+                return [...prevUserIds, member.id];
+            }
+            return prevUserIds;
+        });
       
       // On ne crée PAS de nouveau peer ici, on attend son signal "d'offre".
       // C'est lui l'initiateur pour les connexions avec les membres existants.
