@@ -399,8 +399,7 @@ export async function shareDocument(sessionId: string, document: { name: string,
 
         const channel = `presence-session-${sessionId}`;
         const payload = {
-            currentDocument: document,
-            history: updatedHistory
+            url: document.url
         };
         
         console.log(`  Diffusion de l'événement 'document-updated' sur le canal ${channel}.`);

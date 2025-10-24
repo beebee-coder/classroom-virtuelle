@@ -70,8 +70,7 @@ export type DocumentInHistory = {
   }
   
   export interface DocumentEvent {
-    currentDocument: DocumentInHistory;
-    history: DocumentInHistory[];
+    url: string;
   }
   
   // Définition de types locaux
