@@ -8,7 +8,7 @@ export * from './actions/class.actions';
 export * from './actions/session.actions';
 export * from './actions/student.actions';
 export * from './actions/task.actions';
-export * from './actions/conversation.actions';
+// export * from './actions/conversation.actions'; // Retiré car le module est vide
 export * from './actions/announcement.actions';
 export * from './actions/chat.actions';
 export * from './actions/teacher.actions';
