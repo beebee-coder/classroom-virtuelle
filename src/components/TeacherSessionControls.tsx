@@ -4,7 +4,6 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
-  ScreenShare, 
   Award,
   Monitor,
   Square, // Remplacement de Whiteboard
@@ -13,15 +12,11 @@ import {
 } from 'lucide-react';
 
 interface TeacherSessionControlsProps {
-  onScreenShare: () => void;
-  isScreenSharing: boolean;
   activeTool: string;
   onToolChange: (tool: string) => void;
 }
 
 export function TeacherSessionControls({
-  onScreenShare,
-  isScreenSharing,
   activeTool,
   onToolChange
 }: TeacherSessionControlsProps) {
@@ -31,7 +26,6 @@ export function TeacherSessionControls({
     { id: 'document', name: 'Document', icon: FileText, description: 'Partager un document', action: () => onToolChange('document') },
     { id: 'quiz', name: 'Quiz', icon: Award, description: 'Lancer un quiz interactif', action: () => onToolChange('quiz') },
     { id: 'camera', name: 'Caméras', icon: Camera, description: 'Gérer les caméras', action: () => onToolChange('camera') },
-    { id: 'screenShare', name: 'Partage', icon: ScreenShare, description: 'Partager l\'écran', action: onScreenShare, isActive: isScreenSharing },
   ];
 
   return (
@@ -51,7 +45,7 @@ export function TeacherSessionControls({
           <div className="grid grid-cols-2 gap-2">
             {tools.map((tool) => {
               const Icon = tool.icon;
-              const isActive = tool.isActive !== undefined ? tool.isActive : activeTool === tool.id;
+              const isActive = activeTool === tool.id;
               
               return (
                 <Button

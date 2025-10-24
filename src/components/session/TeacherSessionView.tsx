@@ -115,6 +115,7 @@ export function TeacherSessionView({
                          {/* Élèves */}
                         {students.map(student => {
                             const stream = remoteStreamsMap.get(student.id);
+                            const careerName = (student as any).etat?.metier?.nom;
                             return (
                                 <div className="w-48 shrink-0" key={student.id}>
                                 {stream ? (
@@ -148,8 +149,6 @@ export function TeacherSessionView({
                 <ScrollArea className='h-full'>
                     <div className='space-y-4 pr-3'>
                         <TeacherSessionControls
-                            onScreenShare={onScreenShare}
-                            isScreenSharing={isScreenSharing}
                             activeTool={activeTool}
                             onToolChange={onToolChange}
                         />
