@@ -424,6 +424,7 @@ export async function broadcastWhiteboardController(sessionId: string, controlle
 
     revalidatePath(`/session/${sessionId}`);
     return { success: true };
+
   } catch (error) {
     console.error('💥 [ACTION WHITEBOARD] - Erreur lors du changement de contrôleur:', error);
     return { success: false, error: 'Failed to change whiteboard controller' };
