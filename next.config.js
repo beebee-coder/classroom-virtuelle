@@ -1,12 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    // Ajout pour autoriser les requêtes depuis l'environnement de développement cloud
-    allowedDevOrigins: [
-      "https://3000-firebase-studio-1761127865714.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev",
-    ],
+    serverActions: true, // Activation explicite des Actions Serveur
   },
-  serverActions: true, // Activation explicite des Actions Serveur
+  // Ajout pour autoriser les requêtes depuis l'environnement de développement cloud
+  allowedDevOrigins: [
+    "https://3000-firebase-studio-1761127865714.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev",
+  ],
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -29,7 +29,7 @@ const nextConfig = {
         pathname: '/**',
       },
       {
-        protocol: 'https',
+        protocol: 'https' ,
         hostname: 'picsum.photos',
         port: '',
         pathname: '/**',
