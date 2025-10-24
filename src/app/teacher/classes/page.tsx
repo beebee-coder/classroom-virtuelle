@@ -6,14 +6,7 @@ import { getAuthSession } from '@/lib/session';
 import { redirect } from 'next/navigation';
 import { BackButton } from '@/components/BackButton';
 import { AddClassForm } from '@/components/AddClassForm';
-
-// DUMMY DATA
-const dummyClassrooms = [
-  { id: 'classe-a', nom: 'Classe 6ème A', _count: { eleves: 10 } },
-  { id: 'classe-b', nom: 'Classe 6ème B', _count: { eleves: 10 } },
-  { id: 'classe-c', nom: 'Classe 5ème A', _count: { eleves: 10 } },
-];
-
+import prisma from '@/lib/prisma';
 
 export default async function TeacherClassesPage() {
   const session = await getAuthSession();
@@ -23,8 +16,14 @@ export default async function TeacherClassesPage() {
   }
   const user = session.user;
 
-  // Fetch teacher data and classes - USING DUMMY DATA
-  const classrooms = dummyClassrooms;
+  const classrooms = await prisma.classroom.findMany({
+    where: { professeurId: user.id },
+    include: {
+        _count: {
+            select: { eleves: true }
+        }
+    }
+  });
 
   return (
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">

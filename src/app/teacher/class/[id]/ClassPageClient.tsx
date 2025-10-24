@@ -16,15 +16,18 @@ import { Video, XSquare, Crown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePresenceForTeacher } from '@/hooks/usePresenceForTeacher';
 import { AnnouncementCarousel } from '@/components/AnnouncementCarousel';
-import type { User, Classroom, Announcement } from '@prisma/client';
+import type { User, Classroom, Announcement, EtatEleve } from '@prisma/client';
 
 type AnnouncementWithAuthor = Announcement & { author: { name: string | null } };
 type StudentForCard = User & { etat: { isPunished: boolean } | null };
-type ClassroomWithDetails = Classroom & { eleves: StudentForCard[] };
-
+type ClassroomWithStudentsAndPunishment = Classroom & {
+    eleves: (User & {
+        etat: { isPunished: boolean } | null;
+    })[];
+};
 
 interface ClassPageClientProps {
-    classroom: ClassroomWithDetails;
+    classroom: ClassroomWithStudentsAndPunishment;
     teacher: User;
     announcements: AnnouncementWithAuthor[];
 }
@@ -39,8 +42,8 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
 
     // Utilisation du nouveau hook pour gérer la présence
     const { onlineUsers: onlineStudents, isConnected, error: presenceError } = usePresenceForTeacher(
-        teacher.id, 
-        classroom.id,
+        teacher?.id, 
+        classroom?.id,
         !!teacher?.id && !!classroom?.id
     );
 
