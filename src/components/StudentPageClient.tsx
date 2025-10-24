@@ -16,7 +16,6 @@ import { cn } from '@/lib/utils';
 import { KeyRound } from 'lucide-react';
 import { endCoursSession } from '@/lib/actions';
 import { CareerSelector } from '@/components/CareerSelector'; // Assumant que ce composant existe
-import { useActivityTracker } from '@/hooks/useActivityTracker';
 import { DummySession } from '@/lib/session';
 
 interface StudentPageClientProps {
@@ -53,21 +52,7 @@ export default function StudentPageClient({
     const router = useRouter();
 
     const classroomId = student?.classeId || 'classe-a';
-    // Le hook ne doit être actif que si l'utilisateur est authentifié.
-    const isActivityTrackerEnabled = !!user?.id && !!user?.classeId;
     console.log('👨‍🎓 [ELEVE] - Données complètes student:', student);
-
-    const { onlineUsers } = useActivityTracker(
-        student?.id,
-        classroomId, // Utiliser la variable calculée
-        isActivityTrackerEnabled
-    );
-     // Vérifiez que les données sont présentes
-    console.log('👨‍🎓 [ELEVE] - Données de présence:', {
-        studentId: student?.id,
-        classeId: classroomId,
-        onlineUsers
-    });
 
     const handleAcceptInvitation = useCallback(async (invitation: SessionInvitation) => {
         console.log('✅ [ELEVE] - Acceptation de l\'invitation:', invitation.sessionId);

@@ -39,6 +39,7 @@ export const useActivityTracker = (
   
   const channelRef = useRef<PresenceChannel | null>(null);
   const isSubscribedRef = useRef(false);
+  const previousParamsRef = useRef<{ userId?: string; classroomId?: string; enabled: boolean }>({ enabled: true });
 
   console.log('🔍 [PRESENCE HOOK DEBUG] - Paramètres reçus:', { userId, classroomId, enabled });
 
@@ -70,39 +71,68 @@ export const useActivityTracker = (
   useEffect(() => {
     console.log('🔍 [PRESENCE HOOK DEBUG] - useEffect exécuté avec:', { userId, classroomId, enabled });
     
+    const currentParams = { userId, classroomId, enabled };
+    const previousParams = previousParamsRef.current;
+    
+    // Vérifier si les paramètres ont réellement changé
+    const paramsChanged = 
+      previousParams.userId !== userId ||
+      previousParams.classroomId !== classroomId ||
+      previousParams.enabled !== enabled;
+
+    previousParamsRef.current = currentParams;
+
     // Validation des paramètres
     if (!enabled) {
       console.log('🕵️ [PRESENCE HOOK] - Hook désactivé');
-      cleanupSubscription();
+      if (isSubscribedRef.current) {
+        cleanupSubscription();
+      }
       return;
     }
 
     if (!userId || !classroomId) {
       console.log('❌ [PRESENCE HOOK] - Infos manquantes:', { userId, classroomId });
       setError('Informations utilisateur ou classe manquantes');
-      cleanupSubscription();
-      return;
-    }
-
-    // Nettoyer l'ancien abonnement si les paramètres changent
-    const previousChannelName = channelRef.current?.name;
-    if (previousChannelName && previousChannelName !== `presence-class-${classroomId}`) {
-      cleanupSubscription(previousChannelName);
-    }
-
-    // Éviter les abonnements en double
-    if (isSubscribedRef.current && channelRef.current?.name === `presence-class-${classroomId}`) {
-      console.log('⏭️ [PRESENCE HOOK] - Abonnement déjà actif, ignoré');
+      if (isSubscribedRef.current) {
+        cleanupSubscription();
+      }
       return;
     }
 
     const channelName = `presence-class-${classroomId}`;
+
+    // Éviter les réinitialisations inutiles si les paramètres sont identiques
+    if (isSubscribedRef.current && 
+        channelRef.current?.name === channelName && 
+        !paramsChanged) {
+      console.log('⏭️ [PRESENCE HOOK] - Abonnement déjà actif avec les mêmes paramètres, ignoré');
+      return;
+    }
+
+    // Nettoyer l'ancien abonnement seulement si les paramètres ont changé
+    if (paramsChanged && channelRef.current) {
+      const previousChannelName = channelRef.current.name;
+      if (previousChannelName !== channelName) {
+        cleanupSubscription(previousChannelName);
+      }
+    }
+
     console.log(`🕵️ [PRESENCE HOOK] - Tentative d'abonnement au canal: ${channelName} pour l'utilisateur ${userId}`);
 
     try {
       // Vérifier si Pusher est disponible
       if (!pusherClient) {
         throw new Error('Client Pusher non disponible');
+      }
+
+      // Vérifier si on est déjà abonné à ce canal
+      const existingChannel = pusherClient.channel(channelName);
+      if (existingChannel) {
+        console.log('✅ [PRESENCE HOOK] - Déjà abonné au canal, réutilisation');
+        channelRef.current = existingChannel as PresenceChannel;
+        isSubscribedRef.current = true;
+        return;
       }
 
       // S'abonner au canal
@@ -144,6 +174,14 @@ export const useActivityTracker = (
         console.error(`❌ [PRESENCE HOOK] - Erreur d'abonnement au canal ${channelName}:`, status);
         setError(`Erreur d'abonnement: ${status?.message || 'Erreur inconnue'}`);
         setIsConnected(false);
+        isSubscribedRef.current = false;
+      };
+
+      // Gérer la déconnexion du canal
+      const handleUnsubscribed = () => {
+        console.log(`🔌 [PRESENCE HOOK] - Désabonné du canal ${channelName}`);
+        setIsConnected(false);
+        isSubscribedRef.current = false;
       };
 
       // Lier les événements
@@ -151,15 +189,23 @@ export const useActivityTracker = (
       channel.bind('pusher:member_added', handleMemberAdded);
       channel.bind('pusher:member_removed', handleMemberRemoved);
       channel.bind('pusher:subscription_error', handleSubscriptionError);
+      channel.bind('pusher:unsubscribed', handleUnsubscribed);
 
-      // Gérer la déconnexion Pusher
+      // Gérer la déconnexion Pusher globale
       const handleDisconnected = () => {
         console.log('🔌 [PRESENCE HOOK] - Déconnecté de Pusher');
         setIsConnected(false);
         setError('Déconnecté du service de présence');
       };
 
+      const handleConnected = () => {
+        console.log('🔗 [PRESENCE HOOK] - Reconnecté à Pusher');
+        setIsConnected(true);
+        setError(null);
+      };
+
       pusherClient.connection.bind('disconnected', handleDisconnected);
+      pusherClient.connection.bind('connected', handleConnected);
 
       // Nettoyage
       return () => {
@@ -171,12 +217,11 @@ export const useActivityTracker = (
           channel.unbind('pusher:member_added', handleMemberAdded);
           channel.unbind('pusher:member_removed', handleMemberRemoved);
           channel.unbind('pusher:subscription_error', handleSubscriptionError);
+          channel.unbind('pusher:unsubscribed', handleUnsubscribed);
         }
         
         pusherClient.connection.unbind('disconnected', handleDisconnected);
-        
-        // Ne pas désabonner immédiatement pour éviter les flickers
-        // Le désabonnement sera géré par le cleanup suivant
+        pusherClient.connection.unbind('connected', handleConnected);
       };
 
     } catch (error) {
@@ -186,16 +231,10 @@ export const useActivityTracker = (
       isSubscribedRef.current = false;
     }
 
-    // Cleanup final lors du démontage ou changement de dépendances
+    // Cleanup final seulement lors du démontage complet
     return () => {
-      // Nettoyage différé pour éviter les désabonnements/reabonnements rapides
-      const timeoutId = setTimeout(() => {
-        if (!enabled || !userId || !classroomId) {
-          cleanupSubscription(channelName);
-        }
-      }, 1000);
-
-      return () => clearTimeout(timeoutId);
+      // Ne pas nettoyer immédiatement - laisser Pusher gérer la reconnexion
+      // Le nettoyage sera géré par le changement de paramètres
     };
   }, [userId, classroomId, enabled, cleanupSubscription]);
 
