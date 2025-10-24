@@ -58,6 +58,7 @@ export default function SessionClient({
   
   const allSessionUsers: SessionParticipant[] = [initialTeacher, ...initialStudents];
   const peersRef = useRef<Map<string, PeerInstance>>(new Map());
+  const pendingSignalsRef = useRef<Map<string, PeerSignalData[]>>(new Map());
   const screenPeerRef = useRef<PeerInstance | null>(null);
   
   // ---=== 1. GESTION DES FLUX MÉDIAS ===---
@@ -188,6 +189,14 @@ export default function SessionClient({
       });
     });
     
+    // Après la création, vérifier s'il y a des signaux en attente
+    const pending = pendingSignalsRef.current.get(targetUserId);
+    if (pending) {
+        console.log(`🔄 [PEER] - Traitement de ${pending.length} signal(s) en attente pour ${targetUserId}.`);
+        pending.forEach(signal => peer.signal(signal));
+        pendingSignalsRef.current.delete(targetUserId);
+    }
+
     return peer;
   }, [localStream, currentUserId, sessionId]);
 
@@ -235,29 +244,35 @@ export default function SessionClient({
     };
 
     const handleSignal = (data: IncomingSignalData): void => {
-      if (data.target !== currentUserId) return;
-
-      console.log(`📡 [PUSHER] <- Signal reçu de ${data.userId}`);
-      const peer = peersRef.current.get(data.userId);
-
-      if (!peer) {
-        console.warn(`⚠️ [PEER] - Peer pour ${data.userId} non trouvé lors de la réception du signal. Création d'un nouveau pair.`);
-        const newPeer = createPeer(data.userId, false);
-        peersRef.current.set(data.userId, newPeer);
-        newPeer.signal(data.signal);
-        return;
-      }
-      
-      if(peer.destroyed) {
-          console.error(`❌ [PEER] - Tentative d'envoyer un signal à un peer détruit pour ${data.userId}.`);
-          return;
-      }
-
-      try {
-        peer.signal(data.signal);
-      } catch (error) {
-        console.error(`💥 [PEER] - Erreur lors de l'application du signal pour ${data.userId}:`, error);
-      }
+        if (data.target !== currentUserId) return;
+    
+        console.log(`📡 [PUSHER] <- Signal reçu de ${data.userId}`);
+        const peer = peersRef.current.get(data.userId);
+    
+        if (!peer) {
+            console.warn(`⚠️ [PEER] - Peer non trouvé pour ${data.userId}. Mise en attente du signal.`);
+            // Stocker le signal en attente
+            const pending = pendingSignalsRef.current.get(data.userId) || [];
+            pendingSignalsRef.current.set(data.userId, [...pending, data.signal]);
+            
+            // Si c'est un signal d'offre, il faut créer un peer en réponse
+            if (!data.isReturnSignal) {
+                const newPeer = createPeer(data.userId, false);
+                peersRef.current.set(data.userId, newPeer);
+            }
+            return;
+        }
+    
+        if (peer.destroyed) {
+            console.error(`❌ [PEER] - Tentative d'envoyer un signal à un peer détruit pour ${data.userId}.`);
+            return;
+        }
+    
+        try {
+            peer.signal(data.signal);
+        } catch (error) {
+            console.error(`💥 [PEER] - Erreur lors de l'application du signal pour ${data.userId}:`, error);
+        }
     };
     
     const handleSessionEnded = (): void => {
