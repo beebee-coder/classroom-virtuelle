@@ -28,8 +28,6 @@ export function TeacherSessionView({
     raisedHands,
     understandingStatus,
     currentUserId,
-    onScreenShare,
-    isScreenSharing,
     activeTool,
     onToolChange,
     classroom 
@@ -45,8 +43,6 @@ export function TeacherSessionView({
     raisedHands: Set<string>;
     understandingStatus: Map<string, ComprehensionLevel>;
     currentUserId: string;
-    onScreenShare: () => void;
-    isScreenSharing: boolean;
     activeTool: string;
     onToolChange: (tool: string) => void;
     classroom: ClassroomWithDetails | null;
@@ -54,7 +50,10 @@ export function TeacherSessionView({
     const remoteStreamsMap = new Map(remoteParticipants.map(p => [p.id, p.stream]));
     
     const studentsWithRaisedHands = allSessionUsers.filter(u => u.role === 'ELEVE' && raisedHands.has(u.id)) as User[];
-    const students = allSessionUsers.filter(u => u.role === 'ELEVE') as User[];
+    
+    // Utiliser la liste complète de la classe si disponible, sinon les participants invités
+    const students = classroom?.eleves || allSessionUsers.filter(u => u.role === 'ELEVE') as User[];
+    
     const teacher = allSessionUsers.find(u => u.role === 'PROFESSEUR');
     
     if (!currentUserId || !teacher) return null;

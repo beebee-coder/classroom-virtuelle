@@ -12,7 +12,6 @@ interface StudentPlaceholderProps {
   isOnline: boolean;
   isHandRaised?: boolean;
   onSpotlightParticipant: (participantId: string) => void;
-  isSpotlighted?: boolean;
 }
 
 export function StudentPlaceholder({ 
