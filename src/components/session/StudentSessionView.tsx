@@ -2,7 +2,7 @@
 'use client';
 
 import { Participant } from '@/components/Participant';
-import { SessionParticipant } from '@/lib/types';
+import { SessionParticipant, DocumentInHistory } from '@/lib/types';
 import { Card } from '../ui/card';
 import { Loader2 } from 'lucide-react';
 import { StudentSessionControls, ComprehensionLevel } from '../StudentSessionControls';

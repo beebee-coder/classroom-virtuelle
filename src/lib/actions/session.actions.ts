@@ -364,20 +364,51 @@ export async function reinviteStudentToSession(sessionId: string, studentId: str
     }
 }
 
-export async function broadcastDocumentUrl(sessionId: string, url: string) {
-    console.log(`📄 [ACTION DOCUMENT] - Diffusion de l'URL du document pour la session ${sessionId}`);
+export async function shareDocument(sessionId: string, document: { name: string, url: string }) {
+    console.log(`📄 [ACTION DOCUMENT] - Partage du document '${document.name}' pour la session ${sessionId}`);
     try {
-        if (!sessionId || !url) {
-            console.error('❌ [ACTION DOCUMENT] - sessionId et url sont requis.');
-            throw new Error('sessionId et url sont requis');
+        if (!sessionId || !document?.url || !document?.name) {
+            throw new Error('sessionId et document (name, url) sont requis.');
         }
+
+        const session = await prisma.coursSession.findUnique({
+            where: { id: sessionId },
+            select: { documentHistory: true }
+        });
+
+        if (!session) {
+            throw new Error('Session non trouvée.');
+        }
+
+        const currentHistory = (session.documentHistory as { name: string; url: string }[] | null) || [];
+        
+        // Éviter les doublons
+        const isAlreadyInHistory = currentHistory.some(doc => doc.url === document.url);
+        
+        let updatedHistory = currentHistory;
+        if (!isAlreadyInHistory) {
+            updatedHistory = [...currentHistory, document];
+            await prisma.coursSession.update({
+                where: { id: sessionId },
+                data: { documentHistory: updatedHistory }
+            });
+            console.log(`  Historique des documents mis à jour en base de données.`);
+        } else {
+             console.log(`  Document déjà présent dans l'historique.`);
+        }
+
         const channel = `presence-session-${sessionId}`;
-        console.log(`  Diffusion sur le canal ${channel} avec l'URL: ${url}`);
-        await pusherTrigger(channel, 'document-updated', { url });
-        console.log(`  Événement 'document-updated' diffusé sur ${channel}.`);
+        const payload = {
+            currentDocument: document,
+            history: updatedHistory
+        };
+        
+        console.log(`  Diffusion de l'événement 'document-updated' sur le canal ${channel}.`);
+        await pusherTrigger(channel, 'document-updated', payload);
+        
         return { success: true };
     } catch (error) {
         console.error('💥 [ACTION DOCUMENT] - Erreur:', error);
-        throw new Error("Impossible de diffuser l'URL du document.");
+        throw new Error("Impossible de partager le document.");
     }
 }

@@ -2,19 +2,19 @@
 'use client';
 
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { User, Role, SessionParticipant, ClassroomWithDetails } from '@/lib/types';
+import { User, Role, SessionParticipant, ClassroomWithDetails, DocumentInHistory } from '@/lib/types';
 import { Participant } from '@/components/Participant';
 import { StudentPlaceholder } from '../StudentPlaceholder';
 import { HandRaiseController } from '../HandRaiseController';
 import { UnderstandingTracker } from '../UnderstandingTracker';
 import { Whiteboard } from '../Whiteboard';
-import { Card } from '../ui/card';
+import { Card, CardContent } from '../ui/card';
 import { ParticipantList } from './ParticipantList';
 import { TeacherSessionControls } from '../TeacherSessionControls';
 import { ComprehensionLevel } from '../StudentSessionControls';
 import { DocumentViewer } from '../DocumentViewer';
 import { ClassStudentList } from './ClassStudentList';
-import { Loader2, UploadCloud } from 'lucide-react';
+import { Loader2, UploadCloud, File, Trash2, Share2 } from 'lucide-react';
 import {
     Carousel,
     CarouselContent,
@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/carousel";
 import { CloudinaryUploadWidget } from '../CloudinaryUploadWidget';
 import { Button } from '../ui/button';
-import { broadcastDocumentUrl, broadcastWhiteboardUpdate, broadcastWhiteboardController } from '@/lib/actions';
+import { shareDocument, broadcastWhiteboardUpdate, broadcastWhiteboardController } from '@/lib/actions';
 import { TLStoreSnapshot } from '@tldraw/tldraw';
 
 
@@ -46,6 +46,8 @@ interface TeacherSessionViewProps {
     onToolChange: (tool: string) => void;
     classroom: ClassroomWithDetails | null;
     documentUrl: string | null;
+    documentHistory: DocumentInHistory[];
+    onDocumentShare: (doc: DocumentInHistory) => void;
     whiteboardControllerId: string | null; // Qui contrôle le TB
     onWhiteboardControllerChange: (userId: string) => void; // Pour changer le contrôleur
 }
@@ -69,6 +71,8 @@ export function TeacherSessionView({
     onToolChange,
     classroom,
     documentUrl,
+    documentHistory,
+    onDocumentShare,
     whiteboardControllerId,
     onWhiteboardControllerChange,
 }: TeacherSessionViewProps) {
@@ -86,8 +90,11 @@ export function TeacherSessionView({
 
     const handleDocumentUpload = (result: any) => {
         if (result.event === 'success') {
-            const url = result.info.secure_url;
-            broadcastDocumentUrl(sessionId, url);
+            const newDoc = {
+                name: result.info.original_filename,
+                url: result.info.secure_url,
+            };
+            onDocumentShare(newDoc);
         }
     };
 
@@ -122,14 +129,36 @@ export function TeacherSessionView({
                         <div className="flex-1 min-h-0">
                             <DocumentViewer url={documentUrl} />
                         </div>
-                        <CloudinaryUploadWidget onUpload={handleDocumentUpload}>
-                            {({ open }) => (
-                                <Button onClick={() => open()} variant="outline">
-                                    <UploadCloud className="mr-2" />
-                                    Téléverser un document à partager
-                                </Button>
-                            )}
-                        </CloudinaryUploadWidget>
+                        <Card>
+                            <CardContent className="p-4">
+                                <div className="flex justify-between items-center mb-2">
+                                    <h4 className="font-semibold">Historique des documents</h4>
+                                    <CloudinaryUploadWidget onUpload={handleDocumentUpload}>
+                                        {({ open }) => (
+                                            <Button onClick={() => open()} variant="outline" size="sm">
+                                                <UploadCloud className="mr-2" />
+                                                Téléverser
+                                            </Button>
+                                        )}
+                                    </CloudinaryUploadWidget>
+                                </div>
+                                <ScrollArea className="h-24">
+                                    <div className="space-y-2">
+                                        {documentHistory.length > 0 ? documentHistory.map((doc, i) => (
+                                            <div key={i} className="flex items-center justify-between p-2 bg-muted rounded-md">
+                                                <div className="flex items-center gap-2 text-sm truncate">
+                                                    <File className="h-4 w-4" />
+                                                    <span className="truncate">{doc.name}</span>
+                                                </div>
+                                                <Button size="sm" variant="ghost" onClick={() => onDocumentShare(doc)}>
+                                                    <Share2 className="mr-2 h-4 w-4"/> Partager
+                                                </Button>
+                                            </div>
+                                        )) : <p className="text-xs text-muted-foreground text-center pt-4">Aucun document dans l'historique.</p>}
+                                    </div>
+                                </ScrollArea>
+                            </CardContent>
+                        </Card>
                     </div>
                 );
             case 'camera':

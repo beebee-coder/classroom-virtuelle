@@ -7,6 +7,11 @@ import { TLStoreSnapshot } from "@tldraw/tldraw";
 
 export type ClassroomWithDetails = Classroom & { eleves: (User & { etat: EtatEleve | null })[] };
 
+export type DocumentInHistory = {
+  name: string;
+  url: string;
+};
+
 // Types pour Pusher
  export interface PusherMember {
     id: string;
@@ -64,8 +69,9 @@ export type ClassroomWithDetails = Classroom & { eleves: (User & { etat: EtatEle
     tool: string;
   }
   
-  export  interface DocumentEvent {
-    url: string;
+  export interface DocumentEvent {
+    currentDocument: DocumentInHistory;
+    history: DocumentInHistory[];
   }
   
   // Définition de types locaux
