@@ -1,5 +1,6 @@
 import { ComprehensionLevel } from "@/components/StudentSessionControls";
 import { User, Role, ClassroomWithDetails } from "@/lib/types";
+import type { Instance as PeerInstance, SignalData as PeerSignalData } from 'simple-peer';
 
 // Types pour Pusher
  export interface PusherMember {
