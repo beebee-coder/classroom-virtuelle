@@ -62,13 +62,16 @@ export async function sendDirectMessage(formData: FormData) {
     
     console.log(`[DUMMY] Sending DM "${messageContent}" in conversation ${conversationId}`);
 
-    const newMessage = {
+    const newMessage: Message = {
         id: `msg-${Math.random()}`,
         message: messageContent,
         conversationId,
         senderId: 'current-user-id', // This would be the session user ID
         createdAt: new Date(),
         updatedAt: new Date(),
+        classroomId: null,
+        isQuestion: false,
+        directMessageSenderId: null,
     };
 
     const channelName = `private-conversation-${conversationId}`;
