@@ -39,18 +39,20 @@ function CloudinaryUploadWidget({ onUpload, children }: CloudinaryUploadWidgetPr
   const [error, setError] = useState<string | null>(null);
   const widgetRef = useRef<any>(null);
 
-  // CORRECTION : Utiliser uniquement le cloud démo Cloudinary avec des presets valides
-  const cloudName = 'demo'; // Cloud démo officiel de Cloudinary
-  const uploadPreset = 'docs_upload_example_uspectz'; // Preset valide du cloud démo
+  // Utilisation des variables d'environnement pour la configuration
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
   useEffect(() => {
     console.log('🖼️ [WIDGET] Initialisation du widget Cloudinary...');
-    console.log(`🔧 [WIDGET] Configuration - Cloud: ${cloudName}, Preset: ${uploadPreset}`);
-
-    // Avertissement si on utilise le cloud démo
-    if (cloudName === 'demo') {
-      console.warn('⚠️ [WIDGET] Mode démo Cloudinary activé - pour la production, configurez votre propre cloud');
+    
+    if (!cloudName || !uploadPreset) {
+      console.error('❌ [WIDGET] Configuration Cloudinary manquante. Veuillez définir NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME et NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET dans vos variables d\'environnement.');
+      setError('Configuration Cloudinary manquante.');
+      return;
     }
+    
+    console.log(`🔧 [WIDGET] Configuration - Cloud: ${cloudName}`);
 
     const cloudinaryWindow = window as CloudinaryWindow;
 
@@ -111,9 +113,12 @@ function CloudinaryUploadWidget({ onUpload, children }: CloudinaryUploadWidgetPr
   const initializeWidget = useCallback(() => {
     const cloudinaryWindow = window as CloudinaryWindow;
     
-    if (!cloudinaryWindow.cloudinary) {
-      console.error('❌ [WIDGET] Cloudinary non disponible après chargement');
-      setError('Cloudinary non disponible');
+    if (!cloudinaryWindow.cloudinary || !cloudName || !uploadPreset) {
+      const errorMessage = !cloudinaryWindow.cloudinary 
+        ? 'Cloudinary non disponible après chargement'
+        : 'Nom de cloud ou preset d\'upload manquant';
+      console.error(`❌ [WIDGET] ${errorMessage}`);
+      setError(errorMessage);
       return;
     }
 
@@ -122,7 +127,7 @@ function CloudinaryUploadWidget({ onUpload, children }: CloudinaryUploadWidgetPr
         cloudName: cloudName,
         uploadPreset: uploadPreset,
         folder: "classroom_connector_proofs",
-        cropping: false, // Important : désactivé pour le cloud démo
+        cropping: false,
         sources: ['local', 'url', 'camera'],
         multiple: false,
         maxFiles: 1,
@@ -153,7 +158,7 @@ function CloudinaryUploadWidget({ onUpload, children }: CloudinaryUploadWidgetPr
           
           // Gestion spécifique des erreurs Cloudinary
           if (error.status === 'Upload preset not found') {
-            setError('Le preset d\'upload n\'existe pas. Utilisation du mode démo Cloudinary.');
+            setError('Le preset d\'upload n\'existe pas. Vérifiez la valeur de NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET.');
           } else if (error.status === 'upload preset must be whitelisted for unsigned uploads') {
             setError('Le preset n\'est pas autorisé pour les uploads non signés.');
           } else {
@@ -219,7 +224,7 @@ function CloudinaryUploadWidget({ onUpload, children }: CloudinaryUploadWidgetPr
 
     if (!widgetRef.current) {
       console.error("❌ [WIDGET] Widget non initialisé.");
-      setError('Widget non initialisé. Veuillez réessayer.');
+      setError('Widget non initialisé. Vérifiez votre configuration Cloudinary et réessayez.');
       return;
     }
 
@@ -242,12 +247,6 @@ function CloudinaryUploadWidget({ onUpload, children }: CloudinaryUploadWidgetPr
         {error && (
             <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
                 <strong>Erreur Cloudinary:</strong> {error}
-                <div className="mt-1 text-xs">
-                    {cloudName === 'demo' ? 
-                    'Mode démo activé - configurez vos propres identifiants Cloudinary pour la production' : 
-                    'Vérifiez votre configuration Cloudinary'
-                    }
-                </div>
             </div>
         )}
       </>
