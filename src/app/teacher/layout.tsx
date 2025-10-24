@@ -6,6 +6,7 @@ import { getTasksForProfessorValidation } from '@/lib/actions/teacher.actions';
 import { getAuthSession } from '@/lib/session';
 import prisma from '@/lib/prisma';
 import { redirect } from 'next/navigation';
+import { ChatSheet } from '@/components/ChatSheet';
 
 export default async function TeacherLayout({
   children,
@@ -26,11 +27,16 @@ export default async function TeacherLayout({
   const tasksToValidate = await getTasksForProfessorValidation(user.id);
   const validationCount = tasksToValidate.length;
 
+  const firstClassroomId = classrooms.length > 0 ? classrooms[0].id : null;
+
   return (
     <SidebarProvider>
       <div className="flex flex-col min-h-screen">
         <Header user={user}>
           <SidebarTrigger />
+           {firstClassroomId && (
+              <ChatSheet classroomId={firstClassroomId} userId={user.id} userRole={user.role} />
+            )}
         </Header>
         <div className="flex flex-1">
           <Sidebar>
