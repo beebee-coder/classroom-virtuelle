@@ -4,16 +4,16 @@
 import { pusherTrigger } from '@/lib/pusher/server';
 import type { Conversation, Message, Reaction, User } from '@prisma/client';
 
-type ReactionWithUser = Reaction & { user: Pick<User, 'id', 'name'> };
+type ReactionWithUser = Reaction & { user: Pick<User, 'id' | 'name'> };
 export type MessageWithReactions = Message & {
-    sender: Pick<User, 'id', 'name', 'image'>;
+    sender: Pick<User, 'id' | 'name' | 'image'>;
     reactions: ReactionWithUser[];
 };
 
 type FullConversation = Conversation & {
   messages: MessageWithReactions[];
-  initiator: Pick<User, 'id', 'name', 'image'>;
-  receiver: Pick<User, 'id', 'name', 'image'>;
+  initiator: Pick<User, 'id' | 'name' | 'image'>;
+  receiver: Pick<User, 'id' | 'name' | 'image'>;
 };
 
 

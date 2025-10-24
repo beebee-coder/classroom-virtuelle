@@ -174,11 +174,11 @@ export type StudentWithStateAndCareer = User & {
 };
 
 export type ReactionWithUser = Reaction & {
-    user: { name?: string | null; id: string }
+    user: Pick<User, 'id' | 'name'>
 };
 
 export type MessageWithReactions = Message & {
-    sender: { id: string; name?: string | null; image?: string | null };
+    sender: Pick<User, 'id' | 'name' | 'image'>;
     reactions: ReactionWithUser[];
     senderName?: string; // Pour compatibilité avec les données factices
 };
@@ -187,8 +187,8 @@ export type AppTask = Task;
 
 export type FullConversation = Conversation & {
     messages: MessageWithReactions[];
-    initiator: { id: string; name?: string | null; image?: string | null };
-    receiver: { id: string; name?: string | null; image?: string | null };
+    initiator: Pick<User, 'id' | 'name' | 'image'>;
+    receiver: Pick<User, 'id' | 'name' | 'image'>;
 };
 
 export type AnnouncementWithAuthor = Announcement & {
@@ -224,10 +224,7 @@ export type CoursSessionWithRelations = CoursSession & {
 
 export type TaskForProfessorValidation = StudentProgress & {
   task: Task;
-  student: {
-      id: string;
-      name?: string | null;
-  };
+  student: Pick<User, 'id' | 'name'>;
 };
 
 export interface StudentState {
