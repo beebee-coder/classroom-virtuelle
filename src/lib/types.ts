@@ -135,6 +135,7 @@ export interface Message {
   senderId: string;
   classroomId?: string | null;
   createdAt: Date;
+  updatedAt: Date;
   isQuestion: boolean;
   conversationId?: string | null;
   directMessageSenderId?: string | null;
