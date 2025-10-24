@@ -146,7 +146,6 @@ export default function SessionClient({
     const peer = new SimplePeer({
       initiator,
       trickle: false,
-      stream: localStream ?? undefined,
        config: {
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
@@ -168,6 +167,9 @@ export default function SessionClient({
     
     peer.on('connect', () => {
       console.log(`🔗 [PEER] - Connexion établie avec ${targetUserId}`);
+      if (localStream) {
+        peer.addStream(localStream);
+      }
     });
 
     peer.on('stream', (remoteStream: MediaStream) => {
@@ -247,20 +249,12 @@ export default function SessionClient({
         if (data.target !== currentUserId) return;
     
         console.log(`📡 [PUSHER] <- Signal reçu de ${data.userId}`);
-        const peer = peersRef.current.get(data.userId);
+        let peer = peersRef.current.get(data.userId);
     
         if (!peer) {
-            console.warn(`⚠️ [PEER] - Peer non trouvé pour ${data.userId}. Mise en attente du signal.`);
-            // Stocker le signal en attente
-            const pending = pendingSignalsRef.current.get(data.userId) || [];
-            pendingSignalsRef.current.set(data.userId, [...pending, data.signal]);
-            
-            // Si c'est un signal d'offre, il faut créer un peer en réponse
-            if (!data.isReturnSignal) {
-                const newPeer = createPeer(data.userId, false);
-                peersRef.current.set(data.userId, newPeer);
-            }
-            return;
+            console.log(`🆕 [PEER] - Peer non existant pour ${data.userId}. Création en réponse au signal.`);
+            peer = createPeer(data.userId, false); // Créer en mode non-initiateur
+            peersRef.current.set(data.userId, peer);
         }
     
         if (peer.destroyed) {

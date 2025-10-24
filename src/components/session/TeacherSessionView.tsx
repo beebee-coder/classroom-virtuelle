@@ -26,6 +26,7 @@ import { CloudinaryUploadWidget } from '../CloudinaryUploadWidget';
 import { Button } from '../ui/button';
 import { shareDocument, broadcastWhiteboardUpdate, broadcastWhiteboardController } from '@/lib/actions';
 import { TLStoreSnapshot } from '@tldraw/tldraw';
+import { SessionStatus } from './SessionStatus';
 
 
 interface TeacherSessionViewProps {
@@ -46,8 +47,6 @@ interface TeacherSessionViewProps {
     onToolChange: (tool: string) => void;
     classroom: ClassroomWithDetails | null;
     documentUrl: string | null;
-    documentHistory: DocumentInHistory[];
-    onDocumentShare: (doc: DocumentInHistory) => void;
     whiteboardControllerId: string | null; // Qui contrôle le TB
     onWhiteboardControllerChange: (userId: string) => void; // Pour changer le contrôleur
 }
@@ -71,8 +70,6 @@ export function TeacherSessionView({
     onToolChange,
     classroom,
     documentUrl,
-    documentHistory,
-    onDocumentShare,
     whiteboardControllerId,
     onWhiteboardControllerChange,
 }: TeacherSessionViewProps) {
@@ -94,9 +91,14 @@ export function TeacherSessionView({
                 name: result.info.original_filename,
                 url: result.info.secure_url,
             };
-            onDocumentShare(newDoc);
+            // Temporarily, we'll just share it. A full implementation would update a history state.
+            shareDocument(sessionId, newDoc);
         }
     };
+    
+    const handleDocumentShare = (doc: { name: string, url: string }) => {
+        shareDocument(sessionId, doc);
+    }
 
     const handleWhiteboardPersist = (snapshot: TLStoreSnapshot) => {
         broadcastWhiteboardUpdate(sessionId, snapshot);
@@ -132,7 +134,7 @@ export function TeacherSessionView({
                         <Card>
                             <CardContent className="p-4">
                                 <div className="flex justify-between items-center mb-2">
-                                    <h4 className="font-semibold">Historique des documents</h4>
+                                    <h4 className="font-semibold">Partager un document</h4>
                                     <CloudinaryUploadWidget onUpload={handleDocumentUpload}>
                                         {({ open }) => (
                                             <Button onClick={() => open()} variant="outline" size="sm">
@@ -142,21 +144,7 @@ export function TeacherSessionView({
                                         )}
                                     </CloudinaryUploadWidget>
                                 </div>
-                                <ScrollArea className="h-24">
-                                    <div className="space-y-2">
-                                        {documentHistory.length > 0 ? documentHistory.map((doc, i) => (
-                                            <div key={i} className="flex items-center justify-between p-2 bg-muted rounded-md">
-                                                <div className="flex items-center gap-2 text-sm truncate">
-                                                    <File className="h-4 w-4" />
-                                                    <span className="truncate">{doc.name}</span>
-                                                </div>
-                                                <Button size="sm" variant="ghost" onClick={() => onDocumentShare(doc)}>
-                                                    <Share2 className="mr-2 h-4 w-4"/> Partager
-                                                </Button>
-                                            </div>
-                                        )) : <p className="text-xs text-muted-foreground text-center pt-4">Aucun document dans l'historique.</p>}
-                                    </div>
-                                </ScrollArea>
+                                {/* L'historique pourrait être implémenté ici */}
                             </CardContent>
                         </Card>
                     </div>
@@ -279,7 +267,12 @@ export function TeacherSessionView({
                             activeTool={activeTool}
                             onToolChange={onToolChange}
                         />
-                        <ParticipantList allSessionUsers={allSessionUsers} onlineUserIds={onlineUserIds} currentUserId={currentUserId} />
+                        <SessionStatus 
+                            participants={allSessionUsers as User[]}
+                            onlineIds={onlineUserIds}
+                            webrtcConnections={remoteParticipants.length}
+                            whiteboardControllerId={whiteboardControllerId}
+                        />
                          {classroom && (
                             <ClassStudentList 
                                 classroom={classroom}
