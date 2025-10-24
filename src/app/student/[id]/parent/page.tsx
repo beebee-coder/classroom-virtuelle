@@ -1,35 +1,31 @@
 // src/app/student/[id]/parent/page.tsx
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { getAuthSession } from '@/lib/session';
 import { Header } from '@/components/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { KeyRound, ShieldAlert } from 'lucide-react';
+import { KeyRound } from 'lucide-react';
 import { verifyParentPassword, getTasksForValidation } from '@/lib/actions/parent.actions';
 import { TaskValidationClient } from './TaskValidationClient';
 import { BackButton } from '@/components/BackButton';
 import { Suspense } from 'react';
+import prisma from '@/lib/prisma';
+import type { Task } from '@prisma/client';
 
-// DUMMY DATA
-const dummyStudents: {[key: string]: { id: string, name: string, parentPassword?: string }} = {
-    'student1': { id: 'student1', name: 'Alice', parentPassword: 'password' }, // Simulate password is set
-    'student2': { id: 'student2', name: 'Bob' }, // Simulate password is not set
-}
+type ValidationTask = Task & { progressId: string };
 
 export default async function ParentValidationPage({
   params,
-  searchParams, // This is now safe to be passed down
+  searchParams,
 }: {
   params: { id: string };
   searchParams: { pw?: string };
 }) {
   const session = await getAuthSession();
-  // ---=== BYPASS BACKEND ===---
-  // The logic is simplified here. We just fetch the student and tasks.
-  // The authentication logic is now fully handled in the client component.
-  const student = dummyStudents['student1']; 
-  const studentId = 'student1';
-  // ---=========================---
+  const studentId = params.id;
+  
+  const student = await prisma.user.findUnique({
+    where: { id: studentId, role: 'ELEVE' }
+  });
 
   if (!student) {
     notFound();
@@ -37,9 +33,12 @@ export default async function ParentValidationPage({
 
   const hasPasswordSet = !!student.parentPassword;
   
-  // We still need to check auth server-side to decide if we should even load the tasks.
   const isAuthenticated = hasPasswordSet && searchParams.pw ? await verifyParentPassword(student.id, searchParams.pw) : false;
-  const tasksForValidation = isAuthenticated ? await getTasksForValidation(student.id) : [];
+  
+  let tasksForValidation: ValidationTask[] = [];
+  if (isAuthenticated) {
+    tasksForValidation = await getTasksForValidation(student.id);
+  }
 
   return (
     <>
@@ -47,7 +46,6 @@ export default async function ParentValidationPage({
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="max-w-4xl mx-auto">
           <div className="mb-8">
-             {/* The back button is useful if a parent gets here from the student dashboard */}
             <BackButton />
           </div>
           <Card>
