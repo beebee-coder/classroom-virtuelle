@@ -9,7 +9,7 @@ import { format } from 'date-fns';
 import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { getAuthSession } from '@/lib/session';
 import { redirect } from 'next/navigation';
-import type { Announcement, User } from '@prisma/client';
+import type { Announcement } from '@prisma/client';
 
 type AnnouncementWithAuthor = Announcement & { author: { name: string | null } };
 
