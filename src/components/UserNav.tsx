@@ -19,12 +19,11 @@ import Link from "next/link"
 import { LogIn, LogOut, Sun, Moon, Monitor, Camera } from "lucide-react"
 import { useTheme } from "next-themes";
 import { ProfileAvatar } from "./ProfileAvatar";
-import type { DummySession } from "@/lib/session";
-import { signOut } from "next-auth/react";
+import { signOut, type Session } from "next-auth/react";
 
 
 interface UserNavProps {
-    user?: DummySession['user'] | null;
+    user?: Session['user'] | null;
 }
 
 export function UserNav({ user }: UserNavProps) {

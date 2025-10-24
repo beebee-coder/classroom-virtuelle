@@ -1,8 +1,7 @@
-
 // src/components/ProfileAvatar.tsx
 'use client';
 
-import { useTransition, useState, useEffect } from 'react';
+import { useTransition, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CloudinaryUploadWidget } from '@/components/CloudinaryUploadWidget';
 import { updateUserProfileImage } from '@/lib/actions/user.actions';
@@ -10,11 +9,11 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Camera, Loader2 } from 'lucide-react';
 import { ImageDebugger } from './ImageDebugger';
-import type { User } from '@/lib/types';
+import type { Session } from 'next-auth';
 
 
 interface ProfileAvatarProps {
-  user: User;
+  user: Session['user'];
   isInteractive?: boolean;
   className?: string;
   children?: React.ReactNode;
@@ -25,7 +24,11 @@ export function ProfileAvatar({ user, isInteractive = false, className, children
   const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
   const [debugImageUrl, setDebugImageUrl] = useState<string | null>(null);
-  const [currentImageUrl, setCurrentImageUrl] = useState(user.image);
+  const [currentImageUrl, setCurrentImageUrl] = useState(user?.image);
+
+  if (!user) {
+    return null;
+  }
 
   const handleUploadSuccess = (result: any) => {
     if (result.event === 'success') {
