@@ -2,34 +2,17 @@
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { getAuthSession } from '@/lib/session';
 import { ArrowRight, Megaphone } from 'lucide-react';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { getPublicAnnouncements } from '@/lib/actions/announcement.actions';
 import { format } from 'date-fns';
 import { AnnouncementWithAuthor } from '@/lib/types';
 import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { StudentCarousel } from '@/components/StudentCarousel'; // Importer le nouveau composant
 
-export const dynamic = 'force-dynamic';
-
+// This page is now fully static, which is better for performance.
+// The redirection logic for logged-in users has been moved to the login page.
 export default async function HomePage() {
-  console.log('🏠 [PAGE] - Chargement de la page d\'accueil.');
-
-  const session = await getAuthSession();
-  
-  // Redirect logged-in users to their respective dashboards
-  if (session?.user) {
-    console.log('👤 [PAGE] - Session utilisateur trouvée, redirection...');
-    if (session.user.role === 'PROFESSEUR') {
-      redirect('/teacher/dashboard');
-    } else if (session.user.role === 'ELEVE') {
-      redirect('/student/dashboard');
-    }
-  }
-
-  // Render homepage content for non-logged-in users
   console.log('✅ [PAGE] - Affichage de la page d\'accueil pour visiteur.');
   const announcements = await getPublicAnnouncements(2);
 

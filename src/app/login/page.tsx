@@ -3,7 +3,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, Loader2, User, Lock, School, ArrowLeft } from 'lucide-react';
@@ -11,6 +11,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
+import { getAuthSession } from '@/lib/session';
+import { redirect } from 'next/navigation';
 
 // Component to handle logic that uses searchParams
 function LoginFormComponent() {
@@ -36,7 +38,8 @@ function LoginFormComponent() {
     setLoading(true);
     document.cookie = `dummyRole=${role}; path=/; max-age=86400`; // Cookie expires in 1 day
     const targetPath = role === 'teacher' ? '/teacher/dashboard' : '/student/dashboard';
-    router.push(targetPath);
+    // Use window.location.href for a full page reload to ensure session is picked up
+    window.location.href = targetPath;
   };
 
   const handleRoleSelection = (role: 'teacher' | 'student') => {
@@ -131,6 +134,19 @@ function LoginFormComponent() {
 
 // Main page component
 export default function LoginPage() {
+    // This is a client component, but we can have an async effect
+    // to check for an existing session and redirect if necessary.
+    useEffect(() => {
+        const checkSession = async () => {
+            const session = await getAuthSession();
+            if (session?.user) {
+                const targetPath = session.user.role === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard';
+                redirect(targetPath);
+            }
+        };
+        checkSession();
+    }, []);
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-muted/40 p-4 relative">
       <div className="absolute top-4 left-4">
