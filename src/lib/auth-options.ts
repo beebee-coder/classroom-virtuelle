@@ -110,4 +110,6 @@ export const authOptions: AuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
 };
 
-export const { handlers, auth, signIn, signOut } = NextAuth(authOptions);
+// Modification pour être compatible avec Next-Auth v4
+const handlers = NextAuth(authOptions);
+export { handlers };
