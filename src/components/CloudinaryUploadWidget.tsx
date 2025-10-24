@@ -20,14 +20,14 @@ function CloudinaryUploadWidget({ onUpload, children }: CloudinaryUploadWidgetPr
 
   // Récupération des variables d'environnement
   const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+  const uploadPreset = "ml_default"; // Correction: Utilisation d'un preset par défaut fonctionnel
 
   useEffect(() => {
     console.log('🖼️ [WIDGET] Initialisation du widget Cloudinary...');
     // Vérifier les variables d'environnement au chargement
-    if (!cloudName || !uploadPreset) {
-      console.error('❌ [WIDGET] Erreur: Configuration Cloudinary manquante (cloudName ou uploadPreset).');
-      setError('Configuration Cloudinary manquante');
+    if (!cloudName) {
+      console.error('❌ [WIDGET] Erreur: Nom du cloud Cloudinary manquant (cloudName).');
+      setError('Nom du cloud Cloudinary manquant');
       return;
     }
 
@@ -65,7 +65,7 @@ function CloudinaryUploadWidget({ onUpload, children }: CloudinaryUploadWidgetPr
         document.body.removeChild(script);
       }
     };
-  }, [cloudName, uploadPreset]);
+  }, [cloudName]);
 
   const openWidget = useCallback(() => {
     console.log('🚀 [WIDGET] Tentative d\'ouverture du widget...');
@@ -75,9 +75,9 @@ function CloudinaryUploadWidget({ onUpload, children }: CloudinaryUploadWidgetPr
       return;
     }
 
-    if (!cloudName || !uploadPreset) {
-      console.error("❌ [WIDGET] Configuration Cloudinary manquante.");
-      setError('Configuration Cloudinary manquante');
+    if (!cloudName) {
+      console.error("❌ [WIDGET] Nom du cloud Cloudinary manquant.");
+      setError('Nom du cloud Cloudinary manquant');
       return;
     }
 
@@ -85,10 +85,10 @@ function CloudinaryUploadWidget({ onUpload, children }: CloudinaryUploadWidgetPr
       const options = {
         cloudName: cloudName,
         uploadPreset: uploadPreset,
+        folder: "classroom_connector_proofs", // Dossier de destination
         cropping: true,
         croppingAspectRatio: 1,
         croppingDefaultSelectionRatio: 0.9,
-        folder: 'stricthome',
         sources: ['local', 'url', 'camera'],
         multiple: false,
         maxFiles: 1,
