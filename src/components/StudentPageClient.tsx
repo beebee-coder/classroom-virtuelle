@@ -116,9 +116,22 @@ export default function StudentPageClient({
                     } else {
                         console.log('✅ [CLIENT ÉLÈVE] - Aucune invitation manquée.');
                     }
+                } else if (response.status !== 404) {
+                     // Gérer les erreurs autres que "Not Found"
+                    const errorData = await response.json();
+                    toast({
+                        variant: "destructive",
+                        title: "Erreur réseau",
+                        description: `Impossible de vérifier les invitations: ${errorData.error || response.statusText}`,
+                    });
                 }
             } catch (error) {
                 console.error('❌ [CLIENT ÉLÈVE] - Erreur lors de la vérification des invitations manquées:', error);
+                toast({
+                    variant: "destructive",
+                    title: "Erreur",
+                    description: "Impossible de vérifier les invitations en attente.",
+                });
             }
         };
     
@@ -143,7 +156,7 @@ export default function StudentPageClient({
         } catch (error) {
             console.error('❌ [CLIENT ÉLÈVE] - Erreur d\'abonnement Pusher:', error);
         }
-    }, [student?.id, handleInvitation]);
+    }, [student?.id, handleInvitation, toast]);
 
     const handleDeclineInvitation = useCallback(() => {
         console.log('🚫 [CLIENT ÉLÈVE] - Invitation refusée.');
