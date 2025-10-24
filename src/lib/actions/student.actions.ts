@@ -2,31 +2,47 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { pusherTrigger } from '../pusher/server';
-import { StudentWithStateAndCareer } from '../types';
-import { dummyStudentData } from '../dummy-data';
+import prisma from '../prisma';
 
-// ---=== BYPASS BACKEND ===---
+export async function getStudentData(id: string) {
+    console.log(`🧑‍🎓 [ACTION] Récupération des données pour l'élève ID: ${id}`);
+    
+    const student = await prisma.user.findUnique({
+        where: { id },
+        include: {
+            classe: true,
+            etat: {
+                include: {
+                    metier: true
+                }
+            },
+            progress: true,
+        }
+    });
 
-export async function getStudentData(id: string): Promise<StudentWithStateAndCareer | null> {
-    console.log(`🧑‍🎓 [BYPASS] Récupération des données factices pour l'élève ID: ${id}`);
-    return dummyStudentData[id] || null;
+    if (!student || student.role !== 'ELEVE') {
+        return null;
+    }
+
+    return student;
 }
 
 
 export async function setStudentCareer(studentId: string, careerId: string | null) {
-    console.log(`🎨 [BYPASS] Changement de métier (factice) pour l'élève ${studentId} vers le métier ${careerId}`);
+    console.log(`🎨 [ACTION] Changement de métier pour l'élève ${studentId} vers le métier ${careerId}`);
 
-    const classroomId = 'classe-a'; // ID de classe factice pour la démo
-    
-    console.log(`📡 [PUSHER] Déclenchement de "student-updated" pour l'élève ${studentId}`);
-    await pusherTrigger(`presence-classe-${classroomId}`, 'student-updated', {
-        studentId,
+    await prisma.etatEleve.update({
+        where: { eleveId: studentId },
+        data: {
+            metierId: careerId,
+        }
     });
     
-    // Simule la revalidation
-    revalidatePath(`/student/${studentId}`);
+    const student = await prisma.user.findUnique({ where: { id: studentId }});
+    
     revalidatePath(`/student/dashboard`);
-    revalidatePath(`/teacher/class/${classroomId}`); // Revalidate class view for teacher
+    revalidatePath(`/student/${studentId}`);
+    if (student?.classeId) {
+        revalidatePath(`/teacher/class/${student.classeId}`);
+    }
 }
-// ---=========================---

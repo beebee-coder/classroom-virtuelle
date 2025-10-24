@@ -1,115 +1,105 @@
 // src/lib/actions/chat.actions.ts
 'use server';
 
+import { getAuthSession } from '@/lib/session';
 import { pusherTrigger } from '@/lib/pusher/server';
+import prisma from '@/lib/prisma';
 import type { Message, Reaction, User } from '@prisma/client';
 
 type ReactionWithUser = Reaction & { user: Pick<User, 'id' | 'name'> };
-type MessageWithReactions = Message & {
+export type MessageWithReactions = Message & {
     sender: Pick<User, 'id' | 'name' | 'image'>;
     reactions: ReactionWithUser[];
 };
 
-// ---=== BYPASS BACKEND ===---
-const dummyMessages: MessageWithReactions[] = [
-    { 
-        id: '1', 
-        message: 'Bonjour la classe ! Ceci est un message de test.', 
-        senderId: 'teacher-id', 
-        classroomId: 'classe-a', 
-        createdAt: new Date(Date.now() - 60000), 
-        updatedAt: new Date(Date.now() - 60000),
-        isQuestion: false, 
-        conversationId: null, 
-        directMessageSenderId: null,
-        sender: {
-            id: 'teacher-id',
-            name: 'Professeur Test',
-            image: null,
-        },
-        reactions: [],
-    },
-    { 
-        id: '2', 
-        message: 'Bonjour Monsieur !', 
-        senderId: 'student1', 
-        classroomId: 'classe-a', 
-        createdAt: new Date(Date.now() - 30000), 
-        updatedAt: new Date(Date.now() - 30000),
-        isQuestion: false, 
-        conversationId: null, 
-        directMessageSenderId: null,
-        sender: {
-            id: 'student1',
-            name: 'Alice',
-            image: null,
-        },
-        reactions: [{ 
-            id: 'r1', 
-            emoji: '👍', 
-            userId: 'teacher-id', 
-            messageId: '2', 
-            user: { id: 'teacher-id', name: 'Professeur Test'} 
-        }],
-    },
-];
-
 export async function getMessages(classroomId: string): Promise<MessageWithReactions[]> {
-    console.log(`💬 [BYPASS] Récupération des messages pour la classe ${classroomId} (factice).`);
-    return dummyMessages;
+    console.log(`💬 [ACTION] Récupération des messages pour la classe ${classroomId}.`);
+    
+    return prisma.message.findMany({
+        where: { classroomId },
+        include: {
+            sender: { select: { id: true, name: true, image: true }},
+            reactions: {
+                include: {
+                    user: { select: { id: true, name: true }}
+                }
+            }
+        },
+        orderBy: {
+            createdAt: 'asc'
+        }
+    });
 }
 
-export async function sendMessage(formData: FormData) {
+export async function sendMessage(formData: FormData): Promise<MessageWithReactions> {
+    const session = await getAuthSession();
+    if (!session?.user?.id) throw new Error('Unauthorized');
+    
+    const senderId = session.user.id;
     const messageContent = formData.get('message') as string;
     const classroomId = formData.get('classroomId') as string;
     
-    console.log(`💬 [BYPASS] Envoi du message (factice) "${messageContent}" à la classe ${classroomId}`);
+    console.log(`💬 [ACTION] Envoi du message "${messageContent}" par ${senderId} à la classe ${classroomId}`);
 
-    const newMessage: MessageWithReactions = {
-        id: `msg-${Date.now()}`,
-        message: messageContent,
-        classroomId,
-        senderId: 'current-user-id', // En mode bypass, l'ID est générique
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        isQuestion: false,
-        conversationId: null,
-        directMessageSenderId: null,
-        sender: {
-            id: 'current-user-id',
-            name: "Vous (Démo)",
-            image: null
+    const newMessage = await prisma.message.create({
+        data: {
+            message: messageContent,
+            classroomId,
+            senderId,
         },
-        reactions: [],
-    };
+         include: {
+            sender: { select: { id: true, name: true, image: true }},
+            reactions: {
+                include: {
+                    user: { select: { id: true, name: true }}
+                }
+            }
+        },
+    });
 
-    console.log('📡 [PUSHER] Déclenchement de "new-message" avec:', newMessage);
     await pusherTrigger(`presence-classe-${classroomId}`, 'new-message', newMessage);
 
     return newMessage;
 }
 
 export async function toggleReaction(messageId: string, emoji: string) {
-    const classroomId = 'classe-a'; // Dummy classroom for broadcast
-    console.log(`👍 [BYPASS] Ajout/retrait de la réaction ${emoji} sur le message ${messageId} (factice).`);
+    const session = await getAuthSession();
+    if (!session?.user?.id) throw new Error('Unauthorized');
+    
+    const userId = session.user.id;
+    
+    console.log(`👍 [ACTION] Ajout/retrait de la réaction ${emoji} sur le message ${messageId} par ${userId}.`);
 
-    const reactionData: ReactionWithUser = { 
-        id: `react-${Date.now()}`, 
-        emoji, 
-        userId: 'current-user-id', // ID générique
-        messageId,
-        user: { id: 'current-user-id', name: 'Vous (Démo)' } 
-    };
+    const existingReaction = await prisma.reaction.findFirst({
+        where: { messageId, userId, emoji }
+    });
 
-    // Pour la démo, on simule toujours un ajout. Le client gère l'état visuel.
-    console.log('📡 [PUSHER] Déclenchement de "reaction-update" avec:', { messageId, reaction: reactionData, action: 'added' });
-    await pusherTrigger(`presence-classe-${classroomId}`, 'reaction-update', { messageId, reaction: reactionData, action: 'added' });
+    const message = await prisma.message.findUnique({ where: { id: messageId }});
+    if (!message?.classroomId) throw new Error("Message not found or not in a classroom");
+    
+    const channelName = `presence-classe-${message.classroomId}`;
+
+    if (existingReaction) {
+        await prisma.reaction.delete({ where: { id: existingReaction.id }});
+        await pusherTrigger(channelName, 'reaction-update', { messageId, reaction: existingReaction, action: 'removed' });
+    } else {
+        const newReaction = await prisma.reaction.create({
+            data: { messageId, userId, emoji },
+            include: { user: { select: { id: true, name: true }}}
+        });
+        await pusherTrigger(channelName, 'reaction-update', { messageId, reaction: newReaction, action: 'added' });
+    }
 }
 
 export async function deleteChatHistory(classroomId: string) {
-    console.log(`🗑️ [BYPASS] Effacement de l'historique du chat pour la classe ${classroomId} (factice).`);
+    const session = await getAuthSession();
+    if (session?.user?.role !== 'PROFESSEUR') throw new Error('Unauthorized');
+
+    console.log(`🗑️ [ACTION] Effacement de l'historique du chat pour la classe ${classroomId}.`);
     
-    console.log('📡 [PUSHER] Déclenchement de "history-cleared".');
+    await prisma.message.deleteMany({
+        where: { classroomId }
+    });
+    
     await pusherTrigger(`presence-classe-${classroomId}`, 'history-cleared', {});
 }
-// ---=========================---

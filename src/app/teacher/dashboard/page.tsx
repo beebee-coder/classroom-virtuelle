@@ -5,14 +5,8 @@ import Link from 'next/link';
 import { getAuthSession } from '@/lib/session';
 import { getTasksForProfessorValidation } from '@/lib/actions/teacher.actions';
 import { redirect } from 'next/navigation';
-
-// ---=== BYPASS BACKEND ===---
-const dummyClassrooms = [
-  { id: 'classe-a', nom: 'Classe 6ème A' },
-  { id: 'classe-b', nom: 'Classe 6ème B' },
-  { id: 'classe-c', nom: 'Classe 5ème A' },
-];
-// ---=========================---
+import prisma from '@/lib/prisma';
+import { CreateAnnouncementForm } from '@/components/CreateAnnouncementForm';
 
 
 export default async function TeacherDashboardPage() {
@@ -25,13 +19,13 @@ export default async function TeacherDashboardPage() {
   }
   const user = session.user;
 
-  // ---=== BYPASS BACKEND ===---
-  // Fetch only the data needed for this page
-  const classrooms = dummyClassrooms;
+  // Fetch real data from the database
+  const classrooms = await prisma.classroom.findMany({
+    where: { professeurId: user.id },
+  });
   const tasksToValidate = await getTasksForProfessorValidation(user.id);
   const validationCount = tasksToValidate.length;
   console.log(`✅ [PAGE] - Données prof chargées: ${classrooms.length} classes, ${validationCount} validations.`);
-  // ---=========================---
 
   return (
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -91,7 +85,7 @@ export default async function TeacherDashboardPage() {
           </Link>
 
           {/* Créer une annonce */}
-            <Card className="transition-all duration-300 h-full flex flex-col">
+            <Card className="transition-all duration-300 h-full flex flex-col justify-center">
               <CardHeader>
                 <div className="flex items-center gap-4">
                   <div className="p-3 bg-primary/10 rounded-full">
@@ -103,8 +97,8 @@ export default async function TeacherDashboardPage() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="flex-grow flex items-center">
-                <p className="text-sm text-muted-foreground">Publiez des annonces pour une classe spécifique ou pour tous les élèves.</p>
+              <CardContent>
+                 <CreateAnnouncementForm classrooms={classrooms.map(c => ({ id: c.id, nom: c.nom }))} />
               </CardContent>
             </Card>
         </div>

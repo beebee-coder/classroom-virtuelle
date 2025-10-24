@@ -5,13 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { getAuthSession } from "@/lib/session";
 import { Users, Book, Video, Clock } from "lucide-react";
 import { redirect } from "next/navigation";
-
-// DUMMY DATA
-const dummyClassrooms = [
-  { id: 'classe-a', nom: 'Classe 6ème A', _count: { eleves: 10 } },
-  { id: 'classe-b', nom: 'Classe 6ème B', _count: { eleves: 10 } },
-  { id: 'classe-c', nom: 'Classe 5ème A', _count: { eleves: 10 } },
-];
+import prisma from "@/lib/prisma";
 
 export default async function TeacherProfilePage() {
   const session = await getAuthSession();
@@ -20,8 +14,28 @@ export default async function TeacherProfilePage() {
   }
 
   const user = session.user;
-  const classrooms = dummyClassrooms;
+  
+  const classrooms = await prisma.classroom.findMany({
+      where: { professeurId: user.id },
+      include: { _count: { select: { eleves: true }}}
+  });
+
   const totalStudents = classrooms.reduce((acc, curr) => acc + curr._count.eleves, 0);
+  
+  const sessions = await prisma.coursSession.findMany({
+      where: { professeurId: user.id, endTime: { not: null } }
+  });
+
+  const totalSessions = sessions.length;
+  const averageDuration = totalSessions > 0
+    ? sessions.reduce((acc, s) => {
+        if (s.endTime && s.startTime) {
+            return acc + (s.endTime.getTime() - s.startTime.getTime());
+        }
+        return acc;
+    }, 0) / totalSessions / 1000 / 60 // in minutes
+    : 0;
+
 
   return (
     <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -37,7 +51,7 @@ export default async function TeacherProfilePage() {
         <Card className="lg:col-span-1">
           <CardHeader>
              <div className="flex flex-col items-center gap-4">
-                <ProfileAvatar user={user} isInteractive={true} className="h-24 w-24 text-4xl" />
+                <ProfileAvatar user={user as any} isInteractive={true} className="h-24 w-24 text-4xl" />
                 <div>
                     <CardTitle className="text-3xl text-center">{user.name}</CardTitle>
                     <CardDescription className="text-center">{user.email}</CardDescription>
@@ -87,7 +101,7 @@ export default async function TeacherProfilePage() {
                             <Video className="h-6 w-6 text-blue-500" />
                         </div>
                         <div>
-                            <p className="text-2xl font-bold">12</p>
+                            <p className="text-2xl font-bold">{totalSessions}</p>
                             <p className="text-sm text-muted-foreground">Sessions totales</p>
                         </div>
                     </div>
@@ -96,7 +110,7 @@ export default async function TeacherProfilePage() {
                             <Clock className="h-6 w-6 text-green-500" />
                         </div>
                         <div>
-                            <p className="text-2xl font-bold">28m</p>
+                            <p className="text-2xl font-bold">{Math.round(averageDuration)}m</p>
                             <p className="text-sm text-muted-foreground">Durée moyenne</p>
                         </div>
                     </div>
@@ -107,5 +121,3 @@ export default async function TeacherProfilePage() {
     </main>
   );
 }
-
-    

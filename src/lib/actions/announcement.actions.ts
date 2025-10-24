@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { cache } from 'react';
 import { getAuthSession } from '../session';
 import prisma from '../prisma';
-import type { Announcement, User } from '@prisma/client';
+import type { Announcement } from '@prisma/client';
 
 export type AnnouncementWithAuthor = Announcement & { author: { name: string | null } };
 
@@ -42,7 +42,7 @@ export async function createAnnouncement(formData: FormData) {
   if (target !== 'public') {
     revalidatePath(`/teacher/class/${target}`);
   }
-  revalidatePath('/student/dashboard');
+  revalidatePath('/student/dashboard', 'layout');
 
   console.log('✅ [ACTION] - Annonce créée avec succès.');
 }
