@@ -1,5 +1,4 @@
 // src/lib/auth-options.ts
-import NextAuth from 'next-auth';
 import type { AuthOptions } from 'next-auth';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import CredentialsProvider from 'next-auth/providers/credentials';
@@ -109,6 +108,3 @@ export const authOptions: AuthOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
 };
-
-// Modification pour être compatible avec Next-Auth v4
-export const handlers = NextAuth(authOptions);
