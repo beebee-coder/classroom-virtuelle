@@ -4,7 +4,7 @@
 import { revalidatePath } from 'next/cache';
 import { getAuthSession } from '../session';
 import prisma from '../prisma';
-import { ProgressStatus, type Task, type StudentProgress } from '@prisma/client';
+import { ProgressStatus, type Task, type StudentProgress, Role } from '@prisma/client';
 
 export async function createTask(formData: FormData): Promise<Task> {
     const session = await getAuthSession();
@@ -71,7 +71,7 @@ export async function deleteTask(id: string): Promise<{ success: boolean }> {
 export async function completeTask(taskId: string, submissionUrl?: string): Promise<StudentProgress> {
   const session = await getAuthSession();
   
-  if (!session?.user || session.user.role !== 'ELEVE') {
+  if (!session?.user || session.user.role !== Role.ELEVE) {
     throw new Error("Authentification élève requise.");
   }
   const studentId = session.user.id;

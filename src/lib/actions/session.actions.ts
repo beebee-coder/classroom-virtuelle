@@ -122,7 +122,17 @@ export async function getSessionDetails(sessionId: string) {
             where: { id: sessionId },
             include: {
                 professeur: true, // Inclure les détails du prof
-                participants: true // Inclure les détails de chaque participant
+                participants: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        image: true,
+                        role: true,
+                        classeId: true,
+                        points: true,
+                    }
+                }
             }
         });
 
