@@ -8,11 +8,11 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:studio": "prisma studio",
     "prisma:migrate": "prisma migrate dev",
     "prisma:reset": "prisma migrate reset",
+    "postinstall": "prisma generate",
     "db:ensure": "bash -c 'pg_ctl -D ~/.postgres_data status > /dev/null 2>&1 || (pg_ctl -D ~/.postgres_data -o \"-p 5432 -k /tmp\" -l /tmp/postgres.log start && sleep 2)'",
     "db:start": "pg_ctl -D ~/.postgres_data -o \"-p 5432 -k /tmp\" -l /tmp/postgres.log start",
     "db:stop": "pg_ctl -D ~/.postgres_data stop",
@@ -21,7 +21,7 @@
     "db:reset": "npm run prisma:reset && npm run db:seed"
   },
   "dependencies": {
-    "@auth/prisma-adapter": "1.0.7",
+    "@auth/prisma-adapter": "^2.2.0",
     "@prisma/client": "5.17.0",
     "@radix-ui/react-accordion": "^1.2.3",
     "@radix-ui/react-alert-dialog": "^1.1.6",
@@ -55,7 +55,7 @@
     "firebase": "^11.9.1",
     "lucide-react": "^0.475.0",
     "next": "^14.2.33",
-    "next-auth": "4.24.5",
+    "next-auth": "^5.0.0-beta.19",
     "next-themes": "^0.3.0",
     "pusher": "^5.2.0",
     "pusher-js": "^8.4.0-rc2",
@@ -70,11 +70,11 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@types/dotenv": "^8.2.0",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/simple-peer": "^9.11.8",
-    "@types/dotenv": "^8.2.0",
     "postcss": "^8",
     "prisma": "5.17.0",
     "tailwindcss": "3.4.1",
