@@ -12,6 +12,7 @@ import { Whiteboard } from '../Whiteboard';
 import { DocumentViewer } from '../DocumentViewer';
 import { TLStoreSnapshot } from '@tldraw/tldraw';
 import { broadcastWhiteboardUpdate } from '@/lib/actions';
+import { ScrollArea } from '../ui/scroll-area';
 
 interface StudentSessionViewProps {
     sessionId: string;
@@ -118,16 +119,9 @@ export function StudentSessionView({
     };
     
     return (
-        <div className="flex flex-1 min-h-0 py-6 gap-6">
-            {/* Colonne principale : Contenu actif */}
-            <div className="flex-1 flex flex-col min-h-0">
-                <div className="w-full h-full relative">
-                    {renderMainContent()}
-                </div>
-            </div>
-            
-            {/* Barre latérale droite : contrôles et vidéo locale */}
-            <div className="w-72 flex flex-col gap-6 min-h-0">
+        <div className="flex flex-row flex-1 min-h-0 py-6 gap-6">
+            {/* Barre latérale gauche : contrôles et vidéo locale */}
+            <div className="w-72 flex flex-col gap-6">
                  <Participant
                     stream={localStream}
                     isLocal={true}
@@ -137,12 +131,23 @@ export function StudentSessionView({
                     isHandRaised={isHandRaised}
                     isWhiteboardController={currentUserId === whiteboardControllerId}
                 />
-                <StudentSessionControls
-                    isHandRaised={isHandRaised}
-                    onRaiseHand={handleToggleHandRaise}
-                    onComprehensionUpdate={handleUnderstandingUpdate}
-                    currentComprehension={currentUnderstanding}
-                />
+                <ScrollArea className="flex-1">
+                    <div className="pr-4">
+                        <StudentSessionControls
+                            isHandRaised={isHandRaised}
+                            onRaiseHand={handleToggleHandRaise}
+                            onComprehensionUpdate={handleUnderstandingUpdate}
+                            currentComprehension={currentUnderstanding}
+                        />
+                    </div>
+                </ScrollArea>
+            </div>
+            
+            {/* Colonne principale : Contenu actif */}
+            <div className="flex-1 flex flex-col min-w-0">
+                <div className="w-full h-full relative">
+                    {renderMainContent()}
+                </div>
             </div>
         </div>
     );
