@@ -39,6 +39,8 @@ export function TeacherSessionView({
     raisedHands,
     understandingStatus,
     currentUserId,
+    onScreenShare,
+    isScreenSharing,
     activeTool,
     onToolChange,
     classroom,
@@ -55,6 +57,8 @@ export function TeacherSessionView({
     raisedHands: Set<string>;
     understandingStatus: Map<string, ComprehensionLevel>;
     currentUserId: string;
+    onScreenShare: () => void;
+    isScreenSharing: boolean;
     activeTool: string;
     onToolChange: (tool: string) => void;
     classroom: ClassroomWithDetails | null;
