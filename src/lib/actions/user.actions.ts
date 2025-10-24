@@ -3,29 +3,33 @@
 
 import { revalidatePath } from "next/cache";
 import { getAuthSession } from "@/lib/session";
+import prisma from "@/lib/prisma";
 
-// ---=== BYPASS BACKEND ===---
 export async function updateUserProfileImage(imageUrl: string) {
   const session = await getAuthSession();
   const userId = session?.user?.id;
 
   if (!userId) {
-    console.warn("👤 [BYPASS] Tentative de mise à jour d'image sans session. Action ignorée.");
-    throw new Error("Unauthorized (Bypassed)");
+    console.error("❌ Erreur: Tentative de mise à jour d'image sans session.");
+    throw new Error("Non autorisé");
   }
 
-  console.log(`🖼️ [BYPASS] Mise à jour de l'image de profil pour l'utilisateur ${userId} avec l'URL: ${imageUrl} (factice)`);
+  console.log(`🖼️ [ACTION] Mise à jour de l'image de profil pour l'utilisateur ${userId}.`);
 
   try {
-    // En mode bypass, nous ne mettons pas à jour la base de données.
-    console.log("   -> L'appel à la base de données a été sauté.");
+    await prisma.user.update({
+      where: { id: userId },
+      data: { image: imageUrl },
+    });
 
-    // Revalidate paths where the user's avatar might be displayed
+    console.log("   -> Image de profil mise à jour en base de données.");
+
+    // Revalide toutes les pages qui pourraient afficher l'avatar de l'utilisateur.
+    // 'layout' est une option puissante pour revalider tout le site.
     revalidatePath('/', 'layout');
     
   } catch (error) {
-    console.error("❌ Erreur (simulée) lors de la mise à jour de l'image de profil:", error);
-    throw new Error("Failed to update profile image (Bypassed).");
+    console.error("❌ Erreur lors de la mise à jour de l'image de profil:", error);
+    throw new Error("Impossible de mettre à jour l'image de profil.");
   }
 }
-// ---=========================---
