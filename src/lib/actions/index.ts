@@ -8,7 +8,6 @@ export * from './class.actions';
 export * from './session.actions';
 export * from './student.actions';
 export * from './task.actions';
-export * from './conversation.actions';
 export * from './announcement.actions';
 export * from './chat.actions';
 export * from './teacher.actions';
