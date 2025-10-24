@@ -8,10 +8,18 @@ import { CareerThemeWrapper } from '@/components/CareerThemeWrapper';
 import { SidebarProvider, Sidebar, SidebarContent, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { Header } from '@/components/Header';
 import Menu from '@/components/Menu';
+import prisma from '@/lib/prisma';
 import type { User, Metier, Announcement, StudentProgress, Task, Classroom, EtatEleve } from '@prisma/client';
 
-// DUMMY DATA
-import { dummyCareers, dummyTasks } from '@/lib/dummy-data';
+type StudentWithDetails = User & {
+    classe: Classroom | null;
+    etat: (EtatEleve & { metier: Metier | null }) | null;
+    progress: StudentProgress[];
+};
+
+type AnnouncementWithAuthor = Announcement & {
+    author: { name: string | null };
+};
 
 // Cette page sert maintenant de vue publique ou de vue enseignant pour un élève spécifique.
 export default async function StudentProfilePage({ params }: { params: { id: string } }) {
@@ -30,7 +38,7 @@ export default async function StudentProfilePage({ params }: { params: { id: str
     }
 
     // Un professeur peut voir la page d'un élève.
-    const student = await getStudentData(params.id);
+    const student = await getStudentData(params.id) as StudentWithDetails;
 
     if (!student) {
         redirect(viewingUser.role === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard');
@@ -38,9 +46,9 @@ export default async function StudentProfilePage({ params }: { params: { id: str
     
     const isTeacherView = viewingUser.role === 'PROFESSEUR';
     const metier = student.etat?.metier;
-    const allCareers = isTeacherView ? dummyCareers : [];
-    const announcements = (await getStudentAnnouncements(student.id)) as (Announcement & {author: {name: string | null}})[];
-    const tasks = dummyTasks;
+    const allCareers = isTeacherView ? await prisma.metier.findMany() : [];
+    const announcements = (await getStudentAnnouncements(student.id)) as AnnouncementWithAuthor[];
+    const tasks = await prisma.task.findMany({ where: { isActive: true } });
     const classeId = student.classe?.id;
 
 

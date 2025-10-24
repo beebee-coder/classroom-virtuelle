@@ -3,65 +3,137 @@
 
 import { revalidatePath } from 'next/cache';
 import { getAuthSession } from '../session';
-import type { Task, StudentProgress, ProgressStatus } from '@prisma/client';
+import prisma from '../prisma';
+import { ProgressStatus, type Task, type StudentProgress } from '@prisma/client';
 
-// ---=== BYPASS BACKEND ===---
-export async function createTask(formData: FormData): Promise<Task[]> {
-  const title = formData.get('title');
-  console.log(`📝 [ACTION TÂCHE] - Création de la tâche (factice): "${title}"`);
-  revalidatePath('/teacher/tasks');
-  // Retourne un tableau vide car la logique client est optimiste
-  return [];
-}
+export async function createTask(formData: FormData): Promise<Task> {
+    const session = await getAuthSession();
+    if (session?.user?.role !== 'PROFESSEUR') {
+        throw new Error('Unauthorized');
+    }
+    
+    const taskData = {
+        title: formData.get('title') as string,
+        description: formData.get('description') as string,
+        points: parseInt(formData.get('points') as string, 10),
+        type: formData.get('type') as any,
+        category: formData.get('category') as any,
+        difficulty: formData.get('difficulty') as any,
+        validationType: formData.get('validationType') as any,
+        requiresProof: formData.get('requiresProof') === 'on',
+    };
 
-export async function updateTask(formData: FormData): Promise<Task[]> {
-  const taskId = formData.get('id');
-  const title = formData.get('title');
-  console.log(`📝 [ACTION TÂCHE] - Mise à jour de la tâche ${taskId} (factice): "${title}"`);
-  revalidatePath('/teacher/tasks');
-  return [];
-}
+    const newTask = await prisma.task.create({ data: taskData });
 
-export async function deleteTask(id: string): Promise<Task[]> {
-    console.log(`🗑️ [ACTION TÂCHE] - Suppression de la tâche ${id} (factice)`);
     revalidatePath('/teacher/tasks');
-    return [];
+    return newTask;
 }
 
+export async function updateTask(formData: FormData): Promise<Task> {
+    const session = await getAuthSession();
+    if (session?.user?.role !== 'PROFESSEUR') {
+        throw new Error('Unauthorized');
+    }
+
+    const taskId = formData.get('id') as string;
+    const taskData = {
+        title: formData.get('title') as string,
+        description: formData.get('description') as string,
+        points: parseInt(formData.get('points') as string, 10),
+        type: formData.get('type') as any,
+        category: formData.get('category') as any,
+        difficulty: formData.get('difficulty') as any,
+        validationType: formData.get('validationType') as any,
+        requiresProof: formData.get('requiresProof') === 'on',
+    };
+
+    const updatedTask = await prisma.task.update({
+        where: { id: taskId },
+        data: taskData,
+    });
+
+    revalidatePath('/teacher/tasks');
+    return updatedTask;
+}
+
+export async function deleteTask(id: string): Promise<{ success: boolean }> {
+    const session = await getAuthSession();
+    if (session?.user?.role !== 'PROFESSEUR') {
+        throw new Error('Unauthorized');
+    }
+
+    await prisma.task.delete({ where: { id } });
+
+    revalidatePath('/teacher/tasks');
+    return { success: true };
+}
 
 export async function completeTask(taskId: string, submissionUrl?: string): Promise<StudentProgress> {
   const session = await getAuthSession();
   const studentId = session?.user?.id;
 
-  if (!studentId) {
-    console.error('❌ [ACTION TÂCHE] - Tentative de complétion de tâche sans session élève.');
-    throw new Error("Authentification requise.");
+  if (!studentId || session.user.role !== 'ELEVE') {
+    throw new Error("Authentification élève requise.");
   }
-  
-  console.log(`✅ [ACTION TÂCHE] - L'élève ${studentId} soumet la tâche ${taskId}.`);
-  if (submissionUrl) {
-    console.log(`  -> Preuve soumise (URL): ${submissionUrl}`);
-  } else {
-    console.log(`  -> Pas de preuve soumise (validation simple ou parentale).`);
-  }
-  
-  // Simule la revalidation pour mettre à jour l'interface de l'élève
-  revalidatePath(`/student/dashboard`);
-  // Revalide aussi la page des validations pour le prof
-  revalidatePath('/teacher/validations');
 
-  // Retourne un objet de progression factice pour l'UI
-  return {
-    id: `progress-${Date.now()}`,
-    studentId: studentId,
-    taskId: taskId,
-    status: 'PENDING_VALIDATION' as ProgressStatus,
-    completionDate: new Date(),
-    submissionUrl: submissionUrl || null,
-    pointsAwarded: 0,
-    accuracy: null,
-    recipeName: null,
-    feedback: null,
-  };
+  // Vérifier si une progression existe déjà (pour les tâches rejetées)
+  const existingProgress = await prisma.studentProgress.findFirst({
+      where: {
+          studentId,
+          taskId,
+      }
+  });
+
+  const taskData = await prisma.task.findUnique({ where: { id: taskId } });
+  if (!taskData) {
+      throw new Error("Tâche non trouvée.");
+  }
+  
+  let newStatus: ProgressStatus;
+  if (taskData.validationType === 'AUTOMATIC') {
+    newStatus = ProgressStatus.VERIFIED;
+  } else {
+    newStatus = ProgressStatus.PENDING_VALIDATION;
+  }
+
+  let progress;
+
+  if (existingProgress) {
+      // Mettre à jour la progression existante (cas d'une tâche rejetée qu'on resoumet)
+      progress = await prisma.studentProgress.update({
+          where: { id: existingProgress.id },
+          data: {
+              status: newStatus,
+              submissionUrl: submissionUrl, // Mettre à jour la preuve
+              completionDate: new Date(),
+          }
+      });
+  } else {
+      // Créer une nouvelle entrée de progression
+      progress = await prisma.studentProgress.create({
+          data: {
+              studentId,
+              taskId,
+              status: newStatus,
+              submissionUrl: submissionUrl,
+          }
+      });
+  }
+
+  if (newStatus === ProgressStatus.VERIFIED) {
+    await prisma.user.update({
+        where: { id: studentId },
+        data: { points: { increment: taskData.points } }
+    });
+  }
+  
+  revalidatePath(`/student/dashboard`);
+  if (taskData.validationType === 'PROFESSOR') {
+      revalidatePath('/teacher/validations');
+  }
+  if (taskData.validationType === 'PARENT') {
+      revalidatePath(`/student/${studentId}/parent`);
+  }
+
+  return progress;
 }
-// ---=========================---

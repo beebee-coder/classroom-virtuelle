@@ -9,10 +9,8 @@ import { getStudentData } from '@/lib/actions/student.actions';
 import StudentPageClient from '@/components/StudentPageClient';
 import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import Menu from '@/components/Menu';
+import prisma from '@/lib/prisma';
 import type { User, Metier, Announcement, StudentProgress, Task, Classroom, EtatEleve } from '@prisma/client';
-
-// DUMMY DATA
-import { dummyCareers, dummyTasks } from '@/lib/dummy-data';
 
 // Re-définir les types complexes basés sur Prisma
 type StudentWithDetails = User & {
@@ -45,7 +43,7 @@ export default async function StudentDashboardPage() {
   const metier = student.etat?.metier;
   const classeId = student.classe?.id;
   const announcements = (await getStudentAnnouncements(student.id)) as AnnouncementWithAuthor[];
-  const tasks = dummyTasks as Task[];
+  const tasks = await prisma.task.findMany({ where: { isActive: true } });
 
   return (
     <CareerThemeWrapper career={metier ?? undefined}>

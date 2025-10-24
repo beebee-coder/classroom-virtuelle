@@ -23,6 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { createTask, updateTask, deleteTask } from "@/lib/actions/task.actions";
 import { Loader2, PlusCircle, Edit, Trash } from 'lucide-react';
 import { Task, TaskType, TaskCategory, TaskDifficulty, ValidationType } from "@prisma/client";
+import { useRouter } from "next/navigation";
 
 interface TaskEditorProps {
   initialTasks: Task[];
@@ -35,6 +36,7 @@ export function TaskEditor({ initialTasks }: TaskEditorProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const { toast } = useToast();
+  const router = useRouter();
 
   const handleFormSubmit = async (formData: FormData) => {
     startTransition(async () => {
@@ -42,13 +44,14 @@ export function TaskEditor({ initialTasks }: TaskEditorProps) {
         if (editingTask) {
           formData.append('id', editingTask.id);
           await updateTask(formData);
-          // Optimistic update might be complex, better to rely on revalidation
           toast({ title: "Tâche mise à jour avec succès !" });
         } else {
           await createTask(formData);
           toast({ title: "Tâche créée avec succès !" });
         }
         setDialogOpen(false);
+        // Recharger la page pour voir les changements
+        router.refresh();
       } catch (error) {
         toast({ variant: "destructive", title: "Erreur", description: "Impossible de sauvegarder la tâche." });
       }
@@ -69,8 +72,8 @@ export function TaskEditor({ initialTasks }: TaskEditorProps) {
       startTransition(async () => {
           try {
               await deleteTask(id);
-              setTasks(tasks.filter(t => t.id !== id));
               toast({ title: 'Tâche supprimée' });
+              router.refresh();
           } catch (error) {
               toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de supprimer la tâche.' });
           }
