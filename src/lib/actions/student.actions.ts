@@ -16,7 +16,7 @@ export async function getStudentData(id: string) {
                     metier: true
                 }
             },
-            progress: true,
+            studentProgress: true,
         }
     });
 
