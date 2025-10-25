@@ -165,13 +165,7 @@ export function TeacherSessionView({
 
         switch(activeTool) {
             case 'document':
-                return (
-                    <div className="h-full w-full flex flex-col gap-4">
-                        <div className="flex-1 min-h-0">
-                            <DocumentViewer url={documentUrl} />
-                        </div>
-                    </div>
-                );
+                return <DocumentViewer url={documentUrl} />;
             case 'quiz':
                  return (
                     <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/50 border-dashed">
@@ -226,9 +220,9 @@ export function TeacherSessionView({
     const allParticipants = [teacher, ...students];
 
     return (
-        <div className="flex-1 flex flex-col min-h-0">
+        <div className="flex-1 flex flex-col min-h-0 py-6">
             {/* Main content area */}
-            <div className="flex-1 flex min-h-0 gap-4">
+            <div className="flex-1 flex min-h-0 gap-6">
                 {/* --- Colonne Principale : Espace de travail --- */}
                 <div className="flex-1 flex flex-col min-w-0">
                     <div className="flex-1 min-h-0 relative">
@@ -240,7 +234,7 @@ export function TeacherSessionView({
                 <div className="w-72 flex flex-col gap-4 min-h-0">
                     <ScrollArea className='h-full'>
                         <div className='space-y-4 pr-3'>
-                            {activeTool === 'document' && (
+                             {activeTool === 'document' && (
                                 <Card>
                                     <CardContent className="p-4">
                                         <div className="flex justify-between items-center mb-2">
@@ -291,7 +285,7 @@ export function TeacherSessionView({
             </div>
 
             {/* Bandeau de vidéos en défilement continu en bas */}
-            <div className="h-40 w-full overflow-hidden relative mt-4">
+            <div className="w-full overflow-hidden relative mt-6">
                 <div className="marquee-container flex space-x-4 px-2 hover:[animation-play-state:paused]">
                     {allParticipants.map(p => (
                         <div key={p.id} className="w-48 flex-shrink-0">
