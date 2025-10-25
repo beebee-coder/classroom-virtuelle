@@ -123,6 +123,38 @@ export function TeacherSessionView({
         onWhiteboardControllerChange(userId);
     };
 
+    const renderParticipant = (participant: SessionParticipant, isDuplicate = false) => {
+        const stream = participant.id === teacher.id ? localStream : remoteStreamsMap.get(participant.id);
+        const key = `${participant.id}-${isDuplicate ? 'duplicate' : 'original'}`;
+
+        if (stream) {
+            return (
+                <Participant
+                    key={key}
+                    stream={stream}
+                    isLocal={participant.id === currentUserId}
+                    isSpotlighted={participant.id === spotlightedUser?.id}
+                    isTeacher={true}
+                    participantUserId={participant.id}
+                    onSpotlightParticipant={onSpotlightParticipant}
+                    displayName={participant.name ?? ''}
+                    isHandRaised={raisedHands.has(participant.id)}
+                    onSetWhiteboardController={handleSetWhiteboardController}
+                    isWhiteboardController={participant.id === whiteboardControllerId}
+                />
+            );
+        }
+        return (
+             <StudentPlaceholder
+                key={key}
+                student={participant as User}
+                isOnline={onlineUserIds.includes(participant.id)}
+                onSpotlightParticipant={onSpotlightParticipant}
+                isHandRaised={raisedHands.has(participant.id)}
+            />
+        );
+    };
+
     const renderActiveTool = () => {
         if (screenStream) {
              return (
@@ -214,6 +246,8 @@ export function TeacherSessionView({
         }
     };
 
+    const allParticipants = [teacher, ...students];
+
     return (
         <div className="flex-1 flex min-h-0 py-6 gap-4 min-w-0">
             {/* --- Colonne Principale : Espace de travail & Vidéos --- */}
@@ -223,64 +257,24 @@ export function TeacherSessionView({
                    {renderActiveTool()}
                 </div>
 
-                {/* Bandeau de vidéos en carrousel */}
-                <Carousel 
-                    opts={{
-                        align: "start",
-                        dragFree: true,
-                    }}
-                    className="w-full"
-                >
-                    <CarouselContent className="-ml-4">
-                        {/* Professeur */}
-                        <CarouselItem className="basis-1/4 md:basis-1/5 lg:basis-1/6 pl-4">
-                            <Participant 
-                                key={teacher.id}
-                                stream={localStream}
-                                isLocal={true}
-                                isSpotlighted={teacher.id === spotlightedUser?.id}
-                                isTeacher={true}
-                                participantUserId={teacher.id}
-                                onSpotlightParticipant={onSpotlightParticipant}
-                                displayName={teacher.name ?? ''}
-                                isHandRaised={raisedHands.has(teacher.id)}
-                                onSetWhiteboardController={handleSetWhiteboardController}
-                                isWhiteboardController={teacher.id === whiteboardControllerId}
-                            />
-                        </CarouselItem>
-                         {/* Élèves */}
-                        {students.map(student => {
-                            const stream = remoteStreamsMap.get(student.id);
-                            return (
-                                <CarouselItem key={student.id} className="basis-1/4 md:basis-1/5 lg:basis-1/6 pl-4">
-                                {stream ? (
-                                    <Participant
-                                        stream={stream}
-                                        isLocal={false}
-                                        isSpotlighted={student.id === spotlightedUser?.id}
-                                        isTeacher={true}
-                                        participantUserId={student.id}
-                                        onSpotlightParticipant={onSpotlightParticipant}
-                                        displayName={student.name ?? ''}
-                                        isHandRaised={raisedHands.has(student.id)}
-                                        onSetWhiteboardController={handleSetWhiteboardController}
-                                        isWhiteboardController={student.id === whiteboardControllerId}
-                                    />
-                                ) : (
-                                    <StudentPlaceholder
-                                        student={student as User}
-                                        isOnline={onlineUserIds.includes(student.id)}
-                                        onSpotlightParticipant={onSpotlightParticipant}
-                                        isHandRaised={raisedHands.has(student.id)}
-                                    />
-                                )}
-                                </CarouselItem>
-                            )
-                        })}
-                    </CarouselContent>
-                    <CarouselPrevious className="absolute left-0 top-1/2 -translate-y-1/2 z-10" />
-                    <CarouselNext className="absolute right-0 top-1/2 -translate-y-1/2 z-10" />
-                </Carousel>
+                {/* Bandeau de vidéos en défilement continu */}
+                 <div className="h-40 overflow-hidden relative">
+                    <div className="marquee-container flex flex-col space-y-4 py-2 hover:[animation-play-state:paused]">
+                         {/* Première copie des participants */}
+                        {allParticipants.map(p => (
+                            <div key={p.id} className="w-48 flex-shrink-0">
+                                {renderParticipant(p)}
+                            </div>
+                        ))}
+                        {/* Deuxième copie pour la boucle */}
+                        {allParticipants.map(p => (
+                           <div key={`${p.id}-duplicate`} className="w-48 flex-shrink-0" aria-hidden="true">
+                                {renderParticipant(p, true)}
+                            </div>
+                        ))}
+                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-background pointer-events-none" />
+                </div>
             </div>
 
             {/* --- Colonne de Droite : Outils Interactifs --- */}
