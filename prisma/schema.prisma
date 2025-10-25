@@ -15,36 +15,36 @@ generator client {
 // --- Modèles de base ---
 
 model User {
-  id              String        @id @default(cuid())
-  name            String?
-  email           String?       @unique
-  emailVerified   DateTime?
-  image           String?
-  password        String?
-  parentPassword  String?
-  role            Role          @default(ELEVE)
-  ambition        String?
-  points          Int           @default(0)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  
+  id             String    @id @default(cuid())
+  name           String?
+  email          String?   @unique
+  emailVerified  DateTime?
+  image          String?
+  password       String?
+  parentPassword String?
+  role           Role      @default(ELEVE)
+  ambition       String?
+  points         Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
   // Relations
-  classeId        String?
-  classe          Classroom?    @relation("ClassMembers", fields: [classeId], references: [id])
-  classeGeree     Classroom[]   @relation("TeacherToClass")
-  sessionsCrees   CoursSession[] @relation("TeacherSessions")
+  classeId            String?
+  classe              Classroom?     @relation("ClassMembers", fields: [classeId], references: [id])
+  classeGeree         Classroom[]    @relation("TeacherToClass")
+  sessionsCrees       CoursSession[] @relation("TeacherSessions")
   sessionsParticipees CoursSession[] @relation("SessionParticipants")
 
-  // Élève
-  etat            EtatEleve?    @relation(fields: [id], references: [eleveId])
+  // Élève - CORRECTION ICI : Supprimer les arguments fields/references
+  etat EtatEleve?
 
   // Annonces
-  announcements   Announcement[]
+  announcements Announcement[]
 
   // Chat
-  sentMessages    Message[]
-  reactions       Reaction[]
-  
+  sentMessages Message[]
+  reactions    Reaction[]
+
   // Tâches
   studentProgress StudentProgress[]
 
@@ -52,15 +52,15 @@ model User {
 }
 
 model Classroom {
-  id            String      @id @default(cuid())
-  nom           String
-  professeurId  String
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  
+  id           String   @id @default(cuid())
+  nom          String
+  professeurId String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
   // Relations
-  professeur    User        @relation("TeacherToClass", fields: [professeurId], references: [id])
-  eleves        User[]      @relation("ClassMembers")
+  professeur    User           @relation("TeacherToClass", fields: [professeurId], references: [id])
+  eleves        User[]         @relation("ClassMembers")
   sessions      CoursSession[]
   announcements Announcement[]
 
@@ -68,19 +68,19 @@ model Classroom {
 }
 
 model CoursSession {
-  id            String    @id @default(cuid())
-  startTime     DateTime  @default(now())
-  endTime       DateTime?
-  classroomId   String?
-  professeurId  String
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id           String    @id @default(cuid())
+  startTime    DateTime  @default(now())
+  endTime      DateTime?
+  classroomId  String?
+  professeurId String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   // Relations
-  classe        Classroom? @relation(fields: [classroomId], references: [id])
-  professeur    User      @relation("TeacherSessions", fields: [professeurId], references: [id])
-  participants  User[]    @relation("SessionParticipants")
-  
+  classe       Classroom? @relation(fields: [classroomId], references: [id])
+  professeur   User       @relation("TeacherSessions", fields: [professeurId], references: [id])
+  participants User[]     @relation("SessionParticipants")
+
   // Données de session
   documentHistory Json[] @default([])
 
@@ -88,75 +88,75 @@ model CoursSession {
 }
 
 model EtatEleve {
-  id          String   @id @default(cuid())
-  eleveId     String   @unique
-  metierId    String?
-  isPunished  Boolean  @default(false)
+  id           String   @id @default(cuid())
+  eleveId      String   @unique
+  metierId     String?
+  isPunished   Boolean  @default(false)
   isHandRaised Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  // Relations
-  eleve       User     @relation(fields: [eleveId], references: [id], onDelete: Cascade)
-  metier      Metier?  @relation(fields: [metierId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations - CORRECTION ICI : Garder seulement ici les arguments fields/references
+  eleve  User    @relation(fields: [eleveId], references: [id], onDelete: Cascade)
+  metier Metier? @relation(fields: [metierId], references: [id])
 
   @@map("etats_eleves")
 }
 
 model Metier {
-  id            String      @id @default(cuid())
-  nom           String      @unique
-  description   String
-  icon          String
-  theme         Json // Stored as a JSON string: { backgroundColor, textColor, etc. }
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  
+  id          String   @id @default(cuid())
+  nom         String   @unique
+  description String
+  icon        String
+  theme       Json // Stored as a JSON string: { backgroundColor, textColor, etc. }
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
   // Relations
-  etatsEleves   EtatEleve[]
-  
+  etatsEleves EtatEleve[]
+
   @@map("metiers")
 }
 
 // --- Modèles de gamification ---
 
 model Task {
-  id              String      @id @default(cuid())
-  title           String
-  description     String
-  points          Int
-  type            TaskType
-  category        TaskCategory
-  difficulty      TaskDifficulty
-  validationType  ValidationType
-  requiresProof   Boolean     @default(false)
-  isActive        Boolean     @default(true)
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  id             String         @id @default(cuid())
+  title          String
+  description    String
+  points         Int
+  type           TaskType
+  category       TaskCategory
+  difficulty     TaskDifficulty
+  validationType ValidationType
+  requiresProof  Boolean        @default(false)
+  isActive       Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
   // Relations
   studentProgress StudentProgress[]
-  
+
   @@map("tasks")
 }
 
 model StudentProgress {
-  id              String      @id @default(cuid())
-  studentId       String
-  taskId          String
-  status          ProgressStatus @default(IN_PROGRESS)
-  completionDate  DateTime?   @default(now())
-  submissionUrl   String?
-  pointsAwarded   Int?
-  feedback        Json?       @default("null")
-  recipeName      String?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  id             String         @id @default(cuid())
+  studentId      String
+  taskId         String
+  status         ProgressStatus @default(IN_PROGRESS)
+  completionDate DateTime?      @default(now())
+  submissionUrl  String?
+  pointsAwarded  Int?
+  feedback       Json?          @default("null")
+  recipeName     String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
   // Relations
-  student         User        @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  task            Task        @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  
+  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  task    Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
   @@unique([studentId, taskId])
   @@map("student_progress")
 }
@@ -164,49 +164,49 @@ model StudentProgress {
 // --- Modèles de communication ---
 
 model Announcement {
-  id              String      @id @default(cuid())
-  title           String
-  content         String
-  attachmentUrl   String?
-  authorId        String
-  classeId        String?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  id            String   @id @default(cuid())
+  title         String
+  content       String
+  attachmentUrl String?
+  authorId      String
+  classeId      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // Relations
-  author          User        @relation(fields: [authorId], references: [id])
-  classe          Classroom?  @relation(fields: [classeId], references: [id])
-  
+  author User       @relation(fields: [authorId], references: [id])
+  classe Classroom? @relation(fields: [classeId], references: [id])
+
   @@map("announcements")
 }
 
 model Message {
-  id          String      @id @default(cuid())
+  id          String   @id @default(cuid())
   message     String
   classroomId String
   senderId    String
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
   // Relations
-  sender      User        @relation(fields: [senderId], references: [id], onDelete: Cascade)
-  reactions   Reaction[]
+  sender    User       @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  reactions Reaction[]
 
   @@map("messages")
 }
 
 model Reaction {
-  id          String    @id @default(cuid())
-  emoji       String
-  messageId   String
-  userId      String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  
+  id        String   @id @default(cuid())
+  emoji     String
+  messageId String
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  message     Message   @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([messageId, userId, emoji])
   @@map("reactions")
 }
