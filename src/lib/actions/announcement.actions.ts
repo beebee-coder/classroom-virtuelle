@@ -52,7 +52,6 @@ export const getPublicAnnouncements = cache(async (limit: number = 3): Promise<A
     return prisma.announcement.findMany({
         where: { classeId: null },
         take: limit,
-        // orderBy: { createdAt: 'desc' }, // RETIRÉ pour éviter l'erreur
         include: {
             author: {
                 select: { name: true }
@@ -73,7 +72,6 @@ export async function getStudentAnnouncements(studentId: string): Promise<Announ
                 { classeId: student.classeId }
             ]
         },
-        orderBy: { createdAt: 'desc' },
         include: {
             author: {
                 select: { name: true }
@@ -88,10 +86,9 @@ export async function getClassAnnouncements(classroomId: string): Promise<Announ
         where: {
             OR: [
                 { classeId: null },
-                { classeId: classroomId }
+                { classroomId: classroomId }
             ]
         },
-        orderBy: { createdAt: 'desc' },
         include: {
             author: {
                 select: { name: true }
