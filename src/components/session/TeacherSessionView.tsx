@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
-import { motion, AnimatePresence, AnimateSharedLayout } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { User, Role, SessionParticipant, ClassroomWithDetails, DocumentInHistory } from '@/lib/types';
 import { Participant } from '@/components/Participant';
@@ -248,69 +248,67 @@ export function TeacherSessionView({
 
             {/* --- Colonne de Droite : Outils Interactifs --- */}
             <div className="w-80 flex-shrink-0">
-                <AnimateSharedLayout>
-                    <motion.div layout className="h-full flex flex-col gap-4">
-                        <ScrollArea className="flex-1 pr-3 -mr-3">
-                            <div className="space-y-4">
-                                {activeTool === 'document' && (
-                                    <AnimatedCard title="Partager un document">
-                                        <div className="flex justify-between items-center">
-                                            <h4 className="font-semibold">Téléverser</h4>
-                                            <CloudinaryUploadWidget onUpload={handleDocumentUpload}>
-                                                {({ open }) => (
-                                                    <Button onClick={() => open()} variant="outline" size="sm">
-                                                        <UploadCloud className="mr-2" />
-                                                        Choisir
-                                                    </Button>
-                                                )}
-                                            </CloudinaryUploadWidget>
-                                        </div>
-                                    </AnimatedCard>
-                                )}
-                                <AnimatedCard title="Minuteur">
-                                    <SessionTimer
-                                        isTeacher={true}
+                <motion.div layout className="h-full flex flex-col gap-4">
+                    <ScrollArea className="flex-1 pr-3 -mr-3">
+                        <div className="space-y-4">
+                            {activeTool === 'document' && (
+                                <AnimatedCard title="Partager un document">
+                                    <div className="flex justify-between items-center">
+                                        <h4 className="font-semibold">Téléverser</h4>
+                                        <CloudinaryUploadWidget onUpload={handleDocumentUpload}>
+                                            {({ open }) => (
+                                                <Button onClick={() => open()} variant="outline" size="sm">
+                                                    <UploadCloud className="mr-2" />
+                                                    Choisir
+                                                </Button>
+                                            )}
+                                        </CloudinaryUploadWidget>
+                                    </div>
+                                </AnimatedCard>
+                            )}
+                            <AnimatedCard title="Minuteur">
+                                <SessionTimer
+                                    isTeacher={true}
+                                    sessionId={sessionId}
+                                    initialDuration={initialDuration}
+                                    timeLeft={timerTimeLeft}
+                                    isTimerRunning={isTimerRunning}
+                                    onStart={onStartTimer}
+                                    onPause={onPauseTimer}
+                                    onReset={onResetTimer}
+                                />
+                            </AnimatedCard>
+                            <AnimatedCard title="Statut de la Session">
+                                <SessionStatus 
+                                    participants={allSessionUsers as User[]}
+                                    onlineIds={onlineUserIds}
+                                    webrtcConnections={remoteParticipants.length}
+                                    whiteboardControllerId={whiteboardControllerId}
+                                />
+                            </AnimatedCard>
+                             {classroom && (
+                                 <AnimatedCard title={`Classe ${classroom.nom}`}>
+                                    <ClassStudentList 
+                                        classroom={classroom}
+                                        onlineUserIds={onlineUserIds}
+                                        currentUserId={currentUserId}
+                                        activeParticipantIds={activeParticipantIds}
                                         sessionId={sessionId}
-                                        initialDuration={initialDuration}
-                                        timeLeft={timerTimeLeft}
-                                        isTimerRunning={isTimerRunning}
-                                        onStart={onStartTimer}
-                                        onPause={onPauseTimer}
-                                        onReset={onResetTimer}
                                     />
                                 </AnimatedCard>
-                                <AnimatedCard title="Statut de la Session">
-                                    <SessionStatus 
-                                        participants={allSessionUsers as User[]}
-                                        onlineIds={onlineUserIds}
-                                        webrtcConnections={remoteParticipants.length}
-                                        whiteboardControllerId={whiteboardControllerId}
-                                    />
-                                </AnimatedCard>
-                                 {classroom && (
-                                     <AnimatedCard title={`Classe ${classroom.nom}`}>
-                                        <ClassStudentList 
-                                            classroom={classroom}
-                                            onlineUserIds={onlineUserIds}
-                                            currentUserId={currentUserId}
-                                            activeParticipantIds={activeParticipantIds}
-                                            sessionId={sessionId}
-                                        />
-                                    </AnimatedCard>
-                                )}
-                                <AnimatedCard title="Historique des Documents">
-                                    <DocumentHistory documents={documentHistory} onShare={handleDocumentShare} />
-                                </AnimatedCard>
-                                <AnimatedCard title="Suivi de la Compréhension">
-                                    <UnderstandingTracker students={students} understandingStatus={understandingStatus} />
-                                </AnimatedCard>
-                                <AnimatedCard title="Mains Levées">
-                                    <HandRaiseController sessionId={sessionId} raisedHands={studentsWithRaisedHands} />
-                                </AnimatedCard>
-                            </div>
-                        </ScrollArea>
-                    </motion.div>
-                </AnimateSharedLayout>
+                            )}
+                            <AnimatedCard title="Historique des Documents">
+                                <DocumentHistory documents={documentHistory} onShare={handleDocumentShare} />
+                            </AnimatedCard>
+                            <AnimatedCard title="Suivi de la Compréhension">
+                                <UnderstandingTracker students={students} understandingStatus={understandingStatus} />
+                            </AnimatedCard>
+                            <AnimatedCard title="Mains Levées">
+                                <HandRaiseController sessionId={sessionId} raisedHands={studentsWithRaisedHands} />
+                            </AnimatedCard>
+                        </div>
+                    </ScrollArea>
+                </motion.div>
             </div>
         </div>
     );
