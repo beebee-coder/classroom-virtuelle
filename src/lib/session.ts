@@ -1,6 +1,6 @@
 // src/lib/session.ts
 import { type Session, getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options'; // Correction de l'import
+import { authOptions } from '@/lib/auth-options';
 
 // Le type exporté `DummySession` est conservé pour éviter de casser
 // les imports dans d'autres fichiers en attendant leur migration.
