@@ -40,9 +40,6 @@ function LoginFormComponent() {
 
   useEffect(() => {
     if (status === "authenticated" && session?.user) {
-        console.log('✅ [LOGIN] Session authentifiée détectée, traitement de la redirection...');
-        
-        // Logique de redirection améliorée
         let targetUrl = '/';
         if (callbackUrl && callbackUrl !== '/login' && !callbackUrl.includes('/login?')) {
             targetUrl = callbackUrl;
@@ -52,7 +49,7 @@ function LoginFormComponent() {
             targetUrl = '/student/dashboard';
         }
         
-        console.log(`  -> Redirection vers : ${targetUrl}`);
+        console.log(`✅ [LOGIN] Connexion réussie, redirection vers: ${targetUrl}`);
         router.push(targetUrl);
         router.refresh();
     }
@@ -179,28 +176,15 @@ function LoginFormComponent() {
 
 // Page principale
 export default function LoginPage() {
-    // Le useSession doit être dans un composant enfant du Provider
-    const SessionProviderWrapper = ({ children }: { children: React.ReactNode }) => {
-        const {data: session, status} = useSession();
-        const router = useRouter();
+    const { status } = useSession();
 
-        useEffect(() => {
-            if (status === "authenticated") {
-                const targetUrl = session.user.role === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard';
-                router.push(targetUrl);
-            }
-        }, [status, session, router]);
-        
-        if (status === "loading" || status === "authenticated") {
-            return (
-                <div className="flex items-center justify-center min-h-screen">
-                    <Loader2 className="h-12 w-12 animate-spin" />
-                </div>
-            );
-        }
-
-        return <>{children}</>;
-    };
+    if (status === "loading" || status === "authenticated") {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <Loader2 className="h-12 w-12 animate-spin" />
+            </div>
+        );
+    }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4 relative bg-background">
@@ -233,9 +217,7 @@ export default function LoginPage() {
         </div>
         
         <Suspense fallback={<div className="text-center">Chargement...</div>}>
-            <SessionProviderWrapper>
-                <LoginFormComponent />
-            </SessionProviderWrapper>
+            <LoginFormComponent />
         </Suspense>
       </div>
     </div>
