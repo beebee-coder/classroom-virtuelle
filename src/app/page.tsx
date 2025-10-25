@@ -42,6 +42,7 @@ export default function HomePage() {
             src="https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=3024&auto=format&fit=crop"
             alt="Une salle de classe ensoleillée avec des bureaux et des chaises pour enfants"
             fill
+            sizes="100vw"
             className="object-cover transition-transform duration-300 ease-out"
             style={{ transform: `scale(${scale})` }}
             priority
