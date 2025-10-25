@@ -19,10 +19,9 @@ import Image from 'next/image';
 function LoginFormComponent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session, status } = useSession();
-  
-  const callbackUrlParam = searchParams.get('callbackUrl');
-  
+  const errorParam = searchParams.get('error');
+  const callbackUrl = searchParams.get('callbackUrl') || '/';
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -30,13 +29,12 @@ function LoginFormComponent() {
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   
   useEffect(() => {
-    const errorParam = searchParams.get('error');
     if (errorParam === 'CredentialsSignin') {
       setError("Identifiants incorrects. Vérifiez l'email et le mot de passe (le mot de passe par défaut est 'password').");
     } else if (errorParam) {
       setError("Une erreur de connexion est survenue. Veuillez réessayer.");
     }
-  }, [searchParams]);
+  }, [errorParam]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,15 +50,16 @@ function LoginFormComponent() {
 
       if (result?.error) {
         setError("Identifiants incorrects. Assurez-vous d'utiliser les comptes de démo (ex: teacher@example.com ou ahmed0@example.com avec le mot de passe 'password').");
-        setLoading(false);
       } else if (result?.ok) {
-        // La redirection sera gérée par le useEffect ci-dessous après la mise à jour de la session
-        // On force un rechargement pour que la session soit bien prise en compte par le middleware.
-        window.location.href = callbackUrlParam || (selectedRole === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard');
+        // Redirection vers la page d'origine ou le tableau de bord
+        console.log('✅ [LOGIN] Connexion réussie, redirection vers:', callbackUrl);
+        router.push(callbackUrl);
+        router.refresh();
       }
     } catch (error) {
       console.error('❌ [LOGIN] Erreur lors de la connexion:', error);
       setError("Une erreur inattendue est survenue. Veuillez réessayer.");
+    } finally {
       setLoading(false);
     }
   };

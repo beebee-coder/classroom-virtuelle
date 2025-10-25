@@ -1,4 +1,4 @@
-// src/components/StudentPageClient.tsx - Version avec réception d'invitations
+// src/components/StudentPageClient.tsx - Version avec présence intégrée
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -7,17 +7,18 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Bell, Video, CheckCircle, XCircle, Clock, Trophy, Target, Users } from 'lucide-react';
+import { Bell, Video, CheckCircle, XCircle, Clock, Trophy, Target, Users, Wifi, WifiOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { pusherClient } from '@/lib/pusher/client';
 import { cn } from '@/lib/utils';
 import { KeyRound } from 'lucide-react';
-import { endCoursSession } from '@/lib/actions';
-import { CareerSelector } from '@/components/CareerSelector'; // Assumant que ce composant existe
+import { endCoursSession } from '@/lib/actions/session.actions';
+import { CareerSelector } from '@/components/CareerSelector';
 import { DummySession } from '@/lib/session';
 import { TaskBoard } from './TaskBoard';
 import { AnnouncementCarousel } from './AnnouncementCarousel';
+import { usePresenceForStudent } from '@/hooks/usePresenceForStudent';
 import type { User as PrismaUser, Metier as PrismaMetier, Announcement as PrismaAnnouncement, StudentProgress as PrismaStudentProgress, Task as PrismaTask, Classroom, EtatEleve } from '@prisma/client';
 
 // Création de types locaux pour la transition
@@ -66,6 +67,26 @@ export default function StudentPageClient({
 
     const classroomId = student?.classeId;
     console.log('🧑‍🎓 [CLIENT ÉLÈVE] - Initialisation de la page pour:', student.name);
+
+    // Intégration du hook de présence
+    const { isConnected, error, teacherOnline } = usePresenceForStudent(
+        student.id,
+        classroomId ?? undefined,
+        true // enabled
+    );
+
+    // Afficher le statut de connexion
+    useEffect(() => {
+        if (error) {
+            console.error('❌ [PRESENCE ELEVE] - Erreur de présence:', error);
+        }
+        
+        console.log('📊 [PRESENCE ELEVE] - Statut:', {
+            isConnected,
+            teacherOnline,
+            error
+        });
+    }, [isConnected, teacherOnline, error]);
 
     const handleAcceptInvitation = useCallback(async (invitation: SessionInvitation) => {
         console.log('✅ [CLIENT ÉLÈVE] - Acceptation de l\'invitation de session:', invitation.sessionId);
@@ -143,25 +164,15 @@ export default function StudentPageClient({
         const invitationChannel = pusherClient.subscribe(invitationChannelName);
         invitationChannel.bind('session-invitation', handleInvitation);
 
-        // Canal pour la présence de la classe
-        let presenceChannel: any = null;
-        if (classroomId) {
-            const presenceChannelName = `presence-class-${classroomId}`;
-            console.log(`🔌 [CLIENT ÉLÈVE] - Abonnement au canal de présence: ${presenceChannelName}`);
-            presenceChannel = pusherClient.subscribe(presenceChannelName);
-            presenceChannel.bind('pusher:subscription_succeeded', () => {
-                console.log('✅ [ÉLÈVE] - Présence connectée à la classe');
-            });
-        }
+        // NOTE: Le canal de présence est maintenant géré par le hook usePresenceForStudent
+        // On supprime l'abonnement manuel ici pour éviter les doublons
     
         return () => {
             console.log(`🔌 [CLIENT ÉLÈVE] - Désabonnement des canaux.`);
             pusherClient.unsubscribe(invitationChannelName);
-            if (presenceChannel) {
-                pusherClient.unsubscribe(presenceChannel.name);
-            }
+            // Le hook usePresenceForStudent gère son propre nettoyage
         };
-    }, [student?.id, classroomId, handleInvitation, toast]);
+    }, [student?.id, handleInvitation, toast]);
 
     const handleDeclineInvitation = useCallback(() => {
         console.log('🚫 [CLIENT ÉLÈVE] - Invitation refusée.');
@@ -178,6 +189,42 @@ export default function StudentPageClient({
 
     return (
         <div className="container mx-auto p-6 space-y-6">
+            {/* Bannière de statut de présence */}
+            <Card className={cn(
+                "border-l-4",
+                isConnected ? "border-green-500 bg-green-50" : "border-gray-300 bg-gray-50"
+            )}>
+                <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                            {isConnected ? (
+                                <Wifi className="h-5 w-5 text-green-500" />
+                            ) : (
+                                <WifiOff className="h-5 w-5 text-gray-500" />
+                            )}
+                            <div>
+                                <p className="font-medium">
+                                    {isConnected ? "Connecté à la classe" : "Déconnecté de la classe"}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                    {isConnected 
+                                        ? teacherOnline 
+                                            ? "👨‍🏫 Votre professeur est en ligne" 
+                                            : "En attente du professeur..."
+                                        : "Connexion en cours..."
+                                    }
+                                </p>
+                            </div>
+                        </div>
+                        {error && (
+                            <Badge variant="destructive" className="text-xs">
+                                Erreur de connexion
+                            </Badge>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
+
             {sessionInvitation && (
                 <Card className="bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0 shadow-lg">
                     <CardContent className="p-4">
@@ -227,18 +274,38 @@ export default function StudentPageClient({
                             <h1 className="text-2xl font-bold">{student.name}</h1>
                             <p className="text-muted-foreground">{student.email}</p>
                             <div className="flex items-center space-x-4 mt-2">
-                                <div className="flex items-center space-x-1"><Trophy className="h-4 w-4 text-yellow-500" /><span>{totalPoints} points</span></div>
-                                <div className="flex items-center space-x-1"><CheckCircle className="h-4 w-4 text-green-500" /><span>{completedTasks} tâches</span></div>
+                                <div className="flex items-center space-x-1">
+                                    <Trophy className="h-4 w-4 text-yellow-500" />
+                                    <span>{totalPoints} points</span>
+                                </div>
+                                <div className="flex items-center space-x-1">
+                                    <CheckCircle className="h-4 w-4 text-green-500" />
+                                    <span>{completedTasks} tâches</span>
+                                </div>
+                                <div className="flex items-center space-x-1">
+                                    {isConnected ? (
+                                        <Wifi className="h-4 w-4 text-green-500" />
+                                    ) : (
+                                        <WifiOff className="h-4 w-4 text-gray-500" />
+                                    )}
+                                    <span className={cn("text-sm", isConnected ? "text-green-600" : "text-gray-500")}>
+                                        {isConnected ? "En ligne" : "Hors ligne"}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                         {student.classe && !isTeacherView && (
                              <Button asChild variant="outline">
-                                <a href={`/student/class/${student.classe.id}`}><Users className="mr-2 h-4 w-4"/> Ma Classe</a>
+                                <a href={`/student/class/${student.classe.id}`}>
+                                    <Users className="mr-2 h-4 w-4"/> Ma Classe
+                                </a>
                             </Button>
                         )}
                         {!isTeacherView && (
                              <Button asChild variant="outline">
-                                <a href={`/student/${student.id}/parent`}><KeyRound className="mr-2 h-4 w-4"/> Espace Parent</a>
+                                <a href={`/student/${student.id}/parent`}>
+                                    <KeyRound className="mr-2 h-4 w-4"/> Espace Parent
+                                </a>
                             </Button>
                         )}
                     </div>
