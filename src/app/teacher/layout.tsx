@@ -20,7 +20,7 @@ export default async function TeacherLayout({
   }
   const user = session.user;
 
-  // Fetch data required for the layout, e.g., for the menu
+  // Fetch data required for the layout, e.g., for the menu, only if user is defined
   const classrooms = await prisma.classroom.findMany({
     where: { professeurId: user.id },
     select: { id: true, nom: true },
