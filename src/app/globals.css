@@ -4,6 +4,7 @@
 
 /* Import du nouveau style pour les icônes */
 @import "../styles/nav-icons.css";
+@import "../styles/cube.css";
 
 body {
   font-family: Arial, Helvetica, sans-serif;
@@ -108,5 +109,14 @@ body {
   @keyframes marquee {
     from { transform: translateY(0); }
     to { transform: translateY(-50%); }
+  }
+
+  @keyframes zoom-in {
+    from { transform: scale(1); }
+    to { transform: scale(1.05); }
+  }
+
+  .animate-zoom-in {
+    animation: zoom-in 60s infinite alternate ease-in-out;
   }
 }
