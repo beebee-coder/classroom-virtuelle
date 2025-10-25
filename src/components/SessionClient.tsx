@@ -17,7 +17,7 @@ import { PermissionPrompt } from './PermissionPrompt';
 import { endCoursSession, broadcastTimerEvent, broadcastActiveTool, broadcastWhiteboardController, broadcastWhiteboardUpdate, updateStudentSessionStatus } from '@/lib/actions';
 import { ComprehensionLevel } from './StudentSessionControls';
 import { SessionClientProps, PeerData, SignalPayload, PusherSubscriptionSucceededEvent, PusherMemberEvent, IncomingSignalData, SpotlightEvent, HandRaiseEvent, UnderstandingEvent, TimerEvent, ToolEvent, DocumentEvent, RemoteParticipant } from '@/types';
-import { TLStoreSnapshot } from '@tldraw/tldraw';
+import { TLEditorSnapshot } from '@tldraw/tldraw';
 
 const INITIAL_TIMER_DURATION = 3600; // 1 heure en secondes
 
@@ -46,7 +46,7 @@ export default function SessionClient({
   const [isEndingSession, setIsEndingSession] = useState<boolean>(false);
   const [activeTool, setActiveTool] = useState<string>('whiteboard');
   const [documentUrl, setDocumentUrl] = useState<string | null>(null);
-  const [whiteboardSnapshot, setWhiteboardSnapshot] = useState<TLStoreSnapshot | null>(null);
+  const [whiteboardSnapshot, setWhiteboardSnapshot] = useState<TLEditorSnapshot | null>(null);
   const [whiteboardControllerId, setWhiteboardControllerId] = useState<string | null>(initialTeacher?.id || null);
 
 
@@ -315,7 +315,7 @@ export default function SessionClient({
       setActiveTool('document');
       toast({ title: 'Document partagé', description: 'Le professeur a partagé un nouveau document.' });
     };
-    const handleWhiteboardUpdate = (data: { senderId: string, snapshot: TLStoreSnapshot }) => {
+    const handleWhiteboardUpdate = (data: { senderId: string, snapshot: TLEditorSnapshot }) => {
         if (data.senderId !== currentUserId) {
             console.log(`🎨 [PUSHER] - Mise à jour du tableau blanc reçue de ${data.senderId}`);
             setWhiteboardSnapshot(data.snapshot);
