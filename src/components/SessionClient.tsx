@@ -486,7 +486,7 @@ export default function SessionClient({
         activeTool={activeTool}
         onToolChange={handleToolChange}
       />
-      <main className="flex-1 flex flex-col min-h-0">
+      <main className="flex-1 flex flex-col min-h-0 py-6 gap-6">
         <PermissionPrompt />
         {currentUserRole === 'PROFESSEUR' ? (
           <TeacherSessionView

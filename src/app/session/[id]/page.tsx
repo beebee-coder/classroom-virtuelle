@@ -61,7 +61,7 @@ export default async function SessionPage({ params }: { params: { id: string } }
             id: sessionFromDb.id,
             teacher: sessionFromDb.participants.find(p => p.role === 'PROFESSEUR'),
             students: sessionFromDb.participants.filter(p => p.role === 'ELEVE'),
-            documentHistory: sessionFromDb.documentHistory as DocumentInHistory[],
+            documentHistory: (sessionFromDb as any).documentHistory as DocumentInHistory[],
         };
 
         if (sessionFromDb.classroomId) {

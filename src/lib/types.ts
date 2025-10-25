@@ -35,7 +35,7 @@ export {
 export type DocumentInHistory = {
   name: string;
   url: string;
-  createdAt: string; // ou Date
+  createdAt: string; 
 };
 
 

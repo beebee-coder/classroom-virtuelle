@@ -27,7 +27,6 @@ import { shareDocument, broadcastWhiteboardUpdate, broadcastWhiteboardController
 import { TLEditorSnapshot } from '@tldraw/tldraw';
 import { SessionStatus } from './SessionStatus';
 import { SessionTimer } from './SessionTimer';
-import { DocumentHistory } from './DocumentHistory';
 
 
 interface TeacherSessionViewProps {
@@ -303,10 +302,6 @@ export function TeacherSessionView({
                                 sessionId={sessionId}
                             />
                         )}
-                        <DocumentHistory
-                            documents={documentHistory}
-                            onShare={handleDocumentShare}
-                        />
                         <UnderstandingTracker students={students} understandingStatus={understandingStatus} />
                         <HandRaiseController sessionId={sessionId} raisedHands={studentsWithRaisedHands} />
                     </div>

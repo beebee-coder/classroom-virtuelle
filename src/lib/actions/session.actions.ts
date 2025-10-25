@@ -8,7 +8,7 @@ import { ComprehensionLevel } from '@/components/StudentSessionControls';
 import prisma from '../prisma';
 import { Role, type CoursSession, type User } from '@prisma/client';
 
-// Définition locale du type car il n'est pas dans le schéma Prisma
+// Type défini manuellement car il n'est pas un modèle Prisma
 type DocumentInHistory = {
     name: string;
     url: string;
@@ -147,7 +147,7 @@ export async function getSessionDetails(sessionId: string) {
             id: session.id,
             teacher: session.professeur,
             students: students,
-            documentHistory: session.documentHistory as DocumentInHistory[] | [],
+            documentHistory: (session as any).documentHistory as DocumentInHistory[] || [],
         };
         
     } catch (error) {
