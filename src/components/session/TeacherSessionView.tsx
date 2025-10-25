@@ -170,7 +170,7 @@ export function TeacherSessionView({
                 return <DocumentViewer url={documentUrl} />;
             case 'quiz':
                  return (
-                    <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/50 border-dashed">
+                    <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/50 border-dashed ">
                         <CardContent className="text-center text-muted-foreground p-6">
                             <Award className="h-10 w-10 mx-auto mb-4" />
                             <h3 className="font-semibold">Fonctionnalité Quiz</h3>
@@ -247,13 +247,13 @@ export function TeacherSessionView({
             </div>
 
             {/* --- Colonne de Droite : Outils Interactifs --- */}
-            <div className="w-80 flex-shrink-0">
-                <motion.div layout className="h-full flex flex-col gap-4">
+            <div className="w-68 flex-shrink-0 flex flex-col border-r p-3">
+                <motion.div layout className="h-full flex flex-col gap-1  p-2">
                     <ScrollArea className="flex-1 pr-3 -mr-3">
-                        <div className="space-y-4">
+                        <div className="space-y-4 ">
                             {activeTool === 'document' && (
-                                <AnimatedCard title="Partager un document">
-                                    <div className="flex justify-between items-center">
+                                <AnimatedCard title="Partager un document ">
+                                    <div className="flex justify-between items-center ">
                                         <h4 className="font-semibold">Téléverser</h4>
                                         <CloudinaryUploadWidget onUpload={handleDocumentUpload}>
                                             {({ open }) => (
@@ -327,7 +327,7 @@ const AnimatedCard = ({ children, title }: AnimatedCardProps) => {
     const toggleOpen = () => setIsOpen(!isOpen);
   
     return (
-      <motion.div layout initial={{ borderRadius: 10 }} className="bg-card/80 backdrop-blur-sm border border-border/50">
+      <motion.div layout initial={{ borderRadius: 10 }} className="bg-card/80 backdrop-blur-sm border border-border/50 bg-gray-400">
         <CardHeaderComponent toggleOpen={toggleOpen} title={title} />
         <AnimatePresence>{isOpen && <CardContentComponent>{children}</CardContentComponent>}</AnimatePresence>
       </motion.div>

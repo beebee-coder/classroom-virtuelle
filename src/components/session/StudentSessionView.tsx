@@ -1,6 +1,8 @@
 // src/components/session/StudentSessionView.tsx
 'use client';
 
+import { useState, type ReactNode } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Participant } from '@/components/Participant';
 import { SessionParticipant, DocumentInHistory } from '@/lib/types';
 import { Card } from '../ui/card';
@@ -14,6 +16,7 @@ import { TLEditorSnapshot } from '@tldraw/tldraw';
 import { broadcastWhiteboardUpdate } from '@/lib/actions';
 import { ScrollArea } from '../ui/scroll-area';
 import { SessionTimer } from './SessionTimer';
+import { CardHeader } from '../ui/card';
 
 interface StudentSessionViewProps {
     sessionId: string;
@@ -44,7 +47,7 @@ export function StudentSessionView({
     onLeaveSession,
     currentUnderstanding,
     currentUserId,
-activeTool,
+    activeTool,
     documentUrl,
     whiteboardSnapshot,
     whiteboardControllerId,
@@ -130,38 +133,108 @@ activeTool,
                 </div>
             </div>
 
-            {/* Barre latérale droite : contrôles et vidéo locale */}
-            <div className="w-72 flex flex-col gap-6">
-                 <Participant
-                    stream={localStream}
-                    isLocal={true}
-                    isTeacher={false}
-                    participantUserId={currentUserId}
-                    displayName="Vous"
-                    isHandRaised={isHandRaised}
-                    isWhiteboardController={currentUserId === whiteboardControllerId}
-                />
-                 <SessionTimer
-                    isTeacher={false}
-                    sessionId={sessionId}
-                    timeLeft={timerTimeLeft}
-                    isTimerRunning={false}
-                    initialDuration={0}
-                    onStart={() => {}}
-                    onPause={() => {}}
-                    onReset={() => {}}
-                />
-                <ScrollArea className="flex-1">
-                    <div className="pr-4">
-                        <StudentSessionControls
-                            isHandRaised={isHandRaised}
-                            onRaiseHand={handleToggleHandRaise}
-                            onComprehensionUpdate={handleUnderstandingUpdate}
-                            currentComprehension={currentUnderstanding}
-                        />
-                    </div>
-                </ScrollArea>
+            {/* --- Colonne de Droite : Outils Interactifs --- */}
+            <div className="w-68 flex-shrink-0 flex flex-col">
+                <motion.div layout className="h-full flex flex-col gap-1 p-2">
+                    <ScrollArea className="flex-1 pr-3 -mr-3">
+                         <div className="space-y-4">
+                            <AnimatedCard title="Ma Vidéo">
+                                <div className="p-2">
+                                    <Participant
+                                        stream={localStream}
+                                        isLocal={true}
+                                        isTeacher={false}
+                                        participantUserId={currentUserId}
+                                        displayName="Vous"
+                                        isHandRaised={isHandRaised}
+                                        isWhiteboardController={currentUserId === whiteboardControllerId}
+                                    />
+                                </div>
+                            </AnimatedCard>
+                             <AnimatedCard title="Minuteur">
+                                 <SessionTimer
+                                    isTeacher={false}
+                                    sessionId={sessionId}
+                                    timeLeft={timerTimeLeft}
+                                    isTimerRunning={false} // Les élèves ne contrôlent pas
+                                    initialDuration={0}
+                                    onStart={() => {}}
+                                    onPause={() => {}}
+                                    onReset={() => {}}
+                                />
+                             </AnimatedCard>
+                             <AnimatedCard title="Mes Outils">
+                                 <StudentSessionControls
+                                    isHandRaised={isHandRaised}
+                                    onRaiseHand={handleToggleHandRaise}
+                                    onComprehensionUpdate={handleUnderstandingUpdate}
+                                    currentComprehension={currentUnderstanding}
+                                />
+                            </AnimatedCard>
+                        </div>
+                    </ScrollArea>
+                </motion.div>
             </div>
         </div>
+    );
+}
+
+
+// --- Composants pour le style de la barre latérale animée ---
+
+interface AnimatedCardProps {
+    children: ReactNode;
+    title: string;
+}
+
+const AnimatedCard = ({ children, title }: AnimatedCardProps) => {
+    const [isOpen, setIsOpen] = useState(true);
+    const toggleOpen = () => setIsOpen(!isOpen);
+  
+    return (
+      <motion.div layout initial={{ borderRadius: 10 }} className="bg-card/80 backdrop-blur-sm border border-border/50">
+        <CardHeaderComponent toggleOpen={toggleOpen} title={title} />
+        <AnimatePresence>{isOpen && <CardContentComponent>{children}</CardContentComponent>}</AnimatePresence>
+      </motion.div>
+    );
+};
+
+const CardHeaderComponent = ({ toggleOpen, title }: { toggleOpen: () => void, title: string }) => {
+    return (
+      <motion.div
+        onClick={toggleOpen}
+        layout
+        initial={{ borderRadius: 10 }}
+        className="flex items-center p-3 gap-3 cursor-pointer"
+      >
+        <motion.div
+          layout
+          className="rounded-full bg-primary/20 h-6 w-6"
+        ></motion.div>
+        <motion.div
+          layout
+          className="h-6 w-1 rounded-lg bg-primary/20"
+        ></motion.div>
+        <motion.p
+          layout
+          className="flex-grow text-sm font-semibold text-foreground"
+        >
+          {title}
+        </motion.p>
+      </motion.div>
+    );
+};
+  
+function CardContentComponent({ children }: { children: ReactNode }) {
+    return (
+      <motion.div
+        layout
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="w-full p-3 pt-0"
+      >
+        {children}
+      </motion.div>
     );
 }

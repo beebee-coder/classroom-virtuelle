@@ -10,7 +10,7 @@ interface DocumentViewerProps {
 export function DocumentViewer({ url }: DocumentViewerProps) {
   if (!url) {
     return (
-      <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/50 border-dashed">
+      <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/50 border-dashed my-4 ">
         <CardContent className="text-center text-muted-foreground p-6">
           <UploadCloud className="h-10 w-10 mx-auto mb-4" />
           <h3 className="font-semibold">Visionneuse de Documents</h3>
