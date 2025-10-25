@@ -8,12 +8,12 @@ import { StudentPlaceholder } from '../StudentPlaceholder';
 import { HandRaiseController } from '../HandRaiseController';
 import { UnderstandingTracker } from '../UnderstandingTracker';
 import { Whiteboard } from '../Whiteboard';
-import { Card, CardContent } from '../ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { ParticipantList } from './ParticipantList';
 import { ComprehensionLevel } from '../StudentSessionControls';
 import { DocumentViewer } from '../DocumentViewer';
 import { ClassStudentList } from './ClassStudentList';
-import { Loader2, UploadCloud, File, Trash2, Share2 } from 'lucide-react';
+import { Loader2, UploadCloud, File, Trash2, Share2, Award } from 'lucide-react';
 import {
     Carousel,
     CarouselContent,
@@ -47,8 +47,6 @@ interface TeacherSessionViewProps {
     activeTool: string;
     onToolChange: (tool: string) => void;
     classroom: ClassroomWithDetails | null;
-    documentUrl: string | null;
-    documentHistory: DocumentInHistory[];
     whiteboardControllerId: string | null; // Qui contrôle le TB
     onWhiteboardControllerChange: (userId: string) => void; // Pour changer le contrôleur
     initialDuration: number;
@@ -77,8 +75,6 @@ export function TeacherSessionView({
     activeTool,
     onToolChange,
     classroom,
-    documentUrl,
-    documentHistory,
     whiteboardControllerId,
     onWhiteboardControllerChange,
     initialDuration,
@@ -95,6 +91,10 @@ export function TeacherSessionView({
     const students = classroom?.eleves || allSessionUsers.filter(u => u.role === 'ELEVE') as User[];
     
     const teacher = allSessionUsers.find(u => u.role === 'PROFESSEUR');
+    
+    // Simuler un état pour les documents partagés
+    const documentUrl = null;
+    const documentHistory: DocumentInHistory[] = [];
     
     if (!currentUserId || !teacher) return null;
 
@@ -162,6 +162,16 @@ export function TeacherSessionView({
                             </CardContent>
                         </Card>
                     </div>
+                );
+            case 'quiz':
+                 return (
+                    <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/50 border-dashed">
+                        <CardContent className="text-center text-muted-foreground p-6">
+                            <Award className="h-10 w-10 mx-auto mb-4" />
+                            <h3 className="font-semibold">Fonctionnalité Quiz</h3>
+                            <p className="text-sm">Cet outil est en cours de développement.</p>
+                        </CardContent>
+                    </Card>
                 );
             case 'camera':
                  const spotlightedStream = spotlightedUser?.id === currentUserId 

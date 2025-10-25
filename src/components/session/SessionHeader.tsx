@@ -55,6 +55,8 @@ export function SessionHeader({
 
     const teacherTools = [
         { id: 'whiteboard', name: 'Tableau', icon: Square, colors: ['#a955ff', '#ea51ff'] as [string,string] },
+        { id: 'document', name: 'Document', icon: FileText, colors: ['#3b82f6', '#2563eb'] as [string,string] },
+        { id: 'quiz', name: 'Quiz', icon: Award, colors: ['#f59e0b', '#d97706'] as [string,string] },
         { id: 'camera', name: 'Caméras', icon: Camera, colors: ['#80FF72', '#7EE8FA'] as [string,string] },
     ];
     
