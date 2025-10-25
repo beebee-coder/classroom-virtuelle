@@ -17,6 +17,10 @@ interface SessionHeaderProps {
     isEndingSession?: boolean;
     isSharingScreen: boolean;
     onToggleScreenShare: () => void;
+    isMuted: boolean;
+    onToggleMute: () => void;
+    isVideoOff: boolean;
+    onToggleVideo: () => void;
     activeTool: string;
     onToolChange: (tool: string) => void;
 }
@@ -36,6 +40,10 @@ export function SessionHeader({
     isEndingSession = false,
     isSharingScreen,
     onToggleScreenShare,
+    isMuted,
+    onToggleMute,
+    isVideoOff,
+    onToggleVideo,
     activeTool,
     onToolChange,
 }: SessionHeaderProps) {
@@ -60,33 +68,36 @@ export function SessionHeader({
                     <h1 className="text-xl font-bold hidden sm:block">Session: <Badge variant="secondary">{sessionId.substring(0,8)}</Badge></h1>
                 </div>
 
-                <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-4">
+                <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
                      {isTeacher && (
                          <>
-                            <div className="flex gap-1">
-                                <TooltipProvider>
-                                    {tools.map((tool) => {
-                                        const Icon = tool.icon;
-                                        const isActive = activeTool === tool.id;
-                                        return (
-                                            <Tooltip key={tool.id}>
-                                                <TooltipTrigger asChild>
-                                                    <Button variant={isActive ? 'secondary' : 'ghost'} size="icon" className="h-8 w-8" onClick={() => onToolChange(tool.id)}>
-                                                        <Icon className={cn("h-5 w-5", isActive && "text-primary")} />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent><p>{tool.name}</p></TooltipContent>
-                                            </Tooltip>
-                                        )
-                                    })}
-                                </TooltipProvider>
-                            </div>
-                            <VideoControls 
-                                isSharingScreen={isSharingScreen} 
-                                onToggleScreenShare={onToggleScreenShare} 
-                            />
+                            <TooltipProvider>
+                                {tools.map((tool) => {
+                                    const Icon = tool.icon;
+                                    const isActive = activeTool === tool.id;
+                                    return (
+                                        <Tooltip key={tool.id}>
+                                            <TooltipTrigger asChild>
+                                                <Button variant={isActive ? 'secondary' : 'ghost'} size="icon" className="h-8 w-8" onClick={() => onToolChange(tool.id)}>
+                                                    <Icon className={cn("h-5 w-5", isActive && "text-primary")} />
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent><p>{tool.name}</p></TooltipContent>
+                                        </Tooltip>
+                                    )
+                                })}
+                            </TooltipProvider>
+                            <div className="mx-2 h-6 border-l border-border" />
                          </>
                     )}
+                    <VideoControls 
+                        isSharingScreen={isSharingScreen} 
+                        onToggleScreenShare={onToggleScreenShare}
+                        isMuted={isMuted}
+                        onToggleMute={onToggleMute}
+                        isVideoOff={isVideoOff}
+                        onToggleVideo={onToggleVideo}
+                    />
                 </div>
                 
                 <div className='w-48 flex justify-end'>

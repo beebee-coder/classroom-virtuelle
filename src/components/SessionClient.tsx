@@ -17,7 +17,7 @@ import { PermissionPrompt } from './PermissionPrompt';
 import { endCoursSession, broadcastTimerEvent, broadcastActiveTool, broadcastWhiteboardController, broadcastWhiteboardUpdate, updateStudentSessionStatus } from '@/lib/actions';
 import { ComprehensionLevel } from './StudentSessionControls';
 import { SessionClientProps, PeerData, SignalPayload, PusherSubscriptionSucceededEvent, PusherMemberEvent, IncomingSignalData, SpotlightEvent, HandRaiseEvent, UnderstandingEvent, TimerEvent, ToolEvent, DocumentEvent, RemoteParticipant } from '@/types';
-import { TLEditorSnapshot } from '@tldraw/tldraw';
+import { TLEditorSnapshot, TLStoreSnapshot } from '@tldraw/tldraw';
 
 const INITIAL_TIMER_DURATION = 3600; // 1 heure en secondes
 
@@ -48,6 +48,10 @@ export default function SessionClient({
   const [documentUrl, setDocumentUrl] = useState<string | null>(null);
   const [whiteboardSnapshot, setWhiteboardSnapshot] = useState<TLEditorSnapshot | null>(null);
   const [whiteboardControllerId, setWhiteboardControllerId] = useState<string | null>(initialTeacher?.id || null);
+
+  // Nouveaux états pour le contrôle média
+  const [isMuted, setIsMuted] = useState(false);
+  const [isVideoOff, setIsVideoOff] = useState(false);
 
 
   // États pour le minuteur
@@ -125,6 +129,24 @@ export default function SessionClient({
         console.log('Partage d\'écran annulé par l\'utilisateur');
       }
     }
+  };
+
+  const toggleMute = () => {
+    if (localStream) {
+        localStream.getAudioTracks().forEach(track => {
+            track.enabled = !track.enabled;
+        });
+        setIsMuted(prev => !prev);
+    }
+  };
+
+  const toggleVideo = () => {
+      if (localStream) {
+          localStream.getVideoTracks().forEach(track => {
+              track.enabled = !track.enabled;
+          });
+          setIsVideoOff(prev => !prev);
+      }
   };
 
   const signalViaAPI = async (payload: SignalPayload): Promise<void> => {
@@ -452,6 +474,10 @@ export default function SessionClient({
         isEndingSession={isEndingSession}
         isSharingScreen={!!screenStream}
         onToggleScreenShare={toggleScreenShare}
+        isMuted={isMuted}
+        onToggleMute={toggleMute}
+        isVideoOff={isVideoOff}
+        onToggleVideo={toggleVideo}
         activeTool={activeTool}
         onToolChange={handleToolChange}
       />
@@ -478,9 +504,9 @@ export default function SessionClient({
             documentUrl={documentUrl}
             whiteboardControllerId={whiteboardControllerId}
             onWhiteboardControllerChange={handleWhiteboardControllerChange}
+            initialDuration={timerDuration}
             timerTimeLeft={timerTimeLeft}
             isTimerRunning={isTimerRunning}
-            initialDuration={timerDuration}
             onStartTimer={() => broadcastTimerEvent(sessionId, 'timer-started')}
             onPauseTimer={() => broadcastTimerEvent(sessionId, 'timer-paused')}
             onResetTimer={handleResetTimer}

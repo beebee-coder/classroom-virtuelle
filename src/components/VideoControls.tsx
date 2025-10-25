@@ -8,20 +8,27 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/t
 interface VideoControlsProps {
   isSharingScreen: boolean;
   onToggleScreenShare: () => void;
-  // TODO: Add props for mute/unmute, video on/off
+  isMuted: boolean;
+  onToggleMute: () => void;
+  isVideoOff: boolean;
+  onToggleVideo: () => void;
 }
 
-export function VideoControls({ isSharingScreen, onToggleScreenShare }: VideoControlsProps) {
-  // Placeholder states
-  const isMuted = false;
-  const isVideoOff = false;
+export function VideoControls({ 
+    isSharingScreen, 
+    onToggleScreenShare,
+    isMuted,
+    onToggleMute,
+    isVideoOff,
+    onToggleVideo
+}: VideoControlsProps) {
 
   return (
-    <div className="flex gap-2 p-1 rounded-lg bg-muted border">
+    <div className="flex gap-2 p-1 rounded-lg">
         <TooltipProvider>
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <Button variant={isMuted ? "destructive" : "outline"} size="icon" className="h-8 w-8">
+                    <Button variant={isMuted ? "destructive" : "outline"} size="icon" className="h-8 w-8" onClick={onToggleMute}>
                         {isMuted ? <MicOff /> : <Mic />}
                     </Button>
                 </TooltipTrigger>
@@ -31,7 +38,7 @@ export function VideoControls({ isSharingScreen, onToggleScreenShare }: VideoCon
             </Tooltip>
              <Tooltip>
                 <TooltipTrigger asChild>
-                    <Button variant={isVideoOff ? "destructive" : "outline"} size="icon" className="h-8 w-8">
+                    <Button variant={isVideoOff ? "destructive" : "outline"} size="icon" className="h-8 w-8" onClick={onToggleVideo}>
                         {isVideoOff ? <VideoOff /> : <Video />}
                     </Button>
                 </TooltipTrigger>
