@@ -16,13 +16,12 @@ const authOptions: AuthOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        console.log(`🔑 [AUTH - Authorize] Début du processus pour: ${credentials?.email}`);
-        try {
-          if (!credentials?.email || !credentials?.password) {
+        if (!credentials?.email || !credentials?.password) {
             console.error('❌ [AUTH - Authorize] Échec: Email ou mot de passe manquant.');
-            throw new Error("Email et mot de passe requis")
-          }
+            return null;
+        }
 
+        try {
           console.log(`🔍 [AUTH - Authorize] Recherche de l'utilisateur: ${credentials.email}`);
           const user = await prisma.user.findUnique({
             where: { email: credentials.email }
@@ -30,13 +29,13 @@ const authOptions: AuthOptions = {
 
           if (!user) {
             console.warn(`⚠️ [AUTH - Authorize] Utilisateur non trouvé: ${credentials.email}`);
-            throw new Error("Utilisateur non trouvé")
+            return null;
           }
 
           // Pour la démo, on accepte le mot de passe 'password'
           if (credentials.password !== 'password') {
              console.warn(`🔒 [AUTH - Authorize] Mot de passe incorrect pour: ${credentials.email}`);
-             throw new Error("Mot de passe incorrect")
+             return null;
           }
 
           console.log(`✅ [AUTH - Authorize] Authentification réussie pour: ${user.name} (${user.email})`);
@@ -86,9 +85,9 @@ const authOptions: AuthOptions = {
       return session
     },
   },
-  debug: process.env.NODE_ENV === "development",
 }
 
 const handler = NextAuth(authOptions)
 
 export { handler as GET, handler as POST }
+
