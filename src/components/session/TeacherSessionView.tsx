@@ -47,6 +47,8 @@ interface TeacherSessionViewProps {
     activeTool: string;
     onToolChange: (tool: string) => void;
     classroom: ClassroomWithDetails | null;
+    documentUrl: string | null;
+    documentHistory: DocumentInHistory[];
     whiteboardControllerId: string | null; // Qui contrôle le TB
     onWhiteboardControllerChange: (userId: string) => void; // Pour changer le contrôleur
     initialDuration: number;
@@ -75,6 +77,8 @@ export function TeacherSessionView({
     activeTool,
     onToolChange,
     classroom,
+    documentUrl,
+    documentHistory,
     whiteboardControllerId,
     onWhiteboardControllerChange,
     initialDuration,
@@ -91,10 +95,6 @@ export function TeacherSessionView({
     const students = classroom?.eleves || allSessionUsers.filter(u => u.role === 'ELEVE') as User[];
     
     const teacher = allSessionUsers.find(u => u.role === 'PROFESSEUR');
-    
-    // Simuler un état pour les documents partagés
-    const documentUrl = null;
-    const documentHistory: DocumentInHistory[] = [];
     
     if (!currentUserId || !teacher) return null;
 
@@ -217,9 +217,9 @@ export function TeacherSessionView({
     return (
         <div className="flex-1 flex min-h-0 py-6 gap-4">
             {/* --- Colonne Principale : Espace de travail & Vidéos --- */}
-            <div className="flex-1 flex flex-col gap-4">
+            <div className="flex-1 flex flex-col gap-4 min-w-0">
                 {/* Espace de contenu : Tableau blanc ou Partage d'écran */}
-                <div className="flex-1">
+                <div className="flex-1 min-h-0">
                    {renderActiveTool()}
                 </div>
 
