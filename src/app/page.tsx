@@ -48,7 +48,7 @@ export default function HomePage() {
             priority
           />
        </div>
-       <div className="absolute inset-0 bg-background/60 backdrop-blur-sm" />
+       <div className="absolute inset-0 bg-background/60 backdrop-blur-sm -z-10" />
 
       {/* Utilisation de null car c'est une page publique, la session est gérée dans le redirect sur la version serveur */}
       <Header user={null} />
