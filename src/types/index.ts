@@ -1,7 +1,7 @@
 // src/types/index.ts
 import { ComprehensionLevel } from "@/components/StudentSessionControls";
 // Importer les types depuis notre source de vérité unique
-import type { User, Role, Classroom, EtatEleve } from '@/lib/types';
+import type { User, Role, Classroom, EtatEleve, DocumentInHistory as PrismaDocumentInHistory } from '@/lib/types';
 import type { Instance as PeerInstance, SignalData as PeerSignalData } from 'simple-peer';
 import { TLEditorSnapshot } from "@tldraw/tldraw";
 
@@ -71,6 +71,7 @@ export type DocumentInHistory = {
   
   export interface DocumentEvent {
     url: string;
+    newHistory: DocumentInHistory[];
   }
   
   // Définition de types locaux
@@ -93,6 +94,7 @@ export type DocumentInHistory = {
     currentUserRole: Role;
     currentUserId: string;
     classroom: ClassroomWithDetails | null;
+    initialDocumentHistory: DocumentInHistory[];
   }
 
   export interface WhiteboardUpdateEvent {

@@ -2,7 +2,7 @@
 'use client';
 
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { User, Role, SessionParticipant, ClassroomWithDetails } from '@/lib/types';
+import { User, Role, SessionParticipant, ClassroomWithDetails, DocumentInHistory } from '@/lib/types';
 import { Participant } from '@/components/Participant';
 import { StudentPlaceholder } from '../StudentPlaceholder';
 import { HandRaiseController } from '../HandRaiseController';
@@ -27,6 +27,7 @@ import { shareDocument, broadcastWhiteboardUpdate, broadcastWhiteboardController
 import { TLEditorSnapshot } from '@tldraw/tldraw';
 import { SessionStatus } from './SessionStatus';
 import { SessionTimer } from './SessionTimer';
+import { DocumentHistory } from './DocumentHistory';
 
 
 interface TeacherSessionViewProps {
@@ -47,6 +48,7 @@ interface TeacherSessionViewProps {
     onToolChange: (tool: string) => void;
     classroom: ClassroomWithDetails | null;
     documentUrl: string | null;
+    documentHistory: DocumentInHistory[];
     whiteboardControllerId: string | null; // Qui contrôle le TB
     onWhiteboardControllerChange: (userId: string) => void; // Pour changer le contrôleur
     initialDuration: number;
@@ -76,6 +78,7 @@ export function TeacherSessionView({
     onToolChange,
     classroom,
     documentUrl,
+    documentHistory,
     whiteboardControllerId,
     onWhiteboardControllerChange,
     initialDuration,
@@ -300,6 +303,10 @@ export function TeacherSessionView({
                                 sessionId={sessionId}
                             />
                         )}
+                        <DocumentHistory
+                            documents={documentHistory}
+                            onShare={handleDocumentShare}
+                        />
                         <UnderstandingTracker students={students} understandingStatus={understandingStatus} />
                         <HandRaiseController sessionId={sessionId} raisedHands={studentsWithRaisedHands} />
                     </div>

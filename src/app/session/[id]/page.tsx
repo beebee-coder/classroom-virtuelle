@@ -5,7 +5,7 @@ import SessionClient from '@/components/SessionClient';
 import { Suspense } from 'react';
 import { getSessionDetails } from '@/lib/actions/session.actions';
 import { getClassroomWithStudents } from '@/lib/actions/classroom.actions';
-import type { User, Role, Classroom, EtatEleve } from '@prisma/client';
+import type { User, Role, Classroom, EtatEleve, DocumentInHistory } from '@prisma/client';
 import prisma from '@/lib/prisma';
 
 type ClassroomWithDetails = Classroom & { eleves: (User & { etat: EtatEleve | null })[] };
@@ -61,6 +61,7 @@ export default async function SessionPage({ params }: { params: { id: string } }
             id: sessionFromDb.id,
             teacher: sessionFromDb.participants.find(p => p.role === 'PROFESSEUR'),
             students: sessionFromDb.participants.filter(p => p.role === 'ELEVE'),
+            documentHistory: sessionFromDb.documentHistory as DocumentInHistory[],
         };
 
         if (sessionFromDb.classroomId) {
@@ -79,7 +80,7 @@ export default async function SessionPage({ params }: { params: { id: string } }
         notFound();
     }
     
-    const { students, teacher } = sessionDetails;
+    const { students, teacher, documentHistory } = sessionDetails;
 
     // Vérification de sécurité améliorée
     const isTeacher = authSession.user.id === teacher.id;
@@ -104,6 +105,7 @@ export default async function SessionPage({ params }: { params: { id: string } }
                 currentUserRole={currentUserRole}
                 currentUserId={currentUserId}
                 classroom={classroomData}
+                initialDocumentHistory={documentHistory}
             />
         </Suspense>
     );

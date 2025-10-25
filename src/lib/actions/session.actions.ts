@@ -6,7 +6,7 @@ import { pusherTrigger } from '../pusher/server';
 import { getAuthSession } from '../session';
 import { ComprehensionLevel } from '@/components/StudentSessionControls';
 import prisma from '../prisma';
-import { Role, type CoursSession, type User } from '@prisma/client';
+import { Role, type CoursSession, type User, type DocumentInHistory } from '@prisma/client';
 
 export async function createCoursSession(professeurId: string, classroomId: string, studentIds: string[]) {
     console.log('🚀 [ACTION SESSION] - Début de la création de la session de cours...');
@@ -364,7 +364,7 @@ export async function reinviteStudentToSession(sessionId: string, studentId: str
     }
 }
 
-export async function shareDocument(sessionId: string, document: { name: string, url: string }) {
+export async function shareDocument(sessionId: string, document: DocumentInHistory) {
     console.log(`📄 [ACTION DOCUMENT] - Partage du document '${document.name}' pour la session ${sessionId}`);
     try {
         if (!sessionId || !document?.url || !document?.name) {
@@ -380,9 +380,8 @@ export async function shareDocument(sessionId: string, document: { name: string,
             throw new Error('Session non trouvée.');
         }
 
-        const currentHistory = (session.documentHistory as { name: string; url: string }[] | null) || [];
+        const currentHistory = (session.documentHistory as DocumentInHistory[] | null) || [];
         
-        // Éviter les doublons
         const isAlreadyInHistory = currentHistory.some(doc => doc.url === document.url);
         
         let updatedHistory = currentHistory;
@@ -390,7 +389,7 @@ export async function shareDocument(sessionId: string, document: { name: string,
             updatedHistory = [...currentHistory, document];
             await prisma.coursSession.update({
                 where: { id: sessionId },
-                data: { documentHistory: updatedHistory }
+                data: { documentHistory: updatedHistory as any }
             });
             console.log(`  Historique des documents mis à jour en base de données.`);
         } else {
@@ -399,7 +398,8 @@ export async function shareDocument(sessionId: string, document: { name: string,
 
         const channel = `presence-session-${sessionId}`;
         const payload = {
-            url: document.url
+            url: document.url,
+            newHistory: updatedHistory,
         };
         
         console.log(`  Diffusion de l'événement 'document-updated' sur le canal ${channel}.`);

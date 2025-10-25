@@ -18,7 +18,8 @@ import type {
     TaskCategory as PrismaTaskCategory,
     TaskDifficulty as PrismaTaskDifficulty,
     ValidationType as PrismaValidationType,
-    ProgressStatus as PrismaProgressStatus
+    ProgressStatus as PrismaProgressStatus,
+    DocumentInHistory as PrismaDocumentInHistory
 } from '@prisma/client';
 
 // Exporter les enums directement depuis Prisma
@@ -42,6 +43,8 @@ export type Reaction = PrismaReaction;
 export type Message = PrismaMessage;
 export type Announcement = PrismaAnnouncement;
 export type EtatEleve = PrismaEtatEleve;
+export type DocumentInHistory = PrismaDocumentInHistory;
+
 
 // Types complexes qui étaient basés sur les relations Prisma
 export type SessionParticipant = Pick<User, 'id' | 'name' | 'role'>;

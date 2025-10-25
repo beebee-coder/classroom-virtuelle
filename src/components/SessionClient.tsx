@@ -8,7 +8,7 @@ import SimplePeer from 'simple-peer';
 
 import { pusherClient } from '@/lib/pusher/client';
 import { useToast } from '@/hooks/use-toast';
-import { User, Role, SessionParticipant, ClassroomWithDetails } from '@/lib/types';
+import { User, Role, SessionParticipant, ClassroomWithDetails, DocumentInHistory } from '@/lib/types';
 import SessionLoading from './SessionLoading';
 import { TeacherSessionView } from './session/TeacherSessionView';
 import { StudentSessionView } from './session/StudentSessionView';
@@ -16,7 +16,7 @@ import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';
 import { endCoursSession, broadcastTimerEvent, broadcastActiveTool, broadcastWhiteboardController, broadcastWhiteboardUpdate, updateStudentSessionStatus } from '@/lib/actions';
 import { ComprehensionLevel } from './StudentSessionControls';
-import { SessionClientProps, PeerData, SignalPayload, PusherSubscriptionSucceededEvent, PusherMemberEvent, IncomingSignalData, SpotlightEvent, HandRaiseEvent, UnderstandingEvent, TimerEvent, ToolEvent, DocumentEvent, RemoteParticipant } from '@/types';
+import { SessionClientProps, PeerData, SignalPayload, PusherSubscriptionSucceededEvent, PusherMemberEvent, IncomingSignalData, SpotlightEvent, HandRaiseEvent, UnderstandingEvent, TimerEvent, ToolEvent, DocumentEvent, RemoteParticipant, WhiteboardUpdateEvent, WhiteboardControllerEvent } from '@/types';
 import { TLEditorSnapshot, TLStoreSnapshot } from '@tldraw/tldraw';
 
 const INITIAL_TIMER_DURATION = 3600; // 1 heure en secondes
@@ -28,6 +28,7 @@ export default function SessionClient({
   currentUserRole,
   currentUserId,
   classroom,
+  initialDocumentHistory = [],
 }: SessionClientProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -45,7 +46,8 @@ export default function SessionClient({
   const [understandingStatus, setUnderstandingStatus] = useState<Map<string, ComprehensionLevel>>(new Map());
   const [isEndingSession, setIsEndingSession] = useState<boolean>(false);
   const [activeTool, setActiveTool] = useState<string>('whiteboard');
-  const [documentUrl, setDocumentUrl] = useState<string | null>(null);
+  const [documentUrl, setDocumentUrl] = useState<string | null>(initialDocumentHistory.length > 0 ? initialDocumentHistory[initialDocumentHistory.length - 1].url : null);
+  const [documentHistory, setDocumentHistory] = useState<DocumentInHistory[]>(initialDocumentHistory);
   const [whiteboardSnapshot, setWhiteboardSnapshot] = useState<TLEditorSnapshot | null>(null);
   const [whiteboardControllerId, setWhiteboardControllerId] = useState<string | null>(initialTeacher?.id || null);
 
@@ -331,19 +333,22 @@ export default function SessionClient({
       console.log(`[PUSHER] - Outil actif changé pour: ${data.tool}`);
       setActiveTool(data.tool);
     };
-    const handleDocumentUpdated = (data: DocumentEvent): void => {
-      console.log(`[PUSHER] - URL du document mise à jour: ${data.url}`);
-      setDocumentUrl(data.url);
-      setActiveTool('document');
-      toast({ title: 'Document partagé', description: 'Le professeur a partagé un nouveau document.' });
+    const handleDocumentUpdated = (data: DocumentEvent & { newHistory: DocumentInHistory[] }): void => {
+        console.log(`[PUSHER] - URL du document mise à jour: ${data.url}`);
+        setDocumentUrl(data.url);
+        if (data.newHistory) {
+            setDocumentHistory(data.newHistory);
+        }
+        setActiveTool('document');
+        toast({ title: 'Document partagé', description: 'Le professeur a partagé un nouveau document.' });
     };
-    const handleWhiteboardUpdate = (data: { senderId: string, snapshot: TLEditorSnapshot }) => {
+    const handleWhiteboardUpdate = (data: WhiteboardUpdateEvent) => {
         if (data.senderId !== currentUserId) {
             console.log(`🎨 [PUSHER] - Mise à jour du tableau blanc reçue de ${data.senderId}`);
             setWhiteboardSnapshot(data.snapshot);
         }
     };
-    const handleWhiteboardControllerUpdate = (data: { controllerId: string }) => {
+    const handleWhiteboardControllerUpdate = (data: WhiteboardControllerEvent) => {
         console.log(`🕹️ [PUSHER] - Contrôleur du tableau blanc mis à jour: ${data.controllerId}`);
         setWhiteboardControllerId(data.controllerId);
     };
@@ -481,7 +486,7 @@ export default function SessionClient({
         activeTool={activeTool}
         onToolChange={handleToolChange}
       />
-      <main className="flex-1 flex flex-col px-4 sm:px-6 lg:px-8 min-h-0">
+      <main className="flex-1 flex flex-col min-h-0">
         <PermissionPrompt />
         {currentUserRole === 'PROFESSEUR' ? (
           <TeacherSessionView
@@ -502,6 +507,7 @@ export default function SessionClient({
             onToolChange={handleToolChange}
             classroom={classroom}
             documentUrl={documentUrl}
+            documentHistory={documentHistory}
             whiteboardControllerId={whiteboardControllerId}
             onWhiteboardControllerChange={handleWhiteboardControllerChange}
             initialDuration={timerDuration}
