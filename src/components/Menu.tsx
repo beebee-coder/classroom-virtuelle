@@ -23,6 +23,7 @@ interface MenuItem {
   component?: React.ElementType;
   href?: string | ((user: DummySession['user']) => string);
   icon?: React.ElementType;
+  isDialog?: boolean;
 }
 
 const Menu: React.FC<MenuProps> = ({ user, classrooms = [], validationCount = 0 }) => {
@@ -72,12 +73,22 @@ const Menu: React.FC<MenuProps> = ({ user, classrooms = [], validationCount = 0 
 
                if (item.component) {
                  const Comp = item.component;
-                 // Pass necessary props to dynamic components
                  const compProps = item.label === "Créer une Annonce" ? { classrooms } : {};
+
+                 if (item.isDialog) {
+                    return (
+                        <Comp {...compProps}>
+                             <button className={cn(styles.button, colorClass)}>
+                                {Icon && <Icon />}
+                                <span>{item.label}</span>
+                            </button>
+                        </Comp>
+                    )
+                 }
+
                  return (
                     <div key={item.label} className={cn(styles.button, colorClass)}>
                        <Comp {...compProps}>
-                         {/* Le composant enfant (Button) doit être stylisé */}
                          {Icon && <Icon />}
                          <span>{item.label}</span>
                        </Comp>

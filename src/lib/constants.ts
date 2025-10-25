@@ -63,12 +63,14 @@ export const menuItems = [
                 component: CreateAnnouncementForm,
                 icon: Megaphone,
                 roles: ['PROFESSEUR'],
+                isDialog: true,
             },
             {
                 label: "Remise à zéro",
                 component: ResetButton,
                 icon: RefreshCw,
                 roles: ['PROFESSEUR'],
+                isDialog: true,
             }
         ]
     },
