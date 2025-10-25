@@ -258,8 +258,8 @@ export function TeacherSessionView({
                 </div>
 
                 {/* Bandeau de vidéos en défilement continu */}
-                 <div className="h-40 overflow-hidden relative">
-                    <div className="marquee-container flex flex-col space-y-4 py-2 hover:[animation-play-state:paused]">
+                 <div className="h-40 w-full overflow-hidden relative">
+                    <div className="marquee-container flex space-x-4 px-2 hover:[animation-play-state:paused]">
                          {/* Première copie des participants */}
                         {allParticipants.map(p => (
                             <div key={p.id} className="w-48 flex-shrink-0">
@@ -273,7 +273,7 @@ export function TeacherSessionView({
                             </div>
                         ))}
                     </div>
-                    <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-background pointer-events-none" />
+                    <div className="absolute inset-y-0 bg-gradient-to-r from-background via-transparent to-background pointer-events-none w-full" />
                 </div>
             </div>
 
@@ -315,5 +315,3 @@ export function TeacherSessionView({
         </div>
     );
 }
-
-    
