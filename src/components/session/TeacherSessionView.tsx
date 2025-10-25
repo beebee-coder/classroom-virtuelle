@@ -177,22 +177,6 @@ export function TeacherSessionView({
                         <div className="flex-1 min-h-0">
                             <DocumentViewer url={documentUrl} />
                         </div>
-                        <Card>
-                            <CardContent className="p-4">
-                                <div className="flex justify-between items-center mb-2">
-                                    <h4 className="font-semibold">Partager un document</h4>
-                                    <CloudinaryUploadWidget onUpload={handleDocumentUpload}>
-                                        {({ open }) => (
-                                            <Button onClick={() => open()} variant="outline" size="sm">
-                                                <UploadCloud className="mr-2" />
-                                                Téléverser
-                                            </Button>
-                                        )}
-                                    </CloudinaryUploadWidget>
-                                </div>
-                                {/* L'historique pourrait être implémenté ici */}
-                            </CardContent>
-                        </Card>
                     </div>
                 );
             case 'quiz':
@@ -281,6 +265,23 @@ export function TeacherSessionView({
             <div className="w-72 flex flex-col gap-4 min-h-0">
                 <ScrollArea className='h-full'>
                     <div className='space-y-4 pr-3'>
+                        {activeTool === 'document' && (
+                           <Card>
+                                <CardContent className="p-4">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <h4 className="font-semibold">Partager un document</h4>
+                                        <CloudinaryUploadWidget onUpload={handleDocumentUpload}>
+                                            {({ open }) => (
+                                                <Button onClick={() => open()} variant="outline" size="sm">
+                                                    <UploadCloud className="mr-2" />
+                                                    Téléverser
+                                                </Button>
+                                            )}
+                                        </CloudinaryUploadWidget>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
                         <SessionTimer
                             isTeacher={true}
                             sessionId={sessionId}
