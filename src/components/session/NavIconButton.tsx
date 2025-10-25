@@ -3,6 +3,7 @@
 
 import { cn } from '@/lib/utils';
 import type { LucideIcon } from 'lucide-react';
+import { useState } from 'react';
 
 interface NavIconButtonProps {
   icon: LucideIcon;
@@ -14,26 +15,34 @@ interface NavIconButtonProps {
 }
 
 export function NavIconButton({ icon: Icon, label, colors, isActive = false, onClick, isDisabled = false }: NavIconButtonProps) {
+  const [isHovered, setIsHovered] = useState(false);
+
   const style = {
     '--i': colors[0],
     '--j': colors[1],
   } as React.CSSProperties;
+
+  const showTitle = isActive || isHovered;
 
   return (
     <li
       style={style}
       className={cn(
         "nav-icon-item",
-        isActive && "w-40 shadow-none",
+        showTitle && "w-40 shadow-none",
         isDisabled && "opacity-50 cursor-not-allowed pointer-events-none"
-        )}
+      )}
       onClick={onClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Appliquer l'opacité active directement sur l'élément pseudo ::before */}
-      <div className={cn("absolute inset-0 rounded-full", isActive && "opacity-100")} style={{background: `linear-gradient(45deg, var(--i), var(--j))`}} />
+      <div className="nav-icon-background" />
       
-      <span className="icon"><Icon /></span>
-      <span className="title">{label}</span>
+      {showTitle ? (
+        <span className="title">{label}</span>
+      ) : (
+        <span className="icon"><Icon /></span>
+      )}
     </li>
   );
 }
