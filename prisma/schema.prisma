@@ -2,9 +2,8 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 datasource db {
-  provider     = "postgresql"
-  url          = env("DATABASE_URL")
-  relationMode = "prisma"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 generator client {
@@ -16,44 +15,48 @@ generator client {
 // ===================================
 
 model User {
-  id               String          @id @default(cuid())
-  email            String          @unique
-  name             String?
-  password         String?
-  image            String?
-  role             Role            @default(ELEVE)
-  points           Int             @default(0)
-  ambition         String?
-  parentPassword   String?
-  classeId         String?
-  classe           Classroom?      @relation(fields: [classeId], references: [id])
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  announcements    Announcement[]
-  sessionsEnseignees CoursSession[]  @relation("ProfesseurSessions")
-  sessionsParticipees CoursSession[] @relation("Participants")
-  studentProgress  StudentProgress[]
-  messages         Message[]
-  reactions        Reaction[]
-  etat             EtatEleve?
+  id                  String            @id @default(cuid())
+  email               String            @unique
+  name                String?
+  password            String?
+  image               String?
+  role                Role              @default(ELEVE)
+  points              Int               @default(0)
+  ambition            String?
+  parentPassword      String?
+  classeId            String?
+  classe              Classroom?        @relation("ClassMembers", fields: [classeId], references: [id], onDelete: SetNull)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  announcements       Announcement[]
+  sessionsEnseignees  CoursSession[]    @relation("ProfesseurSessions")
+  sessionsParticipees CoursSession[]    @relation("Participants")
+  studentProgress     StudentProgress[]
+  messages            Message[]
+  reactions           Reaction[]
+  etat                EtatEleve?
+  classesEnseignees   Classroom[]       @relation("TeacherClasses")
 }
 
 model Classroom {
-  id           String         @id @default(cuid())
-  nom          String
-  professeurId String
-  professeur   User           @relation(fields: [professeurId], references: [id], onDelete: Cascade)
-  eleves       User[]
+  id            String         @id @default(cuid())
+  nom           String
+  professeurId  String
+  professeur    User           @relation("TeacherClasses", fields: [professeurId], references: [id], onDelete: Cascade)
+  eleves        User[]         @relation("ClassMembers")
   announcements Announcement[]
-  sessions     CoursSession[]
-  messages     Message[]
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  sessions      CoursSession[]
+  messages      Message[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   @@index([professeurId])
 }
 
-// =ateliers-et-competences
+// ===================================
+// Modèles Métiers et Compétences
+// ===================================
+
 model Metier {
   id          String      @id @default(cuid())
   nom         String      @unique
@@ -68,24 +71,24 @@ model Metier {
 // ===================================
 
 model CoursSession {
-  id              String             @id @default(cuid())
+  id              String              @id @default(cuid())
   professeurId    String
-  professeur      User               @relation("ProfesseurSessions", fields: [professeurId], references: [id])
+  professeur      User                @relation("ProfesseurSessions", fields: [professeurId], references: [id])
   classroomId     String
-  classe          Classroom          @relation(fields: [classroomId], references: [id])
-  participants    User[]             @relation("Participants")
-  startTime       DateTime           @default(now())
+  classe          Classroom           @relation(fields: [classroomId], references: [id])
+  participants    User[]              @relation("Participants")
+  startTime       DateTime            @default(now())
   endTime         DateTime?
   documentHistory DocumentInHistory[]
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
 
   @@index([professeurId])
   @@index([classroomId])
 }
 
 model Task {
-  id              String           @id @default(cuid())
+  id              String            @id @default(cuid())
   title           String
   description     String
   points          Int
@@ -93,27 +96,27 @@ model Task {
   category        TaskCategory
   difficulty      TaskDifficulty
   validationType  ValidationType
-  requiresProof   Boolean          @default(false)
-  isActive        Boolean          @default(true)
+  requiresProof   Boolean           @default(false)
+  isActive        Boolean           @default(true)
   studentProgress StudentProgress[]
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 }
 
 model StudentProgress {
-  id              String          @id @default(cuid())
-  studentId       String
-  student         User            @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  taskId          String
-  task            Task            @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  status          ProgressStatus  @default(IN_PROGRESS)
-  completionDate  DateTime?       @default(now())
-  submissionUrl   String?
-  pointsAwarded   Int?
-  feedback        Json?
-  recipeName      String?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  id             String         @id @default(cuid())
+  studentId      String
+  student        User           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  taskId         String
+  task           Task           @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  status         ProgressStatus @default(IN_PROGRESS)
+  completionDate DateTime?      @default(now())
+  submissionUrl  String?
+  pointsAwarded  Int?
+  feedback       Json?
+  recipeName     String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
   @@unique([studentId, taskId])
   @@index([studentId])
@@ -121,16 +124,16 @@ model StudentProgress {
 }
 
 model Announcement {
-  id            String    @id @default(cuid())
+  id            String     @id @default(cuid())
   title         String
   content       String
   authorId      String
-  author        User      @relation(fields: [authorId], references: [id])
+  author        User       @relation(fields: [authorId], references: [id])
   classeId      String?
   classe        Classroom? @relation(fields: [classeId], references: [id])
   attachmentUrl String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 
   @@index([authorId])
   @@index([classeId])
@@ -182,10 +185,10 @@ model EtatEleve {
 }
 
 model DocumentInHistory {
-  id           String       @id @default(cuid())
-  name         String
-  url          String
-  createdAt    DateTime     @default(now())
+  id             String       @id @default(cuid())
+  name           String
+  url            String
+  createdAt      DateTime     @default(now())
   coursSession   CoursSession @relation(fields: [coursSessionId], references: [id])
   coursSessionId String
 

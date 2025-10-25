@@ -85,7 +85,7 @@ const Menu: React.FC<MenuProps> = ({ user, classrooms = [], validationCount = 0 
                  )
               }
               
-              if (item.href && item.icon) {
+              if (item.href && Icon) {
                 const href = typeof item.href === 'function' ? item.href(user) : item.href;
                 const isActive = pathname === href;
                 
