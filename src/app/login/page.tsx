@@ -1,3 +1,4 @@
+
 // src/app/login/page.tsx
 'use client';
 
@@ -51,7 +52,7 @@ function LoginFormComponent() {
     if (result?.error) {
       setError("Identifiants incorrects. Assurez-vous d'utiliser les comptes de démo (ex: teacher@example.com ou ahmed0@example.com avec le mot de passe 'password').");
     } else if (result?.ok) {
-      router.push('/');
+      // Redirection gérée par le middleware après rechargement
       router.refresh();
     }
   };

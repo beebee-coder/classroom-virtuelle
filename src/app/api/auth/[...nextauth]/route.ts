@@ -1,3 +1,4 @@
+
 // app/api/auth/[...nextauth]/route.ts
 import NextAuth, { AuthOptions, User } from "next-auth"
 import { JWT } from "next-auth/jwt"
@@ -91,5 +92,3 @@ const authOptions: AuthOptions = {
 const handler = NextAuth(authOptions)
 
 export { handler as GET, handler as POST }
-
-    
