@@ -3,11 +3,10 @@
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, PhoneOff, Square, FileText, Award, Camera } from "lucide-react";
+import { Loader2, PhoneOff, Square, FileText, Award, Camera, Mic, MicOff, Video, VideoOff, ScreenShare, ScreenShareOff } from "lucide-react";
 import { useCallback } from "react";
-import { VideoControls } from "../VideoControls";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 import { cn } from "@/lib/utils";
+import { NavIconButton } from "./NavIconButton";
 
 interface SessionHeaderProps {
     sessionId: string;
@@ -24,13 +23,6 @@ interface SessionHeaderProps {
     activeTool: string;
     onToolChange: (tool: string) => void;
 }
-
-const tools = [
-    { id: 'whiteboard', name: 'Tableau Blanc', icon: Square },
-    { id: 'document', name: 'Document', icon: FileText },
-    { id: 'quiz', name: 'Quiz', icon: Award },
-    { id: 'camera', name: 'Caméras', icon: Camera },
-];
 
 export function SessionHeader({ 
     sessionId, 
@@ -60,44 +52,52 @@ export function SessionHeader({
         console.log("🚪 [SESSION HEADER] Clic sur 'Quitter la session'");
         onLeaveSession();
     }, [onLeaveSession]);
+
+    const teacherTools = [
+        { id: 'whiteboard', name: 'Tableau', icon: Square, colors: ['#a955ff', '#ea51ff'] as [string,string] },
+        { id: 'document', name: 'Document', icon: FileText, colors: ['#56CCF2', '#2F80ED'] as [string,string] },
+        { id: 'quiz', name: 'Quiz', icon: Award, colors: ['#FF9966', '#FF5E62'] as [string,string] },
+        { id: 'camera', name: 'Caméras', icon: Camera, colors: ['#80FF72', '#7EE8FA'] as [string,string] },
+    ];
+    
+    const mediaControls = [
+        { id: 'mic', name: isMuted ? 'Activer' : 'Couper', icon: isMuted ? MicOff : Mic, onClick: onToggleMute, colors: ['#f87171', '#ef4444'] as [string,string], isDisabled: false },
+        { id: 'video', name: isVideoOff ? 'Activer' : 'Couper', icon: isVideoOff ? VideoOff : Video, onClick: onToggleVideo, colors: ['#fb923c', '#f97316'] as [string,string], isDisabled: false },
+        { id: 'screen', name: isSharingScreen ? 'Arrêter' : 'Partager', icon: isSharingScreen ? ScreenShareOff : ScreenShare, onClick: onToggleScreenShare, colors: ['#38bdf8', '#0ea5e9'] as [string,string], isDisabled: false },
+    ];
     
     return (
         <header className="border-b bg-background/95 backdrop-blur-sm z-10 sticky top-0">
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-20">
                 <div className='flex items-center gap-4 w-48'>
                     <h1 className="text-xl font-bold hidden sm:block">Session: <Badge variant="secondary">{sessionId.substring(0,8)}</Badge></h1>
                 </div>
 
-                <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
-                     {isTeacher && (
-                         <>
-                            <TooltipProvider>
-                                {tools.map((tool) => {
-                                    const Icon = tool.icon;
-                                    const isActive = activeTool === tool.id;
-                                    return (
-                                        <Tooltip key={tool.id}>
-                                            <TooltipTrigger asChild>
-                                                <Button variant={isActive ? 'secondary' : 'ghost'} size="icon" className="h-8 w-8" onClick={() => onToolChange(tool.id)}>
-                                                    <Icon className={cn("h-5 w-5", isActive && "text-primary")} />
-                                                </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent><p>{tool.name}</p></TooltipContent>
-                                        </Tooltip>
-                                    )
-                                })}
-                            </TooltipProvider>
-                            <div className="mx-2 h-6 border-l border-border" />
-                         </>
-                    )}
-                    <VideoControls 
-                        isSharingScreen={isSharingScreen} 
-                        onToggleScreenShare={onToggleScreenShare}
-                        isMuted={isMuted}
-                        onToggleMute={onToggleMute}
-                        isVideoOff={isVideoOff}
-                        onToggleVideo={onToggleVideo}
-                    />
+                <div className="absolute left-1/2 -translate-x-1/2">
+                    <ul className="nav-icon-list">
+                        {isTeacher && teacherTools.map(tool => (
+                            <NavIconButton
+                                key={tool.id}
+                                icon={tool.icon}
+                                label={tool.name}
+                                colors={tool.colors}
+                                isActive={activeTool === tool.id}
+                                onClick={() => onToolChange(tool.id)}
+                            />
+                        ))}
+                        {/* Séparateur visuel */}
+                        {isTeacher && <div className="h-8 border-l mx-2"></div>}
+                        {mediaControls.map(control => (
+                            <NavIconButton
+                                key={control.id}
+                                icon={control.icon}
+                                label={control.label}
+                                colors={control.colors}
+                                onClick={control.onClick}
+                                isDisabled={control.isDisabled}
+                            />
+                        ))}
+                    </ul>
                 </div>
                 
                 <div className='w-48 flex justify-end'>
@@ -116,7 +116,7 @@ export function SessionHeader({
                             ) : (
                                 <>
                                     <PhoneOff className="mr-2 h-4 w-4" />
-                                    Terminer la session
+                                    Terminer
                                 </>
                             )}
                         </Button>
@@ -127,7 +127,7 @@ export function SessionHeader({
                             data-session-action="leave-session"
                          >
                             <PhoneOff className="mr-2 h-4 w-4" />
-                            Quitter la session
+                            Quitter
                         </Button>
                     )}
                 </div>

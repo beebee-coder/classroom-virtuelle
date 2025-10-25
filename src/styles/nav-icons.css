@@ -1,0 +1,57 @@
+/* src/styles/nav-icons.css */
+
+.nav-icon-list {
+    @apply relative flex items-center gap-4;
+}
+
+.nav-icon-item {
+    @apply relative list-none w-10 h-10 bg-card shadow-md rounded-full cursor-pointer flex justify-center items-center transition-all duration-500;
+}
+
+.nav-icon-item:hover {
+    @apply w-40 shadow-none;
+}
+
+.nav-icon-item::before {
+    content: "";
+    @apply absolute inset-0 rounded-full opacity-0 transition-all duration-500;
+    background: linear-gradient(45deg, var(--i), var(--j));
+}
+
+.nav-icon-item:hover::before {
+    @apply opacity-100;
+}
+
+.nav-icon-item::after {
+    content: "";
+    @apply absolute top-2.5 w-full h-full rounded-full transition-all duration-500 -z-10 opacity-0;
+    background: linear-gradient(45deg, var(--i), var(--j));
+    filter: blur(15px);
+}
+
+.nav-icon-item:hover::after {
+    @apply opacity-50;
+}
+
+.nav-icon-item .icon {
+    @apply text-muted-foreground transition-all duration-500 delay-200;
+}
+
+.nav-icon-item .icon > svg {
+    @apply h-5 w-5;
+}
+
+.nav-icon-item:hover .icon {
+    transform: scale(0);
+    @apply text-white delay-0;
+}
+
+.nav-icon-item .title {
+    @apply absolute text-white text-base tracking-wider uppercase transition-all duration-500 delay-0;
+    transform: scale(0);
+}
+
+.nav-icon-item:hover .title {
+    transform: scale(1);
+    @apply delay-200;
+}
