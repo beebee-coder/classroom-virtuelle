@@ -316,10 +316,10 @@ export async function updateStudentSessionStatus(
     await pusherTrigger(channel, 'hand-raise-update', { userId, isRaised: status.isHandRaised });
   }
 
-  if (status.understanding !== undefined) {
-    console.log(`  -> Diffusion de 'understanding-update' avec status=${status.understanding}`);
-    await pusherTrigger(channel, 'understanding-update', { userId, status: status.understanding });
-  }
+  //   if (status.understanding !== undefined) {
+  //     console.log(`  -> Diffusion de 'understanding-update' avec status=${status.understanding}`);
+  //     await pusherTrigger(channel, 'understanding-update', { userId, status: status.understanding });
+  //   }
 
   console.log('✅ [ACTION STATUS] - Mise à jour du statut diffusée avec succès.');
   return { success: true };
