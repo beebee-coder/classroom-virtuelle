@@ -19,6 +19,8 @@ import Image from 'next/image';
 function LoginFormComponent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session, status } = useSession();
+
   const errorParam = searchParams.get('error');
   const callbackUrl = searchParams.get('callbackUrl') || '/';
 
@@ -30,11 +32,32 @@ function LoginFormComponent() {
   
   useEffect(() => {
     if (errorParam === 'CredentialsSignin') {
-      setError("Identifiants incorrects. Vérifiez l'email et le mot de passe (le mot de passe par défaut est 'password').");
+      setError("Identifiants incorrects. Assurez-vous d'utiliser les comptes de démo (ex: teacher@example.com ou ahmed0@example.com avec le mot de passe 'password').");
     } else if (errorParam) {
       setError("Une erreur de connexion est survenue. Veuillez réessayer.");
     }
   }, [errorParam]);
+
+  useEffect(() => {
+    if (status === "authenticated" && session?.user) {
+        console.log('✅ [LOGIN] Session authentifiée détectée, traitement de la redirection...');
+        
+        // Logique de redirection améliorée
+        let targetUrl = '/';
+        if (callbackUrl && callbackUrl !== '/login' && !callbackUrl.includes('/login?')) {
+            targetUrl = callbackUrl;
+        } else if (session.user.role === 'PROFESSEUR') {
+            targetUrl = '/teacher/dashboard';
+        } else if (session.user.role === 'ELEVE') {
+            targetUrl = '/student/dashboard';
+        }
+        
+        console.log(`  -> Redirection vers : ${targetUrl}`);
+        router.push(targetUrl);
+        router.refresh();
+    }
+  }, [status, session, router, callbackUrl]);
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,16 +73,12 @@ function LoginFormComponent() {
 
       if (result?.error) {
         setError("Identifiants incorrects. Assurez-vous d'utiliser les comptes de démo (ex: teacher@example.com ou ahmed0@example.com avec le mot de passe 'password').");
-      } else if (result?.ok) {
-        // Redirection vers la page d'origine ou le tableau de bord
-        console.log('✅ [LOGIN] Connexion réussie, redirection vers:', callbackUrl);
-        router.push(callbackUrl);
-        router.refresh();
+        setLoading(false);
       }
+      // La redirection est maintenant gérée par le useEffect qui surveille `status`
     } catch (error) {
-      console.error('❌ [LOGIN] Erreur lors de la connexion:', error);
+      console.error('❌ [LOGIN] Erreur lors de la tentative de connexion:', error);
       setError("Une erreur inattendue est survenue. Veuillez réessayer.");
-    } finally {
       setLoading(false);
     }
   };
@@ -160,6 +179,29 @@ function LoginFormComponent() {
 
 // Page principale
 export default function LoginPage() {
+    // Le useSession doit être dans un composant enfant du Provider
+    const SessionProviderWrapper = ({ children }: { children: React.ReactNode }) => {
+        const {data: session, status} = useSession();
+        const router = useRouter();
+
+        useEffect(() => {
+            if (status === "authenticated") {
+                const targetUrl = session.user.role === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard';
+                router.push(targetUrl);
+            }
+        }, [status, session, router]);
+        
+        if (status === "loading" || status === "authenticated") {
+            return (
+                <div className="flex items-center justify-center min-h-screen">
+                    <Loader2 className="h-12 w-12 animate-spin" />
+                </div>
+            );
+        }
+
+        return <>{children}</>;
+    };
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4 relative bg-background">
        <Image
@@ -190,9 +232,10 @@ export default function LoginPage() {
           </p>
         </div>
         
-        {/* Envelopper le composant qui utilise useSearchParams dans Suspense */}
         <Suspense fallback={<div className="text-center">Chargement...</div>}>
-          <LoginFormComponent />
+            <SessionProviderWrapper>
+                <LoginFormComponent />
+            </SessionProviderWrapper>
         </Suspense>
       </div>
     </div>
