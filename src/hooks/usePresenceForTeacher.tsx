@@ -113,7 +113,7 @@ export const usePresenceForTeacher = (
       setError('Erreur critique de connexion');
       setIsConnected(false);
     }
-  }, [userId, classroomId, enabled, isConnected]); // isConnected ajouté pour retenter la connexion si elle échoue
+  }, [userId, classroomId, enabled]); // isConnected ajouté pour retenter la connexion si elle échoue
 
   return { 
     onlineUsers, 

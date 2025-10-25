@@ -6,10 +6,10 @@ import { School } from 'lucide-react';
 import { UserNav } from './UserNav';
 import { Button } from './ui/button';
 import { ThemeToggle } from './ThemeToggle';
-import { DummySession } from '@/lib/session';
+import type { Session } from 'next-auth';
 
 interface HeaderProps {
-  user?: DummySession['user'] | null;
+  user?: Session['user'] | null;
   children?: React.ReactNode;
 }
 

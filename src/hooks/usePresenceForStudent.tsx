@@ -125,7 +125,7 @@ export const usePresenceForStudent = (
       setIsConnected(false);
       setTeacherOnline(false);
     }
-  }, [userId, classroomId, enabled, isConnected]);
+  }, [userId, classroomId, enabled]);
 
   return { 
     isConnected, 
