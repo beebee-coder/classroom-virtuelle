@@ -1,7 +1,7 @@
 // src/components/ResetButton.tsx
 "use client";
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,12 +17,14 @@ import { Button } from "./ui/button";
 import { Loader2, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { resetAllStudentData } from '@/lib/actions/teacher.actions';
+import { cn } from '@/lib/utils';
 
 interface ResetButtonProps {
     children?: React.ReactNode;
+    className?: string; // Ajout pour accepter une classe externe
 }
 
-export function ResetButton({ children }: ResetButtonProps) {
+export function ResetButton({ children, className }: ResetButtonProps) {
   const [isResetting, setIsResetting] = useState(false);
   const { toast } = useToast();
 
@@ -45,15 +47,20 @@ export function ResetButton({ children }: ResetButtonProps) {
     }
   };
 
+  const trigger = children ? (
+    // Si un enfant est fourni (ex: depuis le menu), on le clone pour y attacher l'ouverture du dialogue
+     React.cloneElement(children as React.ReactElement, { className })
+  ) : (
+    <Button variant="destructive" className={className}>
+      <RefreshCw className="mr-2 h-4 w-4" />
+      Remise à zéro
+    </Button>
+  );
+
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        {children ? <button className="flex w-full items-center gap-2 text-left">{children}</button> : (
-            <Button variant="destructive">
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Remise à zéro
-            </Button>
-        )}
+        {trigger}
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>

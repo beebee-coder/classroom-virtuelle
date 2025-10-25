@@ -6,11 +6,12 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import styles from './Menu.module.css';
 import { menuItems } from '@/lib/constants';
-import type { DummySession } from "@/lib/session";
+import type { Session } from "next-auth";
 import type { Classroom } from "@prisma/client";
+import React from "react";
 
 interface MenuProps {
-  user: DummySession['user'];
+  user: Session['user'];
   classrooms?: Pick<Classroom, 'id' | 'nom'>[];
   validationCount?: number;
 }
@@ -19,9 +20,9 @@ interface MenuProps {
 interface MenuItem {
   label: string;
   roles: string[]; // Use string[] for Role
-  condition?: (user: DummySession['user']) => boolean;
+  condition?: (user: Session['user']) => boolean;
   component?: React.ElementType;
-  href?: string | ((user: DummySession['user']) => string);
+  href?: string | ((user: Session['user']) => string);
   icon?: React.ElementType;
   isDialog?: boolean;
 }
@@ -73,23 +74,28 @@ const Menu: React.FC<MenuProps> = ({ user, classrooms = [], validationCount = 0 
 
                if (item.component) {
                  const Comp = item.component;
-                 const compProps = item.label === "Créer une Annonce" ? { classrooms } : {};
+                 const compProps: {classrooms?: any, className?: string} = {};
+                 if (item.label === "Créer une Annonce") {
+                    compProps.classrooms = classrooms;
+                 }
 
                  if (item.isDialog) {
+                    // Pour les dialogues, nous passons le style du bouton via les props
+                    // pour éviter d'imbriquer un bouton dans un autre.
+                    compProps.className = cn(styles.button, colorClass);
                     return (
                         <Comp key={item.label} {...compProps}>
-                             <button className={cn(styles.button, colorClass)}>
-                                {Icon && <Icon />}
-                                <span>{item.label}</span>
-                            </button>
+                             <Icon />
+                             <span>{item.label}</span>
                         </Comp>
                     )
                  }
 
+                 // Pour les autres composants (non-dialogue)
                  return (
                     <div key={item.label} className={cn(styles.button, colorClass)}>
                        <Comp {...compProps}>
-                         {Icon && <Icon />}
+                         <Icon />
                          <span>{item.label}</span>
                        </Comp>
                     </div>

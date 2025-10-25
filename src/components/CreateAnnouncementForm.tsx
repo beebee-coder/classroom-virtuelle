@@ -1,7 +1,7 @@
 // src/components/CreateAnnouncementForm.tsx
 "use client";
 
-import { useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -21,6 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { createAnnouncement } from '@/lib/actions/announcement.actions';
+import { cn } from '@/lib/utils';
 
 function SubmitButton() {
     const { pending } = useFormStatus();
@@ -35,9 +36,10 @@ function SubmitButton() {
 interface CreateAnnouncementFormProps {
     classrooms: { id: string; nom: string }[];
     children?: React.ReactNode;
+    className?: string; // Ajout pour accepter une classe externe
 }
 
-export function CreateAnnouncementForm({ classrooms, children }: CreateAnnouncementFormProps) {
+export function CreateAnnouncementForm({ classrooms, children, className }: CreateAnnouncementFormProps) {
     const [open, setOpen] = useState(false);
     const formRef = useRef<HTMLFormElement>(null);
     const { toast } = useToast();
@@ -60,19 +62,21 @@ export function CreateAnnouncementForm({ classrooms, children }: CreateAnnouncem
         }
     }
 
+    const trigger = children ? (
+        // Si un enfant est fourni (ex: depuis le menu), on le clone pour y attacher l'ouverture du dialogue
+        React.cloneElement(children as React.ReactElement, { className })
+    ) : (
+        // Sinon, on utilise un bouton par défaut
+        <Button variant="outline" className={className}>
+            <Megaphone className="mr-2" />
+            Créer une annonce
+        </Button>
+    );
+
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                {children ? (
-                    <div className="flex w-full items-center gap-2 text-left cursor-pointer">
-                        {children}
-                    </div>
-                ) : (
-                    <Button variant="outline">
-                        <Megaphone className="mr-2" />
-                        Créer une annonce
-                    </Button>
-                )}
+                {trigger}
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
