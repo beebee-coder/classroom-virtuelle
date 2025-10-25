@@ -22,7 +22,7 @@ export default function LoginPage() {
     const { data: session, status } = useSession();
 
     const errorParam = searchParams.get('error');
-    const callbackUrl = searchParams.get('callbackUrl') || '/';
+    const callbackUrl = searchParams.get('callbackUrl');
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -41,37 +41,46 @@ export default function LoginPage() {
     useEffect(() => {
         if (status === "authenticated" && session?.user) {
             let targetUrl = '/';
-            if (callbackUrl && callbackUrl !== '/login' && !callbackUrl.includes('/login?')) {
-                targetUrl = callbackUrl;
-            } else if (session.user.role === 'PROFESSEUR') {
+
+            // Priorité 1: Redirection basée sur le rôle
+            if (session.user.role === 'PROFESSEUR') {
                 targetUrl = '/teacher/dashboard';
             } else if (session.user.role === 'ELEVE') {
                 targetUrl = '/student/dashboard';
             }
+            // Priorité 2: Utiliser un callbackUrl valide s'il ne redirige pas déjà vers une page de rôle
+            else if (callbackUrl && callbackUrl !== '/' && !callbackUrl.includes('/login')) {
+                 targetUrl = callbackUrl;
+            }
             
             console.log(`✅ [LOGIN] Connexion réussie, redirection vers: ${targetUrl}`);
             router.push(targetUrl);
-            router.refresh(); // S'assurer que le layout est mis à jour avec la nouvelle session
         }
     }, [status, session, router, callbackUrl]);
+
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         setError('');
 
-        try {
-            await signIn('credentials', {
-                email: email,
-                password: password,
-                redirect: false,
-            });
-            // La redirection est gérée par le useEffect qui surveille `status`
-        } catch (error) {
-            console.error('❌ [LOGIN] Erreur lors de la tentative de connexion:', error);
-            setError("Une erreur inattendue est survenue. Veuillez réessayer.");
+        const result = await signIn('credentials', {
+            email: email,
+            password: password,
+            redirect: false,
+        });
+
+        if (result?.error) {
+            console.error('❌ [LOGIN] Erreur lors de la tentative de connexion:', result.error);
+             if (result.error === 'CredentialsSignin') {
+                setError("Identifiants incorrects. Veuillez vérifier votre email et mot de passe.");
+            } else {
+                setError("Une erreur inattendue est survenue. Veuillez réessayer.");
+            }
             setLoading(false);
         }
+        // Si la connexion réussit, le useEffect s'occupera de la redirection.
+        // On remet le loading à false uniquement en cas d'erreur ici.
     };
 
     const handleDemoFill = (role: Role) => {
