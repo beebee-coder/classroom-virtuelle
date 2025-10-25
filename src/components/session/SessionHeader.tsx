@@ -4,7 +4,7 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, PhoneOff, Square, FileText, Award, Camera, Mic, MicOff, Video, VideoOff, ScreenShare, ScreenShareOff } from "lucide-react";
-import { useCallback } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { NavIconButton } from "./NavIconButton";
 
@@ -40,6 +40,18 @@ export function SessionHeader({
     onToolChange,
 }: SessionHeaderProps) {
     
+    const [sessionName, setSessionName] = useState('');
+
+    useEffect(() => {
+        const adjectives = ["Brave", "Intelligent", "Doux", "Rapide", "Calme", "Brillant", "Agile", "Sage"];
+        const nouns = ["Lion", "Rivière", "Montagne", "Aigle", "Forêt", "Étoile", "Océan", "Comète"];
+
+        const randomAdjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+        const randomNoun = nouns[Math.floor(Math.random() * nouns.length)];
+
+        setSessionName(`${randomAdjective} ${randomNoun}`);
+    }, []);
+
     const handleEndSessionClick = useCallback((e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
@@ -70,7 +82,10 @@ export function SessionHeader({
         <header className="border-b bg-background/95 backdrop-blur-sm z-10 sticky top-0">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-20">
                 <div className='flex items-center gap-4 w-48'>
-                    <h1 className="text-xl font-bold hidden sm:block">Session: <Badge variant="secondary">{sessionId.substring(0,8)}</Badge></h1>
+                    <div className="hidden sm:block">
+                        <h1 className="text-xl font-bold">Session</h1>
+                        <Badge variant="secondary">{sessionName}</Badge>
+                    </div>
                 </div>
 
                 <div className="absolute left-1/2 -translate-x-1/2">
