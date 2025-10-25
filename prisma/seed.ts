@@ -1,3 +1,4 @@
+
 import { PrismaClient, Role, TaskType, TaskCategory, TaskDifficulty, ValidationType } from '@prisma/client';
 import * as dotenv from 'dotenv';
 
@@ -19,9 +20,13 @@ async function main() {
   await prisma.announcement.deleteMany();
   await prisma.coursSession.deleteMany();
   
-  // Ensuite supprimer les utilisateurs et classes
-  await prisma.user.deleteMany();
+  // Ensuite supprimer les classes qui dépendent des utilisateurs (professeurs)
   await prisma.classroom.deleteMany();
+  
+  // Maintenant on peut supprimer les utilisateurs
+  await prisma.user.deleteMany();
+
+  // Et enfin les tables sans dépendances sortantes majeures
   await prisma.task.deleteMany();
   await prisma.metier.deleteMany();
 
@@ -343,3 +348,5 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+
+    

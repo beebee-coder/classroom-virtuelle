@@ -49,15 +49,15 @@ export default async function StudentDashboardPage() {
     return (
       <CareerThemeWrapper career={metier ?? undefined}>
         <SidebarProvider>
-          <div className="flex flex-col min-h-screen">
+          <div className="flex flex-col min-h-screen w-full ">
             <Header user={session.user}>
                 <SidebarTrigger />
                 {classeId && session.user.role && (
                     <ChatSheet classroomId={classeId} userId={session.user.id} userRole={session.user.role} />
                 )}
             </Header>
-            <div className="flex flex-1">
-                <Sidebar>
+            <div className="flex flex-1 ">
+            <Sidebar>
                   <SidebarContent>
                     <Menu user={session.user} />
                   </SidebarContent>
