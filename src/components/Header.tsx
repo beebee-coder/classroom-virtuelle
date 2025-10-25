@@ -25,7 +25,7 @@ export function Header({ user, children }: HeaderProps) {
           <span>Classroom Connector</span>
         </Link>
         <nav className="flex items-center gap-2 sm:gap-4">
-          {user && (
+          {user && user.role === 'PROFESSEUR' && (
             <Button variant="ghost" asChild>
               <Link href="/librairie-metiers">Métiers</Link>
             </Button>
