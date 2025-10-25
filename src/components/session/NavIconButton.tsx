@@ -22,6 +22,7 @@ export function NavIconButton({ icon: Icon, label, colors, isActive = false, onC
     '--j': colors[1],
   } as React.CSSProperties;
 
+  // Le titre est affiché si le bouton est actif OU si la souris est dessus
   const showTitle = isActive || isHovered;
 
   return (
