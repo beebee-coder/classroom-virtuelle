@@ -23,12 +23,12 @@ export default async function HomePage() {
   console.log('✅ [PAGE] - Affichage de la page d\'accueil pour visiteur.');
   
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen overflow-hidden">
        <Image
           src="https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=3024&auto=format&fit=crop"
           alt="Une salle de classe ensoleillée avec des bureaux et des chaises pour enfants"
           fill
-          className="object-cover"
+          className="object-cover animate-zoom-in"
           priority
         />
        <div className="absolute inset-0 bg-background/60 backdrop-blur-sm" />
