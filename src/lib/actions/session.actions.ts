@@ -6,7 +6,15 @@ import { pusherTrigger } from '../pusher/server';
 import { getAuthSession } from '../session';
 import { ComprehensionLevel } from '@/components/StudentSessionControls';
 import prisma from '../prisma';
-import { Role, type CoursSession, type User, type DocumentInHistory } from '@prisma/client';
+import { Role, type CoursSession, type User } from '@prisma/client';
+
+// Définition locale du type car il n'est pas dans le schéma Prisma
+type DocumentInHistory = {
+    name: string;
+    url: string;
+    createdAt: string; // ou Date
+};
+
 
 export async function createCoursSession(professeurId: string, classroomId: string, studentIds: string[]) {
     console.log('🚀 [ACTION SESSION] - Début de la création de la session de cours...');
@@ -139,6 +147,7 @@ export async function getSessionDetails(sessionId: string) {
             id: session.id,
             teacher: session.professeur,
             students: students,
+            documentHistory: session.documentHistory as DocumentInHistory[] | [],
         };
         
     } catch (error) {
@@ -339,6 +348,7 @@ export interface SessionDetails {
     participants: any[];
     teacher: User;
     students: User[];
+    documentHistory: DocumentInHistory[];
 }
 
 export async function reinviteStudentToSession(sessionId: string, studentId: string, classroomId: string) {
@@ -364,7 +374,7 @@ export async function reinviteStudentToSession(sessionId: string, studentId: str
     }
 }
 
-export async function shareDocument(sessionId: string, document: DocumentInHistory) {
+export async function shareDocument(sessionId: string, document: Omit<DocumentInHistory, 'createdAt'>) {
     console.log(`📄 [ACTION DOCUMENT] - Partage du document '${document.name}' pour la session ${sessionId}`);
     try {
         if (!sessionId || !document?.url || !document?.name) {
@@ -382,19 +392,18 @@ export async function shareDocument(sessionId: string, document: DocumentInHisto
 
         const currentHistory = (session.documentHistory as DocumentInHistory[] | null) || [];
         
-        const isAlreadyInHistory = currentHistory.some(doc => doc.url === document.url);
-        
-        let updatedHistory = currentHistory;
-        if (!isAlreadyInHistory) {
-            updatedHistory = [...currentHistory, document];
-            await prisma.coursSession.update({
-                where: { id: sessionId },
-                data: { documentHistory: updatedHistory as any }
-            });
-            console.log(`  Historique des documents mis à jour en base de données.`);
-        } else {
-             console.log(`  Document déjà présent dans l'historique.`);
-        }
+        const newDocWithDate: DocumentInHistory = {
+            ...document,
+            createdAt: new Date().toISOString(),
+        };
+
+        const updatedHistory = [...currentHistory, newDocWithDate];
+
+        await prisma.coursSession.update({
+            where: { id: sessionId },
+            data: { documentHistory: updatedHistory as any }
+        });
+        console.log(`  Historique des documents mis à jour en base de données.`);
 
         const channel = `presence-session-${sessionId}`;
         const payload = {

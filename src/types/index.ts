@@ -7,10 +7,7 @@ import { TLEditorSnapshot } from "@tldraw/tldraw";
 
 export type ClassroomWithDetails = Classroom & { eleves: (User & { etat: EtatEleve | null })[] };
 
-export type DocumentInHistory = {
-  name: string;
-  url: string;
-};
+export type DocumentInHistory = PrismaDocumentInHistory;
 
 // Types pour Pusher
  export interface PusherMember {

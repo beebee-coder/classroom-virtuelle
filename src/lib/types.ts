@@ -18,8 +18,7 @@ import type {
     TaskCategory as PrismaTaskCategory,
     TaskDifficulty as PrismaTaskDifficulty,
     ValidationType as PrismaValidationType,
-    ProgressStatus as PrismaProgressStatus,
-    DocumentInHistory as PrismaDocumentInHistory
+    ProgressStatus as PrismaProgressStatus
 } from '@prisma/client';
 
 // Exporter les enums directement depuis Prisma
@@ -32,6 +31,14 @@ export {
     PrismaProgressStatus as ProgressStatus
 };
 
+// Type défini manuellement car il n'est pas un modèle Prisma
+export type DocumentInHistory = {
+  name: string;
+  url: string;
+  createdAt: string; // ou Date
+};
+
+
 // Exporter les types de modèles de base
 export type User = PrismaUser;
 export type Classroom = PrismaClassroom;
@@ -43,7 +50,6 @@ export type Reaction = PrismaReaction;
 export type Message = PrismaMessage;
 export type Announcement = PrismaAnnouncement;
 export type EtatEleve = PrismaEtatEleve;
-export type DocumentInHistory = PrismaDocumentInHistory;
 
 
 // Types complexes qui étaient basés sur les relations Prisma
