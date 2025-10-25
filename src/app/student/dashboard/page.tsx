@@ -2,7 +2,8 @@
 import { Header } from '@/components/Header';
 import { notFound, redirect } from 'next/navigation';
 import { CareerThemeWrapper } from '@/components/CareerThemeWrapper';
-import { getAuthSession } from '@/lib/session';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { ChatSheet } from '@/components/ChatSheet';
 import { getStudentAnnouncements } from '@/lib/actions/announcement.actions';
 import { getStudentData } from '@/lib/actions/student.actions';
@@ -27,7 +28,7 @@ export default async function StudentDashboardPage() {
   console.log('🧑‍🎓 [PAGE] - Chargement du tableau de bord élève.');
 
   try {
-    const session = await getAuthSession();
+    const session = await getServerSession(authOptions);
     if (!session?.user?.id || session.user.role !== 'ELEVE') {
       redirect('/login');
     }

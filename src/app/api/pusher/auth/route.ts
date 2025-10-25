@@ -1,6 +1,7 @@
 // src/app/api/pusher/auth/route.ts
 import { NextResponse } from 'next/server';
-import { getAuthSession } from '@/lib/session';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { authenticateUser } from '@/lib/pusher/server';
 import type { Role } from '@prisma/client';
 
@@ -12,7 +13,7 @@ export async function POST(request: Request) {
     const channel = body.get('channel_name') as string;
     console.log(`  Socket ID: ${socketId}, Channel: ${channel}`);
 
-    const session = await getAuthSession();
+    const session = await getServerSession(authOptions);
 
     if (!session || !session.user) {
         console.error('❌ [API PUSHER AUTH] - Échec : Aucune session utilisateur trouvée.');

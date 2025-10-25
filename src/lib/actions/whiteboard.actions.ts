@@ -2,7 +2,8 @@
 'use server';
 
 import { pusherTrigger } from '@/lib/pusher/server';
-import { getAuthSession } from '../session';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { revalidatePath } from 'next/cache';
 
 /**
@@ -12,7 +13,7 @@ import { revalidatePath } from 'next/cache';
  */
 export async function broadcastWhiteboardUpdate(sessionId: string, snapshot: any) {
   try {
-    const session = await getAuthSession();
+    const session = await getServerSession(authOptions);
     
     if (!session?.user) {
       console.error('❌ [ACTION WHITEBOARD] - Tentative de diffusion non autorisée (pas de session).');
@@ -44,7 +45,7 @@ export async function broadcastWhiteboardUpdate(sessionId: string, snapshot: any
  */
 export async function broadcastWhiteboardController(sessionId: string, controllerId: string) {
   try {
-    const session = await getAuthSession();
+    const session = await getServerSession(authOptions);
     if (session?.user?.role !== 'PROFESSEUR') {
       console.error('❌ [ACTION WHITEBOARD] - Seul le professeur peut changer le contrôleur.');
       throw new Error('Unauthorized');

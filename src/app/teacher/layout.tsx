@@ -3,7 +3,8 @@ import { Header } from '@/components/Header';
 import Menu from '@/components/Menu';
 import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { getTasksForProfessorValidation } from '@/lib/actions/teacher.actions';
-import { getAuthSession } from '@/lib/session';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/lib/prisma';
 import { redirect } from 'next/navigation';
 import { ChatSheet } from '@/components/ChatSheet';
@@ -14,7 +15,7 @@ export default async function TeacherLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getAuthSession();
+  const session = await getServerSession(authOptions);
   if (!session?.user || session.user.role !== 'PROFESSEUR') {
     redirect('/login');
   }

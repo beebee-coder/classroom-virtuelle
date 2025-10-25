@@ -1,6 +1,7 @@
 // src/lib/pusher/client.ts
 'use client';
 import PusherClient from 'pusher-js';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 // Fallback to a dummy key if the real key is not set.
 const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY || 'dummy-key';

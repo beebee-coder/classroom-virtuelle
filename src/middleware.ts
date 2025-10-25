@@ -1,12 +1,12 @@
 // src/middleware.ts
-import { withAuth } from 'next-auth/middleware';
+import { withAuth, NextAuthMiddlewareOptions } from 'next-auth/middleware';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { NextApiRequest } from 'next';
 
 export default withAuth(
-  function middleware(req: NextRequest) {
-    // Le token est disponible via le contexte de withAuth
-    const token = (req as any).nextauth?.token;
+  function middleware(req: NextRequest & { nextauth: { token: any } }) {
+    const token = req.nextauth.token;
     const { pathname } = req.nextUrl;
     const userRole = token?.role;
 
@@ -32,9 +32,6 @@ export default withAuth(
     return NextResponse.next();
   },
   {
-    pages: {
-      signIn: '/login', // Spécifier la page de connexion personnalisée
-    },
     callbacks: {
       authorized: ({ token }) => !!token,
     },

@@ -1,6 +1,7 @@
 // src/app/session/[id]/page.tsx - Version avec base de données
 import { notFound, redirect } from 'next/navigation';
-import { getAuthSession } from '@/lib/session';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import SessionClient from '@/components/SessionClient';
 import { Suspense } from 'react';
 import { getSessionDetails } from '@/lib/actions/session.actions';
@@ -31,7 +32,7 @@ export default async function SessionPage({ params }: { params: { id: string } }
         notFound();
     }
 
-    const authSession = await getAuthSession();
+    const authSession = await getServerSession(authOptions);
     
     if (!authSession?.user) {
         console.log('🔐 [SESSION PAGE] - Aucun utilisateur authentifié, redirection vers /login.');
@@ -110,5 +111,3 @@ export default async function SessionPage({ params }: { params: { id: string } }
         </Suspense>
     );
 }
-
-    

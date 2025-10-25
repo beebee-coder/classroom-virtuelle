@@ -1,7 +1,8 @@
 //src/app/student/class/[id]/page.tsx
 
 import { notFound, redirect } from 'next/navigation';
-import { getAuthSession } from '@/lib/session';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { Header } from '@/components/Header';
 import { StudentClassView } from '@/components/StudentClassView';
 import type { User, Classroom, EtatEleve } from '@prisma/client';
@@ -14,7 +15,7 @@ export type ClassroomWithStudents = Classroom & {
 };
 
 export default async function StudentClassPage({ params }: { params: { id: string } }) {
-  const session = await getAuthSession();
+  const session = await getServerSession(authOptions);
   if (!session?.user) {
     redirect('/login');
   }

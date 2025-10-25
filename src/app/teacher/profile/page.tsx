@@ -2,13 +2,14 @@
 import { BackButton } from "@/components/BackButton";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { getAuthSession } from "@/lib/session";
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { Users, Book, Video, Clock } from "lucide-react";
 import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
 
 export default async function TeacherProfilePage() {
-  const session = await getAuthSession();
+  const session = await getServerSession(authOptions);
   if (!session?.user || session.user.role !== 'PROFESSEUR') {
       redirect('/login');
   }

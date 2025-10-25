@@ -1,13 +1,14 @@
 // src/app/teacher/tasks/page.tsx
 import { TaskEditor } from "@/components/TaskEditor";
 import { BackButton } from "@/components/BackButton";
-import { getAuthSession } from "@/lib/session";
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
 import type { Task } from "@prisma/client";
 
 export default async function TasksPage() {
-  const session = await getAuthSession();
+  const session = await getServerSession(authOptions);
   if (session?.user?.role !== 'PROFESSEUR') {
     redirect("/login");
   }

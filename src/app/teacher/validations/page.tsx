@@ -1,6 +1,7 @@
 // src/app/teacher/validations/page.tsx
 import { BackButton } from "@/components/BackButton";
-import { getAuthSession } from "@/lib/session";
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { redirect } from "next/navigation";
 import { getTasksForProfessorValidation } from "@/lib/actions/teacher.actions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +9,7 @@ import { ValidationConsoleClient } from "./ValidationConsoleClient";
 import { CheckCircle } from "lucide-react";
 
 export default async function ProfessorValidationPage() {
-  const session = await getAuthSession();
+  const session = await getServerSession(authOptions);
   if (session?.user?.role !== "PROFESSEUR") {
     redirect("/login");
   }

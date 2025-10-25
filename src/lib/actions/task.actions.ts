@@ -2,12 +2,13 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { getAuthSession } from '../session';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '../prisma';
 import { ProgressStatus, type Task, type StudentProgress, Role } from '@prisma/client';
 
 export async function createTask(formData: FormData): Promise<Task> {
-    const session = await getAuthSession();
+    const session = await getServerSession(authOptions);
     if (session?.user?.role !== 'PROFESSEUR') {
         throw new Error('Unauthorized');
     }
@@ -30,7 +31,7 @@ export async function createTask(formData: FormData): Promise<Task> {
 }
 
 export async function updateTask(formData: FormData): Promise<Task> {
-    const session = await getAuthSession();
+    const session = await getServerSession(authOptions);
     if (session?.user?.role !== 'PROFESSEUR') {
         throw new Error('Unauthorized');
     }
@@ -57,7 +58,7 @@ export async function updateTask(formData: FormData): Promise<Task> {
 }
 
 export async function deleteTask(id: string): Promise<{ success: boolean }> {
-    const session = await getAuthSession();
+    const session = await getServerSession(authOptions);
     if (session?.user?.role !== 'PROFESSEUR') {
         throw new Error('Unauthorized');
     }
@@ -69,7 +70,7 @@ export async function deleteTask(id: string): Promise<{ success: boolean }> {
 }
 
 export async function completeTask(taskId: string, submissionUrl?: string): Promise<StudentProgress> {
-  const session = await getAuthSession();
+  const session = await getServerSession(authOptions);
   
   if (!session?.user || session.user.role !== Role.ELEVE) {
     throw new Error("Authentification élève requise.");

@@ -1,7 +1,8 @@
 // src/lib/actions/chat.actions.ts
 'use server';
 
-import { getAuthSession } from '@/lib/session';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { pusherTrigger } from '@/lib/pusher/server';
 import prisma from '@/lib/prisma';
 import type { Message, Reaction, User } from '@prisma/client';
@@ -32,7 +33,7 @@ export async function getMessages(classroomId: string): Promise<MessageWithReact
 }
 
 export async function sendMessage(formData: FormData): Promise<MessageWithReactions> {
-    const session = await getAuthSession();
+    const session = await getServerSession(authOptions);
     if (!session?.user?.id) throw new Error('Unauthorized');
     
     const senderId = session.user.id;
@@ -63,7 +64,7 @@ export async function sendMessage(formData: FormData): Promise<MessageWithReacti
 }
 
 export async function toggleReaction(messageId: string, emoji: string) {
-    const session = await getAuthSession();
+    const session = await getServerSession(authOptions);
     if (!session?.user?.id) throw new Error('Unauthorized');
     
     const userId = session.user.id;
@@ -92,7 +93,7 @@ export async function toggleReaction(messageId: string, emoji: string) {
 }
 
 export async function deleteChatHistory(classroomId: string) {
-    const session = await getAuthSession();
+    const session = await getServerSession(authOptions);
     if (session?.user?.role !== 'PROFESSEUR') throw new Error('Unauthorized');
 
     console.log(`🗑️ [ACTION] Effacement de l'historique du chat pour la classe ${classroomId}.`);

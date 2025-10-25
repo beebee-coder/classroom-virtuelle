@@ -2,7 +2,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, CheckCircle, Megaphone } from 'lucide-react';
 import Link from 'next/link';
-import { getAuthSession } from '@/lib/session';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { getTasksForProfessorValidation } from '@/lib/actions/teacher.actions';
 import { redirect } from 'next/navigation';
 import prisma from '@/lib/prisma';
@@ -12,7 +13,7 @@ import { CreateAnnouncementForm } from '@/components/CreateAnnouncementForm';
 export default async function TeacherDashboardPage() {
   console.log('👨‍🏫 [PAGE] - Chargement du tableau de bord professeur.');
 
-  const session = await getAuthSession();
+  const session = await getServerSession(authOptions);
   if (!session || !session.user || session.user.role !== 'PROFESSEUR') {
     console.log('  Redirection vers /login, utilisateur non authentifié ou rôle incorrect.');
     redirect('/login');
