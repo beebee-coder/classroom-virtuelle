@@ -18,7 +18,11 @@ import { Loader2, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { resetAllStudentData } from '@/lib/actions/teacher.actions';
 
-export function ResetButton() {
+interface ResetButtonProps {
+    children?: React.ReactNode;
+}
+
+export function ResetButton({ children }: ResetButtonProps) {
   const [isResetting, setIsResetting] = useState(false);
   const { toast } = useToast();
 
@@ -44,10 +48,12 @@ export function ResetButton() {
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button variant="destructive">
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Remise à zéro
-        </Button>
+        {children ? <button className="flex w-full items-center gap-2 text-left">{children}</button> : (
+            <Button variant="destructive">
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Remise à zéro
+            </Button>
+        )}
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>

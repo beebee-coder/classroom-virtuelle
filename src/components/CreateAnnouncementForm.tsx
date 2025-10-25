@@ -34,9 +34,10 @@ function SubmitButton() {
 
 interface CreateAnnouncementFormProps {
     classrooms: { id: string; nom: string }[];
+    children?: React.ReactNode;
 }
 
-export function CreateAnnouncementForm({ classrooms }: CreateAnnouncementFormProps) {
+export function CreateAnnouncementForm({ classrooms, children }: CreateAnnouncementFormProps) {
     const [open, setOpen] = useState(false);
     const formRef = useRef<HTMLFormElement>(null);
     const { toast } = useToast();
@@ -62,10 +63,12 @@ export function CreateAnnouncementForm({ classrooms }: CreateAnnouncementFormPro
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button variant="outline">
-                    <Megaphone className="mr-2" />
-                    Créer une annonce
-                </Button>
+                {children ? <button className="flex w-full items-center gap-2 text-left">{children}</button> : (
+                    <Button variant="outline">
+                        <Megaphone className="mr-2" />
+                        Créer une annonce
+                    </Button>
+                )}
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>

@@ -67,14 +67,20 @@ const Menu: React.FC<MenuProps> = ({ user, classrooms = [], validationCount = 0 
             </div>
 
             {visibleItems.map((item, index) => {
+               const Icon = item.icon;
+               const colorClass = colorClasses[index % colorClasses.length];
+
                if (item.component) {
                  const Comp = item.component;
                  // Pass necessary props to dynamic components
                  const compProps = item.label === "Créer une Annonce" ? { classrooms } : {};
                  return (
-                    // Ne pas appliquer de colorClass ici pour les composants
-                    <div key={item.label} className={cn(styles.button, "justify-center !bg-transparent hover:!shadow-none !text-[#ccc] hover:!text-white")}>
-                       <Comp {...compProps} />
+                    <div key={item.label} className={cn(styles.button, colorClass)}>
+                       <Comp {...compProps}>
+                         {/* Le composant enfant (Button) doit être stylisé */}
+                         {Icon && <Icon />}
+                         <span>{item.label}</span>
+                       </Comp>
                     </div>
                  )
               }
@@ -82,8 +88,6 @@ const Menu: React.FC<MenuProps> = ({ user, classrooms = [], validationCount = 0 
               if (item.href && item.icon) {
                 const href = typeof item.href === 'function' ? item.href(user) : item.href;
                 const isActive = pathname === href;
-                const Icon = item.icon;
-                const colorClass = colorClasses[index % colorClasses.length];
                 
                 return (
                   <Link

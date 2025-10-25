@@ -61,11 +61,13 @@ export const menuItems = [
             { 
                 label: "Créer une Annonce", 
                 component: CreateAnnouncementForm,
+                icon: Megaphone,
                 roles: ['PROFESSEUR'],
             },
             {
                 label: "Remise à zéro",
                 component: ResetButton,
+                icon: RefreshCw,
                 roles: ['PROFESSEUR'],
             }
         ]
