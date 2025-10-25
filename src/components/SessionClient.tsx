@@ -486,7 +486,7 @@ export default function SessionClient({
         activeTool={activeTool}
         onToolChange={handleToolChange}
       />
-      <main className="flex-1 flex flex-col min-h-0 container mx-auto w-full">
+     <main className="flex-1 flex flex-col min-h-0 w-full px-2">
         <PermissionPrompt />
         {currentUserRole === 'PROFESSEUR' ? (
           <TeacherSessionView

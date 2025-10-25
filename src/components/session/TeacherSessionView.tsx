@@ -1,6 +1,8 @@
 // src/components/session/TeacherSessionView.tsx
 'use client';
 
+import { useState, type ReactNode } from 'react';
+import { motion, AnimatePresence, AnimateSharedLayout } from 'framer-motion';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { User, Role, SessionParticipant, ClassroomWithDetails, DocumentInHistory } from '@/lib/types';
 import { Participant } from '@/components/Participant';
@@ -220,86 +222,156 @@ export function TeacherSessionView({
     const allParticipants = [teacher, ...students];
 
     return (
-        <div className="flex-1 flex flex-col min-h-0 py-6">
+        <div className="flex-1 flex min-h-0 min-w-0">
             {/* Main content area */}
-            <div className="flex-1 flex min-h-0 gap-6">
-                {/* --- Colonne Principale : Espace de travail --- */}
-                <div className="flex-1 flex flex-col min-w-0">
-                    <div className="flex-1 min-h-0 relative">
-                        {renderActiveTool()}
-                    </div>
+            <div className="flex-1 flex flex-col min-h-0 min-w-0">
+                 <div className="flex-1 min-h-0 relative">
+                    {renderActiveTool()}
                 </div>
+                 {/* Video marquee at the bottom */}
+                <div className="w-full overflow-hidden relative mt-6">
+                    <div className="marquee-container flex space-x-4 px-2 hover:[animation-play-state:paused]">
+                        {allParticipants.map(p => (
+                            <div key={p.id} className="w-48 flex-shrink-0">
+                                {renderParticipant(p)}
+                            </div>
+                        ))}
+                        {allParticipants.map(p => (
+                            <div key={`${p.id}-duplicate`} className="w-48 flex-shrink-0" aria-hidden="true">
+                                {renderParticipant(p, true)}
+                            </div>
+                        ))}
+                    </div>
+                    <div className="absolute inset-y-0 bg-gradient-to-r from-background via-transparent to-background pointer-events-none w-full" />
+                </div>
+            </div>
 
-                {/* --- Colonne de Droite : Outils Interactifs --- */}
-                <div className="w-72 flex flex-col gap-4 min-h-0">
-                    <ScrollArea className='h-full'>
-                        <div className='space-y-4 pr-3'>
-                             {activeTool === 'document' && (
-                                <Card>
-                                    <CardContent className="p-4">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <h4 className="font-semibold">Partager un document</h4>
+            {/* --- Colonne de Droite : Outils Interactifs --- */}
+            <div className="w-80 flex-shrink-0">
+                <AnimateSharedLayout>
+                    <motion.div layout className="h-full flex flex-col gap-4">
+                        <ScrollArea className="flex-1 pr-3 -mr-3">
+                            <div className="space-y-4">
+                                {activeTool === 'document' && (
+                                    <AnimatedCard title="Partager un document">
+                                        <div className="flex justify-between items-center">
+                                            <h4 className="font-semibold">Téléverser</h4>
                                             <CloudinaryUploadWidget onUpload={handleDocumentUpload}>
                                                 {({ open }) => (
                                                     <Button onClick={() => open()} variant="outline" size="sm">
                                                         <UploadCloud className="mr-2" />
-                                                        Téléverser
+                                                        Choisir
                                                     </Button>
                                                 )}
                                             </CloudinaryUploadWidget>
                                         </div>
-                                    </CardContent>
-                                </Card>
-                            )}
-                            <SessionTimer
-                                isTeacher={true}
-                                sessionId={sessionId}
-                                initialDuration={initialDuration}
-                                timeLeft={timerTimeLeft}
-                                isTimerRunning={isTimerRunning}
-                                onStart={onStartTimer}
-                                onPause={onPauseTimer}
-                                onReset={onResetTimer}
-                            />
-                            <SessionStatus 
-                                participants={allSessionUsers as User[]}
-                                onlineIds={onlineUserIds}
-                                webrtcConnections={remoteParticipants.length}
-                                whiteboardControllerId={whiteboardControllerId}
-                            />
-                            {classroom && (
-                                <ClassStudentList 
-                                    classroom={classroom}
-                                    onlineUserIds={onlineUserIds}
-                                    currentUserId={currentUserId}
-                                    activeParticipantIds={activeParticipantIds}
-                                    sessionId={sessionId}
-                                />
-                            )}
-                            <DocumentHistory documents={documentHistory} onShare={handleDocumentShare} />
-                            <UnderstandingTracker students={students} understandingStatus={understandingStatus} />
-                            <HandRaiseController sessionId={sessionId} raisedHands={studentsWithRaisedHands} />
-                        </div>
-                    </ScrollArea>
-                </div>
-            </div>
-
-            {/* Bandeau de vidéos en défilement continu en bas */}
-            <div className="w-full overflow-hidden relative mt-6">
-                <div className="marquee-container flex space-x-4 px-2 hover:[animation-play-state:paused]">
-                    {allParticipants.map(p => (
-                        <div key={p.id} className="w-48 flex-shrink-0">
-                            {renderParticipant(p)}
-                        </div>
-                    ))}
-                    {allParticipants.map(p => (
-                        <div key={`${p.id}-duplicate`} className="w-48 flex-shrink-0" aria-hidden="true">
-                            {renderParticipant(p, true)}
-                        </div>
-                    ))}
-                </div>
-                <div className="absolute inset-y-0 bg-gradient-to-r from-background via-transparent to-background pointer-events-none w-full" />
+                                    </AnimatedCard>
+                                )}
+                                <AnimatedCard title="Minuteur">
+                                    <SessionTimer
+                                        isTeacher={true}
+                                        sessionId={sessionId}
+                                        initialDuration={initialDuration}
+                                        timeLeft={timerTimeLeft}
+                                        isTimerRunning={isTimerRunning}
+                                        onStart={onStartTimer}
+                                        onPause={onPauseTimer}
+                                        onReset={onResetTimer}
+                                    />
+                                </AnimatedCard>
+                                <AnimatedCard title="Statut de la Session">
+                                    <SessionStatus 
+                                        participants={allSessionUsers as User[]}
+                                        onlineIds={onlineUserIds}
+                                        webrtcConnections={remoteParticipants.length}
+                                        whiteboardControllerId={whiteboardControllerId}
+                                    />
+                                </AnimatedCard>
+                                 {classroom && (
+                                     <AnimatedCard title={`Classe ${classroom.nom}`}>
+                                        <ClassStudentList 
+                                            classroom={classroom}
+                                            onlineUserIds={onlineUserIds}
+                                            currentUserId={currentUserId}
+                                            activeParticipantIds={activeParticipantIds}
+                                            sessionId={sessionId}
+                                        />
+                                    </AnimatedCard>
+                                )}
+                                <AnimatedCard title="Historique des Documents">
+                                    <DocumentHistory documents={documentHistory} onShare={handleDocumentShare} />
+                                </AnimatedCard>
+                                <AnimatedCard title="Suivi de la Compréhension">
+                                    <UnderstandingTracker students={students} understandingStatus={understandingStatus} />
+                                </AnimatedCard>
+                                <AnimatedCard title="Mains Levées">
+                                    <HandRaiseController sessionId={sessionId} raisedHands={studentsWithRaisedHands} />
+                                </AnimatedCard>
+                            </div>
+                        </ScrollArea>
+                    </motion.div>
+                </AnimateSharedLayout>
             </div>
         </div>
+    );
+}
+
+
+// --- Composants pour le style de la barre latérale animée ---
+
+interface AnimatedCardProps {
+    children: ReactNode;
+    title: string;
+}
+
+const AnimatedCard = ({ children, title }: AnimatedCardProps) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const toggleOpen = () => setIsOpen(!isOpen);
+  
+    return (
+      <motion.div layout initial={{ borderRadius: 10 }} className="bg-card/80 backdrop-blur-sm border border-border/50">
+        <CardHeaderComponent toggleOpen={toggleOpen} title={title} />
+        <AnimatePresence>{isOpen && <CardContentComponent>{children}</CardContentComponent>}</AnimatePresence>
+      </motion.div>
+    );
+};
+
+const CardHeaderComponent = ({ toggleOpen, title }: { toggleOpen: () => void, title: string }) => {
+    return (
+      <motion.div
+        onClick={toggleOpen}
+        layout
+        initial={{ borderRadius: 10 }}
+        className="flex items-center p-3 gap-3 cursor-pointer"
+      >
+        <motion.div
+          layout
+          className="rounded-full bg-primary/20 h-6 w-6"
+        ></motion.div>
+        <motion.div
+          layout
+          className="h-6 w-1 rounded-lg bg-primary/20"
+        ></motion.div>
+        <motion.p
+          layout
+          className="flex-grow text-sm font-semibold text-foreground"
+        >
+          {title}
+        </motion.p>
+      </motion.div>
+    );
+};
+  
+function CardContentComponent({ children }: { children: ReactNode }) {
+    return (
+      <motion.div
+        layout
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="w-full p-3 pt-0"
+      >
+        {children}
+      </motion.div>
     );
 }
