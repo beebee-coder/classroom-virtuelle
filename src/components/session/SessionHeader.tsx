@@ -63,7 +63,7 @@ export function SessionHeader({
                 <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-4">
                      {isTeacher && (
                          <>
-                            <div className="flex gap-1 p-1 rounded-lg bg-muted border">
+                            <div className="flex gap-1">
                                 <TooltipProvider>
                                     {tools.map((tool) => {
                                         const Icon = tool.icon;
