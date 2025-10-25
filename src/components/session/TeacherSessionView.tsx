@@ -54,7 +54,7 @@ interface TeacherSessionViewProps {
     isTimerRunning: boolean;
     onStartTimer: () => void;
     onPauseTimer: () => void;
-    onResetTimer: () => void;
+    onResetTimer: (newDuration?: number) => void;
 }
 
 
@@ -275,20 +275,16 @@ export function TeacherSessionView({
             <div className="w-72 flex flex-col gap-4 min-h-0">
                 <ScrollArea className='h-full'>
                     <div className='space-y-4 pr-3'>
-                        <Card className='bg-background/80'>
-                             <CardContent className="p-4">
-                                <SessionTimer
-                                    isTeacher={true}
-                                    sessionId={sessionId}
-                                    initialDuration={initialDuration}
-                                    timeLeft={timerTimeLeft}
-                                    isTimerRunning={isTimerRunning}
-                                    onStart={onStartTimer}
-                                    onPause={onPauseTimer}
-                                    onReset={onResetTimer}
-                                />
-                            </CardContent>
-                        </Card>
+                        <SessionTimer
+                            isTeacher={true}
+                            sessionId={sessionId}
+                            initialDuration={initialDuration}
+                            timeLeft={timerTimeLeft}
+                            isTimerRunning={isTimerRunning}
+                            onStart={onStartTimer}
+                            onPause={onPauseTimer}
+                            onReset={onResetTimer}
+                        />
                         <SessionStatus 
                             participants={allSessionUsers as User[]}
                             onlineIds={onlineUserIds}

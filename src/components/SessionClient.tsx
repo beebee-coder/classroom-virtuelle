@@ -394,6 +394,11 @@ export default function SessionClient({
     console.log('🚪 [CLIENT] - Départ volontaire de la session.');
     router.push(currentUserRole === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard');
   }, [router, currentUserRole]);
+  
+  const handleResetTimer = (newDuration?: number) => {
+    const duration = newDuration || timerDuration;
+    broadcastTimerEvent(sessionId, 'timer-reset', { duration });
+  };
 
   const spotlightedStream = spotlightedParticipantId === currentUserId 
     ? localStream 
@@ -449,11 +454,6 @@ export default function SessionClient({
         onToggleScreenShare={toggleScreenShare}
         activeTool={activeTool}
         onToolChange={handleToolChange}
-        timerTimeLeft={timerTimeLeft}
-        isTimerRunning={isTimerRunning}
-        onStartTimer={() => broadcastTimerEvent(sessionId, 'timer-started')}
-        onPauseTimer={() => broadcastTimerEvent(sessionId, 'timer-paused')}
-        onResetTimer={() => broadcastTimerEvent(sessionId, 'timer-reset', { duration: timerDuration })}
       />
       <main className="flex-1 flex flex-col container mx-auto px-4 sm:px-6 lg:px-8 min-h-0">
         <PermissionPrompt />
@@ -483,7 +483,7 @@ export default function SessionClient({
             initialDuration={timerDuration}
             onStartTimer={() => broadcastTimerEvent(sessionId, 'timer-started')}
             onPauseTimer={() => broadcastTimerEvent(sessionId, 'timer-paused')}
-            onResetTimer={() => broadcastTimerEvent(sessionId, 'timer-reset', { duration: timerDuration })}
+            onResetTimer={handleResetTimer}
           />
         ) : (
           <StudentSessionView
@@ -501,6 +501,7 @@ export default function SessionClient({
             documentUrl={documentUrl}
             whiteboardSnapshot={whiteboardSnapshot}
             whiteboardControllerId={whiteboardControllerId}
+            timerTimeLeft={timerTimeLeft}
           />
         )}
       </main>

@@ -1,9 +1,12 @@
 // src/components/session/SessionTimer.tsx
 'use client';
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Timer, Play, Pause, RotateCcw } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
+import { Input } from "../ui/input";
 
 interface SessionTimerProps {
     sessionId: string;
@@ -13,7 +16,7 @@ interface SessionTimerProps {
     isTimerRunning: boolean;
     onStart: () => void;
     onPause: () => void;
-    onReset: () => void;
+    onReset: (newDuration?: number) => void;
 }
 
 function formatTime(seconds: number) {
@@ -23,7 +26,6 @@ function formatTime(seconds: number) {
 }
 
 export function SessionTimer({ 
-    sessionId,
     isTeacher,
     timeLeft,
     isTimerRunning,
@@ -31,45 +33,95 @@ export function SessionTimer({
     onPause,
     onReset,
 }: SessionTimerProps) {
+    const [customMinutes, setCustomMinutes] = useState<number | string>(10);
+
+    const handleSetCustomTime = () => {
+        const durationInSeconds = Number(customMinutes) * 60;
+        if (durationInSeconds > 0) {
+            onReset(durationInSeconds);
+        }
+    };
+    
+    const handlePresetClick = (minutes: number) => {
+        onReset(minutes * 60);
+        if (!isTimerRunning) {
+            onStart();
+        }
+    };
+
+    if (!isTeacher) {
+        return (
+             <Card className="bg-background/80">
+                <CardHeader className="p-4">
+                    <CardTitle className="text-base flex items-center gap-2">
+                        <Timer className="h-5 w-5" /> Minuteur
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 pt-0 text-center">
+                    <p className="text-4xl font-mono font-bold">{formatTime(timeLeft)}</p>
+                </CardContent>
+            </Card>
+        )
+    }
+
     return (
-        <div className="flex items-center gap-2 p-1 rounded-lg bg-muted border">
-            <div className="flex items-center gap-1 text-foreground px-2">
-                <Timer className="h-4 w-4" />
-                <p className="text-sm font-mono font-semibold w-14">{formatTime(timeLeft)}</p>
-            </div>
-            {isTeacher && (
-                <TooltipProvider delayDuration={100}>
-                    <div className="flex items-center gap-1">
-                        {!isTimerRunning ? (
-                             <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onStart} disabled={timeLeft === 0}>
-                                        <Play className="h-4 w-4" />
+        <Card className="bg-background/80">
+             <Accordion type="single" collapsible defaultValue="timer">
+                <AccordionItem value="timer" className="border-b-0">
+                    <AccordionTrigger className="p-6">
+                        <CardTitle className="text-base flex items-center gap-2">
+                            <Timer className="h-5 w-5" /> Minuteur de Session
+                        </CardTitle>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                        <CardContent className="space-y-4 pt-0">
+                            <div className="text-center">
+                                 <p className="text-5xl font-mono font-bold">{formatTime(timeLeft)}</p>
+                            </div>
+                           
+                            <div className="flex justify-center gap-2">
+                                {!isTimerRunning ? (
+                                    <Button onClick={onStart} disabled={timeLeft === 0} className="flex-1 bg-green-600 hover:bg-green-700">
+                                        <Play className="mr-2" /> Démarrer
                                     </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Démarrer</TooltipContent>
-                            </Tooltip>
-                        ) : (
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onPause}>
-                                        <Pause className="h-4 w-4" />
+                                ) : (
+                                    <Button onClick={onPause} className="flex-1 bg-yellow-500 hover:bg-yellow-600">
+                                        <Pause className="mr-2" /> Pause
                                     </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Pauser</TooltipContent>
-                            </Tooltip>
-                        )}
-                         <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onReset}>
-                                    <RotateCcw className="h-4 w-4" />
+                                )}
+                                <Button onClick={() => onReset()} variant="outline">
+                                    <RotateCcw className="mr-2" /> Réinitialiser
                                 </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Réinitialiser</TooltipContent>
-                        </Tooltip>
-                    </div>
-                </TooltipProvider>
-            )}
-        </div>
+                            </div>
+                            
+                            <div className="space-y-2">
+                                <p className="text-xs font-medium text-muted-foreground">Préréglages</p>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {[5, 10, 15].map(min => (
+                                        <Button key={min} variant="secondary" size="sm" onClick={() => handlePresetClick(min)}>
+                                            {min} min
+                                        </Button>
+                                    ))}
+                                </div>
+                            </div>
+                            
+                            <div className="space-y-2">
+                                 <p className="text-xs font-medium text-muted-foreground">Personnalisé (minutes)</p>
+                                <div className="flex gap-2">
+                                    <Input 
+                                        type="number" 
+                                        value={customMinutes}
+                                        onChange={(e) => setCustomMinutes(e.target.value)}
+                                        placeholder="Minutes"
+                                        className="w-full"
+                                    />
+                                    <Button onClick={handleSetCustomTime}>Appliquer</Button>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </AccordionContent>
+                </AccordionItem>
+            </Accordion>
+        </Card>
     );
 }

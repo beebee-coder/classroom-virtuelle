@@ -19,11 +19,6 @@ interface SessionHeaderProps {
     onToggleScreenShare: () => void;
     activeTool: string;
     onToolChange: (tool: string) => void;
-    timerTimeLeft: number;
-    isTimerRunning: boolean;
-    onStartTimer: () => void;
-    onPauseTimer: () => void;
-    onResetTimer: () => void;
 }
 
 const tools = [

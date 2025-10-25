@@ -13,6 +13,7 @@ import { DocumentViewer } from '../DocumentViewer';
 import { TLEditorSnapshot } from '@tldraw/tldraw';
 import { broadcastWhiteboardUpdate } from '@/lib/actions';
 import { ScrollArea } from '../ui/scroll-area';
+import { SessionTimer } from './SessionTimer';
 
 interface StudentSessionViewProps {
     sessionId: string;
@@ -29,6 +30,7 @@ interface StudentSessionViewProps {
     documentUrl: string | null;
     whiteboardSnapshot: TLEditorSnapshot | null;
     whiteboardControllerId: string | null;
+    timerTimeLeft: number;
 }
 
 export function StudentSessionView({
@@ -42,10 +44,11 @@ export function StudentSessionView({
     onLeaveSession,
     currentUnderstanding,
     currentUserId,
-    activeTool,
+activeTool,
     documentUrl,
     whiteboardSnapshot,
     whiteboardControllerId,
+    timerTimeLeft
 }: StudentSessionViewProps) {
     const { toast } = useToast();
 
@@ -137,6 +140,16 @@ export function StudentSessionView({
                     displayName="Vous"
                     isHandRaised={isHandRaised}
                     isWhiteboardController={currentUserId === whiteboardControllerId}
+                />
+                 <SessionTimer
+                    isTeacher={false}
+                    sessionId={sessionId}
+                    timeLeft={timerTimeLeft}
+                    isTimerRunning={false}
+                    initialDuration={0}
+                    onStart={() => {}}
+                    onPause={() => {}}
+                    onReset={() => {}}
                 />
                 <ScrollArea className="flex-1">
                     <div className="pr-4">
