@@ -36,7 +36,7 @@ function SubmitButton() {
 interface CreateAnnouncementFormProps {
     classrooms: { id: string; nom: string }[];
     children?: React.ReactNode;
-    className?: string; // Ajout pour accepter une classe externe
+    className?: string;
 }
 
 export function CreateAnnouncementForm({ classrooms, children, className }: CreateAnnouncementFormProps) {
@@ -62,11 +62,8 @@ export function CreateAnnouncementForm({ classrooms, children, className }: Crea
         }
     }
 
-    const trigger = children ? (
-        // Si un enfant est fourni (ex: depuis le menu), on le clone pour y attacher l'ouverture du dialogue
-        React.cloneElement(children as React.ReactElement, { className })
-    ) : (
-        // Sinon, on utilise un bouton par défaut
+    // Le trigger est soit l'enfant fourni, soit un bouton par défaut.
+    const trigger = children || (
         <Button variant="outline" className={className}>
             <Megaphone className="mr-2" />
             Créer une annonce
@@ -75,7 +72,7 @@ export function CreateAnnouncementForm({ classrooms, children, className }: Crea
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
+            <DialogTrigger asChild className={className}>
                 {trigger}
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">

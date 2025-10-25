@@ -74,32 +74,22 @@ const Menu: React.FC<MenuProps> = ({ user, classrooms = [], validationCount = 0 
 
                if (item.component) {
                  const Comp = item.component;
-                 const compProps: {classrooms?: any, className?: string} = {};
+                 const compProps: {classrooms?: any, children?: React.ReactNode, className?: string} = {};
+
                  if (item.label === "Créer une Annonce") {
                     compProps.classrooms = classrooms;
                  }
 
+                 // Pour les dialogues, on passe le bouton comme `children`
                  if (item.isDialog) {
-                    // Pour les dialogues, nous passons le style du bouton via les props
-                    // pour éviter d'imbriquer un bouton dans un autre.
-                    compProps.className = cn(styles.button, colorClass);
-                    return (
-                        <Comp key={item.label} {...compProps}>
-                             <Icon />
-                             <span>{item.label}</span>
-                        </Comp>
-                    )
+                    compProps.children = (
+                      <button className={cn(styles.button, colorClass)}>
+                        {Icon && <Icon />}
+                        <span>{item.label}</span>
+                      </button>
+                    );
+                    return <Comp key={item.label} {...compProps} />;
                  }
-
-                 // Pour les autres composants (non-dialogue)
-                 return (
-                    <div key={item.label} className={cn(styles.button, colorClass)}>
-                       <Comp {...compProps}>
-                         <Icon />
-                         <span>{item.label}</span>
-                       </Comp>
-                    </div>
-                 )
               }
               
               if (item.href && Icon) {

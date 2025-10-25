@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils';
 
 interface ResetButtonProps {
     children?: React.ReactNode;
-    className?: string; // Ajout pour accepter une classe externe
+    className?: string;
 }
 
 export function ResetButton({ children, className }: ResetButtonProps) {
@@ -47,10 +47,7 @@ export function ResetButton({ children, className }: ResetButtonProps) {
     }
   };
 
-  const trigger = children ? (
-    // Si un enfant est fourni (ex: depuis le menu), on le clone pour y attacher l'ouverture du dialogue
-     React.cloneElement(children as React.ReactElement, { className })
-  ) : (
+  const trigger = children || (
     <Button variant="destructive" className={className}>
       <RefreshCw className="mr-2 h-4 w-4" />
       Remise à zéro
@@ -59,7 +56,7 @@ export function ResetButton({ children, className }: ResetButtonProps) {
 
   return (
     <AlertDialog>
-      <AlertDialogTrigger asChild>
+      <AlertDialogTrigger asChild className={className}>
         {trigger}
       </AlertDialogTrigger>
       <AlertDialogContent>
