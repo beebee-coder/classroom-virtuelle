@@ -215,7 +215,7 @@ export function TeacherSessionView({
     };
 
     return (
-        <div className="flex-1 flex min-h-0 py-6 gap-4">
+        <div className="flex-1 flex min-h-0 py-6 gap-4 min-w-0">
             {/* --- Colonne Principale : Espace de travail & Vidéos --- */}
             <div className="flex-1 flex flex-col gap-4 min-w-0">
                 {/* Espace de contenu : Tableau blanc ou Partage d'écran */}
