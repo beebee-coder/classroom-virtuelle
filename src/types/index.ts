@@ -3,7 +3,7 @@ import { ComprehensionLevel } from "@/components/StudentSessionControls";
 // Importer les types depuis notre source de vérité unique
 import type { User, Role, Classroom, EtatEleve } from '@/lib/types';
 import type { Instance as PeerInstance, SignalData as PeerSignalData } from 'simple-peer';
-import { TLStoreSnapshot } from "@tldraw/tldraw";
+import { TLEditorSnapshot } from "@tldraw/tldraw";
 
 export type ClassroomWithDetails = Classroom & { eleves: (User & { etat: EtatEleve | null })[] };
 
@@ -97,7 +97,7 @@ export type DocumentInHistory = {
 
   export interface WhiteboardUpdateEvent {
     senderId: string;
-    snapshot: TLStoreSnapshot;
+    snapshot: TLEditorSnapshot;
   }
 
   export interface WhiteboardControllerEvent {

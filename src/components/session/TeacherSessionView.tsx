@@ -2,7 +2,7 @@
 'use client';
 
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { User, Role, SessionParticipant, ClassroomWithDetails, DocumentInHistory } from '@/lib/types';
+import { User, Role, SessionParticipant, ClassroomWithDetails } from '@/lib/types';
 import { Participant } from '@/components/Participant';
 import { StudentPlaceholder } from '../StudentPlaceholder';
 import { HandRaiseController } from '../HandRaiseController';
@@ -25,7 +25,7 @@ import {
 import { CloudinaryUploadWidget } from '../CloudinaryUploadWidget';
 import { Button } from '../ui/button';
 import { shareDocument, broadcastWhiteboardUpdate, broadcastWhiteboardController } from '@/lib/actions';
-import { TLStoreSnapshot } from '@tldraw/tldraw';
+import { TLEditorSnapshot } from '@tldraw/tldraw';
 import { SessionStatus } from './SessionStatus';
 
 
@@ -100,7 +100,7 @@ export function TeacherSessionView({
         shareDocument(sessionId, doc);
     }
 
-    const handleWhiteboardPersist = (snapshot: TLStoreSnapshot) => {
+    const handleWhiteboardPersist = (snapshot: TLEditorSnapshot) => {
         broadcastWhiteboardUpdate(sessionId, snapshot);
     }
 

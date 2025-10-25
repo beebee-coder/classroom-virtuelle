@@ -10,7 +10,7 @@ import { updateStudentSessionStatus } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Whiteboard } from '../Whiteboard';
 import { DocumentViewer } from '../DocumentViewer';
-import { TLStoreSnapshot } from '@tldraw/tldraw';
+import { TLEditorSnapshot } from '@tldraw/tldraw';
 import { broadcastWhiteboardUpdate } from '@/lib/actions';
 import { ScrollArea } from '../ui/scroll-area';
 
@@ -27,7 +27,7 @@ interface StudentSessionViewProps {
     currentUserId: string;
     activeTool: string;
     documentUrl: string | null;
-    whiteboardSnapshot: TLStoreSnapshot | null;
+    whiteboardSnapshot: TLEditorSnapshot | null;
     whiteboardControllerId: string | null;
 }
 
@@ -71,7 +71,7 @@ export function StudentSessionView({
         }
     };
 
-    const handleWhiteboardPersist = (snapshot: TLStoreSnapshot) => {
+    const handleWhiteboardPersist = (snapshot: TLEditorSnapshot) => {
         // Seul l'élève contrôleur peut diffuser ses changements
         if (currentUserId === whiteboardControllerId) {
             broadcastWhiteboardUpdate(sessionId, snapshot);
