@@ -1,10 +1,9 @@
-
 // src/app/login/page.tsx
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { signIn } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -20,8 +19,10 @@ import Image from 'next/image';
 function LoginFormComponent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const errorParam = searchParams.get('error');
-
+  const { data: session, status } = useSession();
+  
+  const callbackUrlParam = searchParams.get('callbackUrl');
+  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -29,31 +30,38 @@ function LoginFormComponent() {
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   
   useEffect(() => {
+    const errorParam = searchParams.get('error');
     if (errorParam === 'CredentialsSignin') {
       setError("Identifiants incorrects. Vérifiez l'email et le mot de passe (le mot de passe par défaut est 'password').");
     } else if (errorParam) {
       setError("Une erreur de connexion est survenue. Veuillez réessayer.");
     }
-  }, [errorParam]);
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
-    const result = await signIn('credentials', {
-      redirect: false,
-      email: email,
-      password: password,
-    });
+    try {
+      const result = await signIn('credentials', {
+        email: email,
+        password: password,
+        redirect: false,
+      });
 
-    setLoading(false);
-
-    if (result?.error) {
-      setError("Identifiants incorrects. Assurez-vous d'utiliser les comptes de démo (ex: teacher@example.com ou ahmed0@example.com avec le mot de passe 'password').");
-    } else if (result?.ok) {
-      // Redirection gérée par le middleware après rechargement
-      router.refresh();
+      if (result?.error) {
+        setError("Identifiants incorrects. Assurez-vous d'utiliser les comptes de démo (ex: teacher@example.com ou ahmed0@example.com avec le mot de passe 'password').");
+        setLoading(false);
+      } else if (result?.ok) {
+        // La redirection sera gérée par le useEffect ci-dessous après la mise à jour de la session
+        // On force un rechargement pour que la session soit bien prise en compte par le middleware.
+        window.location.href = callbackUrlParam || (selectedRole === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard');
+      }
+    } catch (error) {
+      console.error('❌ [LOGIN] Erreur lors de la connexion:', error);
+      setError("Une erreur inattendue est survenue. Veuillez réessayer.");
+      setLoading(false);
     }
   };
 
@@ -184,7 +192,7 @@ export default function LoginPage() {
         </div>
         
         {/* Envelopper le composant qui utilise useSearchParams dans Suspense */}
-        <Suspense fallback={<div className="text-center text-white">Chargement...</div>}>
+        <Suspense fallback={<div className="text-center">Chargement...</div>}>
           <LoginFormComponent />
         </Suspense>
       </div>
