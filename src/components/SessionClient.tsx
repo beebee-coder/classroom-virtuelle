@@ -447,12 +447,6 @@ export default function SessionClient({
         isEndingSession={isEndingSession}
         isSharingScreen={!!screenStream}
         onToggleScreenShare={toggleScreenShare}
-        initialDuration={timerDuration}
-        timerTimeLeft={timerTimeLeft}
-        isTimerRunning={isTimerRunning}
-        onStartTimer={() => broadcastTimerEvent(sessionId, 'timer-started')}
-        onPauseTimer={() => broadcastTimerEvent(sessionId, 'timer-paused')}
-        onResetTimer={() => broadcastTimerEvent(sessionId, 'timer-reset', { duration: timerDuration })}
       />
       <main className="flex-1 flex flex-col container mx-auto px-4 sm:px-6 lg:px-8 min-h-0">
         <PermissionPrompt />
@@ -477,6 +471,12 @@ export default function SessionClient({
             documentUrl={documentUrl}
             whiteboardControllerId={whiteboardControllerId}
             onWhiteboardControllerChange={handleWhiteboardControllerChange}
+            initialDuration={timerDuration}
+            timerTimeLeft={timerTimeLeft}
+            isTimerRunning={isTimerRunning}
+            onStartTimer={() => broadcastTimerEvent(sessionId, 'timer-started')}
+            onPauseTimer={() => broadcastTimerEvent(sessionId, 'timer-paused')}
+            onResetTimer={() => broadcastTimerEvent(sessionId, 'timer-reset', { duration: timerDuration })}
           />
         ) : (
           <StudentSessionView

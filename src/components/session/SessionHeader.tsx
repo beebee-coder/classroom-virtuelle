@@ -4,7 +4,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, PhoneOff } from "lucide-react";
-import { SessionTimer } from "./SessionTimer";
 import { useCallback } from "react";
 import { VideoControls } from "../VideoControls";
 
@@ -16,12 +15,6 @@ interface SessionHeaderProps {
     isEndingSession?: boolean;
     isSharingScreen: boolean;
     onToggleScreenShare: () => void;
-    initialDuration: number;
-    timerTimeLeft: number;
-    isTimerRunning: boolean;
-    onStartTimer: () => void;
-    onPauseTimer: () => void;
-    onResetTimer: () => void;
 }
 
 export function SessionHeader({ 
@@ -32,12 +25,6 @@ export function SessionHeader({
     isEndingSession = false,
     isSharingScreen,
     onToggleScreenShare,
-    initialDuration,
-    timerTimeLeft,
-    isTimerRunning,
-    onStartTimer,
-    onPauseTimer,
-    onResetTimer,
 }: SessionHeaderProps) {
     
     const handleEndSessionClick = useCallback((e: React.MouseEvent) => {
@@ -61,16 +48,6 @@ export function SessionHeader({
                 </div>
 
                 <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-4">
-                    <SessionTimer
-                        isTeacher={isTeacher}
-                        sessionId={sessionId}
-                        initialDuration={initialDuration}
-                        timeLeft={timerTimeLeft}
-                        isTimerRunning={isTimerRunning}
-                        onStart={onStartTimer}
-                        onPause={onPauseTimer}
-                        onReset={onResetTimer}
-                    />
                      {isTeacher && (
                         <VideoControls 
                             isSharingScreen={isSharingScreen} 

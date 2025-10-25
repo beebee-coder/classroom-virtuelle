@@ -27,6 +27,7 @@ import { Button } from '../ui/button';
 import { shareDocument, broadcastWhiteboardUpdate, broadcastWhiteboardController } from '@/lib/actions';
 import { TLEditorSnapshot } from '@tldraw/tldraw';
 import { SessionStatus } from './SessionStatus';
+import { SessionTimer } from './SessionTimer';
 
 
 interface TeacherSessionViewProps {
@@ -49,6 +50,12 @@ interface TeacherSessionViewProps {
     documentUrl: string | null;
     whiteboardControllerId: string | null; // Qui contrôle le TB
     onWhiteboardControllerChange: (userId: string) => void; // Pour changer le contrôleur
+    initialDuration: number;
+    timerTimeLeft: number;
+    isTimerRunning: boolean;
+    onStartTimer: () => void;
+    onPauseTimer: () => void;
+    onResetTimer: () => void;
 }
 
 
@@ -72,6 +79,12 @@ export function TeacherSessionView({
     documentUrl,
     whiteboardControllerId,
     onWhiteboardControllerChange,
+    initialDuration,
+    timerTimeLeft,
+    isTimerRunning,
+    onStartTimer,
+    onPauseTimer,
+    onResetTimer,
 }: TeacherSessionViewProps) {
     const remoteStreamsMap = new Map(remoteParticipants.map(p => [p.id, p.stream]));
     
@@ -263,6 +276,20 @@ export function TeacherSessionView({
             <div className="w-72 flex flex-col gap-4 min-h-0">
                 <ScrollArea className='h-full'>
                     <div className='space-y-4 pr-3'>
+                        <Card className='bg-background/80'>
+                             <CardContent className="p-4">
+                                <SessionTimer
+                                    isTeacher={true}
+                                    sessionId={sessionId}
+                                    initialDuration={initialDuration}
+                                    timeLeft={timerTimeLeft}
+                                    isTimerRunning={isTimerRunning}
+                                    onStart={onStartTimer}
+                                    onPause={onPauseTimer}
+                                    onReset={onResetTimer}
+                                />
+                            </CardContent>
+                        </Card>
                         <TeacherSessionControls
                             activeTool={activeTool}
                             onToolChange={onToolChange}
