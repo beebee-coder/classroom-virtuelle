@@ -20,7 +20,7 @@ import { useFormStatus } from 'react-dom';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { createAnnouncement } from '@/lib/actions';
+import { createAnnouncement } from '@/lib/actions/announcement.actions';
 
 function SubmitButton() {
     const { pending } = useFormStatus();
@@ -63,7 +63,11 @@ export function CreateAnnouncementForm({ classrooms, children }: CreateAnnouncem
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                {children ? <button className="flex w-full items-center gap-2 text-left">{children}</button> : (
+                {children ? (
+                    <div className="flex w-full items-center gap-2 text-left cursor-pointer">
+                        {children}
+                    </div>
+                ) : (
                     <Button variant="outline">
                         <Megaphone className="mr-2" />
                         Créer une annonce

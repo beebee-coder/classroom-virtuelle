@@ -77,7 +77,7 @@ const Menu: React.FC<MenuProps> = ({ user, classrooms = [], validationCount = 0 
 
                  if (item.isDialog) {
                     return (
-                        <Comp {...compProps}>
+                        <Comp key={item.label} {...compProps}>
                              <button className={cn(styles.button, colorClass)}>
                                 {Icon && <Icon />}
                                 <span>{item.label}</span>
