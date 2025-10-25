@@ -49,7 +49,7 @@ export type SessionParticipant = Pick<User, 'id' | 'name' | 'role'>;
 export type StudentWithStateAndCareer = User & {
     etat: (PrismaEtatEleve & { metier: PrismaMetier | null }) | null;
     classe: PrismaClassroom | null;
-    progress: PrismaStudentProgress[];
+    studentProgress: PrismaStudentProgress[];
 };
 
 export type ReactionWithUser = Reaction & {
@@ -99,7 +99,7 @@ export type TaskForProfessorValidation = StudentProgress & {
   student: Pick<User, 'id' | 'name'>;
 };
 
-export type SimulatedStudent = Omit<StudentWithStateAndCareer, 'progress' | 'sessionsParticipees'> & {
-    progress: StudentProgress[];
+export type SimulatedStudent = Omit<StudentWithStateAndCareer, 'studentProgress' | 'sessionsParticipees'> & {
+    studentProgress: StudentProgress[];
     sessionsParticipees: any[];
 };

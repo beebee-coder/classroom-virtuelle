@@ -24,7 +24,7 @@ import type { User as PrismaUser, Metier as PrismaMetier, Announcement as Prisma
 type StudentWithDetails = PrismaUser & {
     classe: Classroom | null;
     etat: (EtatEleve & { metier: PrismaMetier | null }) | null;
-    progress: PrismaStudentProgress[];
+    studentProgress: PrismaStudentProgress[];
 };
 
 type AnnouncementWithAuthor = PrismaAnnouncement & {
@@ -173,7 +173,7 @@ export default function StudentPageClient({
     }, [toast]);
 
     const metier = student.etat?.metier;
-    const completedTasks = student.progress?.filter(p => p.status === 'VERIFIED').length || 0;
+    const completedTasks = student.studentProgress?.filter(p => p.status === 'VERIFIED').length || 0;
     const totalPoints = student.points || 0;
 
     return (
@@ -254,7 +254,7 @@ export default function StudentPageClient({
                 <TabsContent value="tasks" className="space-y-4">
                     <TaskBoard 
                         tasks={tasks}
-                        studentProgress={student.progress || []}
+                        studentProgress={student.studentProgress || []}
                         studentId={student.id}
                     />
                 </TabsContent>
