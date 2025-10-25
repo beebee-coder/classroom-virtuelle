@@ -14,13 +14,6 @@ import { ComprehensionLevel } from '../StudentSessionControls';
 import { DocumentViewer } from '../DocumentViewer';
 import { ClassStudentList } from './ClassStudentList';
 import { Loader2, UploadCloud, File, Trash2, Share2, Award } from 'lucide-react';
-import {
-    Carousel,
-    CarouselContent,
-    CarouselItem,
-    CarouselNext,
-    CarouselPrevious,
-} from "@/components/ui/carousel";
 import { CloudinaryUploadWidget } from '../CloudinaryUploadWidget';
 import { Button } from '../ui/button';
 import { shareDocument, broadcastWhiteboardUpdate, broadcastWhiteboardController } from '@/lib/actions';
@@ -233,85 +226,85 @@ export function TeacherSessionView({
     const allParticipants = [teacher, ...students];
 
     return (
-        <div className="flex-1 flex min-h-0 py-6 gap-4 min-w-0">
-            {/* --- Colonne Principale : Espace de travail & Vidéos --- */}
-            <div className="flex-1 flex flex-col gap-4 min-w-0">
-                {/* Espace de contenu : Tableau blanc ou Partage d'écran */}
-                <div className="flex-1 min-h-0">
-                   {renderActiveTool()}
+        <div className="flex-1 flex flex-col min-h-0">
+            {/* Main content area */}
+            <div className="flex-1 flex min-h-0 gap-4">
+                {/* --- Colonne Principale : Espace de travail --- */}
+                <div className="flex-1 flex flex-col min-w-0">
+                    <div className="flex-1 min-h-0 relative">
+                        {renderActiveTool()}
+                    </div>
                 </div>
 
-                {/* Bandeau de vidéos en défilement continu */}
-                 <div className="h-40 w-full overflow-hidden relative">
-                    <div className="marquee-container flex space-x-4 px-2 hover:[animation-play-state:paused]">
-                         {/* Première copie des participants */}
-                        {allParticipants.map(p => (
-                            <div key={p.id} className="w-48 flex-shrink-0">
-                                {renderParticipant(p)}
-                            </div>
-                        ))}
-                        {/* Deuxième copie pour la boucle */}
-                        {allParticipants.map(p => (
-                           <div key={`${p.id}-duplicate`} className="w-48 flex-shrink-0" aria-hidden="true">
-                                {renderParticipant(p, true)}
-                            </div>
-                        ))}
-                    </div>
-                    <div className="absolute inset-y-0 bg-gradient-to-r from-background via-transparent to-background pointer-events-none w-full" />
+                {/* --- Colonne de Droite : Outils Interactifs --- */}
+                <div className="w-72 flex flex-col gap-4 min-h-0">
+                    <ScrollArea className='h-full'>
+                        <div className='space-y-4 pr-3'>
+                            {activeTool === 'document' && (
+                                <Card>
+                                    <CardContent className="p-4">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <h4 className="font-semibold">Partager un document</h4>
+                                            <CloudinaryUploadWidget onUpload={handleDocumentUpload}>
+                                                {({ open }) => (
+                                                    <Button onClick={() => open()} variant="outline" size="sm">
+                                                        <UploadCloud className="mr-2" />
+                                                        Téléverser
+                                                    </Button>
+                                                )}
+                                            </CloudinaryUploadWidget>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
+                            <SessionTimer
+                                isTeacher={true}
+                                sessionId={sessionId}
+                                initialDuration={initialDuration}
+                                timeLeft={timerTimeLeft}
+                                isTimerRunning={isTimerRunning}
+                                onStart={onStartTimer}
+                                onPause={onPauseTimer}
+                                onReset={onResetTimer}
+                            />
+                            <SessionStatus 
+                                participants={allSessionUsers as User[]}
+                                onlineIds={onlineUserIds}
+                                webrtcConnections={remoteParticipants.length}
+                                whiteboardControllerId={whiteboardControllerId}
+                            />
+                            {classroom && (
+                                <ClassStudentList 
+                                    classroom={classroom}
+                                    onlineUserIds={onlineUserIds}
+                                    currentUserId={currentUserId}
+                                    activeParticipantIds={activeParticipantIds}
+                                    sessionId={sessionId}
+                                />
+                            )}
+                            <DocumentHistory documents={documentHistory} onShare={handleDocumentShare} />
+                            <UnderstandingTracker students={students} understandingStatus={understandingStatus} />
+                            <HandRaiseController sessionId={sessionId} raisedHands={studentsWithRaisedHands} />
+                        </div>
+                    </ScrollArea>
                 </div>
             </div>
 
-            {/* --- Colonne de Droite : Outils Interactifs --- */}
-            <div className="w-72 flex flex-col gap-4 min-h-0">
-                <ScrollArea className='h-full'>
-                    <div className='space-y-4 pr-3'>
-                        {activeTool === 'document' && (
-                           <Card>
-                                <CardContent className="p-4">
-                                    <div className="flex justify-between items-center mb-2">
-                                        <h4 className="font-semibold">Partager un document</h4>
-                                        <CloudinaryUploadWidget onUpload={handleDocumentUpload}>
-                                            {({ open }) => (
-                                                <Button onClick={() => open()} variant="outline" size="sm">
-                                                    <UploadCloud className="mr-2" />
-                                                    Téléverser
-                                                </Button>
-                                            )}
-                                        </CloudinaryUploadWidget>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        )}
-                        <SessionTimer
-                            isTeacher={true}
-                            sessionId={sessionId}
-                            initialDuration={initialDuration}
-                            timeLeft={timerTimeLeft}
-                            isTimerRunning={isTimerRunning}
-                            onStart={onStartTimer}
-                            onPause={onPauseTimer}
-                            onReset={onResetTimer}
-                        />
-                        <SessionStatus 
-                            participants={allSessionUsers as User[]}
-                            onlineIds={onlineUserIds}
-                            webrtcConnections={remoteParticipants.length}
-                            whiteboardControllerId={whiteboardControllerId}
-                        />
-                         {classroom && (
-                            <ClassStudentList 
-                                classroom={classroom}
-                                onlineUserIds={onlineUserIds}
-                                currentUserId={currentUserId}
-                                activeParticipantIds={activeParticipantIds}
-                                sessionId={sessionId}
-                            />
-                        )}
-                        <DocumentHistory documents={documentHistory} onShare={handleDocumentShare} />
-                        <UnderstandingTracker students={students} understandingStatus={understandingStatus} />
-                        <HandRaiseController sessionId={sessionId} raisedHands={studentsWithRaisedHands} />
-                    </div>
-                </ScrollArea>
+            {/* Bandeau de vidéos en défilement continu en bas */}
+            <div className="h-40 w-full overflow-hidden relative mt-4">
+                <div className="marquee-container flex space-x-4 px-2 hover:[animation-play-state:paused]">
+                    {allParticipants.map(p => (
+                        <div key={p.id} className="w-48 flex-shrink-0">
+                            {renderParticipant(p)}
+                        </div>
+                    ))}
+                    {allParticipants.map(p => (
+                        <div key={`${p.id}-duplicate`} className="w-48 flex-shrink-0" aria-hidden="true">
+                            {renderParticipant(p, true)}
+                        </div>
+                    ))}
+                </div>
+                <div className="absolute inset-y-0 bg-gradient-to-r from-background via-transparent to-background pointer-events-none w-full" />
             </div>
         </div>
     );
