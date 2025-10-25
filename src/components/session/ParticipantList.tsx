@@ -5,7 +5,7 @@
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Users, Wifi, WifiOff } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Role } from '@/lib/types';
+import { Role } from '@prisma/client';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 import { cn } from '@/lib/utils';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';

@@ -13,10 +13,10 @@ import {
     KeyRound,
     Target
 } from 'lucide-react';
-import type { Classroom } from '@/lib/types';
+import type { Classroom } from '@prisma/client';
 import { CreateAnnouncementForm } from '@/components/CreateAnnouncementForm';
 import { ResetButton } from '@/components/ResetButton';
-import type { DummySession } from "@/lib/session";
+import type { Session } from "next-auth";
 
 // Définition des éléments de menu pour une configuration centralisée
 export const menuItems = [
@@ -79,17 +79,17 @@ export const menuItems = [
         items: [
             {
                 label: "Ma Classe",
-                href: (user: DummySession['user']) => `/student/class/${user?.classeId}`,
+                href: (user: Session['user']) => `/student/class/${user?.classeId}`,
                 icon: Users,
                 roles: ['ELEVE'],
-                condition: (user: DummySession['user']) => !!user?.classeId,
+                condition: (user: Session['user']) => !!user?.classeId,
             },
             {
                 label: "Mon Profil de Compétences",
-                href: (user: DummySession['user']) => `/student/${user?.id}/skills`,
+                href: (user: Session['user']) => `/student/${user?.id}/skills`,
                 icon: Target,
                 roles: ['ELEVE'],
-                condition: (user: DummySession['user']) => !!user?.id,
+                condition: (user: Session['user']) => !!user?.id,
             },
         ],
     },
@@ -98,10 +98,10 @@ export const menuItems = [
         items: [
             {
                 label: "Espace Parental",
-                href: (user: DummySession['user']) => `/student/${user?.id}/parent`,
+                href: (user: Session['user']) => `/student/${user?.id}/parent`,
                 icon: KeyRound,
                 roles: ['ELEVE'],
-                condition: (user: DummySession['user']) => !!user?.id,
+                condition: (user: Session['user']) => !!user?.id,
             },
         ]
     },
@@ -110,10 +110,10 @@ export const menuItems = [
         items: [
             { 
                 label: "Profil", 
-                href: (user: DummySession['user']) => user?.role === 'PROFESSEUR' ? '/teacher/profile' : `/student/${user?.id}`, 
+                href: (user: Session['user']) => user?.role === 'PROFESSEUR' ? '/teacher/profile' : `/student/${user?.id}`, 
                 icon: UserCircle,
                 roles: ['PROFESSEUR', 'ELEVE'],
-                condition: (user: DummySession['user']) => !!user?.id,
+                condition: (user: Session['user']) => !!user?.id,
             },
             { 
                 label: "Paramètres", 

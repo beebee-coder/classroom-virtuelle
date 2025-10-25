@@ -8,13 +8,14 @@ import SimplePeer from 'simple-peer';
 
 import { pusherClient } from '@/lib/pusher/client';
 import { useToast } from '@/hooks/use-toast';
-import { User, Role, SessionParticipant, ClassroomWithDetails, DocumentInHistory } from '@/lib/types';
+import { User, Role } from '@prisma/client';
+import type { SessionParticipant, ClassroomWithDetails, DocumentInHistory } from '@/types';
 import SessionLoading from './SessionLoading';
 import { TeacherSessionView } from './session/TeacherSessionView';
 import { StudentSessionView } from './session/StudentSessionView';
 import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';
-import { endCoursSession, broadcastTimerEvent, broadcastActiveTool, broadcastWhiteboardController, broadcastWhiteboardUpdate, updateStudentSessionStatus } from '@/lib/actions';
+import { endCoursSession, broadcastTimerEvent, broadcastActiveTool, broadcastWhiteboardController, broadcastWhiteboardUpdate, updateStudentSessionStatus } from '@/lib/actions/session.actions';
 import { ComprehensionLevel } from './StudentSessionControls';
 import { SessionClientProps, PeerData, SignalPayload, PusherSubscriptionSucceededEvent, PusherMemberEvent, IncomingSignalData, SpotlightEvent, HandRaiseEvent, UnderstandingEvent, TimerEvent, ToolEvent, DocumentEvent, RemoteParticipant, WhiteboardUpdateEvent, WhiteboardControllerEvent } from '@/types';
 import { TLEditorSnapshot, TLStoreSnapshot } from '@tldraw/tldraw';
@@ -540,5 +541,3 @@ export default function SessionClient({
     </div>
   );
 }
-
-    

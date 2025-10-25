@@ -4,7 +4,8 @@
 import { useState, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { User, Role, SessionParticipant, ClassroomWithDetails, DocumentInHistory } from '@/lib/types';
+import { User, Role } from '@prisma/client';
+import type { SessionParticipant, ClassroomWithDetails, DocumentInHistory } from '@/types';
 import { Participant } from '@/components/Participant';
 import { StudentPlaceholder } from '../StudentPlaceholder';
 import { HandRaiseController } from '../HandRaiseController';
@@ -18,7 +19,7 @@ import { ClassStudentList } from './ClassStudentList';
 import { Loader2, UploadCloud, File, Trash2, Share2, Award } from 'lucide-react';
 import { CloudinaryUploadWidget } from '../CloudinaryUploadWidget';
 import { Button } from '../ui/button';
-import { shareDocument, broadcastWhiteboardUpdate, broadcastWhiteboardController } from '@/lib/actions';
+import { shareDocument, broadcastWhiteboardUpdate, broadcastWhiteboardController } from '@/lib/actions/whiteboard.actions';
 import { TLEditorSnapshot } from '@tldraw/tldraw';
 import { SessionStatus } from './SessionStatus';
 import { SessionTimer } from './SessionTimer';

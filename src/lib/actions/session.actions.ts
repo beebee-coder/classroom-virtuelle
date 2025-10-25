@@ -366,32 +366,3 @@ export async function reinviteStudentToSession(sessionId: string, studentId: str
         throw new Error("Impossible de ré-inviter l'élève.");
     }
 }
-
-export async function shareDocument(sessionId: string, document: { name: string; url: string }) {
-    console.log(`📄 [ACTION DOCUMENT] - Partage du document '${document.name}' pour la session ${sessionId}`);
-    try {
-        if (!sessionId || !document?.url || !document?.name) {
-            throw new Error('sessionId et document (name, url) sont requis.');
-        }
-
-        // La logique de base de données est retirée car le modèle n'existe pas.
-        console.log(`  Historique des documents mis à jour en mémoire (simulation).`);
-
-        const channel = `presence-session-${sessionId}`;
-        const payload = {
-            url: document.url,
-            // Pour l'instant, l'historique n'est pas géré côté serveur.
-            newHistory: [{ name: document.name, url: document.url, createdAt: new Date() }],
-        };
-        
-        console.log(`  Diffusion de l'événement 'document-updated' sur le canal ${channel}.`);
-        await pusherTrigger(channel, 'document-updated', payload);
-        
-        return { success: true };
-    } catch (error) {
-        console.error('💥 [ACTION DOCUMENT] - Erreur:', error);
-        throw new Error("Impossible de partager le document.");
-    }
-}
-
-    

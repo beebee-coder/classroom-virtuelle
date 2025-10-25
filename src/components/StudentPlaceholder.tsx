@@ -2,7 +2,7 @@
 import { Card } from './ui/card';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { cn } from '@/lib/utils';
-import { User } from '@/lib/types';
+import { User } from '@prisma/client';
 import { Hand, VideoOff, Star } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { Button } from './ui/button';

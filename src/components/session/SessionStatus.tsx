@@ -4,7 +4,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Wifi, Users, Edit, Activity, UserCheck } from 'lucide-react';
-import { User } from '@/lib/types';
+import { User } from '@prisma/client';
 
 interface SessionStatusProps {
   participants: User[];

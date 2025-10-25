@@ -3,7 +3,7 @@
 
 import { useEffect, useRef } from 'react';
 import type { Instance as PeerInstance } from 'simple-peer';
-import { User } from '@/lib/types';
+import { User } from '@prisma/client';
 import { cn } from '@/lib/utils';
 
 interface VideoPlayerProps {

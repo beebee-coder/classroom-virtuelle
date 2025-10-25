@@ -1,13 +1,23 @@
 // src/types/index.ts
 import { ComprehensionLevel } from "@/components/StudentSessionControls";
 // Importer les types depuis notre source de vérité unique
-import type { User, Role, Classroom, EtatEleve, DocumentInHistory as PrismaDocumentInHistory, Document } from '@/lib/types';
+import type { User, Role, Classroom, EtatEleve, Document as PrismaDocument } from '@/lib/types';
 import type { Instance as PeerInstance, SignalData as PeerSignalData } from 'simple-peer';
 import { TLEditorSnapshot } from "@tldraw/tldraw";
 
-export type ClassroomWithDetails = Classroom & { eleves: (User & { etat: EtatEleve | null })[] };
+// Re-export des types Prisma de base si nécessaire ailleurs, mais il vaut mieux importer directement.
+export * from '@prisma/client';
 
-export type DocumentInHistory = Document;
+// Types composites et spécifiques à l'application
+export type ClassroomWithDetails = import('@prisma/client').Classroom & { eleves: (import('@prisma/client').User & { etat: import('@prisma/client').EtatEleve | null })[] };
+
+export type DocumentInHistory = {
+  id: string;
+  name: string;
+  url: string;
+  createdAt: Date;
+  coursSessionId: string;
+};
 
 // Types pour Pusher
  export interface PusherMember {
@@ -86,9 +96,9 @@ export type DocumentInHistory = Document;
   
   export  interface SessionClientProps {
     sessionId: string;
-    initialStudents: User[];
-    initialTeacher: User;
-    currentUserRole: Role;
+    initialStudents: import('@prisma/client').User[];
+    initialTeacher: import('@prisma/client').User;
+    currentUserRole: import('@prisma/client').Role;
     currentUserId: string;
     classroom: ClassroomWithDetails | null;
     initialDocumentHistory: DocumentInHistory[];
@@ -102,3 +112,5 @@ export type DocumentInHistory = Document;
   export interface WhiteboardControllerEvent {
     controllerId: string;
   }
+  
+export type SessionParticipant = Pick<import('@prisma/client').User, 'id' | 'name' | 'role'>;

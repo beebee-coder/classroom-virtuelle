@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Hand } from 'lucide-react';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
-import { User } from '@/lib/types';
+import { User } from '@prisma/client';
 
 interface HandRaiseControllerProps {
   sessionId: string;

@@ -7,9 +7,10 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { User as UserType, ClassroomWithDetails } from '@/lib/types';
+import { User as UserType } from '@prisma/client';
+import type { ClassroomWithDetails } from '@/types';
 import { Button } from '../ui/button';
-import { reinviteStudentToSession } from '@/lib/actions';
+import { reinviteStudentToSession } from '@/lib/actions/session.actions';
 import { useToast } from '@/hooks/use-toast';
 import { useTransition } from 'react';
 
