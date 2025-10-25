@@ -15,11 +15,11 @@ import { cn } from '@/lib/utils';
 import { KeyRound } from 'lucide-react';
 import { endCoursSession } from '@/lib/actions/session.actions';
 import { CareerSelector } from '@/components/CareerSelector';
-import { DummySession } from '@/lib/session';
 import { TaskBoard } from './TaskBoard';
 import { AnnouncementCarousel } from './AnnouncementCarousel';
 import { usePresenceForStudent } from '@/hooks/usePresenceForStudent';
 import type { User as PrismaUser, Metier as PrismaMetier, Announcement as PrismaAnnouncement, StudentProgress as PrismaStudentProgress, Task as PrismaTask, Classroom, EtatEleve } from '@prisma/client';
+import type { Session } from 'next-auth';
 
 // Création de types locaux pour la transition
 type StudentWithDetails = PrismaUser & {
@@ -38,7 +38,7 @@ interface StudentPageClientProps {
     allCareers: PrismaMetier[];
     isTeacherView: boolean;
     tasks: PrismaTask[];
-    user: DummySession['user'];
+    user: Session['user'];
 }
 
 interface SessionInvitation {
