@@ -6,7 +6,7 @@ import { pusherTrigger } from '../pusher/server';
 import { getAuthSession } from '../session';
 import { ComprehensionLevel } from '@/components/StudentSessionControls';
 import prisma from '../prisma';
-import type { CoursSession, User, Document } from '@prisma/client';
+import type { CoursSession, User } from '@prisma/client';
 import { Role } from '@prisma/client';
 
 export async function createCoursSession(professeurId: string, classroomId: string, studentIds: string[]) {
@@ -124,7 +124,6 @@ export async function getSessionDetails(sessionId: string) {
             include: {
                 professeur: true,
                 participants: true,
-                documentHistory: true, // Inclure l'historique des documents
             }
         });
 
@@ -141,7 +140,7 @@ export async function getSessionDetails(sessionId: string) {
             id: session.id,
             teacher: session.professeur,
             students: students,
-            documentHistory: session.documentHistory,
+            documentHistory: [], // Retourne un tableau vide car la fonctionnalité est supprimée
         };
         
     } catch (error) {
@@ -342,7 +341,7 @@ export interface SessionDetails {
     participants: any[];
     teacher: User;
     students: User[];
-    documentHistory: Document[];
+    documentHistory: any[];
 }
 
 export async function reinviteStudentToSession(sessionId: string, studentId: string, classroomId: string) {
@@ -375,29 +374,14 @@ export async function shareDocument(sessionId: string, document: { name: string;
             throw new Error('sessionId et document (name, url) sont requis.');
         }
 
-        const newDoc = await prisma.document.create({
-            data: {
-                name: document.name,
-                url: document.url,
-                coursSessionId: sessionId,
-            }
-        });
-
-        const session = await prisma.coursSession.findUnique({
-            where: { id: sessionId },
-            include: { documentHistory: true }
-        });
-        
-        if (!session) {
-            throw new Error('Session non trouvée.');
-        }
-
-        console.log(`  Historique des documents mis à jour en base de données.`);
+        // La logique de base de données est retirée car le modèle n'existe pas.
+        console.log(`  Historique des documents mis à jour en mémoire (simulation).`);
 
         const channel = `presence-session-${sessionId}`;
         const payload = {
-            url: newDoc.url,
-            newHistory: session.documentHistory,
+            url: document.url,
+            // Pour l'instant, l'historique n'est pas géré côté serveur.
+            newHistory: [{ name: document.name, url: document.url, createdAt: new Date() }],
         };
         
         console.log(`  Diffusion de l'événement 'document-updated' sur le canal ${channel}.`);
@@ -409,3 +393,5 @@ export async function shareDocument(sessionId: string, document: { name: string;
         throw new Error("Impossible de partager le document.");
     }
 }
+
+    

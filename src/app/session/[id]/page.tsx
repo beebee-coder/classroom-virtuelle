@@ -5,7 +5,7 @@ import SessionClient from '@/components/SessionClient';
 import { Suspense } from 'react';
 import { getSessionDetails } from '@/lib/actions/session.actions';
 import { getClassroomWithStudents } from '@/lib/actions/classroom.actions';
-import type { User, Role, Classroom, EtatEleve, DocumentInHistory } from '@prisma/client';
+import type { User, Role, Classroom, EtatEleve } from '@prisma/client';
 import prisma from '@/lib/prisma';
 
 type ClassroomWithDetails = Classroom & { eleves: (User & { etat: EtatEleve | null })[] };
@@ -61,7 +61,7 @@ export default async function SessionPage({ params }: { params: { id: string } }
             id: sessionFromDb.id,
             teacher: sessionFromDb.participants.find(p => p.role === 'PROFESSEUR'),
             students: sessionFromDb.participants.filter(p => p.role === 'ELEVE'),
-            documentHistory: (sessionFromDb as any).documentHistory as DocumentInHistory[],
+            documentHistory: [],
         };
 
         if (sessionFromDb.classroomId) {
@@ -110,3 +110,5 @@ export default async function SessionPage({ params }: { params: { id: string } }
         </Suspense>
     );
 }
+
+    

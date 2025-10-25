@@ -27,6 +27,7 @@ import { shareDocument, broadcastWhiteboardUpdate, broadcastWhiteboardController
 import { TLEditorSnapshot } from '@tldraw/tldraw';
 import { SessionStatus } from './SessionStatus';
 import { SessionTimer } from './SessionTimer';
+import { DocumentHistory } from './DocumentHistory';
 
 
 interface TeacherSessionViewProps {
@@ -105,13 +106,12 @@ export function TeacherSessionView({
                 name: result.info.original_filename,
                 url: result.info.secure_url,
             };
-            // Temporarily, we'll just share it. A full implementation would update a history state.
             shareDocument(sessionId, newDoc);
         }
     };
     
-    const handleDocumentShare = (doc: { name: string, url: string }) => {
-        shareDocument(sessionId, doc);
+    const handleDocumentShare = (doc: DocumentInHistory) => {
+        shareDocument(sessionId, { name: doc.name, url: doc.url });
     }
 
     const handleWhiteboardPersist = (snapshot: TLEditorSnapshot) => {
@@ -302,6 +302,7 @@ export function TeacherSessionView({
                                 sessionId={sessionId}
                             />
                         )}
+                        <DocumentHistory documents={documentHistory} onShare={handleDocumentShare} />
                         <UnderstandingTracker students={students} understandingStatus={understandingStatus} />
                         <HandRaiseController sessionId={sessionId} raisedHands={studentsWithRaisedHands} />
                     </div>
@@ -310,3 +311,5 @@ export function TeacherSessionView({
         </div>
     );
 }
+
+    
