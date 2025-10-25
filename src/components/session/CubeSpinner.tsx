@@ -3,22 +3,34 @@
 
 import { useState, useEffect } from 'react';
 
-const adjectives = ["Brave", "Calme", "Agile", "Sage", "Rapide", "Doux"];
-const nouns = ["Lion", "Rivière", "Étoile", "Aigle", "Forêt", "Océan"];
+// Liste de phrases d'encouragement pour les élèves
+const encouragingPhrases = [
+  "Vise Haut",
+  "Sois Curieux",
+  "Apprends Toujours",
+  "Pense Grand",
+  "Crois en Toi",
+  "Reste Concentré",
+];
 
-const getRandomItem = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)];
+// Fonction pour mélanger un tableau (algorithme de Fisher-Yates)
+const shuffleArray = (array: string[]) => {
+  let currentIndex = array.length, randomIndex;
+  while (currentIndex !== 0) {
+    randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex--;
+    [array[currentIndex], array[randomIndex]] = [
+      array[randomIndex], array[currentIndex]];
+  }
+  return array;
+};
 
 export function CubeSpinner() {
   const [faces, setFaces] = useState<string[]>([]);
 
   useEffect(() => {
-    // Génère 6 noms de face uniques au chargement
-    const newFaces = Array.from({ length: 6 }, () => {
-        const adj = getRandomItem(adjectives);
-        const noun = getRandomItem(nouns);
-        return `${adj} ${noun}`;
-    });
-    setFaces(newFaces);
+    // Mélange les phrases pour que l'ordre soit différent à chaque chargement
+    setFaces(shuffleArray([...encouragingPhrases]));
   }, []);
 
   if (faces.length < 6) return null;
