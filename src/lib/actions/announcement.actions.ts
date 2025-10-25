@@ -52,7 +52,7 @@ export const getPublicAnnouncements = cache(async (limit: number = 3): Promise<A
     return prisma.announcement.findMany({
         where: { classeId: null },
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        // orderBy: { createdAt: 'desc' }, // RETIRÉ pour éviter l'erreur
         include: {
             author: {
                 select: { name: true }
