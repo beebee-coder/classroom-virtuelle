@@ -35,9 +35,13 @@ export default withAuth(
     callbacks: {
       authorized: ({ token }) => !!token,
     },
+    pages: {
+      signIn: '/login', // Assurez-vous que la page de connexion est bien définie ici
+    }
   }
 );
 
 export const config = {
-  matcher: ['/teacher/:path*', '/student/:path*', '/login'],
+  // Le matcher ne doit pas inclure la page de login elle-même pour éviter les boucles de redirection.
+  matcher: ['/teacher/:path*', '/student/:path*'],
 };
