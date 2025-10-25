@@ -3,9 +3,11 @@
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, PhoneOff } from "lucide-react";
+import { Loader2, PhoneOff, Square, FileText, Award, Camera } from "lucide-react";
 import { useCallback } from "react";
 import { VideoControls } from "../VideoControls";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
+import { cn } from "@/lib/utils";
 
 interface SessionHeaderProps {
     sessionId: string;
@@ -15,7 +17,21 @@ interface SessionHeaderProps {
     isEndingSession?: boolean;
     isSharingScreen: boolean;
     onToggleScreenShare: () => void;
+    activeTool: string;
+    onToolChange: (tool: string) => void;
+    timerTimeLeft: number;
+    isTimerRunning: boolean;
+    onStartTimer: () => void;
+    onPauseTimer: () => void;
+    onResetTimer: () => void;
 }
+
+const tools = [
+    { id: 'whiteboard', name: 'Tableau Blanc', icon: Square },
+    { id: 'document', name: 'Document', icon: FileText },
+    { id: 'quiz', name: 'Quiz', icon: Award },
+    { id: 'camera', name: 'Caméras', icon: Camera },
+];
 
 export function SessionHeader({ 
     sessionId, 
@@ -25,6 +41,8 @@ export function SessionHeader({
     isEndingSession = false,
     isSharingScreen,
     onToggleScreenShare,
+    activeTool,
+    onToolChange,
 }: SessionHeaderProps) {
     
     const handleEndSessionClick = useCallback((e: React.MouseEvent) => {
@@ -49,10 +67,30 @@ export function SessionHeader({
 
                 <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-4">
                      {isTeacher && (
-                        <VideoControls 
-                            isSharingScreen={isSharingScreen} 
-                            onToggleScreenShare={onToggleScreenShare} 
-                        />
+                         <>
+                            <div className="flex gap-1 p-1 rounded-lg bg-muted border">
+                                <TooltipProvider>
+                                    {tools.map((tool) => {
+                                        const Icon = tool.icon;
+                                        const isActive = activeTool === tool.id;
+                                        return (
+                                            <Tooltip key={tool.id}>
+                                                <TooltipTrigger asChild>
+                                                    <Button variant={isActive ? 'secondary' : 'ghost'} size="icon" className="h-8 w-8" onClick={() => onToolChange(tool.id)}>
+                                                        <Icon className={cn("h-5 w-5", isActive && "text-primary")} />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent><p>{tool.name}</p></TooltipContent>
+                                            </Tooltip>
+                                        )
+                                    })}
+                                </TooltipProvider>
+                            </div>
+                            <VideoControls 
+                                isSharingScreen={isSharingScreen} 
+                                onToggleScreenShare={onToggleScreenShare} 
+                            />
+                         </>
                     )}
                 </div>
                 

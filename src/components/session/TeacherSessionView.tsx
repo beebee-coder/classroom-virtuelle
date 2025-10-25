@@ -10,7 +10,6 @@ import { UnderstandingTracker } from '../UnderstandingTracker';
 import { Whiteboard } from '../Whiteboard';
 import { Card, CardContent } from '../ui/card';
 import { ParticipantList } from './ParticipantList';
-import { TeacherSessionControls } from '../TeacherSessionControls';
 import { ComprehensionLevel } from '../StudentSessionControls';
 import { DocumentViewer } from '../DocumentViewer';
 import { ClassStudentList } from './ClassStudentList';
@@ -290,10 +289,6 @@ export function TeacherSessionView({
                                 />
                             </CardContent>
                         </Card>
-                        <TeacherSessionControls
-                            activeTool={activeTool}
-                            onToolChange={onToolChange}
-                        />
                         <SessionStatus 
                             participants={allSessionUsers as User[]}
                             onlineIds={onlineUserIds}
