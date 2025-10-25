@@ -56,6 +56,9 @@ export const getPublicAnnouncements = cache(async (limit: number = 3): Promise<A
             author: {
                 select: { name: true }
             }
+        },
+        orderBy: {
+            createdAt: 'desc'
         }
     });
 });
@@ -76,6 +79,9 @@ export async function getStudentAnnouncements(studentId: string): Promise<Announ
             author: {
                 select: { name: true }
             }
+        },
+        orderBy: {
+            createdAt: 'desc'
         }
     });
 }
@@ -86,13 +92,16 @@ export async function getClassAnnouncements(classroomId: string): Promise<Announ
         where: {
             OR: [
                 { classeId: null },
-                { classroomId: classroomId }
+                { classeId: classroomId }
             ]
         },
         include: {
             author: {
                 select: { name: true }
             }
+        },
+        orderBy: {
+            createdAt: 'desc'
         }
     });
 }
