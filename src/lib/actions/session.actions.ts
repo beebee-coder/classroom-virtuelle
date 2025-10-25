@@ -6,15 +6,8 @@ import { pusherTrigger } from '../pusher/server';
 import { getAuthSession } from '../session';
 import { ComprehensionLevel } from '@/components/StudentSessionControls';
 import prisma from '../prisma';
-import { Role, type CoursSession, type User } from '@prisma/client';
-
-// Type défini manuellement car il n'est pas un modèle Prisma
-type DocumentInHistory = {
-    name: string;
-    url: string;
-    createdAt: string; // ou Date
-};
-
+import type { CoursSession, User, Document } from '@prisma/client';
+import { Role } from '@prisma/client';
 
 export async function createCoursSession(professeurId: string, classroomId: string, studentIds: string[]) {
     console.log('🚀 [ACTION SESSION] - Début de la création de la session de cours...');
@@ -131,6 +124,7 @@ export async function getSessionDetails(sessionId: string) {
             include: {
                 professeur: true,
                 participants: true,
+                documentHistory: true, // Inclure l'historique des documents
             }
         });
 
@@ -147,7 +141,7 @@ export async function getSessionDetails(sessionId: string) {
             id: session.id,
             teacher: session.professeur,
             students: students,
-            documentHistory: (session as any).documentHistory as DocumentInHistory[] || [],
+            documentHistory: session.documentHistory,
         };
         
     } catch (error) {
@@ -348,7 +342,7 @@ export interface SessionDetails {
     participants: any[];
     teacher: User;
     students: User[];
-    documentHistory: DocumentInHistory[];
+    documentHistory: Document[];
 }
 
 export async function reinviteStudentToSession(sessionId: string, studentId: string, classroomId: string) {
@@ -374,41 +368,36 @@ export async function reinviteStudentToSession(sessionId: string, studentId: str
     }
 }
 
-export async function shareDocument(sessionId: string, document: Omit<DocumentInHistory, 'createdAt'>) {
+export async function shareDocument(sessionId: string, document: { name: string; url: string }) {
     console.log(`📄 [ACTION DOCUMENT] - Partage du document '${document.name}' pour la session ${sessionId}`);
     try {
         if (!sessionId || !document?.url || !document?.name) {
             throw new Error('sessionId et document (name, url) sont requis.');
         }
 
-        const session = await prisma.coursSession.findUnique({
-            where: { id: sessionId },
-            select: { documentHistory: true }
+        const newDoc = await prisma.document.create({
+            data: {
+                name: document.name,
+                url: document.url,
+                coursSessionId: sessionId,
+            }
         });
 
+        const session = await prisma.coursSession.findUnique({
+            where: { id: sessionId },
+            include: { documentHistory: true }
+        });
+        
         if (!session) {
             throw new Error('Session non trouvée.');
         }
 
-        const currentHistory = (session.documentHistory as DocumentInHistory[] | null) || [];
-        
-        const newDocWithDate: DocumentInHistory = {
-            ...document,
-            createdAt: new Date().toISOString(),
-        };
-
-        const updatedHistory = [...currentHistory, newDocWithDate];
-
-        await prisma.coursSession.update({
-            where: { id: sessionId },
-            data: { documentHistory: updatedHistory as any }
-        });
         console.log(`  Historique des documents mis à jour en base de données.`);
 
         const channel = `presence-session-${sessionId}`;
         const payload = {
-            url: document.url,
-            newHistory: updatedHistory,
+            url: newDoc.url,
+            newHistory: session.documentHistory,
         };
         
         console.log(`  Diffusion de l'événement 'document-updated' sur le canal ${channel}.`);

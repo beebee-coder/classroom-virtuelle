@@ -1,13 +1,13 @@
 // src/types/index.ts
 import { ComprehensionLevel } from "@/components/StudentSessionControls";
 // Importer les types depuis notre source de vérité unique
-import type { User, Role, Classroom, EtatEleve, DocumentInHistory as PrismaDocumentInHistory } from '@/lib/types';
+import type { User, Role, Classroom, EtatEleve, DocumentInHistory as PrismaDocumentInHistory, Document } from '@/lib/types';
 import type { Instance as PeerInstance, SignalData as PeerSignalData } from 'simple-peer';
 import { TLEditorSnapshot } from "@tldraw/tldraw";
 
 export type ClassroomWithDetails = Classroom & { eleves: (User & { etat: EtatEleve | null })[] };
 
-export type DocumentInHistory = PrismaDocumentInHistory;
+export type DocumentInHistory = Document;
 
 // Types pour Pusher
  export interface PusherMember {
