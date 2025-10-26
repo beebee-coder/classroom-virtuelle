@@ -84,9 +84,10 @@ export default function SessionClient({
         console.error('❌ [MEDIA] - Erreur d\'accès à la caméra/micro:', error);
         toast({
           variant: 'destructive',
-          title: 'Erreur Média',
-          description: 'Impossible d\'accéder à votre caméra et/ou microphone.'
+          title: 'Mode observateur activé',
+          description: 'Impossible d\'accéder à votre caméra/micro. Vous pouvez suivre la session sans participer activement.'
         });
+        // L'utilisateur peut continuer sans flux local
       } finally {
         setLoading(false);
       }
@@ -231,8 +232,8 @@ export default function SessionClient({
 
   // ---=== 3. GESTION DES ÉVÉNEMENTS PUSHER ===---
   useEffect(() => {
-    if (!sessionId || !localStream) {
-      // Attendre que le flux local soit prêt avant de s'abonner
+    // La dépendance sur localStream est retirée pour permettre l'abonnement même sans flux
+    if (!sessionId) {
       return;
     };
 
@@ -378,7 +379,7 @@ export default function SessionClient({
       pusherClient.unsubscribe(channelName);
       channel.unbind_all();
     };
-  }, [sessionId, localStream, currentUserId, router, toast, currentUserRole, createPeer]);
+  }, [sessionId, createPeer, currentUserId, router, toast, currentUserRole]);
   
   // ---=== 4. GESTION DU CYCLE DE VIE ET INTERACTIONS ===---
   useEffect(() => {
