@@ -14,6 +14,12 @@ function isImageUrl(url: string): boolean {
     return /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(url);
 }
 
+function isPdfUrl(url: string): boolean {
+    if (!url) return false;
+    return /\.pdf$/i.test(url);
+}
+
+
 export function DocumentViewer({ url }: DocumentViewerProps) {
     if (!url) {
         return (
@@ -39,7 +45,20 @@ export function DocumentViewer({ url }: DocumentViewerProps) {
             </div>
         );
     }
+    
+    // Pour les PDF, utiliser la visionneuse Google Docs pour contourner les restrictions d'intégration
+    if (isPdfUrl(url)) {
+        const googleDocsUrl = `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`;
+        return (
+            <iframe
+                src={googleDocsUrl}
+                className="w-full h-full border-0 rounded-lg"
+                title="Visionneuse de document PDF"
+            />
+        );
+    }
 
+    // Pour tous les autres types (ex: autres documents, liens web), utiliser un iframe standard
     return (
         <iframe
             src={url}
