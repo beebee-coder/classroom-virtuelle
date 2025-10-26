@@ -59,7 +59,10 @@ export function StudentSessionView({
         const newHandRaiseState = !isHandRaised;
         onToggleHandRaise(newHandRaiseState); // Optimistic update
         try {
-            await updateStudentSessionStatus(sessionId, { isHandRaised: newHandRaiseState });
+            await updateStudentSessionStatus(sessionId, {
+                isHandRaised: newHandRaiseState,
+                understanding: ComprehensionLevel.UNDERSTOOD
+            });
         } catch {
             toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de mettre à jour le statut de la main levée.'});
             onToggleHandRaise(!newHandRaiseState); // Revert on failure

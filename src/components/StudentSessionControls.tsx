@@ -204,3 +204,5 @@ export function StudentSessionControls({
     </Accordion>
   );
 }
+
+export { ComprehensionLevel };
