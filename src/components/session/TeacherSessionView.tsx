@@ -64,7 +64,7 @@ export function TeacherSessionView({
     remoteParticipants,
     spotlightedUser,
     allSessionUsers,
-    onlineUserIds,
+    onlineUserIds: allOnlineUserIds, // Renommé pour plus de clarté
     onSpotlightParticipant,
     raisedHands,
     understandingStatus,
@@ -95,16 +95,20 @@ export function TeacherSessionView({
     const teacher = allSessionUsers.find(u => u.role === 'PROFESSEUR');
 
     const activeParticipantIds = useMemo(() => [currentUserId, ...remoteParticipants.map(p => p.id)], [currentUserId, remoteParticipants]);
+    
+    // Correction: les "onlineUserIds" pour la ClassList doivent être ceux de toute la classe, pas seulement les participants
+    const classOnlineIds = allOnlineUserIds;
 
     const [hasWaitingStudents, setHasWaitingStudents] = useState(false);
 
     useEffect(() => {
-        const waitingCount = onlineUserIds.filter(id => !activeParticipantIds.includes(id) && id !== currentUserId).length;
+        // Un élève est en attente s'il est en ligne mais pas dans la session active
+        const waitingCount = classOnlineIds.filter(id => !activeParticipantIds.includes(id) && id !== currentUserId).length;
         if (waitingCount > 0) {
             console.log(`⏱️ [VUE PROF] - Détection de ${waitingCount} élève(s) en attente.`);
         }
         setHasWaitingStudents(waitingCount > 0);
-    }, [onlineUserIds, activeParticipantIds, currentUserId]);
+    }, [classOnlineIds, activeParticipantIds, currentUserId]);
     
     if (!currentUserId || !teacher) return null;
 
@@ -156,7 +160,7 @@ export function TeacherSessionView({
              <StudentPlaceholder
                 key={key}
                 student={participant as User}
-                isOnline={onlineUserIds.includes(participant.id)}
+                isOnline={classOnlineIds.includes(participant.id)}
                 onSpotlightParticipant={onSpotlightParticipant}
                 isHandRaised={raisedHands.has(participant.id)}
             />
@@ -301,7 +305,7 @@ export function TeacherSessionView({
                             <AnimatedCard title="Statut de la Session">
                                 <SessionStatus 
                                     participants={allSessionUsers as User[]}
-                                    onlineIds={onlineUserIds}
+                                    onlineIds={activeParticipantIds}
                                     webrtcConnections={remoteParticipants.length}
                                     whiteboardControllerId={whiteboardControllerId}
                                 />
@@ -310,7 +314,7 @@ export function TeacherSessionView({
                                  <AnimatedCard title={`Classe ${classroom.nom}`}>
                                     <ClassStudentList 
                                         classroom={classroom}
-                                        onlineUserIds={onlineUserIds}
+                                        onlineUserIds={classOnlineIds}
                                         currentUserId={currentUserId}
                                         activeParticipantIds={activeParticipantIds}
                                         sessionId={sessionId}
