@@ -1,7 +1,7 @@
 // src/components/session/TeacherSessionView.tsx
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useState, type ReactNode, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { User, Role } from '@prisma/client';
@@ -21,7 +21,7 @@ import { CloudinaryUploadWidget } from '../CloudinaryUploadWidget';
 import { Button } from '../ui/button';
 import { shareDocument } from '@/lib/actions/whiteboard.actions';
 import { TLEditorSnapshot } from '@tldraw/tldraw';
-import { broadcastWhiteboardUpdate, broadcastWhiteboardController } from '@/lib/actions/whiteboard.actions';
+import { broadcastWhiteboardUpdate } from '@/lib/actions/whiteboard.actions';
 import { SessionStatus } from './SessionStatus';
 import { SessionTimer } from './SessionTimer';
 import { DocumentHistory } from './DocumentHistory';
@@ -92,10 +92,17 @@ export function TeacherSessionView({
     const students = classroom?.eleves || allSessionUsers.filter(u => u.role === 'ELEVE') as User[];
     
     const teacher = allSessionUsers.find(u => u.role === 'PROFESSEUR');
+
+    const activeParticipantIds = useMemo(() => [currentUserId, ...remoteParticipants.map(p => p.id)], [currentUserId, remoteParticipants]);
+
+    const [hasWaitingStudents, setHasWaitingStudents] = useState(false);
+
+    useEffect(() => {
+        const waitingCount = onlineUserIds.filter(id => !activeParticipantIds.includes(id) && id !== currentUserId).length;
+        setHasWaitingStudents(waitingCount > 0);
+    }, [onlineUserIds, activeParticipantIds, currentUserId]);
     
     if (!currentUserId || !teacher) return null;
-
-    const activeParticipantIds = [currentUserId, ...remoteParticipants.map(p => p.id)];
 
     const handleDocumentUpload = (result: any) => {
         if (result.event === 'success') {
@@ -296,6 +303,10 @@ export function TeacherSessionView({
                                         currentUserId={currentUserId}
                                         activeParticipantIds={activeParticipantIds}
                                         sessionId={sessionId}
+                                        hasWaitingStudents={hasWaitingStudents}
+                                        onAccordionToggle={(isOpen) => {
+                                            if(isOpen) setHasWaitingStudents(false);
+                                        }}
                                     />
                                 </AnimatedCard>
                             )}
