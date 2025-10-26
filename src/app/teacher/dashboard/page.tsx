@@ -9,6 +9,8 @@ import { redirect } from 'next/navigation';
 import prisma from '@/lib/prisma';
 import { CreateAnnouncementForm } from '@/components/CreateAnnouncementForm';
 
+export const dynamic = 'force-dynamic';
+
 // Composant d'erreur pour afficher un état de fallback
 function DashboardErrorState({ message, retryAction }: { message: string; retryAction?: () => void }) {
   return (
