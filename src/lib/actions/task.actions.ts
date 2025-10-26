@@ -7,12 +7,15 @@ import { authOptions } from '@/lib/auth-options';
 import prisma from '../prisma';
 import { ProgressStatus, type Task, type StudentProgress, Role } from '@prisma/client';
 
-export async function createTask(formData: FormData): Promise<Task> {
+// Fusion de createTask et updateTask en une seule fonction saveTask
+export async function saveTask(formData: FormData): Promise<Task> {
     const session = await getServerSession(authOptions);
     if (session?.user?.role !== 'PROFESSEUR') {
         throw new Error('Unauthorized');
     }
-    
+
+    const taskId = formData.get('id') as string | null;
+
     const taskData = {
         title: formData.get('title') as string,
         description: formData.get('description') as string,
@@ -24,38 +27,25 @@ export async function createTask(formData: FormData): Promise<Task> {
         requiresProof: formData.get('requiresProof') === 'on',
     };
 
-    const newTask = await prisma.task.create({ data: taskData });
+    let savedTask: Task;
 
-    revalidatePath('/teacher/tasks');
-    return newTask;
-}
-
-export async function updateTask(formData: FormData): Promise<Task> {
-    const session = await getServerSession(authOptions);
-    if (session?.user?.role !== 'PROFESSEUR') {
-        throw new Error('Unauthorized');
+    if (taskId) {
+        // Mise à jour
+        console.log(`📝 [ACTION] Mise à jour de la tâche ID: ${taskId}`);
+        savedTask = await prisma.task.update({
+            where: { id: taskId },
+            data: taskData,
+        });
+    } else {
+        // Création
+        console.log(`📝 [ACTION] Création d'une nouvelle tâche`);
+        savedTask = await prisma.task.create({ data: taskData });
     }
 
-    const taskId = formData.get('id') as string;
-    const taskData = {
-        title: formData.get('title') as string,
-        description: formData.get('description') as string,
-        points: parseInt(formData.get('points') as string, 10),
-        type: formData.get('type') as any,
-        category: formData.get('category') as any,
-        difficulty: formData.get('difficulty') as any,
-        validationType: formData.get('validationType') as any,
-        requiresProof: formData.get('requiresProof') === 'on',
-    };
-
-    const updatedTask = await prisma.task.update({
-        where: { id: taskId },
-        data: taskData,
-    });
-
     revalidatePath('/teacher/tasks');
-    return updatedTask;
+    return savedTask;
 }
+
 
 export async function deleteTask(id: string): Promise<{ success: boolean }> {
     const session = await getServerSession(authOptions);
@@ -63,7 +53,7 @@ export async function deleteTask(id: string): Promise<{ success: boolean }> {
         throw new Error('Unauthorized');
     }
 
-    await prisma.task.delete({ where: { id } });
+    await prisma.task.delete({ where: { id: id } });
 
     revalidatePath('/teacher/tasks');
     return { success: true };

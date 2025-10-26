@@ -10,7 +10,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
   DialogClose
 } from "@/components/ui/dialog";
@@ -20,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { createTask, updateTask, deleteTask } from "@/lib/actions/task.actions";
+import { saveTask, deleteTask } from "@/lib/actions/task.actions";
 import { Loader2, PlusCircle, Edit, Trash } from 'lucide-react';
 import { Task, TaskType, TaskCategory, TaskDifficulty, ValidationType } from "@prisma/client";
 import { useRouter } from "next/navigation";
@@ -38,25 +37,19 @@ export function TaskEditor({ initialTasks }: TaskEditorProps) {
   const { toast } = useToast();
   const router = useRouter();
 
-  const handleFormSubmit = async (formData: FormData) => {
+  const handleFormAction = async (formData: FormData) => {
     startTransition(async () => {
-      try {
-        if (editingTask) {
-          formData.append('id', editingTask.id);
-          await updateTask(formData);
-          toast({ title: "Tâche mise à jour avec succès !" });
-        } else {
-          await createTask(formData);
-          toast({ title: "Tâche créée avec succès !" });
+        try {
+            await saveTask(formData);
+            toast({ title: `Tâche ${editingTask ? 'mise à jour' : 'créée'} avec succès !` });
+            setDialogOpen(false);
+            // La revalidation se fait dans l'action serveur, mais un refresh client peut être plus rapide visuellement
+            router.refresh(); 
+        } catch (error) {
+            toast({ variant: "destructive", title: "Erreur", description: "Impossible de sauvegarder la tâche." });
         }
-        setDialogOpen(false);
-        // Recharger la page pour voir les changements
-        router.refresh();
-      } catch (error) {
-        toast({ variant: "destructive", title: "Erreur", description: "Impossible de sauvegarder la tâche." });
-      }
     });
-  };
+  }
 
   const openNewTaskDialog = () => {
     setEditingTask(null);
@@ -89,7 +82,12 @@ export function TaskEditor({ initialTasks }: TaskEditorProps) {
         </Button>
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={(isOpen) => {
+          if (!isOpen) {
+              setEditingTask(null); // Reset editing task on close
+          }
+          setDialogOpen(isOpen);
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{editingTask ? 'Modifier la tâche' : 'Créer une nouvelle tâche'}</DialogTitle>
@@ -97,8 +95,8 @@ export function TaskEditor({ initialTasks }: TaskEditorProps) {
               Remplissez les détails de la tâche. Elle sera disponible pour tous les élèves.
             </DialogDescription>
           </DialogHeader>
-          <form ref={formRef} action={handleFormSubmit} className="space-y-4">
-            {/* Form Fields */}
+          <form ref={formRef} action={handleFormAction} className="space-y-4">
+            {editingTask && <input type="hidden" name="id" value={editingTask.id} />}
             <div>
               <Label htmlFor="title">Titre</Label>
               <Input id="title" name="title" defaultValue={editingTask?.title} required />
@@ -165,7 +163,7 @@ export function TaskEditor({ initialTasks }: TaskEditorProps) {
               </DialogClose>
               <Button type="submit" disabled={isPending}>
                 {isPending && <Loader2 className="animate-spin mr-2" />}
-                {editingTask ? 'Sauvegarder les changements' : 'Créer la tâche'}
+                {editingTask ? 'Sauvegarder' : 'Créer'}
               </Button>
             </DialogFooter>
           </form>
