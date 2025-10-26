@@ -12,7 +12,6 @@ import { HandRaiseController } from '../HandRaiseController';
 import { UnderstandingTracker } from '../UnderstandingTracker';
 import { Whiteboard } from '../Whiteboard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { ParticipantList } from './ParticipantList';
 import { ComprehensionLevel } from '@/lib/types';
 import { ClassStudentList } from './ClassStudentList';
 import { Loader2, UploadCloud, File, Trash2, Share2, Award } from 'lucide-react';
@@ -85,7 +84,6 @@ export function TeacherSessionView({
     onPauseTimer,
     onResetTimer,
 }: TeacherSessionViewProps) {
-    console.log('🖼️ [PROF VIEW] Document URL:', documentUrl);
     const remoteStreamsMap = new Map(remoteParticipants.map(p => [p.id, p.stream]));
     
     const studentsWithRaisedHands = allSessionUsers.filter(u => u.role === 'ELEVE' && raisedHands.has(u.id)) as User[];
@@ -100,19 +98,21 @@ export function TeacherSessionView({
         return Array.from(ids);
     }, [currentUserId, remoteParticipants]);
     
-    // Correction: les "onlineUserIds" pour la ClassList doivent être ceux de toute la classe, pas seulement les participants
     const classOnlineIds = allOnlineUserIds;
 
     const [hasWaitingStudents, setHasWaitingStudents] = useState(false);
+    const [isClassListExpanded, setIsClassListExpanded] = useState(false);
 
     useEffect(() => {
         // Un élève est en attente s'il est en ligne mais pas dans la session active
         const waitingCount = classOnlineIds.filter(id => !activeParticipantIds.includes(id) && id !== currentUserId).length;
-        if (waitingCount > 0) {
+        if (waitingCount > 0 && !isClassListExpanded) {
             console.log(`⏱️ [VUE PROF] - Détection de ${waitingCount} élève(s) en attente.`);
+            setHasWaitingStudents(true);
+        } else {
+            setHasWaitingStudents(false);
         }
-        setHasWaitingStudents(waitingCount > 0);
-    }, [classOnlineIds, activeParticipantIds, currentUserId]);
+    }, [classOnlineIds, activeParticipantIds, currentUserId, isClassListExpanded]);
     
     if (!currentUserId || !teacher) return null;
 
@@ -188,6 +188,19 @@ export function TeacherSessionView({
 
         switch(activeTool) {
             case 'document':
+                 if (!documentUrl) {
+                    return (
+                        <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/30 border-dashed">
+                             <CardContent className="text-center text-muted-foreground p-6">
+                                <File className="h-10 w-10 mx-auto mb-4" />
+                                <h3 className="font-semibold text-xl">Partage de document</h3>
+                                <p className="text-sm mt-2">
+                                    Téléversez une image ou un PDF pour l'afficher ici et l'annoter.
+                                </p>
+                            </CardContent>
+                        </Card>
+                    );
+                }
                 return <DocumentViewer url={documentUrl} />;
             case 'whiteboard':
                 return (
@@ -275,26 +288,26 @@ export function TeacherSessionView({
             </div>
 
             {/* --- Colonne de Droite : Outils Interactifs --- */}
-            <div className="w-68 flex-shrink-0 flex flex-col border-r p-3">
-                <motion.div layout className="h-full flex flex-col gap-1  p-2">
+            <div className="w-68 flex-shrink-0 flex flex-col border-l p-3">
+                <motion.div layout className="h-full flex flex-col gap-1 p-2">
                     <ScrollArea className="flex-1 pr-3 -mr-3">
                         <div className="space-y-4 ">
                             {activeTool === 'document' && (
-                                <AnimatedCard title="Partager un document ">
-                                    <div className="flex justify-between items-center ">
-                                        <h4 className="font-semibold">Téléverser</h4>
+                                <AnimatedCard title="Partage de Document">
+                                    <div className='p-2 space-y-3'>
                                         <CloudinaryUploadWidget onUpload={handleDocumentUpload}>
                                             {({ open }) => (
-                                                <Button onClick={() => open()} variant="outline" size="sm">
+                                                <Button onClick={() => open()} className="w-full">
                                                     <UploadCloud className="mr-2" />
-                                                    Choisir
+                                                    Téléverser un fichier
                                                 </Button>
                                             )}
                                         </CloudinaryUploadWidget>
+                                        <DocumentHistory documents={documentHistory} onShare={handleDocumentShare} />
                                     </div>
                                 </AnimatedCard>
                             )}
-                            <AnimatedCard title="Minuteur">
+                             <AnimatedCard title="Gestion de Session">
                                 <SessionTimer
                                     isTeacher={true}
                                     sessionId={sessionId}
@@ -305,8 +318,6 @@ export function TeacherSessionView({
                                     onPause={onPauseTimer}
                                     onReset={onResetTimer}
                                 />
-                            </AnimatedCard>
-                            <AnimatedCard title="Statut de la Session">
                                 <SessionStatus 
                                     participants={allSessionUsers as User[]}
                                     onlineIds={activeParticipantIds}
@@ -323,15 +334,10 @@ export function TeacherSessionView({
                                         activeParticipantIds={activeParticipantIds}
                                         sessionId={sessionId}
                                         hasWaitingStudents={hasWaitingStudents}
-                                        onAccordionToggle={(isOpen) => {
-                                            if(isOpen) setHasWaitingStudents(false);
-                                        }}
+                                        onAccordionToggle={(isOpen) => setIsClassListExpanded(isOpen)}
                                     />
                                 </AnimatedCard>
                             )}
-                            <AnimatedCard title="Historique des Documents">
-                                <DocumentHistory documents={documentHistory} onShare={handleDocumentShare} />
-                            </AnimatedCard>
                             <AnimatedCard title="Suivi de la Compréhension">
                                 <UnderstandingTracker students={students} understandingStatus={understandingStatus} />
                             </AnimatedCard>
@@ -355,11 +361,11 @@ interface AnimatedCardProps {
 }
 
 const AnimatedCard = ({ children, title }: AnimatedCardProps) => {
-    const [isOpen, setIsOpen] = useState(false);
+    const [isOpen, setIsOpen] = useState(true);
     const toggleOpen = () => setIsOpen(!isOpen);
   
     return (
-      <motion.div layout initial={{ borderRadius: 10 }} className="bg-card/80 backdrop-blur-sm border border-border/50 bg-gray-400">
+      <motion.div layout initial={{ borderRadius: 10 }} className="bg-card/80 backdrop-blur-sm border border-border/50">
         <CardHeaderComponent toggleOpen={toggleOpen} title={title} />
         <AnimatePresence>{isOpen && <CardContentComponent>{children}</CardContentComponent>}</AnimatePresence>
       </motion.div>
