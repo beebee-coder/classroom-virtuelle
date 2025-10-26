@@ -107,13 +107,13 @@ export function TeacherSessionView({
     
     if (!currentUserId || !teacher) return null;
 
-    const handleDocumentUpload = (result: any) => {
-        if (result.event === 'success') {
+    const handleDocumentUpload = async (result: any) => {
+        if (result.event === 'success' && result.info) {
             const newDoc = {
-                name: result.info.original_filename,
-                url: result.info.secure_url,
+                name: result.info.original_filename || 'Nouveau document',
+                url: result.info.secure_url
             };
-            shareDocument(sessionId, newDoc);
+            await shareDocument(sessionId, newDoc);
         }
     };
     

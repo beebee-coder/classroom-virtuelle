@@ -70,9 +70,11 @@ export async function broadcastWhiteboardController(sessionId: string, controlle
   }
 }
 
-export async function shareDocument(sessionId: string, document: { name: string; url: string }) {
+export async function shareDocument(
+  sessionId: string = 'default-session', 
+  document: { name: string; url: string } = { name: 'Document', url: 'https://example.com' }
+) {
   console.log(`📄 [ACTION DOCUMENT] - Partage du document '${document.name}' pour la session ${sessionId}`);
-  
   try {
       // 🔍 DEBUG DÉTAILLÉ
       console.log('🔍 [ACTION DOCUMENT] - Vérification de la session...');
