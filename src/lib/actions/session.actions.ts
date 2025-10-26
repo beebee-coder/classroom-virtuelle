@@ -5,10 +5,10 @@ import { revalidatePath } from 'next/cache';
 import { pusherTrigger } from '../pusher/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { ComprehensionLevel } from '@/components/StudentSessionControls';
 import prisma from '../prisma';
 import type { CoursSession, User } from '@prisma/client';
 import { Role } from '@prisma/client';
+import { ComprehensionLevel } from '@/types/session';
 
 export async function createCoursSession(professeurId: string, classroomId: string, studentIds: string[]) {
     console.log('🚀 [ACTION SESSION] - Début de la création de la session de cours...');
@@ -19,7 +19,6 @@ export async function createCoursSession(professeurId: string, classroomId: stri
              console.error('❌ [ACTION SESSION] - Paramètres invalides.');
             throw new Error('Paramètres invalides: professeurId, classroomId et studentIds sont requis');
         }
-
         const participantIds = [professeurId, ...studentIds];
 
         // Créer la session et connecter les participants dans une seule transaction
@@ -226,8 +225,6 @@ export async function endCoursSession(sessionId: string) {
         throw new Error('Impossible de terminer la session');
     }
 }
-
-
 export async function serverSpotlightParticipant(sessionId: string, participantId: string) {
     console.log(`🌟 [ACTION SPOTLIGHT - SERVER] - Exécution de la mise en vedette pour ${participantId}.`);
     return await spotlightParticipant(sessionId, participantId);
@@ -319,15 +316,14 @@ export async function updateStudentSessionStatus(
     await pusherTrigger(channel, 'hand-raise-update', { userId, isRaised: status.isHandRaised });
   }
 
-  //   if (status.understanding !== undefined) {
-  //     console.log(`  -> Diffusion de 'understanding-update' avec status=${status.understanding}`);
-  //     await pusherTrigger(channel, 'understanding-update', { userId, status: status.understanding });
-  //   }
+     if (status.understanding !== undefined) {
+      console.log(`  -> Diffusion de 'understanding-update' avec status=${status.understanding}`);
+      await broadcastUnderstandingUpdate(sessionId, userId, status.understanding);
+    }
 
   console.log('✅ [ACTION STATUS] - Mise à jour du statut diffusée avec succès.');
   return { success: true };
 }
-
 // Types pour TypeScript
 export interface SessionData extends CoursSession {
     invitationResults?: {
@@ -367,3 +363,179 @@ export async function reinviteStudentToSession(sessionId: string, studentId: str
         throw new Error("Impossible de ré-inviter l'élève.");
     }
 }
+// AJOUTER CETTE FONCTION DE NETTOYAGE DANS session.actions.ts
+ // Nettoie les sessions terminées mais non marquées comme telles
+ // À appeler périodiquement ou lors de certaines actions
+export async function cleanupExpiredSessions() {
+    console.log('🧹 [ACTION CLEANUP] - Nettoyage des sessions expirées...');
+    try {
+        // Trouver les sessions sans endTime mais démarrées il y a plus de 2 heures
+        const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+        
+        const expiredSessions = await prisma.coursSession.findMany({
+            where: {
+                endTime: null,
+                startTime: {
+                    lt: twoHoursAgo
+                }
+            },
+            select: {
+                id: true,
+                startTime: true
+            }
+        });
+
+        if (expiredSessions.length > 0) {
+            console.log(`🗑️ [ACTION CLEANUP] - ${expiredSessions.length} sessions expirées à nettoyer`);
+            
+            for (const session of expiredSessions) {
+                console.log(`  -> Marquage comme terminée: ${session.id} (démarrée: ${session.startTime.toISOString()})`);
+                await prisma.coursSession.update({
+                    where: { id: session.id },
+                    data: { endTime: new Date() }
+                });
+            }
+            
+            console.log(`✅ [ACTION CLEANUP] - ${expiredSessions.length} sessions nettoyées`);
+        } else {
+            console.log('✅ [ACTION CLEANUP] - Aucune session expirée trouvée');
+        }
+        
+        return { cleaned: expiredSessions.length };
+        
+    } catch (error) {
+        console.error('❌ [ACTION CLEANUP] - Erreur lors du nettoyage:', error);
+        throw new Error('Échec du nettoyage des sessions');
+    }
+}
+/**
+* Diffuse les événements du tableau blanc à tous les participants
+ */
+export async function broadcastWhiteboardController(
+  sessionId: string, 
+  event: string, 
+  data?: any
+) {
+  console.log(`🎨 [ACTION WHITEBOARD] - Diffusion d'événement '${event}' pour la session ${sessionId}`);
+  
+  try {
+    if (!sessionId || !event) {
+      console.error('❌ [ACTION WHITEBOARD] - sessionId et event sont requis.');
+      throw new Error('sessionId et event sont requis');
+    }
+
+    const channel = `presence-session-${sessionId}`;
+    
+    const payload = {
+      ...data,
+      sessionId,
+      timestamp: new Date().toISOString(),
+      type: 'whiteboard-event'
+    };
+
+    console.log(`  -> Diffusion sur ${channel}:`, { event, data: Object.keys(data || {}) });
+    
+    await pusherTrigger(channel, event, payload);
+    
+    console.log('✅ [ACTION WHITEBOARD] - Événement tableau blanc diffusé avec succès.');
+    return { success: true, event, sessionId };
+    
+  } catch (error) {
+    console.error('💥 [ACTION WHITEBOARD] - Erreur:', error);
+    throw new Error(
+      error instanceof Error 
+        ? `Échec de la diffusion tableau blanc: ${error.message}`
+        : 'Erreur inconnue lors de la diffusion tableau blanc'
+    );
+  }
+}
+/**
+ * Version alternative plus spécifique pour les actions courantes du tableau blanc
+ */
+export async function broadcastWhiteboardAction(
+  sessionId: string,
+  action: 'draw' | 'clear' | 'undo' | 'redo' | 'tool-change',
+  data: any
+) {
+  return await broadcastWhiteboardController(
+    sessionId, 
+    `whiteboard-${action}`, 
+    data
+  );
+}
+// AJOUTER CETTE FONCTION POUR LA COMPRÉHENSION DES ÉLÈVES
+export async function broadcastUnderstandingUpdate(
+    sessionId: string,
+    userId: string, 
+    understanding: ComprehensionLevel
+  ) {
+    console.log(`😊 [ACTION UNDERSTANDING] - Diffusion du niveau de compréhension pour ${userId}: ${understanding}`);
+    
+    try {
+      if (!sessionId || !userId || !understanding) {
+        console.error('❌ [ACTION UNDERSTANDING] - Paramètres manquants.');
+        throw new Error('sessionId, userId et understanding sont requis');
+      }
+  
+      const channel = `presence-session-${sessionId}`;
+      
+      const payload = {
+        userId,
+        understanding,
+        sessionId,
+        timestamp: new Date().toISOString()
+      };
+  
+      console.log(`  -> Diffusion sur ${channel}:`, payload);
+      
+      await pusherTrigger(channel, 'understanding-update', payload);
+      
+      console.log('✅ [ACTION UNDERSTANDING] - Niveau de compréhension diffusé avec succès.');
+      return { success: true, userId, understanding };
+      
+    } catch (error) {
+      console.error('💥 [ACTION UNDERSTANDING] - Erreur:', error);
+      throw new Error('Impossible de diffuser le niveau de compréhension');
+    }
+  }
+  // AJOUTER CETTE FONCTION MANQUANTE
+export async function broadcastWhiteboardUpdate(
+    sessionId: string,
+    data: {
+      type: string;
+      data?: any;
+      userId?: string;
+    }
+  ) {
+    console.log(`🎨 [ACTION WHITEBOARD UPDATE] - Diffusion de mise à jour tableau blanc pour la session ${sessionId}`);
+    
+    try {
+      if (!sessionId) {
+        console.error('❌ [ACTION WHITEBOARD UPDATE] - sessionId est requis.');
+        throw new Error('sessionId est requis');
+      }
+  
+      const channel = `presence-session-${sessionId}`;
+      
+      const payload = {
+        ...data,
+        sessionId,
+        timestamp: new Date().toISOString()
+      };
+  
+      console.log(`  -> Diffusion sur ${channel}:`, { type: data.type });
+      
+      await pusherTrigger(channel, 'whiteboard-update', payload);
+      
+      console.log('✅ [ACTION WHITEBOARD UPDATE] - Mise à jour tableau blanc diffusée avec succès.');
+      return { success: true, sessionId };
+      
+    } catch (error) {
+      console.error('💥 [ACTION WHITEBOARD UPDATE] - Erreur:', error);
+      throw new Error(
+        error instanceof Error 
+          ? `Échec de la diffusion tableau blanc: ${error.message}`
+          : 'Erreur inconnue lors de la diffusion tableau blanc'
+      );
+    }
+  }

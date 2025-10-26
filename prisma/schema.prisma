@@ -1,18 +1,11 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+generator client {
+  provider = "prisma-client-js"
+}
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
-generator client {
-  provider = "prisma-client-js"
-}
-
-// ===================================
-// Modèles de Base
-// ===================================
 
 model User {
   id                  String            @id @default(cuid())
@@ -25,37 +18,33 @@ model User {
   ambition            String?
   parentPassword      String?
   classeId            String?
-  classe              Classroom?        @relation("ClassMembers", fields: [classeId], references: [id], onDelete: SetNull)
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
   announcements       Announcement[]
+  classesEnseignees   Classroom[]       @relation("TeacherClasses")
   sessionsEnseignees  CoursSession[]    @relation("ProfesseurSessions")
-  sessionsParticipees CoursSession[]    @relation("Participants")
-  studentProgress     StudentProgress[]
+  etat                EtatEleve?
   messages            Message[]
   reactions           Reaction[]
-  etat                EtatEleve?
-  classesEnseignees   Classroom[]       @relation("TeacherClasses")
+  studentProgress     StudentProgress[]
+  classe              Classroom?        @relation("ClassMembers", fields: [classeId], references: [id])
+  sessionsParticipees CoursSession[]    @relation("Participants")
 }
 
 model Classroom {
   id            String         @id @default(cuid())
   nom           String
   professeurId  String
-  professeur    User           @relation("TeacherClasses", fields: [professeurId], references: [id], onDelete: Cascade)
-  eleves        User[]         @relation("ClassMembers")
-  announcements Announcement[]
-  sessions      CoursSession[]
-  messages      Message[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
+  announcements Announcement[]
+  professeur    User           @relation("TeacherClasses", fields: [professeurId], references: [id], onDelete: Cascade)
+  sessions      CoursSession[]
+  messages      Message[]
+  eleves        User[]         @relation("ClassMembers")
 
   @@index([professeurId])
 }
-
-// ===================================
-// Modèles Métiers et Compétences
-// ===================================
 
 model Metier {
   id          String      @id @default(cuid())
@@ -66,22 +55,18 @@ model Metier {
   eleves      EtatEleve[]
 }
 
-// ===================================
-// Modèles de Contenu & Activités
-// ===================================
-
 model CoursSession {
   id              String              @id @default(cuid())
   professeurId    String
-  professeur      User                @relation("ProfesseurSessions", fields: [professeurId], references: [id])
   classroomId     String
-  classe          Classroom           @relation(fields: [classroomId], references: [id])
-  participants    User[]              @relation("Participants")
   startTime       DateTime            @default(now())
   endTime         DateTime?
-  documentHistory DocumentInHistory[]
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
+  classe          Classroom           @relation(fields: [classroomId], references: [id])
+  professeur      User                @relation("ProfesseurSessions", fields: [professeurId], references: [id])
+  documentHistory DocumentInHistory[]
+  participants    User[]              @relation("Participants")
 
   @@index([professeurId])
   @@index([classroomId])
@@ -98,17 +83,15 @@ model Task {
   validationType  ValidationType
   requiresProof   Boolean           @default(false)
   isActive        Boolean           @default(true)
-  studentProgress StudentProgress[]
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
+  studentProgress StudentProgress[]
 }
 
 model StudentProgress {
   id             String         @id @default(cuid())
   studentId      String
-  student        User           @relation(fields: [studentId], references: [id], onDelete: Cascade)
   taskId         String
-  task           Task           @relation(fields: [taskId], references: [id], onDelete: Cascade)
   status         ProgressStatus @default(IN_PROGRESS)
   completionDate DateTime?      @default(now())
   submissionUrl  String?
@@ -117,6 +100,8 @@ model StudentProgress {
   recipeName     String?
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
+  student        User           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  task           Task           @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@unique([studentId, taskId])
   @@index([studentId])
@@ -128,30 +113,26 @@ model Announcement {
   title         String
   content       String
   authorId      String
-  author        User       @relation(fields: [authorId], references: [id])
   classeId      String?
-  classe        Classroom? @relation(fields: [classeId], references: [id])
   attachmentUrl String?
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
+  author        User       @relation(fields: [authorId], references: [id])
+  classe        Classroom? @relation(fields: [classeId], references: [id])
 
   @@index([authorId])
   @@index([classeId])
 }
 
-// ===================================
-// Modèles pour le Chat
-// ===================================
-
 model Message {
   id          String     @id @default(cuid())
   message     String
   classroomId String
-  classroom   Classroom  @relation(fields: [classroomId], references: [id], onDelete: Cascade)
   senderId    String
+  createdAt   DateTime   @default(now())
+  classroom   Classroom  @relation(fields: [classroomId], references: [id], onDelete: Cascade)
   sender      User       @relation(fields: [senderId], references: [id], onDelete: Cascade)
   reactions   Reaction[]
-  createdAt   DateTime   @default(now())
 
   @@index([classroomId])
   @@index([senderId])
@@ -161,26 +142,22 @@ model Reaction {
   id        String   @id @default(cuid())
   emoji     String
   messageId String
-  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([messageId, userId, emoji])
   @@index([messageId])
   @@index([userId])
 }
 
-// ===================================
-// Modèles d'État et de Support
-// ===================================
-
 model EtatEleve {
   id         String  @id @default(cuid())
   eleveId    String  @unique
-  eleve      User    @relation(fields: [eleveId], references: [id], onDelete: Cascade)
   isPunished Boolean @default(false)
   metierId   String?
+  eleve      User    @relation(fields: [eleveId], references: [id], onDelete: Cascade)
   metier     Metier? @relation(fields: [metierId], references: [id])
 }
 
@@ -189,15 +166,11 @@ model DocumentInHistory {
   name           String
   url            String
   createdAt      DateTime     @default(now())
-  coursSession   CoursSession @relation(fields: [coursSessionId], references: [id])
   coursSessionId String
+  coursSession   CoursSession @relation(fields: [coursSessionId], references: [id])
 
   @@index([coursSessionId])
 }
-
-// ===================================
-// Énumérations
-// ===================================
 
 enum Role {
   ELEVE

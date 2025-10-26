@@ -4,6 +4,7 @@ import { ComprehensionLevel } from "@/components/StudentSessionControls";
 import type { User, Role, Classroom, EtatEleve, Document as PrismaDocument } from '@/lib/types';
 import type { Instance as PeerInstance, SignalData as PeerSignalData } from 'simple-peer';
 import { TLEditorSnapshot } from "@tldraw/tldraw";
+import { broadcastWhiteboardController, broadcastWhiteboardAction } from "@/lib/actions";
 
 // Re-export des types Prisma de base si nécessaire ailleurs, mais il vaut mieux importer directement.
 export * from '@prisma/client';
@@ -114,3 +115,10 @@ export type DocumentInHistory = {
   }
   
 export type SessionParticipant = Pick<import('@prisma/client').User, 'id' | 'name' | 'role'>;
+
+// AJOUTER CES EXPORTS POUR LE TABLEAU BLANC
+export {
+  broadcastWhiteboardController as broadcastWhiteboardUpdate,
+  broadcastWhiteboardAction,
+  broadcastWhiteboardController
+};
