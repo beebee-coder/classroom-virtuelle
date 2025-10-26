@@ -3,7 +3,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth-options';
 import prisma from '../prisma';
 import { ProgressStatus, type Task, type StudentProgress, Role } from '@prisma/client';
 

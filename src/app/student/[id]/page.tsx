@@ -1,6 +1,6 @@
 // src/app/student/[id]/page.tsx
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth-options';
 import { redirect, notFound } from 'next/navigation';
 import { getStudentData } from '@/lib/actions/student.actions';
 import StudentPageClient from '@/components/StudentPageClient';

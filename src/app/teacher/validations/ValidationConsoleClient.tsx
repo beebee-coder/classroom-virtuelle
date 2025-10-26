@@ -12,6 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { Task, StudentProgress, User } from '@prisma/client';
+export const dynamic = 'force-dynamic';
 
 type TaskForProfessorValidation = StudentProgress & {
   task: Task;

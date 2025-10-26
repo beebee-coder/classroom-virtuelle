@@ -2,7 +2,7 @@
 
 import { notFound, redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth-options';
 import { Header } from '@/components/Header';
 import { StudentClassView } from '@/components/StudentClassView';
 import type { User, Classroom, EtatEleve } from '@prisma/client';

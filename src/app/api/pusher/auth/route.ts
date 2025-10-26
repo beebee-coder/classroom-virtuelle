@@ -1,9 +1,9 @@
 // src/app/api/pusher/auth/route.ts
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { authenticateUser } from '@/lib/pusher/server';
 import type { Role } from '@prisma/client';
+import { authOptions } from '@/lib/auth-options';
 
 export async function POST(request: Request) {
   console.log('🚪 [API PUSHER AUTH] - Requête d\'authentification reçue.');

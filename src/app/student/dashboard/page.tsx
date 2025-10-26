@@ -3,7 +3,7 @@ import { Header } from '@/components/Header';
 import { notFound, redirect } from 'next/navigation';
 import { CareerThemeWrapper } from '@/components/CareerThemeWrapper';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth-options';
 import { ChatSheet } from '@/components/ChatSheet';
 import { getStudentAnnouncements } from '@/lib/actions/announcement.actions';
 import { getStudentData } from '@/lib/actions/student.actions';
@@ -13,6 +13,7 @@ import Menu from '@/components/Menu';
 import prisma from '@/lib/prisma';
 import type { User, Metier, Announcement, StudentProgress, Task, Classroom, EtatEleve } from '@prisma/client';
 import { AlertCircle } from 'lucide-react';
+export const dynamic = 'force-dynamic';
 
 // Type cohérent avec ce que retourne getStudentData
 type StudentWithDetails = User & {

@@ -4,12 +4,13 @@ import Menu from '@/components/Menu';
 import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { getTasksForProfessorValidation } from '@/lib/actions/teacher.actions';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth-options';
 import prisma from '@/lib/prisma';
 import { redirect } from 'next/navigation';
 import { ChatSheet } from '@/components/ChatSheet';
 import { Role } from '@prisma/client';
 import { AlertCircle } from 'lucide-react';
+export const dynamic = 'force-dynamic';
 
 // Interface pour les données de classe
 interface ClassroomData {

@@ -3,7 +3,6 @@
 import type { User, Role, Classroom, EtatEleve, Document as PrismaDocument } from '@/lib/types';
 import type { Instance as PeerInstance, SignalData as PeerSignalData } from 'simple-peer';
 import { TLEditorSnapshot } from "@tldraw/tldraw";
-import { broadcastWhiteboardController, broadcastWhiteboardAction } from "@/lib/actions";
 import { ComprehensionLevel } from '@/lib/types';
 
 // Re-export des types Prisma de base si nécessaire ailleurs, mais il vaut mieux importer directement.

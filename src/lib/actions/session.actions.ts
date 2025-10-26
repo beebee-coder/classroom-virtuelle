@@ -4,7 +4,7 @@
 import { revalidatePath } from 'next/cache';
 import { pusherTrigger } from '../pusher/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth-options';
 import prisma from '../prisma';
 import type { CoursSession, User } from '@prisma/client';
 import { Role } from '@prisma/client';
@@ -408,31 +408,7 @@ export async function cleanupExpiredSessions() {
         throw new Error('Échec du nettoyage des sessions');
     }
 }
-export async function broadcastWhiteboardAction(
-  sessionId: string,
-  action: 'draw' | 'clear' | 'undo' | 'redo' | 'tool-change',
-  data: any
-) {
-    const channel = `presence-session-${sessionId}`;
-    const event = `whiteboard-${action}`;
 
-    console.log(`🎨 [ACTION WHITEBOARD] - Diffusion de l'action '${action}' pour la session ${sessionId}`);
-  
-    try {
-      if (!sessionId) {
-        throw new Error('sessionId is required');
-      }
-  
-      await pusherTrigger(channel, event, data);
-      
-      console.log(`✅ [ACTION WHITEBOARD] - Action '${action}' diffusée avec succès.`);
-      return { success: true };
-      
-    } catch (error) {
-      console.error(`💥 [ACTION WHITEBOARD] - Erreur lors de la diffusion de l'action '${action}':`, error);
-      throw new Error(`Failed to broadcast whiteboard action: ${action}`);
-    }
-}
 // AJOUTER CETTE FONCTION POUR LA COMPRÉHENSION DES ÉLÈVES
 export async function broadcastUnderstandingUpdate(
     sessionId: string,
@@ -451,7 +427,7 @@ export async function broadcastUnderstandingUpdate(
       
       const payload = {
         userId,
-        understanding,
+        status: understanding, // Correction: le payload attend 'status'
         sessionId,
         timestamp: new Date().toISOString()
       };

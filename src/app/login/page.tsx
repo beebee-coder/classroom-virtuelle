@@ -1,8 +1,8 @@
-// src/app/login/page.tsx
+// src/app/login/page.tsx - VERSION CORRIGÉE
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { signIn, useSession } from 'next-auth/react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,14 +15,21 @@ import type { Role } from '@prisma/client';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 
-// Le composant LoginFormComponent a été fusionné ici pour simplifier la structure.
-export default function LoginPage() {
+// Composant qui utilise useSearchParams - doit être wrapé dans Suspense
+function LoginForm() {
     const router = useRouter();
-    const searchParams = useSearchParams();
     const { data: session, status } = useSession();
 
-    const errorParam = searchParams.get('error');
-    const callbackUrl = searchParams.get('callbackUrl');
+    // Utiliser URLSearchParams côté client au lieu de useSearchParams()
+    const [searchParams, setSearchParams] = useState<URLSearchParams | null>(null);
+
+    useEffect(() => {
+        // Récupérer les paramètres d'URL côté client
+        setSearchParams(new URLSearchParams(window.location.search));
+    }, []);
+
+    const errorParam = searchParams?.get('error') || '';
+    const callbackUrl = searchParams?.get('callbackUrl') || '';
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -58,7 +65,6 @@ export default function LoginPage() {
         }
     }, [status, session, router, callbackUrl]);
 
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -79,8 +85,6 @@ export default function LoginPage() {
             }
             setLoading(false);
         }
-        // Si la connexion réussit, le useEffect s'occupera de la redirection.
-        // On remet le loading à false uniquement en cas d'erreur ici.
     };
 
     const handleDemoFill = (role: Role) => {
@@ -95,7 +99,6 @@ export default function LoginPage() {
     }
     
     // Si la session est en cours de chargement ou déjà authentifiée, afficher un loader.
-    // Le useEffect se chargera de la redirection.
     if (status === "loading" || status === "authenticated") {
         return (
             <div className="flex items-center justify-center min-h-screen">
@@ -134,7 +137,6 @@ export default function LoginPage() {
                     </p>
                 </div>
                 
-                {/* Le formulaire est maintenant directement ici */}
                 <Card className="shadow-2xl bg-card/80 backdrop-blur-sm border-white/20">
                     <form onSubmit={handleSubmit}>
                         <CardContent className="p-8 space-y-6">
@@ -217,4 +219,9 @@ export default function LoginPage() {
             </div>
         </div>
     );
+}
+
+// Export principal
+export default function LoginPage() {
+    return <LoginForm />;
 }

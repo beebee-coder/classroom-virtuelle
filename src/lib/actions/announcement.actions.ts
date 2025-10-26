@@ -4,7 +4,7 @@
 import { revalidatePath } from 'next/cache';
 import { cache } from 'react';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth-options';
 import prisma from '../prisma';
 import type { Announcement } from '@prisma/client';
 

@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Users, CheckCircle, Megaphone, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth-options';
 import { getTasksForProfessorValidation } from '@/lib/actions/teacher.actions';
 import { redirect } from 'next/navigation';
 import prisma from '@/lib/prisma';

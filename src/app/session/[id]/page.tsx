@@ -1,13 +1,13 @@
 // src/app/session/[id]/page.tsx - Version avec base de données
 import { notFound, redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import SessionClient from '@/components/SessionClient';
 import { Suspense } from 'react';
 import { getSessionDetails } from '@/lib/actions/session.actions';
 import { getClassroomWithStudents } from '@/lib/actions/classroom.actions';
 import type { User, Role, Classroom, EtatEleve } from '@prisma/client';
 import prisma from '@/lib/prisma';
+import { authOptions } from '@/lib/auth-options';
 
 type ClassroomWithDetails = Classroom & { eleves: (User & { etat: EtatEleve | null })[] };
 

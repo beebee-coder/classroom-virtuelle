@@ -1,12 +1,14 @@
 // src/app/teacher/validations/page.tsx
+'use client';
 import { BackButton } from "@/components/BackButton";
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth-options';
 import { redirect } from "next/navigation";
 import { getTasksForProfessorValidation } from "@/lib/actions/teacher.actions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ValidationConsoleClient } from "./ValidationConsoleClient";
 import { CheckCircle } from "lucide-react";
+export const dynamic = 'force-dynamic';
 
 export default async function ProfessorValidationPage() {
   const session = await getServerSession(authOptions);

@@ -2,10 +2,13 @@
 import { TaskEditor } from "@/components/TaskEditor";
 import { BackButton } from "@/components/BackButton";
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth-options';
 import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
 import type { Task } from "@prisma/client";
+
+// ✅ FORCER LE RENDER DYNAMIQUE
+export const dynamic = 'force-dynamic';
 
 export default async function TasksPage() {
   const session = await getServerSession(authOptions);
@@ -28,6 +31,7 @@ export default async function TasksPage() {
             <p className="text-muted-foreground">Créez et gérez les tâches pour tous les élèves.</p>
           </div>
       </div>
+      {/* ✅ PASSER LES DATES DIRECTEMENT - Next.js les sérialise automatiquement */}
       <TaskEditor initialTasks={tasks} />
     </main>
   );

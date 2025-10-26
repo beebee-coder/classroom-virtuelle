@@ -3,7 +3,7 @@ import { BackButton } from "@/components/BackButton";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth-options';
 import { Users, Book, Video, Clock } from "lucide-react";
 import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
