@@ -76,14 +76,10 @@ export async function shareDocument(sessionId: string, document: { name: string;
             throw new Error('sessionId et document (name, url) sont requis.');
         }
 
-        // La logique de base de données est retirée car le modèle n'existe pas.
-        console.log(`  Historique des documents mis à jour en mémoire (simulation).`);
-
         const channel = `presence-session-${sessionId}`;
         const payload = {
+            name: document.name,
             url: document.url,
-            // Pour l'instant, l'historique n'est pas géré côté serveur.
-            newHistory: [{ name: document.name, url: document.url, createdAt: new Date() }],
         };
         
         console.log(`  Diffusion de l'événement 'document-updated' sur le canal ${channel}.`);

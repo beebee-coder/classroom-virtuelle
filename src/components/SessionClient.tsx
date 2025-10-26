@@ -15,8 +15,8 @@ import { TeacherSessionView } from './session/TeacherSessionView';
 import { StudentSessionView } from './session/StudentSessionView';
 import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';
-import { endCoursSession, broadcastTimerEvent, broadcastActiveTool, updateStudentSessionStatus } from '@/lib/actions/session.actions';
-import { broadcastWhiteboardController, broadcastWhiteboardUpdate } from '@/lib/actions/whiteboard.actions';
+import { endCoursSession, broadcastTimerEvent, broadcastActiveTool, updateStudentSessionStatus, broadcastWhiteboardController } from '@/lib/actions/session.actions';
+import { broadcastWhiteboardUpdate, shareDocument } from '@/lib/actions/whiteboard.actions';
 import { ComprehensionLevel } from '@/lib/types';
 import { SessionClientProps, PeerData, SignalPayload, PusherSubscriptionSucceededEvent, PusherMemberEvent, IncomingSignalData, SpotlightEvent, HandRaiseEvent, UnderstandingEvent, TimerEvent, ToolEvent, DocumentEvent, RemoteParticipant, WhiteboardUpdateEvent, WhiteboardControllerEvent } from '@/types';
 import { TLEditorSnapshot, TLStoreSnapshot } from '@tldraw/tldraw';
@@ -336,15 +336,29 @@ export default function SessionClient({
       console.log(`[PUSHER] - Outil actif changé pour: ${data.tool}`);
       setActiveTool(data.tool);
     };
-    const handleDocumentUpdated = (data: DocumentEvent & { newHistory: DocumentInHistory[] }): void => {
+
+    const handleDocumentUpdated = (data: DocumentEvent & { name: string }): void => {
         console.log(`[PUSHER] - URL du document mise à jour: ${data.url}`);
         setDocumentUrl(data.url);
-        if (data.newHistory) {
-            setDocumentHistory(data.newHistory);
-        }
+        
+        const newDoc: DocumentInHistory = {
+            id: `doc-${Date.now()}`,
+            name: data.name,
+            url: data.url,
+            createdAt: new Date(),
+            coursSessionId: sessionId,
+        };
+
+        setDocumentHistory(prev => {
+            // Éviter les doublons
+            if (prev.find(d => d.url === newDoc.url)) return prev;
+            return [...prev, newDoc];
+        });
+
         setActiveTool('document');
         toast({ title: 'Document partagé', description: 'Le professeur a partagé un nouveau document.' });
     };
+
     const handleWhiteboardUpdate = (data: WhiteboardUpdateEvent) => {
         if (data.senderId !== currentUserId) {
             console.log(`🎨 [PUSHER] - Mise à jour du tableau blanc reçue de ${data.senderId}`);
@@ -440,12 +454,12 @@ export default function SessionClient({
 
   const handleToggleHandRaise = (isRaised: boolean) => {
         const newHandRaiseState = isRaised;
+        const currentUnderstanding = understandingStatus.get(currentUserId) || ComprehensionLevel.NONE;
         setRaisedHands(prev => {
             const newSet = new Set(prev);
             newHandRaiseState ? newSet.add(currentUserId) : newSet.delete(currentUserId);
             return newSet;
         });
-        const currentUnderstanding = understandingStatus.get(currentUserId) || ComprehensionLevel.NONE;
         updateStudentSessionStatus(sessionId, { isHandRaised: newHandRaiseState, understanding: currentUnderstanding }).catch(() => {
              toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de mettre à jour le statut de la main levée.'});
              setRaisedHands(prev => {
@@ -457,8 +471,9 @@ export default function SessionClient({
   };
   const handleUnderstandingChange = (status: ComprehensionLevel) => {
        const newStatus = understandingStatus.get(currentUserId) === status ? ComprehensionLevel.NONE : status;
+       const isHandRaised = raisedHands.has(currentUserId);
        setUnderstandingStatus(prev => new Map(prev).set(currentUserId, newStatus));
-        updateStudentSessionStatus(sessionId, { understanding: newStatus }).catch(() => {
+        updateStudentSessionStatus(sessionId, { understanding: newStatus, isHandRaised }).catch(() => {
             toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de mettre à jour le statut de compréhension.'});
             setUnderstandingStatus(prev => new Map(prev).set(currentUserId, understandingStatus.get(currentUserId) || ComprehensionLevel.NONE));
         });

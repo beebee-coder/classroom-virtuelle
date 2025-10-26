@@ -77,6 +77,7 @@ export type DocumentInHistory = {
   }
   
   export interface DocumentEvent {
+    name: string;
     url: string;
     newHistory: DocumentInHistory[];
   }
