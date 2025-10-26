@@ -3,8 +3,9 @@
 
 import { pusherTrigger } from '@/lib/pusher/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options';
+import { authOptions } from '@/lib/auth-options'; // CORRECTION: Importer depuis le fichier centralisé
 import { revalidatePath } from 'next/cache';
+import type { TLEditorSnapshot } from '@tldraw/tldraw';
 
 /**
  * Diffuse les mises à jour de l'état du tableau blanc à tous les participants d'une session.
@@ -70,24 +71,45 @@ export async function broadcastWhiteboardController(sessionId: string, controlle
 }
 
 export async function shareDocument(sessionId: string, document: { name: string; url: string }) {
-    console.log(`📄 [ACTION DOCUMENT] - Partage du document '${document.name}' pour la session ${sessionId}`);
-    try {
-        if (!sessionId || !document?.url || !document?.name) {
-            throw new Error('sessionId et document (name, url) sont requis.');
-        }
+  console.log(`📄 [ACTION DOCUMENT] - Partage du document '${document.name}' pour la session ${sessionId}`);
+  
+  try {
+      // 🔍 DEBUG DÉTAILLÉ
+      console.log('🔍 [ACTION DOCUMENT] - Vérification de la session...');
+      const session = await getServerSession(authOptions);
+      
+      if (!session?.user) {
+          console.error('❌ [ACTION DOCUMENT] - Utilisateur non authentifié - Session:', session);
+          throw new Error('Unauthorized: No user session');
+      }
 
-        const channel = `presence-session-${sessionId}`;
-        const payload = {
-            name: document.name,
-            url: document.url,
-        };
-        
-        console.log(`  Diffusion de l'événement 'document-updated' sur le canal ${channel}.`);
-        await pusherTrigger(channel, 'document-updated', payload);
-        
-        return { success: true };
-    } catch (error) {
-        console.error('💥 [ACTION DOCUMENT] - Erreur:', error);
-        throw new Error("Impossible de partager le document.");
-    }
+      console.log('✅ [ACTION DOCUMENT] - Session trouvée:', session.user.name);
+      
+      if (!sessionId || !document?.url || !document?.name) {
+          console.error('❌ [ACTION DOCUMENT] - Paramètres manquants:', { sessionId, document });
+          throw new Error('sessionId et document (name, url) sont requis.');
+      }
+
+      const channel = `presence-session-${sessionId}`;
+      const payload = {
+          name: document.name,
+          url: document.url,
+          sharedBy: session.user.name,
+          timestamp: new Date().toISOString(),
+          newHistory: [], // La gestion de l'historique est maintenant côté client.
+      };
+      
+      console.log(`📤 [ACTION DOCUMENT] - Tentative de diffusion sur le canal ${channel}...`);
+      console.log('📦 Payload:', payload);
+      
+      await pusherTrigger(channel, 'document-updated', payload);
+      
+      console.log('✅ [ACTION DOCUMENT] - Document partagé avec succès!');
+      return { success: true };
+      
+  } catch (error) {
+      console.error('💥 [ACTION DOCUMENT] - Erreur détaillée:', error);
+      console.error('💥 Stack:', error instanceof Error ? error.stack : 'No stack');
+      throw new Error(`Impossible de partager le document: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+  }
 }

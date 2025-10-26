@@ -2,7 +2,8 @@
 'use server';
 
 import { getServerSession } from 'next-auth';
-import { authOptions } from "@/lib/auth-options";
+import { authOptions } from "@/lib/auth-options"; // CORRECTION: Importer depuis le fichier centralisé
+
 const POINTS_PER_INTERVAL = 20;
 const MAX_DAILY_POINTS = 200;
 

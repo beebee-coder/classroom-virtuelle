@@ -4,11 +4,13 @@
 import { revalidatePath } from 'next/cache';
 import { pusherTrigger } from '../pusher/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options';
+import { authOptions } from '@/lib/auth-options'; // CORRECTION: Importer depuis le fichier centralisé
 import prisma from '../prisma';
 import type { CoursSession, User } from '@prisma/client';
 import { Role } from '@prisma/client';
 import { ComprehensionLevel } from '@/lib/types';
+
+
 
 export async function createCoursSession(professeurId: string, classroomId: string, studentIds: string[]) {
     console.log('🚀 [ACTION SESSION] - Début de la création de la session de cours...');
