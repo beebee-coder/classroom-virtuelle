@@ -446,4 +446,37 @@ export async function broadcastUnderstandingUpdate(
       throw new Error('Impossible de diffuser le niveau de compréhension');
     }
   }
+
+  export async function shareDocument(
+    sessionId: string,
+    document: { name: string; url: string }
+  ) {
+    console.log(`📄 [ACTION DOCUMENT] - Partage du document '${document.name}' pour la session ${sessionId}`);
+    try {
+      const session = await getServerSession(authOptions);
+      if (!session?.user) {
+        throw new Error("Utilisateur non authentifié.");
+      }
+      
+      if (!sessionId || !document?.url || !document?.name) {
+        throw new Error('sessionId et document (name, url) sont requis.');
+      }
+  
+      const channel = `presence-session-${sessionId}`;
+      const payload = {
+        name: document.name,
+        url: document.url,
+        sharedBy: session.user.name,
+        timestamp: new Date().toISOString(),
+      };
+      
+      await pusherTrigger(channel, 'document-shared', payload);
+      
+      return { success: true };
+      
+    } catch (error) {
+        console.error('💥 [ACTION DOCUMENT] - Erreur détaillée:', error);
+        throw new Error(`Impossible de partager le document: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+    }
+  }
   

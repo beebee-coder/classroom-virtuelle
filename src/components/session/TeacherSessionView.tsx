@@ -18,7 +18,7 @@ import { ClassStudentList } from './ClassStudentList';
 import { Loader2, UploadCloud, File, Trash2, Share2, Award } from 'lucide-react';
 import { CloudinaryUploadWidget } from '../CloudinaryUploadWidget';
 import { Button } from '../ui/button';
-import { shareDocument } from '@/lib/actions/whiteboard.actions';
+import { shareDocument } from '@/lib/actions/session.actions';
 import { TLEditorSnapshot } from '@tldraw/tldraw';
 import { broadcastWhiteboardUpdate } from '@/lib/actions/whiteboard.actions';
 import { SessionStatus } from './SessionStatus';
