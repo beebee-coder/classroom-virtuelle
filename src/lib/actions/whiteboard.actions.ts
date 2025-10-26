@@ -5,7 +5,7 @@ import { pusherTrigger } from '@/lib/pusher/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { revalidatePath } from 'next/cache';
-import { TLEditorSnapshot, createTLStore, defaultShapeUtils, getSnapshot, AssetRecord, ShapeRecord, PageRecord } from '@tldraw/tldraw';
+import { TLEditorSnapshot, createTLStore, defaultShapeUtils, getSnapshot, AssetRecord, ShapeRecord, PageRecord, RecordId } from '@tldraw/tldraw';
 
 /**
  * Diffuse les mises à jour de l'état du tableau blanc à tous les participants d'une session.
@@ -92,14 +92,13 @@ export async function shareDocument(
     const imageWidth = 1080;
     const imageHeight = 720;
     
-    const assetId = AssetRecord.createId();
-    const shapeId = ShapeRecord.createId();
-    const pageId = PageRecord.createId('page');
+    const assetId: RecordId<any> = AssetRecord.createId();
+    const shapeId: RecordId<any> = ShapeRecord.createId();
+    const pageId: RecordId<any> = PageRecord.createId('page');
 
     store.put([
-        {
+        AssetRecord.create({
             id: assetId,
-            typeName: 'asset',
             type: 'image',
             props: {
                 w: imageWidth,
@@ -109,16 +108,14 @@ export async function shareDocument(
                 mimeType: 'image/png', // Assumons png, pourrait être amélioré
                 src: document.url,
             },
-            meta: {},
-        },
-        {
+        }),
+        ShapeRecord.create({
             id: shapeId,
-            typeName: 'shape',
             type: 'image',
             x: 100, // Centrer l'image
             y: 100,
             rotation: 0,
-            index: 'a1', // L'index peut être une simple chaîne de caractères
+            index: 'a1',
             parentId: pageId,
             isLocked: false,
             props: {
@@ -127,8 +124,7 @@ export async function shareDocument(
                 assetId: assetId,
                 url: document.url,
             },
-            meta: {},
-        },
+        }),
     ]);
     
     const snapshot = getSnapshot(store);
@@ -152,8 +148,8 @@ export async function shareDocument(
     return { success: true };
     
   } catch (error) {
-    console.error('💥 [ACTION DOCUMENT] - Erreur détaillée:', error);
-    console.error('💥 Stack:', error instanceof Error ? error.stack : 'No stack');
-    throw new Error(`Impossible de partager le document: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+      console.error('💥 [ACTION DOCUMENT] - Erreur détaillée:', error);
+      console.error('💥 Stack:', error instanceof Error ? error.stack : 'No stack');
+      throw new Error(`Impossible de partager le document: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
   }
 }
