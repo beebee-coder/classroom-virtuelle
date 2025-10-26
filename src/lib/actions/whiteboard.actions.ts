@@ -86,10 +86,22 @@ export async function shareDocument(
       throw new Error('sessionId et document (name, url) sont requis.');
     }
 
+    let finalUrl = document.url;
+
+    // Si c'est un PDF, on modifie l'URL Cloudinary pour forcer le lien direct
+    if (document.name.toLowerCase().endsWith('.pdf')) {
+        const parts = document.url.split('/upload/');
+        if (parts.length === 2) {
+            finalUrl = `${parts[0]}/upload/fl_attachment/${parts[1]}`;
+            console.log(`   -> URL de PDF modifiée pour lien direct: ${finalUrl}`);
+        }
+    }
+
+
     const channel = `presence-session-${sessionId}`;
     const payload = {
       name: document.name,
-      url: document.url,
+      url: finalUrl,
       sharedBy: session.user.name,
       timestamp: new Date().toISOString(),
     };
