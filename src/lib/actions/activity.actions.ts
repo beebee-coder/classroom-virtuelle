@@ -1,7 +1,8 @@
 // src/lib/actions/activity.actions.ts
 'use server';
 
-import { getAuthSession } from '@/lib/session';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 const POINTS_PER_INTERVAL = 20;
 const MAX_DAILY_POINTS = 200;
@@ -10,7 +11,7 @@ const MAX_DAILY_POINTS = 200;
 // Cette action est simulée et n'affecte aucune base de données.
 export async function trackStudentActivity(activeSeconds: number) {
   try {
-    const session = await getAuthSession();
+    const session = await getServerSession(authOptions);
     const userId = session?.user?.id;
     
     if (!userId || session?.user?.role !== 'ELEVE') {
