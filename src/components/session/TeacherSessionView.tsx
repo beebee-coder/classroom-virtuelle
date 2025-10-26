@@ -94,7 +94,11 @@ export function TeacherSessionView({
     
     const teacher = allSessionUsers.find(u => u.role === 'PROFESSEUR');
 
-    const activeParticipantIds = useMemo(() => [currentUserId, ...remoteParticipants.map(p => p.id)], [currentUserId, remoteParticipants]);
+    const activeParticipantIds = useMemo(() => {
+        const ids = new Set<string>([currentUserId]);
+        remoteParticipants.forEach(p => ids.add(p.id));
+        return Array.from(ids);
+    }, [currentUserId, remoteParticipants]);
     
     // Correction: les "onlineUserIds" pour la ClassList doivent être ceux de toute la classe, pas seulement les participants
     const classOnlineIds = allOnlineUserIds;
