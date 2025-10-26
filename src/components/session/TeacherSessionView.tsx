@@ -14,7 +14,6 @@ import { Whiteboard } from '../Whiteboard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { ParticipantList } from './ParticipantList';
 import { ComprehensionLevel } from '@/lib/types';
-import { DocumentViewer } from '../DocumentViewer';
 import { ClassStudentList } from './ClassStudentList';
 import { Loader2, UploadCloud, File, Trash2, Share2, Award } from 'lucide-react';
 import { CloudinaryUploadWidget } from '../CloudinaryUploadWidget';
@@ -109,9 +108,9 @@ export function TeacherSessionView({
 
     const handleDocumentUpload = async (result: any) => {
         if (result.event === 'success' && result.info) {
-            const newDoc = {
+             const newDoc = {
                 name: result.info.original_filename || 'Nouveau document',
-                url: result.info.secure_url
+                url: result.info.secure_url,
             };
             await shareDocument(sessionId, newDoc);
         }
@@ -179,7 +178,14 @@ export function TeacherSessionView({
 
         switch(activeTool) {
             case 'document':
-                return <DocumentViewer url={documentUrl} />;
+            case 'whiteboard':
+                return (
+                    <Whiteboard 
+                        sessionId={sessionId}
+                        onPersist={handleWhiteboardPersist}
+                        isController={currentUserId === whiteboardControllerId}
+                    />
+                );
             case 'quiz':
                  return (
                     <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/50 border-dashed ">
@@ -219,7 +225,6 @@ export function TeacherSessionView({
                         />
                     </Card>
                 );
-            case 'whiteboard':
             default:
                 return (
                     <Whiteboard 

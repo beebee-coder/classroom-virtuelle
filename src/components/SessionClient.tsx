@@ -337,10 +337,11 @@ export default function SessionClient({
       setActiveTool(data.tool);
     };
 
-    const handleDocumentUpdated = (data: DocumentEvent): void => {
+    const handleDocumentUpdated = (data: DocumentEvent & { snapshot: TLEditorSnapshot }): void => {
         console.log(`[PUSHER] - URL du document mise à jour: ${data.url}`);
         setDocumentUrl(data.url);
         setDocumentHistory(data.newHistory);
+        setWhiteboardSnapshot(data.snapshot);
         setActiveTool('document');
         toast({ title: 'Document partagé', description: 'Le professeur a partagé un nouveau document.' });
     };

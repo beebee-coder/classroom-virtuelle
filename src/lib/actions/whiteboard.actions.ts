@@ -5,7 +5,7 @@ import { pusherTrigger } from '@/lib/pusher/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { revalidatePath } from 'next/cache';
-import type { TLEditorSnapshot } from '@tldraw/tldraw';
+import { TLEditorSnapshot, createTLStore, defaultShapeUtils, getSnapshotFromNext, getDefaultIndex } from '@tldraw/tldraw';
 
 /**
  * Diffuse les mises à jour de l'état du tableau blanc à tous les participants d'une session.
@@ -85,21 +85,74 @@ export async function shareDocument(
       throw new Error('sessionId et document (name, url) sont requis.');
     }
 
+    // Créer un snapshot tldraw avec l'image
+    const store = createTLStore({ shapeUtils: defaultShapeUtils });
+
+    // Idéaalement, on récupérerait les dimensions de l'image, mais pour l'instant, utilisons une taille par défaut.
+    const imageWidth = 1080;
+    const imageHeight = 720;
+    
+    const assetId = `asset:${crypto.randomUUID()}`;
+    const shapeId = `shape:${crypto.randomUUID()}`;
+
+    store.put([
+        {
+            id: assetId,
+            typeName: 'asset',
+            type: 'image',
+            props: {
+                w: imageWidth,
+                h: imageHeight,
+                name: document.name,
+                isAnimated: false,
+                mimeType: 'image/png', // Assumons png, pourrait être amélioré
+                src: document.url,
+            },
+            meta: {},
+        },
+        {
+            id: shapeId,
+            typeName: 'shape',
+            type: 'image',
+            x: 100, // Centrer l'image
+            y: 100,
+            rotation: 0,
+            index: getDefaultIndex(store),
+            parentId: 'page:page',
+            isLocked: false,
+            props: {
+                w: imageWidth,
+                h: imageHeight,
+                assetId: assetId,
+                url: document.url,
+            },
+            meta: {},
+        },
+    ]);
+    
+    const snapshot = getSnapshotFromNext(store);
+
+
     const channel = `presence-session-${sessionId}`;
     const payload = {
       name: document.name,
       url: document.url,
       sharedBy: session.user.name,
       timestamp: new Date().toISOString(),
+      snapshot, // Inclure le snapshot pour l'outil Document/tldraw
       newHistory: [], 
     };
     
+    // On diffuse à la fois l'événement `document-updated` et `whiteboard-update`
+    // pour que les clients sachent quel outil activer et aient le contenu.
     await pusherTrigger(channel, 'document-updated', payload);
+    await pusherTrigger(channel, 'whiteboard-update', { senderId: session.user.id, snapshot });
     
     return { success: true };
     
   } catch (error) {
     console.error('💥 [ACTION DOCUMENT] - Erreur détaillée:', error);
+    console.error('💥 Stack:', error instanceof Error ? error.stack : 'No stack');
     throw new Error(`Impossible de partager le document: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
   }
 }

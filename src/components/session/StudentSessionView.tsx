@@ -11,7 +11,6 @@ import { StudentSessionControls, ComprehensionLevel } from '../StudentSessionCon
 import { updateStudentSessionStatus } from '@/lib/actions/session.actions';
 import { useToast } from '@/hooks/use-toast';
 import { Whiteboard } from '../Whiteboard';
-import { DocumentViewer } from '../DocumentViewer';
 import { TLEditorSnapshot } from '@tldraw/tldraw';
 import { broadcastWhiteboardUpdate } from '@/lib/actions/whiteboard.actions';
 import { ScrollArea } from '../ui/scroll-area';
@@ -90,7 +89,15 @@ export function StudentSessionView({
     const renderMainContent = () => {
         switch(activeTool) {
             case 'document':
-                return <DocumentViewer url={documentUrl} />;
+            case 'whiteboard':
+                 return (
+                    <Whiteboard
+                        sessionId={sessionId}
+                        initialSnapshot={whiteboardSnapshot ?? undefined}
+                        isController={currentUserId === whiteboardControllerId}
+                        onPersist={handleWhiteboardPersist}
+                    />
+                );
             case 'camera':
                  if (!spotlightedUser || !spotlightedStream) {
                     return (
@@ -114,7 +121,6 @@ export function StudentSessionView({
                         />
                     </div>
                 );
-            case 'whiteboard':
             default:
                  return (
                     <Whiteboard
