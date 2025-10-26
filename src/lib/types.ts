@@ -21,6 +21,15 @@ import type {
     ProgressStatus as PrismaProgressStatus
 } from '@prisma/client';
 
+// Enum pour les niveaux de compréhension
+export enum ComprehensionLevel {
+  UNDERSTOOD = 'understood',
+  CONFUSED = 'confused',
+  LOST = 'lost',
+  NONE = 'none',
+}
+
+
 // Exporter les enums directement depuis Prisma
 export { 
     PrismaRole as Role,

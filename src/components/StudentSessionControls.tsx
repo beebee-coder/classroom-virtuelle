@@ -17,15 +17,8 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { ComprehensionLevel } from '@/lib/types';
 
-
-// Enum pour les niveaux de compréhension, utilisé en interne
-export enum ComprehensionLevel {
-  UNDERSTOOD = 'understood',
-  CONFUSED = 'confused',
-  LOST = 'lost',
-  NONE = 'none',
-}
 
 // Objet de configuration pour l'affichage (traduction et style)
 const comprehensionDisplayConfig = {
@@ -111,8 +104,8 @@ export function StudentSessionControls({
                 <div className="mt-3 p-2 bg-muted rounded-lg text-center">
                   <p className="text-sm font-medium">
                     Statut actuel: 
-                    <span className={cn('ml-1', comprehensionDisplayConfig[currentComprehension].color)}>
-                      {comprehensionDisplayConfig[currentComprehension].label}
+                    <span className={cn('ml-1', comprehensionDisplayConfig[currentComprehension as keyof typeof comprehensionDisplayConfig].color)}>
+                      {comprehensionDisplayConfig[currentComprehension as keyof typeof comprehensionDisplayConfig].label}
                     </span>
                   </p>
                 </div>
