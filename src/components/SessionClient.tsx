@@ -15,8 +15,8 @@ import { TeacherSessionView } from './session/TeacherSessionView';
 import { StudentSessionView } from './session/StudentSessionView';
 import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';
-import { endCoursSession, broadcastTimerEvent, broadcastActiveTool, updateStudentSessionStatus, broadcastWhiteboardController } from '@/lib/actions/session.actions';
-import { broadcastWhiteboardUpdate, shareDocument } from '@/lib/actions/whiteboard.actions';
+import { endCoursSession, broadcastTimerEvent, broadcastActiveTool, updateStudentSessionStatus } from '@/lib/actions/session.actions';
+import { broadcastWhiteboardUpdate, shareDocument, broadcastWhiteboardController } from '@/lib/actions/whiteboard.actions';
 import { ComprehensionLevel } from '@/lib/types';
 import { SessionClientProps, PeerData, SignalPayload, PusherSubscriptionSucceededEvent, PusherMemberEvent, IncomingSignalData, SpotlightEvent, HandRaiseEvent, UnderstandingEvent, TimerEvent, ToolEvent, DocumentEvent, RemoteParticipant, WhiteboardUpdateEvent, WhiteboardControllerEvent } from '@/types';
 import { TLEditorSnapshot, TLStoreSnapshot } from '@tldraw/tldraw';
@@ -48,7 +48,7 @@ export default function SessionClient({
   const [understandingStatus, setUnderstandingStatus] = useState<Map<string, ComprehensionLevel>>(new Map());
   const [isEndingSession, setIsEndingSession] = useState<boolean>(false);
   const [activeTool, setActiveTool] = useState<string>('whiteboard');
-  const [documentUrl, setDocumentUrl] = useState<string | null>(initialDocumentHistory.length > 0 ? initialDocumentHistory[initialDocumentHistory.length - 1].url : null);
+  const [documentUrl, setDocumentUrl] = useState<string | null>(null);
   const [documentHistory, setDocumentHistory] = useState<DocumentInHistory[]>(initialDocumentHistory);
   const [whiteboardSnapshot, setWhiteboardSnapshot] = useState<TLEditorSnapshot | null>(null);
   const [whiteboardControllerId, setWhiteboardControllerId] = useState<string | null>(initialTeacher?.id || null);
@@ -337,24 +337,10 @@ export default function SessionClient({
       setActiveTool(data.tool);
     };
 
-    const handleDocumentUpdated = (data: DocumentEvent & { name: string }): void => {
+    const handleDocumentUpdated = (data: DocumentEvent): void => {
         console.log(`[PUSHER] - URL du document mise à jour: ${data.url}`);
         setDocumentUrl(data.url);
-        
-        const newDoc: DocumentInHistory = {
-            id: `doc-${Date.now()}`,
-            name: data.name,
-            url: data.url,
-            createdAt: new Date(),
-            coursSessionId: sessionId,
-        };
-
-        setDocumentHistory(prev => {
-            // Éviter les doublons
-            if (prev.find(d => d.url === newDoc.url)) return prev;
-            return [...prev, newDoc];
-        });
-
+        setDocumentHistory(data.newHistory);
         setActiveTool('document');
         toast({ title: 'Document partagé', description: 'Le professeur a partagé un nouveau document.' });
     };
