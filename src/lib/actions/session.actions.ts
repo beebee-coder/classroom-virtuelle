@@ -298,7 +298,7 @@ export async function broadcastActiveTool(sessionId: string, tool: string) {
 
 export async function updateStudentSessionStatus(
   sessionId: string,
-  status: { isHandRaised?: boolean; understanding?: ComprehensionLevel }
+  status: { isHandRaised?: boolean; understanding: ComprehensionLevel }
 ) {
   console.log(`🙋 [ACTION STATUS] - Mise à jour du statut pour un élève dans la session ${sessionId}`);
   const session = await getServerSession(authOptions);
@@ -408,60 +408,30 @@ export async function cleanupExpiredSessions() {
         throw new Error('Échec du nettoyage des sessions');
     }
 }
-/**
-* Diffuse les événements du tableau blanc à tous les participants
- */
-export async function broadcastWhiteboardController(
-  sessionId: string, 
-  event: string, 
-  data?: any
-) {
-  console.log(`🎨 [ACTION WHITEBOARD] - Diffusion d'événement '${event}' pour la session ${sessionId}`);
-  
-  try {
-    if (!sessionId || !event) {
-      console.error('❌ [ACTION WHITEBOARD] - sessionId et event sont requis.');
-      throw new Error('sessionId et event sont requis');
-    }
-
-    const channel = `presence-session-${sessionId}`;
-    
-    const payload = {
-      ...data,
-      sessionId,
-      timestamp: new Date().toISOString(),
-      type: 'whiteboard-event'
-    };
-
-    console.log(`  -> Diffusion sur ${channel}:`, { event, data: Object.keys(data || {}) });
-    
-    await pusherTrigger(channel, event, payload);
-    
-    console.log('✅ [ACTION WHITEBOARD] - Événement tableau blanc diffusé avec succès.');
-    return { success: true, event, sessionId };
-    
-  } catch (error) {
-    console.error('💥 [ACTION WHITEBOARD] - Erreur:', error);
-    throw new Error(
-      error instanceof Error 
-        ? `Échec de la diffusion tableau blanc: ${error.message}`
-        : 'Erreur inconnue lors de la diffusion tableau blanc'
-    );
-  }
-}
-/**
- * Version alternative plus spécifique pour les actions courantes du tableau blanc
- */
 export async function broadcastWhiteboardAction(
   sessionId: string,
   action: 'draw' | 'clear' | 'undo' | 'redo' | 'tool-change',
   data: any
 ) {
-  return await broadcastWhiteboardController(
-    sessionId, 
-    `whiteboard-${action}`, 
-    data
-  );
+    const channel = `presence-session-${sessionId}`;
+    const event = `whiteboard-${action}`;
+
+    console.log(`🎨 [ACTION WHITEBOARD] - Diffusion de l'action '${action}' pour la session ${sessionId}`);
+  
+    try {
+      if (!sessionId) {
+        throw new Error('sessionId is required');
+      }
+  
+      await pusherTrigger(channel, event, data);
+      
+      console.log(`✅ [ACTION WHITEBOARD] - Action '${action}' diffusée avec succès.`);
+      return { success: true };
+      
+    } catch (error) {
+      console.error(`💥 [ACTION WHITEBOARD] - Erreur lors de la diffusion de l'action '${action}':`, error);
+      throw new Error(`Failed to broadcast whiteboard action: ${action}`);
+    }
 }
 // AJOUTER CETTE FONCTION POUR LA COMPRÉHENSION DES ÉLÈVES
 export async function broadcastUnderstandingUpdate(
@@ -498,44 +468,4 @@ export async function broadcastUnderstandingUpdate(
       throw new Error('Impossible de diffuser le niveau de compréhension');
     }
   }
-  // AJOUTER CETTE FONCTION MANQUANTE
-export async function broadcastWhiteboardUpdate(
-    sessionId: string,
-    data: {
-      type: string;
-      data?: any;
-      userId?: string;
-    }
-  ) {
-    console.log(`🎨 [ACTION WHITEBOARD UPDATE] - Diffusion de mise à jour tableau blanc pour la session ${sessionId}`);
-    
-    try {
-      if (!sessionId) {
-        console.error('❌ [ACTION WHITEBOARD UPDATE] - sessionId est requis.');
-        throw new Error('sessionId est requis');
-      }
   
-      const channel = `presence-session-${sessionId}`;
-      
-      const payload = {
-        ...data,
-        sessionId,
-        timestamp: new Date().toISOString()
-      };
-  
-      console.log(`  -> Diffusion sur ${channel}:`, { type: data.type });
-      
-      await pusherTrigger(channel, 'whiteboard-update', payload);
-      
-      console.log('✅ [ACTION WHITEBOARD UPDATE] - Mise à jour tableau blanc diffusée avec succès.');
-      return { success: true, sessionId };
-      
-    } catch (error) {
-      console.error('💥 [ACTION WHITEBOARD UPDATE] - Erreur:', error);
-      throw new Error(
-        error instanceof Error 
-          ? `Échec de la diffusion tableau blanc: ${error.message}`
-          : 'Erreur inconnue lors de la diffusion tableau blanc'
-      );
-    }
-  }

@@ -115,10 +115,3 @@ export type DocumentInHistory = {
   }
   
 export type SessionParticipant = Pick<import('@prisma/client').User, 'id' | 'name' | 'role'>;
-
-// AJOUTER CES EXPORTS POUR LE TABLEAU BLANC
-export {
-  broadcastWhiteboardController as broadcastWhiteboardUpdate,
-  broadcastWhiteboardAction,
-  broadcastWhiteboardController
-};

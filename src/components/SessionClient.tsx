@@ -15,7 +15,8 @@ import { TeacherSessionView } from './session/TeacherSessionView';
 import { StudentSessionView } from './session/StudentSessionView';
 import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';
-import { endCoursSession, broadcastTimerEvent, broadcastActiveTool, broadcastWhiteboardController, broadcastWhiteboardUpdate, updateStudentSessionStatus } from '@/lib/actions/session.actions';
+import { endCoursSession, broadcastTimerEvent, broadcastActiveTool, updateStudentSessionStatus } from '@/lib/actions/session.actions';
+import { broadcastWhiteboardController, broadcastWhiteboardUpdate } from '@/lib/actions/whiteboard.actions';
 import { ComprehensionLevel } from './StudentSessionControls';
 import { SessionClientProps, PeerData, SignalPayload, PusherSubscriptionSucceededEvent, PusherMemberEvent, IncomingSignalData, SpotlightEvent, HandRaiseEvent, UnderstandingEvent, TimerEvent, ToolEvent, DocumentEvent, RemoteParticipant, WhiteboardUpdateEvent, WhiteboardControllerEvent } from '@/types';
 import { TLEditorSnapshot, TLStoreSnapshot } from '@tldraw/tldraw';
@@ -443,7 +444,7 @@ export default function SessionClient({
             newHandRaiseState ? newSet.add(currentUserId) : newSet.delete(currentUserId);
             return newSet;
         });
-        updateStudentSessionStatus(sessionId, { isHandRaised: newHandRaiseState }).catch(() => {
+        updateStudentSessionStatus(sessionId, { isHandRaised: newHandRaiseState, understanding: currentUnderstanding }).catch(() => {
              toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de mettre à jour le statut de la main levée.'});
              setRaisedHands(prev => {
                 const newSet = new Set(prev);
