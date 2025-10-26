@@ -1,4 +1,4 @@
-// src/components/StudentPageClient.tsx - Version avec présence intégrée
+// src/components/StudentPageClient.tsx - Version corrigée
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Bell, Video, CheckCircle, XCircle, Clock, Trophy, Target, Users, Wifi, WifiOff } from 'lucide-react';
+import { Bell, Video, CheckCircle, XCircle, Clock, Trophy, Target, Users, Wifi, WifiOff, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { pusherClient } from '@/lib/pusher/client';
@@ -62,6 +62,7 @@ export default function StudentPageClient({
     const [activeTab, setActiveTab] = useState('tasks');
     const [sessionInvitation, setSessionInvitation] = useState<SessionInvitation | null>(null);
     const [isJoiningSession, setIsJoiningSession] = useState(false);
+    const [processedInvitations, setProcessedInvitations] = useState<Set<string>>(new Set());
     const { toast } = useToast();
     const router = useRouter();
 
@@ -94,6 +95,9 @@ export default function StudentPageClient({
         
         try {
             setSessionInvitation(null);
+            // Marquer l'invitation comme traitée
+            setProcessedInvitations(prev => new Set([...prev, invitation.sessionId]));
+            
             toast({
                 title: 'Connexion...',
                 description: 'Rejoignement de la session vidéo en cours...',
@@ -111,15 +115,39 @@ export default function StudentPageClient({
     }, [router, toast]);
 
     const handleInvitation = useCallback((data: SessionInvitation) => {
+        // Éviter les doublons
+        if (processedInvitations.has(data.sessionId)) {
+            console.log('⏭️ [CLIENT ÉLÈVE] - Invitation déjà traitée, ignorée:', data.sessionId);
+            return;
+        }
+
         console.log('📨 [CLIENT ÉLÈVE] - Nouvelle invitation de session reçue via Pusher:', data);
         setSessionInvitation(data);
+        setProcessedInvitations(prev => new Set([...prev, data.sessionId]));
         
         toast({
             title: '🎯 Invitation de session reçue !',
             description: `Le professeur ${data.teacherName} vous a invité(e).`,
             duration: 10000,
         });
-    }, [toast]);
+    }, [toast, processedInvitations]);
+
+    const handleDeclineInvitation = useCallback(() => {
+        console.log('🚫 [CLIENT ÉLÈVE] - Invitation refusée.');
+        if (sessionInvitation) {
+            setProcessedInvitations(prev => new Set([...prev, sessionInvitation.sessionId]));
+        }
+        setSessionInvitation(null);
+        toast({
+            title: 'Invitation refusée',
+            description: 'Vous pouvez rejoindre la session plus tard si elle est encore active.',
+        });
+    }, [toast, sessionInvitation]);
+
+    const handleCloseInvitation = useCallback(() => {
+        console.log('❌ [CLIENT ÉLÈVE] - Invitation fermée manuellement.');
+        setSessionInvitation(null);
+    }, []);
 
     useEffect(() => {
         if (!student?.id) return;
@@ -132,13 +160,18 @@ export default function StudentPageClient({
                     const pendingInvitations = await response.json();
                     if (pendingInvitations.length > 0) {
                         const latestInvitation = pendingInvitations[0].data;
-                        console.log('📨 [CLIENT ÉLÈVE] - Invitation manquée trouvée:', latestInvitation);
-                        handleInvitation(latestInvitation);
+                        
+                        // Vérifier si l'invitation a déjà été traitée
+                        if (!processedInvitations.has(latestInvitation.sessionId)) {
+                            console.log('📨 [CLIENT ÉLÈVE] - Invitation manquée trouvée:', latestInvitation);
+                            handleInvitation(latestInvitation);
+                        } else {
+                            console.log('⏭️ [CLIENT ÉLÈVE] - Invitation manquée déjà traitée, ignorée.');
+                        }
                     } else {
                         console.log('✅ [CLIENT ÉLÈVE] - Aucune invitation manquée.');
                     }
                 } else if (response.status !== 404) {
-                     // Gérer les erreurs autres que "Not Found"
                     const errorData = await response.json();
                     toast({
                         variant: "destructive",
@@ -163,25 +196,35 @@ export default function StudentPageClient({
         console.log(`🔌 [CLIENT ÉLÈVE] - Abonnement au canal d'invitation: ${invitationChannelName}`);
         const invitationChannel = pusherClient.subscribe(invitationChannelName);
         invitationChannel.bind('session-invitation', handleInvitation);
-
-        // NOTE: Le canal de présence est maintenant géré par le hook usePresenceForStudent
-        // On supprime l'abonnement manuel ici pour éviter les doublons
     
         return () => {
             console.log(`🔌 [CLIENT ÉLÈVE] - Désabonnement des canaux.`);
             pusherClient.unsubscribe(invitationChannelName);
-            // Le hook usePresenceForStudent gère son propre nettoyage
         };
-    }, [student?.id, handleInvitation, toast]);
+    }, [student?.id, handleInvitation, toast, processedInvitations]);
 
-    const handleDeclineInvitation = useCallback(() => {
-        console.log('🚫 [CLIENT ÉLÈVE] - Invitation refusée.');
-        setSessionInvitation(null);
-        toast({
-            title: 'Invitation refusée',
-            description: 'Vous pouvez rejoindre la session plus tard si elle est encore active.',
-        });
-    }, [toast]);
+    // Nettoyer les invitations traitées après un certain temps
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            // Garder seulement les invitations des dernières 24 heures
+            setProcessedInvitations(prev => {
+                if (prev.size > 10) { // Limiter la taille du Set
+                    const newSet = new Set();
+                    let count = 0;
+                    for (const id of prev) {
+                        if (count < 5) { // Garder les 5 plus récentes
+                            newSet.add(id);
+                            count++;
+                        }
+                    }
+                    return newSet;
+                }
+                return prev;
+            });
+        }, 30000); // Nettoyer toutes les 30 secondes
+
+        return () => clearTimeout(timer);
+    }, [processedInvitations]);
 
     const metier = student.etat?.metier;
     const completedTasks = student.studentProgress?.filter(p => p.status === 'VERIFIED').length || 0;
@@ -226,8 +269,14 @@ export default function StudentPageClient({
             </Card>
 
             {sessionInvitation && (
-                <Card className="bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0 shadow-lg">
-                    <CardContent className="p-4">
+                <Card className="bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0 shadow-lg relative">
+                    <button 
+                        onClick={handleCloseInvitation}
+                        className="absolute top-3 right-3 text-white/70 hover:text-white transition-colors"
+                    >
+                        <X className="h-5 w-5" />
+                    </button>
+                    <CardContent className="p-4 pr-10">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-4">
                                 <div className="bg-white/20 p-2 rounded-full">
@@ -262,6 +311,7 @@ export default function StudentPageClient({
                     </CardContent>
                 </Card>
             )}
+
 
             <Card>
                 <CardContent className="p-6">

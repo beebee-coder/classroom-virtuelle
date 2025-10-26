@@ -16,18 +16,22 @@ function EditorManager({ onPersist, initialSnapshot, isController }: Omit<Whiteb
     const editor = useEditor();
 
     useEffect(() => {
-        // Appliquer le snapshot initial ou les mises à jour reçues
-        if (initialSnapshot) {
-            try {
-                // Ne charger que si le snapshot est différent pour éviter les re-renders
-                const currentSnapshot = editor.getSnapshot();
-                if (JSON.stringify(currentSnapshot) !== JSON.stringify(initialSnapshot)) {
-                   editor.loadSnapshot(initialSnapshot);
+        // Attendre que l'éditeur soit complètement monté avant de charger un snapshot.
+        const handleMount = () => {
+            if (initialSnapshot) {
+                try {
+                    editor.loadSnapshot(initialSnapshot);
+                } catch (e) {
+                    console.error("Erreur lors du chargement du snapshot du tableau blanc:", e);
                 }
-            } catch (e) {
-                console.error("Erreur lors du chargement du snapshot du tableau blanc:", e);
             }
-        }
+        };
+
+        editor.on('mount', handleMount);
+
+        return () => {
+            editor.off('mount', handleMount);
+        };
     }, [editor, initialSnapshot]);
     
     useEffect(() => {
@@ -69,7 +73,7 @@ export function Whiteboard({ sessionId, onPersist, initialSnapshot, isController
       <Tldraw 
         key={`${sessionId}-${isController}`} // Change la clé pour forcer le re-render si le contrôle change
         persistenceKey={`whiteboard-${sessionId}`}
-        snapshot={initialSnapshot}
+        // Ne pas passer le snapshot ici directement pour éviter les problèmes de chargement initial
       >
         <EditorManager 
           onPersist={onPersist}
