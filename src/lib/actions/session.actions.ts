@@ -4,7 +4,7 @@
 import { revalidatePath } from 'next/cache';
 import { pusherTrigger } from '../pusher/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options'; // CORRECTION: Importer depuis le fichier centralisé
+import { authOptions } from '@/lib/auth-options';
 import prisma from '../prisma';
 import type { CoursSession, User } from '@prisma/client';
 import { Role } from '@prisma/client';
