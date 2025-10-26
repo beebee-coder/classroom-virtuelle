@@ -96,7 +96,7 @@ export default function StudentPageClient({
         try {
             setSessionInvitation(null);
             // Marquer l'invitation comme traitée
-            setProcessedInvitations(prev => new Set([...prev, invitation.sessionId]));
+            setProcessedInvitations(prev => new Set(prev).add(invitation.sessionId));
             
             toast({
                 title: 'Connexion...',
@@ -123,7 +123,7 @@ export default function StudentPageClient({
 
         console.log('📨 [CLIENT ÉLÈVE] - Nouvelle invitation de session reçue via Pusher:', data);
         setSessionInvitation(data);
-        setProcessedInvitations(prev => new Set([...prev, data.sessionId]));
+        setProcessedInvitations(prev => new Set(prev).add(data.sessionId));
         
         toast({
             title: '🎯 Invitation de session reçue !',
@@ -135,7 +135,7 @@ export default function StudentPageClient({
     const handleDeclineInvitation = useCallback(() => {
         console.log('🚫 [CLIENT ÉLÈVE] - Invitation refusée.');
         if (sessionInvitation) {
-            setProcessedInvitations(prev => new Set([...prev, sessionInvitation.sessionId]));
+            setProcessedInvitations(prev => new Set(prev).add(sessionInvitation.sessionId));
         }
         setSessionInvitation(null);
         toast({
@@ -209,14 +209,12 @@ export default function StudentPageClient({
             // Garder seulement les invitations des dernières 24 heures
             setProcessedInvitations(prev => {
                 if (prev.size > 10) { // Limiter la taille du Set
-                    const newSet = new Set();
+                    const newSet = new Set<string>();
                     let count = 0;
-                    for (const id of prev) {
-                        if (count < 5) { // Garder les 5 plus récentes
-                            newSet.add(id);
-                            count++;
-                        }
-                    }
+                    // Itérer sur le Set pour garder les plus récents (Set conserve l'ordre d'insertion)
+                    // C'est une simplification. une vraie solution utiliserait des timestamps.
+                    const recentItems = Array.from(prev).slice(-5);
+                    recentItems.forEach(item => newSet.add(item));
                     return newSet;
                 }
                 return prev;
