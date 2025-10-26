@@ -5,7 +5,7 @@ import { pusherTrigger } from '@/lib/pusher/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { revalidatePath } from 'next/cache';
-import { TLEditorSnapshot, createTLStore, defaultShapeUtils, getSnapshotFromNext, getDefaultIndex } from '@tldraw/tldraw';
+import { TLEditorSnapshot, createTLStore, defaultShapeUtils, getSnapshot, AssetRecord, ShapeRecord, PageRecord } from '@tldraw/tldraw';
 
 /**
  * Diffuse les mises à jour de l'état du tableau blanc à tous les participants d'une session.
@@ -92,8 +92,9 @@ export async function shareDocument(
     const imageWidth = 1080;
     const imageHeight = 720;
     
-    const assetId = `asset:${crypto.randomUUID()}`;
-    const shapeId = `shape:${crypto.randomUUID()}`;
+    const assetId = AssetRecord.createId();
+    const shapeId = ShapeRecord.createId();
+    const pageId = PageRecord.createId('page');
 
     store.put([
         {
@@ -117,8 +118,8 @@ export async function shareDocument(
             x: 100, // Centrer l'image
             y: 100,
             rotation: 0,
-            index: getDefaultIndex(store),
-            parentId: 'page:page',
+            index: 'a1', // L'index peut être une simple chaîne de caractères
+            parentId: pageId,
             isLocked: false,
             props: {
                 w: imageWidth,
@@ -130,7 +131,7 @@ export async function shareDocument(
         },
     ]);
     
-    const snapshot = getSnapshotFromNext(store);
+    const snapshot = getSnapshot(store);
 
 
     const channel = `presence-session-${sessionId}`;
