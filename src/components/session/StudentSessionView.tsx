@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Participant } from '@/components/Participant';
 import { SessionParticipant, DocumentInHistory } from '@/types';
 import { Card } from '../ui/card';
-import { Loader2 } from 'lucide-react';
+import { Loader2, File } from 'lucide-react';
 import { StudentSessionControls, ComprehensionLevel } from '../StudentSessionControls';
 import { updateStudentSessionStatus } from '@/lib/actions/session.actions';
 import { useToast } from '@/hooks/use-toast';
@@ -89,6 +89,20 @@ export function StudentSessionView({
     const renderMainContent = () => {
         switch(activeTool) {
             case 'document':
+                 if (documentUrl) {
+                    return (
+                        <iframe src={documentUrl} className="w-full h-full border-0" title="Document partagé" />
+                    );
+                }
+                return (
+                    <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/50 border-dashed ">
+                         <div className="text-center text-muted-foreground p-6">
+                            <File className="h-10 w-10 mx-auto mb-4" />
+                            <h3 className="font-semibold">En attente d'un document</h3>
+                            <p className="text-sm">Le professeur n'a pas encore partagé de document.</p>
+                        </div>
+                    </Card>
+                );
             case 'whiteboard':
                  return (
                     <Whiteboard

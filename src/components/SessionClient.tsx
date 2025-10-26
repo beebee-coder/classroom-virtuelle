@@ -18,8 +18,16 @@ import { PermissionPrompt } from './PermissionPrompt';
 import { endCoursSession, broadcastTimerEvent, broadcastActiveTool, updateStudentSessionStatus } from '@/lib/actions/session.actions';
 import { broadcastWhiteboardUpdate, shareDocument, broadcastWhiteboardController } from '@/lib/actions/whiteboard.actions';
 import { ComprehensionLevel } from '@/lib/types';
-import { SessionClientProps, PeerData, SignalPayload, PusherSubscriptionSucceededEvent, PusherMemberEvent, IncomingSignalData, SpotlightEvent, HandRaiseEvent, UnderstandingEvent, TimerEvent, ToolEvent, DocumentEvent, RemoteParticipant, WhiteboardUpdateEvent, WhiteboardControllerEvent } from '@/types';
+import { SessionClientProps, PeerData, SignalPayload, PusherSubscriptionSucceededEvent, PusherMemberEvent, IncomingSignalData, SpotlightEvent, HandRaiseEvent, UnderstandingEvent, TimerEvent, ToolEvent, WhiteboardUpdateEvent, WhiteboardControllerEvent } from '@/types';
 import { TLEditorSnapshot, TLStoreSnapshot } from '@tldraw/tldraw';
+
+// Nouveau type pour l'événement de partage de document
+interface DocumentSharedEvent {
+    name: string;
+    url: string;
+    sharedBy: string;
+}
+
 
 const INITIAL_TIMER_DURATION = 3600; // 1 heure en secondes
 
@@ -337,13 +345,19 @@ export default function SessionClient({
       setActiveTool(data.tool);
     };
 
-    const handleDocumentUpdated = (data: DocumentEvent & { snapshot: TLEditorSnapshot }): void => {
-        console.log(`[PUSHER] - URL du document mise à jour: ${data.url}`);
+    const handleDocumentShared = (data: DocumentSharedEvent): void => {
+        console.log(`[PUSHER] - Document partagé: ${data.url}`);
         setDocumentUrl(data.url);
-        setDocumentHistory(data.newHistory);
-        setWhiteboardSnapshot(data.snapshot);
+        // Ajout à l'historique côté client
+        setDocumentHistory(prev => [...prev, {
+            id: `doc-${Date.now()}`,
+            name: data.name,
+            url: data.url,
+            createdAt: new Date(),
+            coursSessionId: sessionId
+        }]);
         setActiveTool('document');
-        toast({ title: 'Document partagé', description: 'Le professeur a partagé un nouveau document.' });
+        toast({ title: 'Document partagé', description: `Le professeur ${data.sharedBy} a partagé un nouveau document.` });
     };
 
     const handleWhiteboardUpdate = (data: WhiteboardUpdateEvent) => {
@@ -369,7 +383,7 @@ export default function SessionClient({
     channel.bind('timer-paused', handleTimerPaused);
     channel.bind('timer-reset', handleTimerReset);
     channel.bind('active-tool-changed', handleActiveToolChanged);
-    channel.bind('document-updated', handleDocumentUpdated);
+    channel.bind('document-shared', handleDocumentShared);
     channel.bind('whiteboard-update', handleWhiteboardUpdate);
     channel.bind('whiteboard-controller-update', handleWhiteboardControllerUpdate);
 

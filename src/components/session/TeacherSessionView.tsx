@@ -178,6 +178,20 @@ export function TeacherSessionView({
 
         switch(activeTool) {
             case 'document':
+                 if (documentUrl) {
+                    return (
+                        <iframe src={documentUrl} className="w-full h-full border-0" title="Document partagé" />
+                    );
+                }
+                return (
+                    <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/50 border-dashed ">
+                        <CardContent className="text-center text-muted-foreground p-6">
+                            <File className="h-10 w-10 mx-auto mb-4" />
+                            <h3 className="font-semibold">Outil Document</h3>
+                            <p className="text-sm">Téléversez un document pour le partager avec la classe.</p>
+                        </CardContent>
+                    </Card>
+                );
             case 'whiteboard':
                 return (
                     <Whiteboard 
