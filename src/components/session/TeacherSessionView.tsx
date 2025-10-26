@@ -99,6 +99,9 @@ export function TeacherSessionView({
 
     useEffect(() => {
         const waitingCount = onlineUserIds.filter(id => !activeParticipantIds.includes(id) && id !== currentUserId).length;
+        if (waitingCount > 0) {
+            console.log(`⏱️ [VUE PROF] - Détection de ${waitingCount} élève(s) en attente.`);
+        }
         setHasWaitingStudents(waitingCount > 0);
     }, [onlineUserIds, activeParticipantIds, currentUserId]);
     

@@ -113,6 +113,7 @@ function StudentListItem({
     const [isPending, startTransition] = useTransition();
 
     const handleReinvite = () => {
+        console.log(`✉️ [CLIENT] Clic pour ré-inviter ${student.name} (${student.id})`);
         startTransition(async () => {
             try {
                 await reinviteStudentToSession(sessionId, student.id, classroomId);
