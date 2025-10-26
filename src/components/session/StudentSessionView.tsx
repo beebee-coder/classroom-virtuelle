@@ -16,6 +16,7 @@ import { broadcastWhiteboardUpdate } from '@/lib/actions/whiteboard.actions';
 import { ScrollArea } from '../ui/scroll-area';
 import { SessionTimer } from './SessionTimer';
 import { CardHeader } from '../ui/card';
+import { DocumentViewer } from './DocumentViewer';
 
 interface StudentSessionViewProps {
     sessionId: string;
@@ -89,20 +90,7 @@ export function StudentSessionView({
     const renderMainContent = () => {
         switch(activeTool) {
             case 'document':
-                 if (documentUrl) {
-                    return (
-                        <iframe src={documentUrl} className="w-full h-full border-0" title="Document partagé" />
-                    );
-                }
-                return (
-                    <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/50 border-dashed ">
-                         <div className="text-center text-muted-foreground p-6">
-                            <File className="h-10 w-10 mx-auto mb-4" />
-                            <h3 className="font-semibold">En attente d'un document</h3>
-                            <p className="text-sm">Le professeur n'a pas encore partagé de document.</p>
-                        </div>
-                    </Card>
-                );
+                return <DocumentViewer url={documentUrl} />;
             case 'whiteboard':
                  return (
                     <Whiteboard

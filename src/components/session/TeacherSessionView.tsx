@@ -24,6 +24,7 @@ import { broadcastWhiteboardUpdate } from '@/lib/actions/whiteboard.actions';
 import { SessionStatus } from './SessionStatus';
 import { SessionTimer } from './SessionTimer';
 import { DocumentHistory } from './DocumentHistory';
+import { DocumentViewer } from './DocumentViewer';
 
 
 interface TeacherSessionViewProps {
@@ -84,6 +85,7 @@ export function TeacherSessionView({
     onPauseTimer,
     onResetTimer,
 }: TeacherSessionViewProps) {
+    console.log('🖼️ [PROF VIEW] Document URL:', documentUrl);
     const remoteStreamsMap = new Map(remoteParticipants.map(p => [p.id, p.stream]));
     
     const studentsWithRaisedHands = allSessionUsers.filter(u => u.role === 'ELEVE' && raisedHands.has(u.id)) as User[];
@@ -178,20 +180,7 @@ export function TeacherSessionView({
 
         switch(activeTool) {
             case 'document':
-                 if (documentUrl) {
-                    return (
-                        <iframe src={documentUrl} className="w-full h-full border-0" title="Document partagé" />
-                    );
-                }
-                return (
-                    <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/50 border-dashed ">
-                        <CardContent className="text-center text-muted-foreground p-6">
-                            <File className="h-10 w-10 mx-auto mb-4" />
-                            <h3 className="font-semibold">Outil Document</h3>
-                            <p className="text-sm">Téléversez un document pour le partager avec la classe.</p>
-                        </CardContent>
-                    </Card>
-                );
+                return <DocumentViewer url={documentUrl} />;
             case 'whiteboard':
                 return (
                     <Whiteboard 
