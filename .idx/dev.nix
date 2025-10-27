@@ -10,7 +10,6 @@
     pkgs.postgresql
   ];
   env = {
-    DATABASE_URL = "postgresql://postgres:66023@localhost:5432/postgres";
     OPENSSL_DIR = "${pkgs.openssl.dev}";
     OPENSSL_LIB_DIR = "${pkgs.openssl.out}/lib";
   };

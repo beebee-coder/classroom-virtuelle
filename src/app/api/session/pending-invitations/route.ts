@@ -1,4 +1,5 @@
-// src/app/api/session/pending-invitations/route.ts - VERSION CORRIGÉE
+
+// src/app/api/session/pending-invitations/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
@@ -51,15 +52,6 @@ export async function GET(request: NextRequest) {
       include: {
         professeur: { select: { id: true, name: true } },
         classe: { select: { id: true, nom: true } },
-        // Vérifier si l'élève a des interactions récentes dans la session
-        documentHistory: {
-          where: {
-            createdAt: {
-              gte: tenMinutesAgo
-            }
-          },
-          take: 1
-        }
       },
       orderBy: {
         startTime: 'desc'
@@ -68,21 +60,16 @@ export async function GET(request: NextRequest) {
 
     // 🔥 FILTRE SUPPLÉMENTAIRE : Vérifier si l'élève a déjà interagi avec la session
     if (recentActiveSession) {
-      const hasInteracted = recentActiveSession.documentHistory.length > 0;
       
-      if (hasInteracted) {
-        console.log('⏭️ [API PENDING INVITATIONS] - Élève a déjà interagi avec la session, pas d\'invitation en attente');
-        return NextResponse.json([]);
-      }
-
       // Formatter la réponse
       const pendingInvitation = [{
+        id: recentActiveSession.id, // Garder l'ID de session pour le traitement
         data: {
           sessionId: recentActiveSession.id,
           teacherId: recentActiveSession.professeurId,
           classroomId: recentActiveSession.classroomId,
           classroomName: recentActiveSession.classe?.nom || 'Classe',
-          teacherName: recentActiveSession.professeur.name || 'Professeur',
+          teacherName: recentActiveSession.professeur?.name || 'Professeur',
           timestamp: recentActiveSession.startTime.toISOString(),
           type: 'session-invitation'
         }
