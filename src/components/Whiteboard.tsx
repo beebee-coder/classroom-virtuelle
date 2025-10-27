@@ -1,4 +1,4 @@
-// src/components/Whiteboard.tsx - VERSION CORRIGÉE
+// src/components/Whiteboard.tsx
 'use client';
 import { Tldraw, useEditor, TLStoreSnapshot, TLRecord } from '@tldraw/tldraw';
 import '@tldraw/tldraw/tldraw.css';
@@ -13,7 +13,8 @@ interface WhiteboardProps {
 }
 
 // Composant interne pour gérer la logique de l'éditeur
-function EditorManager({ 
+// Il est passé en tant qu'enfant de Tldraw pour avoir accès au contexte de l'éditeur.
+function WhiteboardEditorLogic({ 
   onPersist, 
   initialSnapshot, 
   isController 
@@ -32,14 +33,12 @@ function EditorManager({
   // Charger le snapshot initial
   useEffect(() => {
     if (initialSnapshot && editor.store) {
-      // Comparaison simple pour éviter de recharger le même snapshot
-      const currentDocId = editor.document.id;
-      const newDocId = initialSnapshot.store['document:document']?.id;
-      
-      if (newDocId && currentDocId === newDocId) return;
-
       try {
-        editor.store.loadSnapshot(initialSnapshot);
+        // Pour éviter de recharger le même snapshot, on peut faire une comparaison simple
+        const currentSnapshot = editor.store.getSnapshot();
+        if (JSON.stringify(currentSnapshot.store) !== JSON.stringify(initialSnapshot.store)) {
+          editor.store.loadSnapshot(initialSnapshot);
+        }
       } catch (error) {
         console.error("Erreur lors du chargement du snapshot:", error);
       }
@@ -103,7 +102,7 @@ export function Whiteboard({
           forceMobile={false}
           autoFocus={false}
         >
-          <EditorManager 
+          <WhiteboardEditorLogic 
             onPersist={handlePersist}
             initialSnapshot={whiteboardSnapshot}
             isController={isController}
