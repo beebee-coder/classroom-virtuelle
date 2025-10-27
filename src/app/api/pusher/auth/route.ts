@@ -2,17 +2,21 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authenticateUser } from '@/lib/pusher/server';
-import type { Role } from '@prisma/client';
 import { authOptions } from '@/lib/auth-options';
 
 export async function POST(request: Request) {
   console.log('🚪 [API PUSHER AUTH] - Requête d\'authentification reçue.');
   try {
-    const body = await request.formData();
-    const socketId = body.get('socket_id') as string;
-    const channel = body.get('channel_name') as string;
+    // 💡 CORRECTION : Le client Pusher envoie les données en JSON, pas en formData.
+    const body = await request.json();
+    const { socket_id: socketId, channel_name: channel } = body;
     console.log(`  Socket ID: ${socketId}, Channel: ${channel}`);
 
+    if (!socketId || !channel) {
+        console.error('❌ [API PUSHER AUTH] - socket_id ou channel_name manquant dans le corps de la requête.');
+        return new NextResponse('Bad Request', { status: 400 });
+    }
+    
     const session = await getServerSession(authOptions);
 
     if (!session || !session.user) {
@@ -28,6 +32,7 @@ export async function POST(request: Request) {
       user_info: {
         name: user.name,
         role: user.role,
+        image: user.image,
       },
     };
     
