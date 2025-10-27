@@ -37,7 +37,7 @@ export function ClassStudentList({
 
     return (
         <Card className="flex flex-col bg-background/80">
-            <Accordion type="single" collapsible defaultValue="classStudents" onValueChange={(value) => onAccordionToggle(!!value)}>
+            <Accordion type="single" collapsible defaultValue="classStudents" onValueChange={(value: string) => onAccordionToggle(!!value)}>
                 <AccordionItem value="classStudents" className="border-b-0">
                     <AccordionTrigger className="p-6">
                         <CardTitle className="flex items-center gap-2 text-base">

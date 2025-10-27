@@ -8,10 +8,19 @@ dotenv.config({ path: '.env.local' });
 dotenv.config(); // Pour .env
 
 const redisUrl = process.env.REDIS_URL;
+const isPusherConfigured = 
+    process.env.PUSHER_APP_ID &&
+    process.env.NEXT_PUBLIC_PUSHER_KEY &&
+    process.env.PUSHER_SECRET;
+
 
 if (!redisUrl) {
   console.error("❌ REDIS_URL n'est pas définie. Le service d'abonnement ne peut pas démarrer.");
   process.exit(1);
+}
+
+if (!isPusherConfigured) {
+    console.warn("⚠️ [REDIS SUBSCRIBER] - Configuration Pusher manquante. Le script ne diffusera pas d'événements.");
 }
 
 const subscriber = new Redis(redisUrl);
@@ -39,23 +48,26 @@ subscriber.on('pmessage', async (pattern, channel, message) => {
   console.log(`📬 Message reçu sur le canal [${channel}]`);
   
   const sessionId = channel.replace('whiteboard-channel-', '');
-  const pusherChannelName = `presence-session-${sessionId}`;
-
+  
   try {
-    const { snapshot, senderSocketId } = JSON.parse(message);
-
-    // Déclencher l'événement Pusher vers les clients, en excluant l'expéditeur
-    await pusherTrigger(
-      pusherChannelName, 
-      WHITEBOARD_UPDATE_EVENT, 
-      { snapshot }, 
-      { socket_id: senderSocketId }
-    );
-    
     // Sauvegarder le dernier snapshot dans une clé Redis normale
+    const { snapshot, senderSocketId } = JSON.parse(message);
     await publisher.set(WHITEBOARD_SNAPSHOT_KEY(sessionId), JSON.stringify(snapshot));
+    console.log(`  -> Snapshot sauvegardé pour la session ${sessionId}.`);
 
-    console.log(`  -> 🎨 Diffusé sur Pusher [${pusherChannelName}] et snapshot sauvegardé.`);
+    // Déclencher l'événement Pusher vers les clients, seulement si Pusher est configuré
+    if (isPusherConfigured) {
+      const pusherChannelName = `presence-session-${sessionId}`;
+      await pusherTrigger(
+        pusherChannelName, 
+        WHITEBOARD_UPDATE_EVENT, 
+        { snapshot }, 
+        { socket_id: senderSocketId }
+      );
+      console.log(`  -> 🎨 Diffusé sur Pusher [${pusherChannelName}].`);
+    } else {
+        console.log("  -> Pusher non configuré, diffusion ignorée.");
+    }
 
   } catch (error) {
     console.error(`❌ Erreur lors du traitement du message du canal ${channel}:`, error);
