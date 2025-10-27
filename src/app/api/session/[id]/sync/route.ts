@@ -1,0 +1,75 @@
+// src/app/api/session/[id]/sync/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-options';
+import redis from '@/lib/redis';
+import { pusherTrigger } from '@/lib/pusher/server';
+
+const WHITEBOARD_SNAPSHOT_KEY = (sessionId: string) => `whiteboard:${sessionId}:snapshot`;
+const WHITEBOARD_CHANNEL = (sessionId: string) => `whiteboard-channel-${sessionId}`;
+
+// POST handler for publishing whiteboard updates
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const sessionId = params.id;
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user) {
+    return new NextResponse('Unauthorized', { status: 403 });
+  }
+
+  if (!redis) {
+      return new NextResponse('Redis not configured', { status: 500 });
+  }
+
+  try {
+    const body = await request.json();
+    const { snapshot, source } = body;
+
+    if (!snapshot) {
+      return new NextResponse('Snapshot data is required', { status: 400 });
+    }
+    
+    // Publish to Redis Pub/Sub - the redis-subscriber will pick this up
+    // We also include the sender's socket ID so Pusher can exclude them
+    await redis.publish(WHITEBOARD_CHANNEL(sessionId), JSON.stringify({
+        snapshot,
+        senderSocketId: source // We'll pass the socketId as 'source'
+    }));
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error(`💥 [API SYNC] - Erreur interne pour la session ${sessionId}:`, error);
+    return new NextResponse('Internal Server Error', { status: 500 });
+  }
+}
+
+// GET handler for retrieving the last known snapshot
+export async function GET(
+    request: NextRequest,
+    { params }: { params: { id: string } }
+) {
+    const sessionId = params.id;
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user) {
+        return new NextResponse('Unauthorized', { status: 403 });
+    }
+
+    if (!redis) {
+        return new NextResponse('Redis not configured', { status: 500 });
+    }
+    
+    try {
+        const snapshotJson = await redis.get(WHITEBOARD_SNAPSHOT_KEY(sessionId));
+        if (snapshotJson) {
+            return NextResponse.json(JSON.parse(snapshotJson));
+        }
+        return NextResponse.json(null); // No snapshot saved yet
+    } catch (error) {
+        console.error(`💥 [API SYNC GET] - Erreur pour la session ${sessionId}:`, error);
+        return new NextResponse('Internal Server Error', { status: 500 });
+    }
+}

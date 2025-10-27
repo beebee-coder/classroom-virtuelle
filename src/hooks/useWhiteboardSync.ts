@@ -1,77 +1,88 @@
 // src/hooks/useWhiteboardSync.ts
 'use client';
 
-import { useState, useCallback, RefObject, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { TLEditorSnapshot } from '@tldraw/tldraw';
-import type { Instance as PeerInstance } from 'simple-peer';
 import { pusherClient } from '../lib/pusher/client';
 
-const WHITEBOARD_EVENT_TYPE = 'whiteboard-update';
-const CONTROLLER_CHANGE_EVENT_TYPE = 'whiteboard-controller-change';
-
-interface WhiteboardMessage {
-    type: string;
-    payload: TLEditorSnapshot | { controllerId: string };
-}
+const WHITEBOARD_UPDATE_EVENT = 'whiteboard-update-event';
+const DEBOUNCE_SAVE_TIME = 2000; // 2 secondes
 
 export const useWhiteboardSync = (
-    initialControllerId: string,
-    peersRef: RefObject<Map<string, PeerInstance>>,
-    sessionId: string // Ajout de l'ID de session pour le canal Pusher
+    sessionId: string,
+    initialControllerId: string
 ) => {
     const [whiteboardSnapshot, setWhiteboardSnapshot] = useState<TLEditorSnapshot | null>(null);
     const [whiteboardControllerId, setWhiteboardControllerId] = useState<string>(initialControllerId);
-    
-    const hasLoggedEmission = useRef(false);
-    const hasLoggedReception = useRef(false);
+    const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    const handleWhiteboardUpdate = useCallback((data: any) => {
-        try {
-            const message: WhiteboardMessage = JSON.parse(data.toString());
-
-            if (message.type === WHITEBOARD_EVENT_TYPE) {
-                if (!hasLoggedReception.current) {
-                    console.log('📡 [TB RÉCEPTION] - Première donnée de tableau blanc reçue par un observateur.');
-                    hasLoggedReception.current = true;
+    // Effet pour récupérer le snapshot initial au chargement
+    useEffect(() => {
+        const fetchInitialSnapshot = async () => {
+            try {
+                const response = await fetch(`/api/session/${sessionId}/sync`);
+                if (response.ok) {
+                    const snapshot = await response.json();
+                    if (snapshot) {
+                        setWhiteboardSnapshot(snapshot);
+                        console.log('🎨 [TB SYNC] - Snapshot initial chargé depuis Redis.');
+                    }
                 }
-                setWhiteboardSnapshot(message.payload as TLEditorSnapshot);
+            } catch (error) {
+                console.error("Erreur lors de la récupération du snapshot initial:", error);
             }
-        } catch (error) {
-            // Ignorer les erreurs de parsing pour les messages non-JSON
-        }
-    }, []);
+        };
+        fetchInitialSnapshot();
+    }, [sessionId]);
 
-    // Gérer les changements de contrôleur reçus via Pusher
-    const handleControllerChange = useCallback((data: { controllerId: string }) => {
-        console.log(`👑 [TB CONTRÔLE] - Changement de contrôleur reçu via Pusher: ${data.controllerId}`);
-        setWhiteboardControllerId(data.controllerId);
-    }, []);
+    // Effet pour écouter les mises à jour via Pusher
+    useEffect(() => {
+        const channelName = `presence-session-${sessionId}`;
+        const channel = pusherClient.subscribe(channelName);
 
-    const broadcastWhiteboardUpdate = useCallback((snapshot: TLEditorSnapshot) => {
-        if (peersRef.current) {
-            if (!hasLoggedEmission.current) {
-                console.log('🎨 [TB ÉMISSION] - Première donnée de tableau blanc envoyée par le contrôleur.');
-                hasLoggedEmission.current = true;
-            }
-            const message: WhiteboardMessage = {
-                type: WHITEBOARD_EVENT_TYPE,
-                payload: snapshot
-            };
-            const messageString = JSON.stringify(message);
-            
-            for (const peer of peersRef.current.values()) {
-                if (peer.connected) {
-                    peer.send(messageString);
-                }
-            }
+        const handleUpdate = (data: { snapshot: TLEditorSnapshot }) => {
+            setWhiteboardSnapshot(data.snapshot);
+        };
+        
+        channel.bind(WHITEBOARD_UPDATE_EVENT, handleUpdate);
+        channel.bind('whiteboard-controller-update', (data: { controllerId: string }) => {
+            setWhiteboardControllerId(data.controllerId);
+        });
+
+        return () => {
+            channel.unbind(WHITEBOARD_UPDATE_EVENT, handleUpdate);
+            channel.unbind('whiteboard-controller-update');
+            pusherClient.unsubscribe(channelName);
+        };
+    }, [sessionId]);
+
+    // Callback pour persister/diffuser le snapshot
+    const persistWhiteboardSnapshot = useCallback((snapshot: TLEditorSnapshot) => {
+        // Mettre à jour l'état local immédiatement pour une réactivité optimale
+        setWhiteboardSnapshot(snapshot);
+
+        // Annuler le timeout précédent pour le débouclage
+        if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current);
         }
-    }, [peersRef]);
+
+        // Définir un nouveau timeout pour envoyer les données au serveur
+        saveTimeoutRef.current = setTimeout(() => {
+            fetch(`/api/session/${sessionId}/sync`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    snapshot,
+                    source: pusherClient.connection.socket_id, // Exclure l'expéditeur de la diffusion Pusher
+                }),
+            }).catch(error => {
+                console.error("Erreur lors de la synchronisation du tableau blanc:", error);
+            });
+        }, DEBOUNCE_SAVE_TIME);
+
+    }, [sessionId]);
     
-    // La diffusion du changement de contrôleur se fait via une action serveur et Pusher
-    // pour garantir que tout le monde reçoit le message, même les nouveaux arrivants.
-    const broadcastControllerChange = useCallback(async (newControllerId: string) => {
-        console.log(`👑 [TB CONTRÔLE] - Demande de changement de contrôleur vers: ${newControllerId}`);
-        // L'appel API déclenchera l'événement Pusher pour tous les clients
+     const broadcastControllerChange = useCallback(async (newControllerId: string) => {
         try {
             await fetch(`/api/session/${sessionId}/whiteboard-controller`, {
                 method: 'POST',
@@ -83,36 +94,12 @@ export const useWhiteboardSync = (
         }
     }, [sessionId]);
 
-    useEffect(() => {
-        const peers = peersRef.current;
-        if (peers) {
-            peers.forEach(peer => {
-                peer.on('data', handleWhiteboardUpdate);
-            });
-        }
-        
-        const channelName = `presence-session-${sessionId}`;
-        const channel = pusherClient.subscribe(channelName);
-        channel.bind('whiteboard-controller-update', handleControllerChange);
-
-        return () => {
-            if (peers) {
-                peers.forEach(peer => {
-                    peer.off('data', handleWhiteboardUpdate);
-                });
-            }
-            channel.unbind('whiteboard-controller-update', handleControllerChange);
-            pusherClient.unsubscribe(channelName);
-        };
-    }, [peersRef, handleWhiteboardUpdate, sessionId, handleControllerChange]);
-
     return {
         whiteboardSnapshot,
         setWhiteboardSnapshot,
         whiteboardControllerId,
         setWhiteboardControllerId,
-        handleWhiteboardUpdate,
-        broadcastWhiteboardUpdate,
+        persistWhiteboardSnapshot,
         broadcastControllerChange,
     };
 };

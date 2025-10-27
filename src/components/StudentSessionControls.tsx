@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { ComprehensionLevel } from '@/lib/types';
+import { ComprehensionLevel } from '@/types';
 
 
 // Objet de configuration pour l'affichage (traduction et style)

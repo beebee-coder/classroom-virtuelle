@@ -25,27 +25,29 @@ function EditorManager({ onPersist, initialSnapshot, isController }: {
       editor.updateInstanceState({ isReadonly: !isController });
     }, [isController, editor]);
 
+    // Charger le snapshot initial ou les mises à jour
     useEffect(() => {
-        const handleMount = () => {
-            if (initialSnapshot) {
-                try {
+        if (initialSnapshot) {
+            try {
+                // Pour éviter de recharger le snapshot que l'on vient de créer,
+                // on peut comparer les ID de document.
+                if (editor.document.id !== initialSnapshot.document.id) {
                     editor.loadSnapshot(initialSnapshot);
-                } catch (e) {
-                    console.error("Erreur lors du chargement du snapshot:", e);
                 }
+            } catch (e) {
+                console.error("Erreur lors du chargement du snapshot:", e);
             }
-        };
-        editor.on('mount', handleMount);
-        return () => { editor.off('mount', handleMount); };
+        }
     }, [editor, initialSnapshot]);
     
+    // Écouter les changements locaux si l'utilisateur est le contrôleur
     useEffect(() => {
         if (isController && onPersist) {
             const handleChange = () => {
                 const snapshot = editor.getSnapshot();
                 onPersist(snapshot);
             };
-            const debouncedHandleChange = debounce(handleChange, 100);
+            const debouncedHandleChange = debounce(handleChange, 200); // Latence de 200ms
             const unsubscribe = editor.store.listen(debouncedHandleChange, {
               scope: 'document',
               source: 'user'
@@ -69,8 +71,8 @@ export function Whiteboard({
   return (
     <div className="h-full w-full">
       <Tldraw 
-        key={`${sessionId}-${whiteboardControllerId}`} // Forcer le re-render si le contrôleur change pour appliquer isReadonly
-        persistenceKey={`whiteboard-${sessionId}`}
+        key={`${sessionId}-${isController}`} // Forcer le re-render si le statut de contrôleur change
+        persistenceKey={`session_whiteboard_${sessionId}`}
         forceMobile={false}
       >
         <EditorManager 

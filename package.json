@@ -14,7 +14,8 @@
     "prisma:reset": "prisma migrate reset",
     "postinstall": "prisma generate",
     "db:seed": "tsx prisma/seed.ts",
-    "db:reset": "npm run prisma:reset && npm run db:seed"
+    "db:reset": "npm run prisma:reset && npm run db:seed",
+    "redis:subscribe": "tsx src/lib/redis-subscriber.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.4.1",

@@ -1,4 +1,4 @@
-// src/components/SessionClient.tsx - VERSION FINALE WEBRTC & DATA CHANNELS
+// src/components/SessionClient.tsx
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -14,7 +14,7 @@ import { TeacherSessionView } from './session/TeacherSessionView';
 import { StudentSessionView } from './session/StudentSessionView';
 import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';
-import { endCoursSession, broadcastTimerEvent, broadcastActiveTool, updateStudentSessionStatus, shareDocument } from '@/lib/actions/session.actions';
+import { endCoursSession, broadcastTimerEvent, broadcastActiveTool, updateStudentSessionStatus } from '@/lib/actions/session.actions';
 import { ComprehensionLevel } from '@/types';
 import { TLEditorSnapshot } from '@tldraw/tldraw';
 import { useWhiteboardSync } from '@/hooks/useWhiteboardSync';
@@ -70,10 +70,10 @@ export default function SessionClient({
       setWhiteboardSnapshot,
       whiteboardControllerId,
       setWhiteboardControllerId,
-      handleWhiteboardUpdate,
-      broadcastWhiteboardUpdate,
+      persistWhiteboardSnapshot,
       broadcastControllerChange,
-  } = useWhiteboardSync(initialTeacher.id, peersRef, sessionId);
+  } = useWhiteboardSync(sessionId, initialTeacher.id);
+
 
   useEffect(() => {
     const getMedia = async (): Promise<void> => {
@@ -175,8 +175,6 @@ export default function SessionClient({
         setRemoteStreams(prev => new Map(prev).set(targetUserId, remoteStream));
     });
 
-    peer.on('data', handleWhiteboardUpdate);
-
     peer.on('error', (err: Error) => {
         console.error(`❌ [PEER] Erreur de connexion avec ${targetUserId}:`, err.name, err.message);
         cleanupPeerConnection(targetUserId);
@@ -189,11 +187,9 @@ export default function SessionClient({
     
     peersRef.current.set(targetUserId, peer);
     return peer;
-  }, [sessionId, currentUserId, cleanupPeerConnection, localStream, handleWhiteboardUpdate]);
+  }, [sessionId, currentUserId, cleanupPeerConnection, localStream]);
 
   useEffect(() => {
-    if (!localStream) return;
-
     const channelName = `presence-session-${sessionId}`;
     const channel = pusherClient.subscribe(channelName);
 
@@ -267,7 +263,7 @@ export default function SessionClient({
         peersRef.current.clear();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, currentUserId, createPeer, cleanupPeerConnection, router, toast, currentUserRole, setWhiteboardControllerId, localStream]);
+  }, [sessionId, currentUserId, createPeer, cleanupPeerConnection, router, toast, currentUserRole, setWhiteboardControllerId]);
   
   useEffect(() => {
     if (isTimerRunning && timerTimeLeft > 0) {
@@ -403,7 +399,7 @@ export default function SessionClient({
             onStartTimer={() => broadcastTimerEvent(sessionId, 'timer-started')}
             onPauseTimer={() => broadcastTimerEvent(sessionId, 'timer-paused')}
             onResetTimer={handleResetTimer}
-            onWhiteboardPersist={broadcastWhiteboardUpdate}
+            onWhiteboardPersist={persistWhiteboardSnapshot}
             whiteboardSnapshot={whiteboardSnapshot}          />
         ) : (
           <StudentSessionView
@@ -422,7 +418,7 @@ export default function SessionClient({
             whiteboardSnapshot={whiteboardSnapshot}
             whiteboardControllerId={whiteboardControllerId}
             timerTimeLeft={timerTimeLeft}
-            onWhiteboardPersist={broadcastWhiteboardUpdate}
+            onWhiteboardPersist={persistWhiteboardSnapshot}
           />
         )}
       </main>
