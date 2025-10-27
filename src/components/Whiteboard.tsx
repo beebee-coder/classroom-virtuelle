@@ -3,12 +3,9 @@
 import { Tldraw, useEditor, TLEditorSnapshot } from '@tldraw/tldraw';
 import '@tldraw/tldraw/tldraw.css';
 import { useEffect } from 'react';
-import { useWhiteboardSync } from '@/hooks/useWhiteboardSync'; // Import du hook
 
 interface WhiteboardProps {
   sessionId: string;
-  isTeacher: boolean; // Pour savoir si c'est le prof
-  // Les autres props sont maintenant gérées par le hook
   onWhiteboardPersist: (snapshot: TLEditorSnapshot) => void;
   whiteboardSnapshot: TLEditorSnapshot | null;
   whiteboardControllerId: string | null;
@@ -23,7 +20,11 @@ function EditorManager({ onPersist, initialSnapshot, isController }: {
 }) {
     const editor = useEditor();
 
-    // Effet pour charger le snapshot initial et mettre l'éditeur en lecture seule si besoin
+    useEffect(() => {
+      // Mettre à jour l'état de lecture seule chaque fois que `isController` change
+      editor.updateInstanceState({ isReadonly: !isController });
+    }, [isController, editor]);
+
     useEffect(() => {
         const handleMount = () => {
             if (initialSnapshot) {
@@ -33,20 +34,18 @@ function EditorManager({ onPersist, initialSnapshot, isController }: {
                     console.error("Erreur lors du chargement du snapshot:", e);
                 }
             }
-            editor.updateInstanceState({ isReadonly: !isController });
         };
         editor.on('mount', handleMount);
         return () => { editor.off('mount', handleMount); };
-    }, [editor, initialSnapshot, isController]);
+    }, [editor, initialSnapshot]);
     
-    // Effet pour écouter les changements et persister si on est le contrôleur
     useEffect(() => {
         if (isController && onPersist) {
             const handleChange = () => {
                 const snapshot = editor.getSnapshot();
                 onPersist(snapshot);
             };
-            const debouncedHandleChange = debounce(handleChange, 100); // Latence de 100ms
+            const debouncedHandleChange = debounce(handleChange, 100);
             const unsubscribe = editor.store.listen(debouncedHandleChange, {
               scope: 'document',
               source: 'user'
@@ -58,7 +57,6 @@ function EditorManager({ onPersist, initialSnapshot, isController }: {
     return null;
 }
 
-// Le composant Whiteboard utilise maintenant le hook et passe les données à l'EditorManager
 export function Whiteboard({ 
     sessionId, 
     onWhiteboardPersist,
@@ -71,7 +69,7 @@ export function Whiteboard({
   return (
     <div className="h-full w-full">
       <Tldraw 
-        key={sessionId} // Forcer le re-render si la session change
+        key={`${sessionId}-${whiteboardControllerId}`} // Forcer le re-render si le contrôleur change pour appliquer isReadonly
         persistenceKey={`whiteboard-${sessionId}`}
         forceMobile={false}
       >
@@ -85,7 +83,6 @@ export function Whiteboard({
   );
 }
 
-// Fonction utilitaire pour le debouncing
 function debounce<T extends (...args: any[]) => void>(func: T, wait: number): (...args: Parameters<T>) => void {
   let timeout: NodeJS.Timeout | null;
   return function(...args: Parameters<T>) {

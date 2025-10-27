@@ -17,7 +17,7 @@ import { PermissionPrompt } from './PermissionPrompt';
 import { endCoursSession, broadcastTimerEvent, broadcastActiveTool, updateStudentSessionStatus, shareDocument } from '@/lib/actions/session.actions';
 import { ComprehensionLevel } from '@/lib/types';
 import { TLEditorSnapshot } from '@tldraw/tldraw';
-import { useWhiteboardSync } from '@/hooks/useWhiteboardSync'; // Import du nouveau hook
+import { useWhiteboardSync } from '@/hooks/useWhiteboardSync';
 
 interface DocumentSharedEvent {
     name: string;
@@ -39,7 +39,6 @@ export default function SessionClient({
   const router = useRouter();
   const { toast } = useToast();
   
-  // États principaux
   const [loading, setLoading] = useState<boolean>(true);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
@@ -47,7 +46,6 @@ export default function SessionClient({
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
   const [spotlightedParticipantId, setSpotlightedParticipantId] = useState<string | null>(initialTeacher?.id || null);
   
-  // États d'interaction
   const [raisedHands, setRaisedHands] = useState<Set<string>>(new Set());
   const [understandingStatus, setUnderstandingStatus] = useState<Map<string, ComprehensionLevel>>(new Map());
   const [isEndingSession, setIsEndingSession] = useState<boolean>(false);
@@ -55,11 +53,9 @@ export default function SessionClient({
   const [documentUrl, setDocumentUrl] = useState<string | null>(null);
   const [documentHistory, setDocumentHistory] = useState(initialDocumentHistory);
 
-  // Nouveaux états pour le contrôle média
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
 
-  // États pour le minuteur
   const [timerDuration, setTimerDuration] = useState<number>(INITIAL_TIMER_DURATION);
   const [timerTimeLeft, setTimerTimeLeft] = useState<number>(timerDuration);
   const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
@@ -67,10 +63,8 @@ export default function SessionClient({
   
   const allSessionUsers: SessionParticipant[] = [initialTeacher, ...initialStudents];
   
-  // Références
   const peersRef = useRef<Map<string, PeerInstance>>(new Map());
 
-  // ---=== HOOK DE SYNCHRONISATION DU TABLEAU BLANC (NOUVEAU) ===---
   const {
       whiteboardSnapshot,
       setWhiteboardSnapshot,
@@ -81,7 +75,6 @@ export default function SessionClient({
       broadcastControllerChange,
   } = useWhiteboardSync(initialTeacher.id, peersRef);
 
-  // ---=== 1. GESTION DES FLUX MÉDIAS ===---
   useEffect(() => {
     const getMedia = async (): Promise<void> => {
       console.log('🎬 [MEDIA] - Demande d\'accès à la caméra et au microphone...');
@@ -138,7 +131,6 @@ export default function SessionClient({
         }
     }
 
-  // ---=== 2. GESTION DES CONNEXIONS PEER-TO-PEER (WEBRTC) - DÉFINITIVE & ROBUSTE ===---
   const cleanupPeerConnection = useCallback((userId: string) => {
     const peer = peersRef.current.get(userId);
     if (peer) {
@@ -182,7 +174,6 @@ export default function SessionClient({
         setRemoteStreams(prev => new Map(prev).set(targetUserId, remoteStream));
     });
 
-    // Gestion des Data Channels
     peer.on('data', handleWhiteboardUpdate);
 
     peer.on('error', (err: Error) => {
@@ -210,7 +201,7 @@ export default function SessionClient({
         const otherUserIds = memberIds.filter(id => id !== currentUserId);
         
         otherUserIds.forEach(userId => {
-            if (currentUserId > userId) {
+             if (currentUserId > userId) {
                 const peer = createPeer(userId, true);
                 peersRef.current.set(userId, peer);
             }
@@ -236,18 +227,11 @@ export default function SessionClient({
         let peer = peersRef.current.get(data.userId);
         
         if (!peer) {
-             if (data.signal.type === 'offer') {
-                if (currentUserId < data.userId) {
-                    // This should not happen with the strict initiator rule, but as a safeguard.
-                    console.warn(`[GLARE] J'ai reçu une offre de ${data.userId} mais j'aurais dû initier. Je l'ignore.`);
-                    return;
-                }
-                peer = createPeer(data.userId, false);
-                peersRef.current.set(data.userId, peer);
-            } else {
-                 // If we get an answer/ICE candidate for a peer that doesn't exist, we can ignore it.
-                 return;
+             if (currentUserId < data.userId) {
+                return;
             }
+            peer = createPeer(data.userId, false);
+            peersRef.current.set(data.userId, peer);
         }
         
         if (peer && !peer.destroyed) {
@@ -274,8 +258,10 @@ export default function SessionClient({
       toast({ title: 'Document partagé', description: `Le professeur a partagé un nouveau document.` });
     });
     
-    channel.bind('whiteboard-controller-update', (data: { controllerId: string }) => setWhiteboardControllerId(data.controllerId));
-
+    // Écouter les changements de contrôleur
+    channel.bind('whiteboard-controller-update', (data: { controllerId: string }) => {
+        setWhiteboardControllerId(data.controllerId);
+    });
 
     return (): void => {
         console.log(`🔌 [PUSHER] Nettoyage des abonnements pour la session ${sessionId}`);
@@ -286,7 +272,6 @@ export default function SessionClient({
     };
   }, [sessionId, currentUserId, createPeer, cleanupPeerConnection, router, toast, currentUserRole, setWhiteboardControllerId, localStream]);
   
-  // ---=== 3. GESTION DU CYCLE DE VIE ET INTERACTIONS ===---
   useEffect(() => {
     if (isTimerRunning && timerTimeLeft > 0) {
       timerIntervalRef.current = setInterval(() => setTimerTimeLeft(prev => prev - 1), 1000);
@@ -356,10 +341,13 @@ export default function SessionClient({
     }
   };
   
+  // Fonction pour que le professeur change le contrôleur
   const handleWhiteboardControllerChange = (userId: string): void => {
-    if (currentUserRole === 'PROFESSEUR') {
-      broadcastControllerChange(userId);
-    }
+      if (currentUserRole === 'PROFESSEUR') {
+          // Si on clique sur le contrôleur actuel, on redonne le contrôle au prof
+          const newControllerId = userId === whiteboardControllerId ? initialTeacher.id : userId;
+          broadcastControllerChange(newControllerId);
+      }
   };
 
   const spotlightedStream = spotlightedParticipantId === currentUserId 
@@ -381,7 +369,7 @@ export default function SessionClient({
         onEndSession={handleEndSession}
         onLeaveSession={handleLeaveSession}
         isEndingSession={isEndingSession}
-        isSharingScreen={false} // Le partage d'écran sera réimplémenté si nécessaire
+        isSharingScreen={false}
         onToggleScreenShare={() => {}}
         isMuted={isMuted}
         onToggleMute={toggleMute}
@@ -396,7 +384,7 @@ export default function SessionClient({
           <TeacherSessionView
             sessionId={sessionId}
             localStream={localStream}
-            screenStream={null} // Partage d'écran désactivé pour la simplification
+            screenStream={null}
             remoteParticipants={remoteParticipants}
             spotlightedUser={spotlightedUser}
             allSessionUsers={allSessionUsers}
@@ -420,8 +408,8 @@ export default function SessionClient({
             onStartTimer={() => broadcastTimerEvent(sessionId, 'timer-started')}
             onPauseTimer={() => broadcastTimerEvent(sessionId, 'timer-paused')}
             onResetTimer={handleResetTimer}
-            onWhiteboardPersist={broadcastWhiteboardUpdate} // Passe la fonction de diffusion
-            whiteboardSnapshot={null}          />
+            onWhiteboardPersist={broadcastWhiteboardUpdate}
+            whiteboardSnapshot={whiteboardSnapshot}          />
         ) : (
           <StudentSessionView
             sessionId={sessionId}
@@ -439,7 +427,7 @@ export default function SessionClient({
             whiteboardSnapshot={whiteboardSnapshot}
             whiteboardControllerId={whiteboardControllerId}
             timerTimeLeft={timerTimeLeft}
-            onWhiteboardPersist={broadcastWhiteboardUpdate} // Passe la fonction de diffusion
+            onWhiteboardPersist={broadcastWhiteboardUpdate}
           />
         )}
       </main>

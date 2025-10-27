@@ -19,8 +19,8 @@ interface ParticipantProps {
   participantUserId: string;
   isHandRaised?: boolean;
   onSpotlightParticipant?: (participantId: string) => void;
-  onSetWhiteboardController?: (participantId: string) => void; // Nouveau
-  isWhiteboardController?: boolean; // Nouveau
+  onSetWhiteboardController?: (participantId: string) => void; 
+  isWhiteboardController?: boolean; 
 }
 
 function ParticipantComponent({ 
@@ -72,7 +72,7 @@ function ParticipantComponent({
         "relative aspect-video bg-muted rounded-lg overflow-hidden flex items-center justify-center group text-white",
         isSpotlighted && "ring-2 ring-amber-500 shadow-lg",
         isHandRaised && "ring-2 ring-blue-500",
-        isWhiteboardController && "ring-2 ring-green-500",
+        isWhiteboardController && "ring-4 ring-green-500 shadow-lg border-green-500", // Style plus visible
     )}>
         <video ref={videoRef} autoPlay playsInline muted={isLocal} className={cn("w-full h-full object-cover", !hasVideo && "hidden")} />
 
@@ -87,14 +87,14 @@ function ParticipantComponent({
        
         <div className="absolute bottom-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
              <TooltipProvider>
-                 {isTeacher && onSetWhiteboardController && (
+                 {isTeacher && onSetWhiteboardController && !isLocal && (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button variant="secondary" size="icon" className="h-6 w-6 bg-black/50 hover:bg-black/80 border-none" onClick={handleSetController}>
                         <Edit className={cn("h-3 w-3", isWhiteboardController && "fill-green-500 text-green-500")} />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent><p>Donner le contrôle du tableau</p></TooltipContent>
+                    <TooltipContent><p>{isWhiteboardController ? 'Retirer le contrôle' : 'Donner le contrôle du tableau'}</p></TooltipContent>
                   </Tooltip>
                  )}
                  {isTeacher && onSpotlightParticipant && (

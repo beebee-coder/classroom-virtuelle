@@ -1,7 +1,7 @@
 // src/hooks/useWhiteboardSync.ts
 'use client';
 
-import { useState, useCallback, RefObject } from 'react';
+import { useState, useCallback, RefObject, useEffect } from 'react';
 import { TLEditorSnapshot } from '@tldraw/tldraw';
 import type { Instance as PeerInstance } from 'simple-peer';
 
@@ -18,9 +18,8 @@ export const useWhiteboardSync = (
     peersRef: RefObject<Map<string, PeerInstance>>
 ) => {
     const [whiteboardSnapshot, setWhiteboardSnapshot] = useState<TLEditorSnapshot | null>(null);
-    const [whiteboardControllerId, setWhiteboardControllerId] = useState<string | null>(initialControllerId);
+    const [whiteboardControllerId, setWhiteboardControllerId] = useState<string>(initialControllerId);
 
-    // Fonction pour gérer les messages entrants du data channel
     const handleWhiteboardUpdate = useCallback((data: any) => {
         try {
             const message: WhiteboardMessage = JSON.parse(data.toString());
@@ -28,14 +27,15 @@ export const useWhiteboardSync = (
             if (message.type === WHITEBOARD_EVENT_TYPE) {
                 setWhiteboardSnapshot(message.payload as TLEditorSnapshot);
             } else if (message.type === CONTROLLER_CHANGE_EVENT_TYPE) {
-                setWhiteboardControllerId((message.payload as { controllerId: string }).controllerId);
+                // MISE À JOUR : s'assurer que tout le monde met à jour son contrôleur
+                const newControllerId = (message.payload as { controllerId: string }).controllerId;
+                setWhiteboardControllerId(newControllerId);
             }
         } catch (error) {
             console.error('Erreur lors du traitement du message du tableau blanc:', error);
         }
     }, []);
 
-    // Fonction pour diffuser les mises à jour du tableau blanc à tous les pairs
     const broadcastWhiteboardUpdate = useCallback((snapshot: TLEditorSnapshot) => {
         if (peersRef.current) {
             const message: WhiteboardMessage = {
@@ -51,8 +51,7 @@ export const useWhiteboardSync = (
             }
         }
     }, [peersRef]);
-
-    // Fonction pour diffuser le changement de contrôleur
+    
     const broadcastControllerChange = useCallback((newControllerId: string) => {
         if (peersRef.current) {
             const message: WhiteboardMessage = {
@@ -61,7 +60,7 @@ export const useWhiteboardSync = (
             };
              const messageString = JSON.stringify(message);
 
-            setWhiteboardControllerId(newControllerId); // Mise à jour locale immédiate
+            setWhiteboardControllerId(newControllerId); 
 
             for (const peer of peersRef.current.values()) {
                 if (peer.connected) {
@@ -71,11 +70,28 @@ export const useWhiteboardSync = (
         }
     }, [peersRef]);
 
+    // Attacher/détacher le gestionnaire d'événements 'data' aux pairs
+    useEffect(() => {
+        const peers = peersRef.current;
+        if (peers) {
+            peers.forEach(peer => {
+                peer.on('data', handleWhiteboardUpdate);
+            });
+        }
+        return () => {
+            if (peers) {
+                peers.forEach(peer => {
+                    peer.off('data', handleWhiteboardUpdate);
+                });
+            }
+        };
+    }, [peersRef, handleWhiteboardUpdate]);
+
     return {
         whiteboardSnapshot,
         setWhiteboardSnapshot,
         whiteboardControllerId,
-        setWhiteboardControllerId,
+        setWhiteboardControllerId, // Exposer pour les mises à jour locales
         handleWhiteboardUpdate,
         broadcastWhiteboardUpdate,
         broadcastControllerChange,

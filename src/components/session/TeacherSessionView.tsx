@@ -106,10 +106,8 @@ export function TeacherSessionView({
     const [isClassListExpanded, setIsClassListExpanded] = useState(false);
 
     useEffect(() => {
-        // Un élève est en attente s'il est en ligne mais pas dans la session active
         const waitingCount = classOnlineIds.filter(id => !activeParticipantIds.includes(id) && id !== currentUserId).length;
         if (waitingCount > 0 && !isClassListExpanded) {
-            console.log(`⏱️ [VUE PROF] - Détection de ${waitingCount} élève(s) en attente.`);
             setHasWaitingStudents(true);
         } else {
             setHasWaitingStudents(false);
@@ -132,11 +130,6 @@ export function TeacherSessionView({
         shareDocument(sessionId, { name: doc.name, url: doc.url });
     }
 
-    const handleSetWhiteboardController = (userId: string) => {
-        console.log(`🕹️ [PROF] - Clic pour donner le contrôle à ${userId}`);
-        onWhiteboardControllerChange(userId);
-    };
-
     const renderParticipant = (participant: SessionParticipant, isDuplicate = false) => {
         const stream = participant.id === teacher.id ? localStream : remoteStreamsMap.get(participant.id);
         const key = `${participant.id}-${isDuplicate ? 'duplicate' : 'original'}`;
@@ -153,7 +146,7 @@ export function TeacherSessionView({
                     onSpotlightParticipant={onSpotlightParticipant}
                     displayName={participant.name ?? ''}
                     isHandRaised={raisedHands.has(participant.id)}
-                    onSetWhiteboardController={handleSetWhiteboardController}
+                    onSetWhiteboardController={onWhiteboardControllerChange}
                     isWhiteboardController={participant.id === whiteboardControllerId}
                 />
             );
@@ -247,6 +240,8 @@ export function TeacherSessionView({
                             onSpotlightParticipant={onSpotlightParticipant}
                             displayName={spotlightedUser.name ?? ''}
                             isHandRaised={raisedHands.has(spotlightedUser.id)}
+                            onSetWhiteboardController={onWhiteboardControllerChange}
+                            isWhiteboardController={spotlightedUser.id === whiteboardControllerId}
                         />
                     </Card>
                 );
@@ -268,12 +263,10 @@ export function TeacherSessionView({
 
     return (
         <div className="flex-1 flex min-h-0 min-w-0">
-            {/* Main content area */}
             <div className="flex-1 flex flex-col min-h-0 min-w-0">
                  <div className="flex-1 min-h-0 relative">
                     {renderActiveTool()}
                 </div>
-                 {/* Video marquee at the bottom */}
                 <div className="w-full overflow-hidden relative mt-6">
                     <div className="marquee-container flex space-x-4 px-2 hover:[animation-play-state:paused]">
                         {allParticipants.map(p => (
@@ -291,7 +284,6 @@ export function TeacherSessionView({
                 </div>
             </div>
 
-            {/* --- Colonne de Droite : Outils Interactifs --- */}
             <div className="w-68 flex-shrink-0 flex flex-col border-l p-3">
                 <motion.div layout className="h-full flex flex-col gap-1 p-2">
                     <ScrollArea className="flex-1 pr-3 -mr-3">
@@ -355,9 +347,6 @@ export function TeacherSessionView({
         </div>
     );
 }
-
-
-// --- Composants pour le style de la barre latérale animée ---
 
 interface AnimatedCardProps {
     children: ReactNode;
