@@ -1,6 +1,6 @@
 // src/components/Whiteboard.tsx
 'use client';
-import { Tldraw, useEditor, TLStoreSnapshot, TLRecord } from '@tldraw/tldraw';
+import { Tldraw, useEditor, TLStoreSnapshot, TLRecord, StoreSnapshot } from '@tldraw/tldraw';
 import '@tldraw/tldraw/tldraw.css';
 import { useEffect, useCallback } from 'react';
 
@@ -34,9 +34,8 @@ function WhiteboardEditorLogic({
   useEffect(() => {
     if (initialSnapshot && editor) {
       try {
-        // Pour éviter de recharger le même snapshot, on peut faire une comparaison simple
-        const currentSnapshot = editor.store.getSnapshot();
-        if (JSON.stringify(currentSnapshot) !== JSON.stringify(initialSnapshot)) {
+        const currentStoreSnapshot = editor.store.getSnapshot('document');
+        if (JSON.stringify(currentStoreSnapshot.store) !== JSON.stringify(initialSnapshot.store)) {
           editor.store.loadSnapshot(initialSnapshot);
         }
       } catch (error) {
@@ -50,7 +49,7 @@ function WhiteboardEditorLogic({
     if (!isController) return;
 
     const handleChange = () => {
-      const snapshot = editor.store.getSnapshot();
+      const snapshot = editor.store.getSnapshot('document');
       onPersist(snapshot);
     };
 
