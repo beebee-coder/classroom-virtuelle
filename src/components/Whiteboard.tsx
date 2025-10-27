@@ -1,4 +1,4 @@
-// src/components/Whiteboard.tsx - VERSION FINALE CORRIGÉE
+// src/components/Whiteboard.tsx
 'use client';
 import { Tldraw, useEditor, TLStoreSnapshot, TLRecord } from '@tldraw/tldraw';
 import '@tldraw/tldraw/tldraw.css';

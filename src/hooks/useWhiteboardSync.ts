@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { TLEditorSnapshot } from '@tldraw/tldraw';
+import { TLStoreSnapshot } from '@tldraw/tldraw';
 import { pusherClient } from '../lib/pusher/client';
 
 const WHITEBOARD_UPDATE_EVENT = 'whiteboard-update';
@@ -10,9 +10,9 @@ const DEBOUNCE_SAVE_TIME = 200;
 
 export const useWhiteboardSync = (
     sessionId: string,
-    initialSnapshot: TLEditorSnapshot | null
+    initialSnapshot: TLStoreSnapshot | null
 ) => {
-    const [whiteboardSnapshot, setWhiteboardSnapshot] = useState<TLEditorSnapshot | null>(initialSnapshot);
+    const [whiteboardSnapshot, setWhiteboardSnapshot] = useState<TLStoreSnapshot | null>(initialSnapshot);
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
@@ -40,7 +40,7 @@ export const useWhiteboardSync = (
         const channelName = `presence-session-${sessionId}`;
         const channel = pusherClient.subscribe(channelName);
 
-        const handleUpdate = (data: { snapshot: TLEditorSnapshot, senderId: string }) => {
+        const handleUpdate = (data: { snapshot: TLStoreSnapshot, senderId: string }) => {
             if (data.senderId === pusherClient.connection.socket_id) return;
             setWhiteboardSnapshot(data.snapshot);
         };
@@ -56,7 +56,7 @@ export const useWhiteboardSync = (
         };
     }, [sessionId]);
 
-    const persistWhiteboardSnapshot = useCallback((snapshot: TLEditorSnapshot) => {
+    const persistWhiteboardSnapshot = useCallback((snapshot: TLStoreSnapshot) => {
         setWhiteboardSnapshot(snapshot);
 
         if (saveTimeoutRef.current) {
