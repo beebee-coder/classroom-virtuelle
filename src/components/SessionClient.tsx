@@ -73,7 +73,7 @@ export default function SessionClient({
       handleWhiteboardUpdate,
       broadcastWhiteboardUpdate,
       broadcastControllerChange,
-  } = useWhiteboardSync(initialTeacher.id, peersRef);
+  } = useWhiteboardSync(initialTeacher.id, peersRef, sessionId);
 
   useEffect(() => {
     const getMedia = async (): Promise<void> => {
@@ -103,6 +103,7 @@ export default function SessionClient({
       localStream?.getTracks().forEach(track => track.stop());
       screenStream?.getTracks().forEach(track => track.stop());
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const toggleMute = (): void => {
@@ -157,7 +158,7 @@ export default function SessionClient({
         initiator,
         trickle: true,
         stream: localStream ?? undefined,
-        config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:global.stun.twilio.com:3478' }] }
+        config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
     });
 
     peer.on('signal', (signal: PeerSignalData) => {
@@ -185,7 +186,8 @@ export default function SessionClient({
         console.log(`🔒 [PEER] Connexion fermée avec ${targetUserId}.`);
         cleanupPeerConnection(targetUserId);
     });
-
+    
+    peersRef.current.set(targetUserId, peer);
     return peer;
   }, [sessionId, currentUserId, cleanupPeerConnection, localStream, handleWhiteboardUpdate]);
 
@@ -202,8 +204,7 @@ export default function SessionClient({
         
         otherUserIds.forEach(userId => {
              if (currentUserId > userId) {
-                const peer = createPeer(userId, true);
-                peersRef.current.set(userId, peer);
+                createPeer(userId, true);
             }
         });
     });
@@ -211,8 +212,7 @@ export default function SessionClient({
     channel.bind('pusher:member_added', (member: { id: string }) => {
         setOnlineUserIds(prev => [...new Set([...prev, member.id])]);
         if (currentUserId > member.id) {
-            const peer = createPeer(member.id, true);
-            peersRef.current.set(member.id, peer);
+            createPeer(member.id, true);
         }
     });
 
@@ -227,11 +227,8 @@ export default function SessionClient({
         let peer = peersRef.current.get(data.userId);
         
         if (!peer) {
-             if (currentUserId < data.userId) {
-                return;
-            }
-            peer = createPeer(data.userId, false);
-            peersRef.current.set(data.userId, peer);
+             if (data.isReturnSignal) return;
+             peer = createPeer(data.userId, false);
         }
         
         if (peer && !peer.destroyed) {
@@ -258,7 +255,6 @@ export default function SessionClient({
       toast({ title: 'Document partagé', description: `Le professeur a partagé un nouveau document.` });
     });
     
-    // Écouter les changements de contrôleur
     channel.bind('whiteboard-controller-update', (data: { controllerId: string }) => {
         setWhiteboardControllerId(data.controllerId);
     });
@@ -270,6 +266,7 @@ export default function SessionClient({
         peersRef.current.forEach((_, userId) => cleanupPeerConnection(userId));
         peersRef.current.clear();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, currentUserId, createPeer, cleanupPeerConnection, router, toast, currentUserRole, setWhiteboardControllerId, localStream]);
   
   useEffect(() => {
@@ -341,10 +338,8 @@ export default function SessionClient({
     }
   };
   
-  // Fonction pour que le professeur change le contrôleur
   const handleWhiteboardControllerChange = (userId: string): void => {
       if (currentUserRole === 'PROFESSEUR') {
-          // Si on clique sur le contrôleur actuel, on redonne le contrôle au prof
           const newControllerId = userId === whiteboardControllerId ? initialTeacher.id : userId;
           broadcastControllerChange(newControllerId);
       }
