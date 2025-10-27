@@ -6,9 +6,14 @@ import { cache } from 'react';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import prisma from '../prisma';
+import redis from '../redis';
 import type { Announcement } from '@prisma/client';
 
 export type AnnouncementWithAuthor = Announcement & { author: { name: string | null } };
+
+const STUDENT_ANNOUNCEMENTS_CACHE_KEY = (studentId: string) => `announcements:student:${studentId}`;
+const CLASS_ANNOUNCEMENTS_CACHE_KEY = (classroomId: string) => `announcements:class:${classroomId}`;
+const PUBLIC_ANNOUNCEMENTS_CACHE_KEY = 'announcements:public';
 
 export async function createAnnouncement(formData: FormData) {
   console.log('📢 [ACTION] - Création d\'une annonce...');
@@ -37,6 +42,22 @@ export async function createAnnouncement(formData: FormData) {
 
   console.log('  Annonce insérée en base de données.');
   
+  // Invalider le cache Redis
+  if (redis) {
+      if (target === 'public') {
+          await redis.del(PUBLIC_ANNOUNCEMENTS_CACHE_KEY);
+      } else {
+          // Invalider le cache pour la classe et pour chaque élève de la classe
+          await redis.del(CLASS_ANNOUNCEMENTS_CACHE_KEY(target));
+          const students = await prisma.user.findMany({ where: { classeId: target }, select: { id: true } });
+          const studentKeys = students.map(s => STUDENT_ANNOUNCEMENTS_CACHE_KEY(s.id));
+          if(studentKeys.length > 0) await redis.del(...studentKeys);
+      }
+      // Invalider le cache public car les annonces publiques sont aussi retournées pour les classes/étudiants
+      await redis.del(PUBLIC_ANNOUNCEMENTS_CACHE_KEY);
+      console.log('🔄 Cache Redis pour les annonces invalidé.');
+  }
+
   // Revalidation des chemins
   revalidatePath('/');
   revalidatePath('/teacher/dashboard');
@@ -49,8 +70,17 @@ export async function createAnnouncement(formData: FormData) {
 }
 
 export const getPublicAnnouncements = cache(async (limit: number = 3): Promise<AnnouncementWithAuthor[]> => {
-    console.log(`📢 [ACTION] - Récupération de ${limit} annonces publiques.`);
-    return prisma.announcement.findMany({
+    const cacheKey = PUBLIC_ANNOUNCEMENTS_CACHE_KEY;
+    if (redis) {
+        const cached = await redis.get(cacheKey);
+        if (cached) {
+            console.log('⚡️ [CACHE] Annonces publiques servies depuis Redis.');
+            return JSON.parse(cached);
+        }
+    }
+
+    console.log(`📢 [DB] - Récupération de ${limit} annonces publiques.`);
+    const announcements = await prisma.announcement.findMany({
         where: { classeId: null },
         take: limit,
         include: {
@@ -62,14 +92,29 @@ export const getPublicAnnouncements = cache(async (limit: number = 3): Promise<A
             createdAt: 'desc'
         }
     });
+
+    if (redis) {
+        await redis.set(cacheKey, JSON.stringify(announcements), 'EX', 3600); // Cache pour 1 heure
+    }
+
+    return announcements;
 });
 
 export async function getStudentAnnouncements(studentId: string): Promise<AnnouncementWithAuthor[]> {
-    console.log(`📢 [ACTION] - Récupération des annonces pour l'élève ${studentId}.`);
+    const cacheKey = STUDENT_ANNOUNCEMENTS_CACHE_KEY(studentId);
+    if(redis) {
+        const cached = await redis.get(cacheKey);
+        if(cached) {
+            console.log(`⚡️ [CACHE] Annonces pour l'élève ${studentId} servies depuis Redis.`);
+            return JSON.parse(cached);
+        }
+    }
+
+    console.log(`📢 [DB] - Récupération des annonces pour l'élève ${studentId}.`);
     const student = await prisma.user.findUnique({ where: { id: studentId } });
     if (!student) return [];
 
-    return prisma.announcement.findMany({
+    const announcements = await prisma.announcement.findMany({
         where: {
             OR: [
                 { classeId: null },
@@ -85,11 +130,26 @@ export async function getStudentAnnouncements(studentId: string): Promise<Announ
             createdAt: 'desc'
         }
     });
+
+    if(redis) {
+        await redis.set(cacheKey, JSON.stringify(announcements), 'EX', 3600); // Cache 1 heure
+    }
+    
+    return announcements;
 }
 
 export async function getClassAnnouncements(classroomId: string): Promise<AnnouncementWithAuthor[]> {
-    console.log(`📢 [ACTION] - Récupération des annonces pour la classe ${classroomId}.`);
-    return prisma.announcement.findMany({
+    const cacheKey = CLASS_ANNOUNCEMENTS_CACHE_KEY(classroomId);
+    if(redis) {
+        const cached = await redis.get(cacheKey);
+        if(cached) {
+             console.log(`⚡️ [CACHE] Annonces pour la classe ${classroomId} servies depuis Redis.`);
+            return JSON.parse(cached);
+        }
+    }
+
+    console.log(`📢 [DB] - Récupération des annonces pour la classe ${classroomId}.`);
+    const announcements = await prisma.announcement.findMany({
         where: {
             OR: [
                 { classeId: null },
@@ -105,4 +165,10 @@ export async function getClassAnnouncements(classroomId: string): Promise<Announ
             createdAt: 'desc'
         }
     });
+
+    if(redis) {
+        await redis.set(cacheKey, JSON.stringify(announcements), 'EX', 3600);
+    }
+    
+    return announcements;
 }

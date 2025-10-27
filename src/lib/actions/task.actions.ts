@@ -5,9 +5,27 @@ import { revalidatePath } from 'next/cache';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import prisma from '../prisma';
+import redis from '../redis';
 import { ProgressStatus, type Task, type StudentProgress, Role } from '@prisma/client';
 
-// Fusion de createTask et updateTask en une seule fonction saveTask
+const TASKS_CACHE_KEY = 'tasks:all';
+const STUDENT_PROGRESS_CACHE_KEY = (studentId: string) => `student-progress:${studentId}`;
+const STUDENT_DATA_CACHE_KEY = (id: string) => `student:${id}`;
+
+// Fonction pour invalider les caches liés aux tâches
+async function invalidateTaskCaches(studentId?: string) {
+    if (redis) {
+        const pipeline = redis.pipeline();
+        pipeline.del(TASKS_CACHE_KEY);
+        if (studentId) {
+            pipeline.del(STUDENT_PROGRESS_CACHE_KEY(studentId));
+            pipeline.del(STUDENT_DATA_CACHE_KEY(studentId));
+        }
+        await pipeline.exec();
+        console.log(`🔄 Cache Redis pour les tâches (et élève ${studentId}) invalidé.`);
+    }
+}
+
 export async function saveTask(formData: FormData): Promise<Task> {
     const session = await getServerSession(authOptions);
     if (session?.user?.role !== 'PROFESSEUR') {
@@ -30,19 +48,19 @@ export async function saveTask(formData: FormData): Promise<Task> {
     let savedTask: Task;
 
     if (taskId) {
-        // Mise à jour
         console.log(`📝 [ACTION] Mise à jour de la tâche ID: ${taskId}`);
         savedTask = await prisma.task.update({
             where: { id: taskId },
             data: taskData,
         });
     } else {
-        // Création
         console.log(`📝 [ACTION] Création d'une nouvelle tâche`);
         savedTask = await prisma.task.create({ data: taskData });
     }
 
+    await invalidateTaskCaches();
     revalidatePath('/teacher/tasks');
+    revalidatePath('/student/dashboard', 'layout'); // Pour tous les élèves
     return savedTask;
 }
 
@@ -55,7 +73,9 @@ export async function deleteTask(id: string): Promise<{ success: boolean }> {
 
     await prisma.task.delete({ where: { id: id } });
 
+    await invalidateTaskCaches();
     revalidatePath('/teacher/tasks');
+    revalidatePath('/student/dashboard', 'layout');
     return { success: true };
 }
 
@@ -67,13 +87,8 @@ export async function completeTask(taskId: string, submissionUrl?: string): Prom
   }
   const studentId = session.user.id;
 
-
-  // Vérifier si une progression existe déjà (pour les tâches rejetées)
   const existingProgress = await prisma.studentProgress.findFirst({
-      where: {
-          studentId,
-          taskId,
-      }
+      where: { studentId, taskId }
   });
 
   const taskData = await prisma.task.findUnique({ where: { id: taskId } });
@@ -91,17 +106,15 @@ export async function completeTask(taskId: string, submissionUrl?: string): Prom
   let progress;
 
   if (existingProgress) {
-      // Mettre à jour la progression existante (cas d'une tâche rejetée qu'on resoumet)
       progress = await prisma.studentProgress.update({
           where: { id: existingProgress.id },
           data: {
               status: newStatus,
-              submissionUrl: submissionUrl, // Mettre à jour la preuve
+              submissionUrl: submissionUrl,
               completionDate: new Date(),
           }
       });
   } else {
-      // Créer une nouvelle entrée de progression
       progress = await prisma.studentProgress.create({
           data: {
               studentId,
@@ -119,6 +132,8 @@ export async function completeTask(taskId: string, submissionUrl?: string): Prom
     });
   }
   
+  await invalidateTaskCaches(studentId);
+
   revalidatePath(`/student/dashboard`);
   if (taskData.validationType === 'PROFESSOR') {
       revalidatePath('/teacher/validations');
