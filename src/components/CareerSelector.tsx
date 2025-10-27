@@ -44,7 +44,7 @@ export function CareerSelector({ careers, studentId, currentCareerId }: CareerSe
     <div className="flex flex-col sm:flex-row items-center gap-4">
       <Select
         value={selectedCareer ?? 'aucun'}
-        onValueChange={(value) => setSelectedCareer(value === 'aucun' ? null : value)}
+        onValueChange={(value: string) => setSelectedCareer(value === 'aucun' ? null : value)}
         disabled={isLoading}
       >
         <SelectTrigger className="w-full sm:w-[280px]">
