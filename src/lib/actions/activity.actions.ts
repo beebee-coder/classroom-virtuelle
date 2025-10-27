@@ -10,7 +10,7 @@ const MAX_DAILY_POINTS = 50;
 
 /**
  * Suivi de l'activité de l'élève. A appeler périodiquement (heartbeat).
- * Attribue des points pour l'activité et met à jour la dernière vue.
+ * Attribue des points pour l'activité.
  */
 export async function trackStudentActivity(activeSeconds: number) {
   const session = await getServerSession(authOptions);
@@ -25,15 +25,7 @@ export async function trackStudentActivity(activeSeconds: number) {
   console.log(`💓 [HEARTBEAT] Ping reçu pour l'élève ${userId}.`);
 
   try {
-    // 2. Mise à jour de la dernière vue de l'utilisateur
-    await prisma.user.update({
-      where: { id: userId },
-      data: { lastSeen: new Date() }
-    });
-    console.log(`  -> Dernière vue mise à jour pour ${userId}.`);
-
-    // 3. Logique d'attribution de points (simplifiée pour la démo)
-    // Dans une vraie application, on vérifierait la date de la dernière attribution, etc.
+    // 2. Logique d'attribution de points
     const pointsToAward = POINTS_PER_INTERVAL;
     
     // Mettre à jour les points de l'élève

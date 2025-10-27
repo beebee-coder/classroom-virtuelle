@@ -1,19 +1,24 @@
 // src/app/teacher/dashboard/page.tsx
+'use client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, CheckCircle, Megaphone, AlertCircle } from 'lucide-react';
+import { Users, CheckCircle, Megaphone, AlertCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options';
+import { useSession } from 'next-auth/react';
 import { getTasksForProfessorValidation } from '@/lib/actions/teacher.actions';
 import { redirect } from 'next/navigation';
 import prisma from '@/lib/prisma';
 import { CreateAnnouncementForm } from '@/components/CreateAnnouncementForm';
+import { useState, useEffect } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
 
-export const dynamic = 'force-dynamic';
+// Interface pour les données de classe minimales
+interface ClassroomData {
+  id: string;
+  nom: string;
+}
 
 // Composant d'erreur pour afficher un état de fallback
 function DashboardErrorState({ message }: { message: string }) {
-  'use client';
   return (
     <div className="container mx-auto px-4 py-8">
       <Card className="border-destructive/50">
@@ -44,49 +49,74 @@ function DashboardErrorState({ message }: { message: string }) {
   );
 }
 
-// Interface pour les données de classe minimales
-interface ClassroomData {
-  id: string;
-  nom: string;
+function DashboardLoadingSkeleton() {
+    return (
+         <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+                <div>
+                    <Skeleton className="h-8 w-72 mb-2" />
+                    <Skeleton className="h-5 w-96" />
+                </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <Skeleton className="h-48 w-full" />
+                <Skeleton className="h-48 w-full" />
+                <Skeleton className="h-48 w-full" />
+            </div>
+        </main>
+    )
 }
 
-export default async function TeacherDashboardPage() {
-  console.log('👨‍🏫 [PAGE] - Chargement du tableau de bord professeur.');
+export default function TeacherDashboardPage() {
+    const { data: session, status } = useSession();
+    const [dashboardData, setDashboardData] = useState<{
+        classrooms: ClassroomData[];
+        validationCount: number;
+    } | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
-  try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session || !session.user || session.user.role !== 'PROFESSEUR') {
-      console.log('  Redirection vers /login, utilisateur non authentifié ou rôle incorrect.');
-      redirect('/login');
-    }
+    useEffect(() => {
+        if (status === 'authenticated' && session?.user?.id) {
+            const fetchData = async () => {
+                console.log('👨‍🏫 [PAGE] - Chargement des données du tableau de bord professeur.');
+                try {
+                    const classroomsData = await prisma.classroom.findMany({
+                        where: { professeurId: session.user.id },
+                        select: { id: true, nom: true }
+                    });
 
-    const user = session.user;
+                    const tasksToValidate = await getTasksForProfessorValidation(session.user.id);
+                    const validationCount = tasksToValidate.length;
 
-    // Fetch des données avec gestion d'erreur
-    let classrooms: ClassroomData[] = [];
-    let validationCount = 0;
-
-    try {
-      // Récupération des classes
-      const classroomsData = await prisma.classroom.findMany({
-        where: { professeurId: user.id },
-        select: {
-          id: true,
-          nom: true
+                    console.log(`✅ [PAGE] - Données prof chargées: ${classroomsData.length} classes, ${validationCount} validations.`);
+                    setDashboardData({ classrooms: classroomsData, validationCount });
+                } catch (dbError) {
+                    console.error('❌ [PAGE] - Erreur de base de données:', dbError);
+                    setError("Impossible de charger les données du tableau de bord.");
+                }
+            };
+            fetchData();
         }
-      });
-      classrooms = classroomsData;
+    }, [session, status]);
 
-      // Récupération des tâches à valider
-      const tasksToValidate = await getTasksForProfessorValidation(user.id);
-      validationCount = tasksToValidate.length;
-
-      console.log(`✅ [PAGE] - Données prof chargées: ${classrooms.length} classes, ${validationCount} validations.`);
-    } catch (dbError) {
-      console.error('❌ [PAGE] - Erreur de base de données:', dbError);
-      // On continue avec des valeurs par défaut plutôt que de faire planter la page
+    if (status === 'loading' || (status === 'authenticated' && !dashboardData && !error)) {
+        return <DashboardLoadingSkeleton />;
     }
+
+    if (status === 'unauthenticated') {
+        redirect('/login');
+    }
+    
+    if (error) {
+        return <DashboardErrorState message={error} />;
+    }
+
+    if (!session?.user || !dashboardData) {
+        return <DashboardLoadingSkeleton />;
+    }
+
+    const { classrooms, validationCount } = dashboardData;
+    const user = session.user;
 
     return (
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -176,17 +206,4 @@ export default async function TeacherDashboardPage() {
         </div>
       </main>
     );
-
-  } catch (error) {
-    console.error('❌ [PAGE] - Erreur critique dans TeacherDashboardPage:', error);
-    
-    // En production, vous pourriez logger l'erreur à un service externe
-    // et afficher une page d'erreur appropriée
-    
-    return (
-      <DashboardErrorState 
-        message="Impossible de charger le tableau de bord. Veuillez vérifier votre connexion et réessayer." 
-      />
-    );
-  }
 }
