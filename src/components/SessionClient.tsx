@@ -1,34 +1,31 @@
-// src/components/SessionClient.tsx - VERSION FINALE CORRIGÉE AVEC WEBRTC STABLE
+// src/components/SessionClient.tsx - VERSION FINALE WEBRTC & DATA CHANNELS
 'use client';
 
-import { useState, useEffect, useRef, useCallback }from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Instance as PeerInstance, SignalData as PeerSignalData } from 'simple-peer';
 import SimplePeer from 'simple-peer';
-
-import { pusherClient } from '@/lib/pusher/client';
 import { useToast } from '@/hooks/use-toast';
-import { User, Role } from '@prisma/client';
-import type { SessionParticipant, ClassroomWithDetails, DocumentInHistory, RemoteParticipant } from '@/types';
+import type { User, Role } from '@prisma/client';
+import type { SessionClientProps, IncomingSignalData, SignalPayload, SessionParticipant } from '@/types';
+import { pusherClient } from '@/lib/pusher/client';
 import SessionLoading from './SessionLoading';
 import { TeacherSessionView } from './session/TeacherSessionView';
 import { StudentSessionView } from './session/StudentSessionView';
 import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';
 import { endCoursSession, broadcastTimerEvent, broadcastActiveTool, updateStudentSessionStatus, shareDocument } from '@/lib/actions/session.actions';
-import { broadcastWhiteboardUpdate, broadcastWhiteboardController } from '@/lib/actions/whiteboard.actions';
 import { ComprehensionLevel } from '@/lib/types';
-import { SessionClientProps, PeerData, SignalPayload, PusherSubscriptionSucceededEvent, PusherMemberEvent, IncomingSignalData, SpotlightEvent, HandRaiseEvent, UnderstandingEvent, TimerEvent, ToolEvent, WhiteboardUpdateEvent, WhiteboardControllerEvent } from '@/types';
-import { TLEditorSnapshot, TLStoreSnapshot } from '@tldraw/tldraw';
+import { TLEditorSnapshot } from '@tldraw/tldraw';
+import { useWhiteboardSync } from '@/hooks/useWhiteboardSync'; // Import du nouveau hook
 
-// Nouveau type pour l'événement de partage de document
 interface DocumentSharedEvent {
     name: string;
     url: string;
     sharedBy: string;
 }
 
-const INITIAL_TIMER_DURATION = 3600; // 1 heure en secondes
+const INITIAL_TIMER_DURATION = 3600;
 
 export default function SessionClient({
   sessionId,
@@ -56,9 +53,7 @@ export default function SessionClient({
   const [isEndingSession, setIsEndingSession] = useState<boolean>(false);
   const [activeTool, setActiveTool] = useState<string>('whiteboard');
   const [documentUrl, setDocumentUrl] = useState<string | null>(null);
-  const [documentHistory, setDocumentHistory] = useState<DocumentInHistory[]>(initialDocumentHistory);
-  const [whiteboardSnapshot, setWhiteboardSnapshot] = useState<TLEditorSnapshot | null>(null);
-  const [whiteboardControllerId, setWhiteboardControllerId] = useState<string | null>(initialTeacher?.id || null);
+  const [documentHistory, setDocumentHistory] = useState(initialDocumentHistory);
 
   // Nouveaux états pour le contrôle média
   const [isMuted, setIsMuted] = useState(false);
@@ -74,7 +69,17 @@ export default function SessionClient({
   
   // Références
   const peersRef = useRef<Map<string, PeerInstance>>(new Map());
-  const localStreamRef = useRef<MediaStream | null>(null);
+
+  // ---=== HOOK DE SYNCHRONISATION DU TABLEAU BLANC (NOUVEAU) ===---
+  const {
+      whiteboardSnapshot,
+      setWhiteboardSnapshot,
+      whiteboardControllerId,
+      setWhiteboardControllerId,
+      handleWhiteboardUpdate,
+      broadcastWhiteboardUpdate,
+      broadcastControllerChange,
+  } = useWhiteboardSync(initialTeacher.id, peersRef);
 
   // ---=== 1. GESTION DES FLUX MÉDIAS ===---
   useEffect(() => {
@@ -86,7 +91,6 @@ export default function SessionClient({
           audio: true 
         });
         setLocalStream(stream);
-        localStreamRef.current = stream;
         console.log('✅ [MEDIA] - Flux local (caméra/micro) obtenu.');
       } catch (error) {
         console.error('❌ [MEDIA] - Erreur d\'accès à la caméra/micro:', error);
@@ -105,79 +109,36 @@ export default function SessionClient({
       console.log('🛑 [MEDIA] - Nettoyage des flux médias.');
       localStream?.getTracks().forEach(track => track.stop());
       screenStream?.getTracks().forEach(track => track.stop());
-      localStreamRef.current = null;
     };
   }, []);
 
-  const toggleScreenShare = async (): Promise<void> => {
-    if (screenStream) {
-      screenStream.getTracks().forEach(track => track.stop());
-      setScreenStream(null);
-      if (screenPeerRef.current) {
-        screenPeerRef.current.destroy();
-        screenPeerRef.current = null;
-      }
-      toast({ title: 'Partage d\'écran arrêté' });
-    } else {
-      try {
-        const stream: MediaStream = await navigator.mediaDevices.getDisplayMedia({ 
-          video: true,
-          audio: true 
-        });
-        
-        stream.getTracks().forEach(track => {
-          track.onended = () => {
-            setScreenStream(null);
-            if (screenPeerRef.current) {
-              screenPeerRef.current.destroy();
-              screenPeerRef.current = null;
-            }
-            toast({ title: 'Partage d\'écran arrêté' });
-          };
-        });
-        
-        setScreenStream(stream);
-        toast({ title: 'Partage d\'écran activé' });
-      } catch (error) {
-        console.log('Partage d\'écran annulé par l\'utilisateur');
-      }
-    }
-  };
-
   const toggleMute = (): void => {
-    if (localStreamRef.current) {
-        localStreamRef.current.getAudioTracks().forEach(track => {
-            track.enabled = !track.enabled;
-        });
+    if (localStream) {
+        localStream.getAudioTracks().forEach(track => { track.enabled = !track.enabled; });
         setIsMuted(prev => !prev);
     }
   };
 
   const toggleVideo = (): void => {
-      if (localStreamRef.current) {
-          localStreamRef.current.getVideoTracks().forEach(track => {
-              track.enabled = !track.enabled;
-          });
+      if (localStream) {
+          localStream.getVideoTracks().forEach(track => { track.enabled = !track.enabled; });
           setIsVideoOff(prev => !prev);
       }
   };
 
-  const signalViaAPI = async (payload: SignalPayload): Promise<void> => {
-    try {
-      await fetch('/api/pusher/signal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-    } catch (error) {
-      console.error('❌ [SIGNAL] - Erreur d\'envoi du signal via API:', error);
+    const signalViaAPI = async (payload: SignalPayload): Promise<void> => {
+        try {
+            await fetch('/api/pusher/signal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        } catch (error) {
+            console.error('❌ [SIGNAL] - Erreur d\'envoi du signal via API:', error);
+        }
     }
-  }
-  
-  const screenPeerRef = useRef<PeerInstance | null>(null);
 
   // ---=== 2. GESTION DES CONNEXIONS PEER-TO-PEER (WEBRTC) - DÉFINITIVE & ROBUSTE ===---
-
   const cleanupPeerConnection = useCallback((userId: string) => {
     const peer = peersRef.current.get(userId);
     if (peer) {
@@ -191,64 +152,37 @@ export default function SessionClient({
         const newMap = new Map(prev);
         if (newMap.has(userId)) {
             newMap.delete(userId);
-            console.log(`- Flux distant de ${userId} supprimé.`);
             return newMap;
         }
         return prev;
     });
   }, []);
   
-  // Ce `useEffect` est le cœur de la nouvelle logique WebRTC.
-  // Il s'exécute chaque fois que la liste des utilisateurs en ligne change.
-  useEffect(() => {
-    if (!localStreamRef.current) return;
-
-    const otherUserIds = onlineUserIds.filter(id => id !== currentUserId);
-
-    otherUserIds.forEach(userId => {
-        // La règle d'or pour éviter le "glare" : l'ID le plus petit initie.
-        const shouldInitiate = currentUserId < userId;
-
-        if (shouldInitiate && !peersRef.current.has(userId)) {
-            console.log(`🤝 [PEER] Règle appliquée: J'initie la connexion vers ${userId} (mon ID est plus petit).`);
-            const peer = createPeer(userId, true);
-            peersRef.current.set(userId, peer);
-        }
-    });
-
-  }, [onlineUserIds, currentUserId, localStreamRef.current]);
-
-
   const createPeer = useCallback((targetUserId: string, initiator: boolean): PeerInstance => {
     console.log(`[PEER] Création d'un peer vers ${targetUserId}. Initiateur: ${initiator}`);
     
     const peer = new SimplePeer({
         initiator,
-        trickle: true, // trickle est plus performant pour un grand nombre de pairs.
-        stream: localStreamRef.current ?? undefined,
-        config: {
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:global.stun.twilio.com:3478' }
-            ]
-        }
+        trickle: true,
+        stream: localStream ?? undefined,
+        config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:global.stun.twilio.com:3478' }] }
     });
 
     peer.on('signal', (signal: PeerSignalData) => {
-        console.log(`📤 [PEER] -> Envoi du signal à ${targetUserId}.`);
         signalViaAPI({
             channelName: `presence-session-${sessionId}`,
             userId: currentUserId,
             target: targetUserId,
             signal,
-            isReturnSignal: !initiator
         });
     });
 
     peer.on('stream', (remoteStream: MediaStream) => {
-        console.log(`📹 [PEER] <- Flux vidéo reçu de ${targetUserId}.`);
         setRemoteStreams(prev => new Map(prev).set(targetUserId, remoteStream));
     });
+
+    // Gestion des Data Channels
+    peer.on('data', handleWhiteboardUpdate);
 
     peer.on('error', (err: Error) => {
         console.error(`❌ [PEER] Erreur de connexion avec ${targetUserId}:`, err.name, err.message);
@@ -261,96 +195,89 @@ export default function SessionClient({
     });
 
     return peer;
-  }, [sessionId, currentUserId, cleanupPeerConnection]);
+  }, [sessionId, currentUserId, cleanupPeerConnection, localStream, handleWhiteboardUpdate]);
 
-
-  // ---=== 3. GESTION DES ÉVÉNEMENTS PUSHER ===---
   useEffect(() => {
-    if (!sessionId) return;
-    
     const channelName = `presence-session-${sessionId}`;
     const channel = pusherClient.subscribe(channelName);
 
-    console.log(`🔌 [PUSHER] - Abonnement au canal: ${channelName}`);
-    
-    const handleSubscriptionSucceeded = (data: PusherSubscriptionSucceededEvent): void => {
-        const memberIds = Object.keys(data.members || {});
+    channel.bind('pusher:subscription_succeeded', (data: { members: Record<string, any> }) => {
+        const memberIds = Object.keys(data.members);
         setOnlineUserIds(memberIds);
-        console.log(`✅ [PUSHER] Abonnement réussi. ${memberIds.length} participant(s) en ligne:`, memberIds);
-    };
+        const otherUserIds = memberIds.filter(id => id !== currentUserId);
+        
+        otherUserIds.forEach(userId => {
+            if (currentUserId < userId) {
+                console.log(`[INITIATE] Règle: J'initie vers ${userId}`);
+                const peer = createPeer(userId, true);
+                peersRef.current.set(userId, peer);
+            }
+        });
+    });
 
-    const handleMemberAdded = (member: PusherMemberEvent): void => {
-      console.log(`➕ [PUSHER] Nouveau participant: ${member.id}.`);
-      setOnlineUserIds(prev => [...new Set([...prev, member.id])]);
-    };
+    channel.bind('pusher:member_added', (member: { id: string }) => {
+        setOnlineUserIds(prev => [...new Set([...prev, member.id])]);
+        if (currentUserId < member.id) {
+            console.log(`[INITIATE] Règle: J'initie vers le nouvel arrivant ${member.id}`);
+            const peer = createPeer(member.id, true);
+            peersRef.current.set(member.id, peer);
+        }
+    });
 
-    const handleMemberRemoved = (member: PusherMemberEvent): void => {
-        console.log(`➖ [PUSHER] Participant parti: ${member.id}.`);
+    channel.bind('pusher:member_removed', (member: { id: string }) => {
         setOnlineUserIds(prev => prev.filter(id => id !== member.id));
         cleanupPeerConnection(member.id);
-    };
+    });
 
-    const handleSignal = (data: IncomingSignalData): void => {
-        if (data.target !== currentUserId) return; // Ce signal n'est pas pour moi
+    channel.bind('signal', (data: IncomingSignalData) => {
+        if (data.target !== currentUserId) return;
 
-        console.log(`📡 [PUSHER] <- Signal reçu de ${data.userId}.`);
         let peer = peersRef.current.get(data.userId);
         
-        // Si c'est une offre et que je n'ai pas initié, je crée le peer pour répondre.
-        if (data.signal.type === 'offer' && !peer) {
-            const shouldIHaveInitiated = currentUserId < data.userId;
-            if (shouldIHaveInitiated) {
-                console.warn(`⚠️ [PEER] J'ai reçu une offre de ${data.userId}, mais j'aurais dû initier. Je l'ignore pour éviter le glare.`);
-                return;
+        if (!peer) {
+            if (data.signal.type === 'offer') {
+                if (currentUserId < data.userId) {
+                    console.warn(`[GLARE] J'ai reçu une offre de ${data.userId} mais j'aurais dû initier. Je l'ignore.`);
+                    return;
+                }
+                console.log(`[RESPOND] Je réponds à l'offre de ${data.userId}`);
+                peer = createPeer(data.userId, false);
+                peersRef.current.set(data.userId, peer);
+            } else {
+                 console.warn(`[SIGNAL] Signal reçu pour un peer non-existant de ${data.userId}.`);
+                 return;
             }
-            console.log(`[PEER] Réception d'une offre de ${data.userId}, création d'un peer non-initiateur pour répondre.`);
-            peer = createPeer(data.userId, false);
-            peersRef.current.set(data.userId, peer);
         }
         
         if (peer && !peer.destroyed) {
             peer.signal(data.signal);
-        } else {
-            console.warn(`⚠️ [PEER] Peer pour ${data.userId} non trouvé ou détruit. Signal ignoré.`);
         }
-    };
+    });
 
     // ... autres gestionnaires d'événements ...
     const handleSessionEnded = (): void => {
         toast({ title: 'Session terminée', description: 'Le professeur a mis fin à la session.' });
         router.push(currentUserRole === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard');
     };
-    const handleParticipantSpotlighted = (data: SpotlightEvent): void => setSpotlightedParticipantId(data.participantId);
-    const handleHandRaiseUpdate = (data: HandRaiseEvent): void => setRaisedHands(prev => new Set(data.isRaised ? [...prev, data.userId] : [...prev].filter(id => id !== data.userId)));
-    const handleUnderstandingUpdate = (data: UnderstandingEvent): void => setUnderstandingStatus(prev => new Map(prev).set(data.userId, data.status));
-    const handleTimerStarted = (): void => setIsTimerRunning(true);
-    const handleTimerPaused = (): void => setIsTimerRunning(false);
-    const handleTimerReset = (data: TimerEvent): void => { setIsTimerRunning(false); const d = data.duration || INITIAL_TIMER_DURATION; setTimerTimeLeft(d); setTimerDuration(d); };
-    const handleActiveToolChanged = (data: ToolEvent): void => setActiveTool(data.tool);
-    const handleDocumentShared = (data: DocumentSharedEvent): void => {
+    channel.bind('session-ended', handleSessionEnded);
+    channel.bind('participant-spotlighted', (data: {participantId: string}) => setSpotlightedParticipantId(data.participantId));
+    channel.bind('hand-raise-update', (data: {userId: string, isRaised: boolean}) => setRaisedHands(prev => new Set(data.isRaised ? [...prev, data.userId] : [...prev].filter(id => id !== data.userId))));
+    channel.bind('understanding-update', (data: {userId: string, status: ComprehensionLevel}) => setUnderstandingStatus(prev => new Map(prev).set(data.userId, data.status)));
+    channel.bind('timer-started', () => setIsTimerRunning(true));
+    channel.bind('timer-paused', () => setIsTimerRunning(false));
+    channel.bind('timer-reset', (data: {duration?: number}) => { setIsTimerRunning(false); const d = data.duration || INITIAL_TIMER_DURATION; setTimerTimeLeft(d); setTimerDuration(d); });
+    channel.bind('active-tool-changed', (data: {tool: string}) => setActiveTool(data.tool));
+    channel.bind('document-shared', (data: DocumentSharedEvent) => {
       setDocumentUrl(data.url);
       setDocumentHistory(prev => [...prev, { id: `doc-${Date.now()}`, name: data.name, url: data.url, createdAt: new Date(), coursSessionId: sessionId }]);
       setActiveTool('document');
       toast({ title: 'Document partagé', description: `Le professeur a partagé un nouveau document.` });
-    };
-    const handleWhiteboardUpdate = (data: WhiteboardUpdateEvent) => { if (data.senderId !== currentUserId) setWhiteboardSnapshot(data.snapshot); };
-    const handleWhiteboardControllerUpdate = (data: WhiteboardControllerEvent) => setWhiteboardControllerId(data.controllerId);
+    });
+    
+    // Les événements du tableau blanc sont gérés par le hook `useWhiteboardSync` via les data channels
+    // mais on garde le changement de contrôleur via Pusher car c'est un événement peu fréquent.
+    channel.bind('whiteboard-controller-update', (data: { controllerId: string }) => setWhiteboardControllerId(data.controllerId));
 
-    channel.bind('pusher:subscription_succeeded', handleSubscriptionSucceeded);
-    channel.bind('pusher:member_added', handleMemberAdded);
-    channel.bind('pusher:member_removed', handleMemberRemoved);
-    channel.bind('signal', handleSignal);
-    channel.bind('session-ended', handleSessionEnded);
-    channel.bind('participant-spotlighted', handleParticipantSpotlighted);
-    channel.bind('hand-raise-update', handleHandRaiseUpdate);
-    channel.bind('understanding-update', handleUnderstandingUpdate);
-    channel.bind('timer-started', handleTimerStarted);
-    channel.bind('timer-paused', handleTimerPaused);
-    channel.bind('timer-reset', handleTimerReset);
-    channel.bind('active-tool-changed', handleActiveToolChanged);
-    channel.bind('document-shared', handleDocumentShared);
-    channel.bind('whiteboard-update', handleWhiteboardUpdate);
-    channel.bind('whiteboard-controller-update', handleWhiteboardControllerUpdate);
 
     return (): void => {
         console.log(`🔌 [PUSHER] Nettoyage des abonnements pour la session ${sessionId}`);
@@ -359,9 +286,9 @@ export default function SessionClient({
         peersRef.current.forEach((_, userId) => cleanupPeerConnection(userId));
         peersRef.current.clear();
     };
-  }, [sessionId, currentUserId, createPeer, cleanupPeerConnection, router, toast, currentUserRole]);
+  }, [sessionId, currentUserId, createPeer, cleanupPeerConnection, router, toast, currentUserRole, setWhiteboardControllerId]);
   
-  // ---=== 4. GESTION DU CYCLE DE VIE ET INTERACTIONS ===---
+  // ---=== 3. GESTION DU CYCLE DE VIE ET INTERACTIONS ===---
   useEffect(() => {
     if (isTimerRunning && timerTimeLeft > 0) {
       timerIntervalRef.current = setInterval(() => setTimerTimeLeft(prev => prev - 1), 1000);
@@ -432,9 +359,8 @@ export default function SessionClient({
   };
   
   const handleWhiteboardControllerChange = (userId: string): void => {
-    setWhiteboardControllerId(userId);
     if (currentUserRole === 'PROFESSEUR') {
-      broadcastWhiteboardController(sessionId, userId);
+      broadcastControllerChange(userId);
     }
   };
 
@@ -442,7 +368,7 @@ export default function SessionClient({
     ? localStream 
     : remoteStreams.get(spotlightedParticipantId || '') || null;
     
-  const remoteParticipants: RemoteParticipant[] = Array.from(remoteStreams.entries()).map(([id, stream]) => ({ id, stream }));
+  const remoteParticipants = Array.from(remoteStreams.entries()).map(([id, stream]) => ({ id, stream }));
   const spotlightedUser = allSessionUsers.find(u => u.id === spotlightedParticipantId);
 
   if (loading) {
@@ -457,8 +383,8 @@ export default function SessionClient({
         onEndSession={handleEndSession}
         onLeaveSession={handleLeaveSession}
         isEndingSession={isEndingSession}
-        isSharingScreen={!!screenStream}
-        onToggleScreenShare={toggleScreenShare}
+        isSharingScreen={false} // Le partage d'écran sera réimplémenté si nécessaire
+        onToggleScreenShare={() => {}}
         isMuted={isMuted}
         onToggleMute={toggleMute}
         isVideoOff={isVideoOff}
@@ -472,7 +398,7 @@ export default function SessionClient({
           <TeacherSessionView
             sessionId={sessionId}
             localStream={localStream}
-            screenStream={screenStream}
+            screenStream={null} // Partage d'écran désactivé pour la simplification
             remoteParticipants={remoteParticipants}
             spotlightedUser={spotlightedUser}
             allSessionUsers={allSessionUsers}
@@ -481,8 +407,8 @@ export default function SessionClient({
             raisedHands={raisedHands}
             understandingStatus={understandingStatus}
             currentUserId={currentUserId}
-            onScreenShare={toggleScreenShare}
-            isScreenSharing={!!screenStream}
+            onScreenShare={() => {}}
+            isScreenSharing={false}
             activeTool={activeTool}
             onToolChange={handleToolChange}
             classroom={classroom}
@@ -496,6 +422,7 @@ export default function SessionClient({
             onStartTimer={() => broadcastTimerEvent(sessionId, 'timer-started')}
             onPauseTimer={() => broadcastTimerEvent(sessionId, 'timer-paused')}
             onResetTimer={handleResetTimer}
+            onWhiteboardPersist={broadcastWhiteboardUpdate} // Passe la fonction de diffusion
           />
         ) : (
           <StudentSessionView
@@ -514,6 +441,7 @@ export default function SessionClient({
             whiteboardSnapshot={whiteboardSnapshot}
             whiteboardControllerId={whiteboardControllerId}
             timerTimeLeft={timerTimeLeft}
+            onWhiteboardPersist={broadcastWhiteboardUpdate} // Passe la fonction de diffusion
           />
         )}
       </main>

@@ -12,7 +12,6 @@ import { updateStudentSessionStatus } from '@/lib/actions/session.actions';
 import { useToast } from '@/hooks/use-toast';
 import { Whiteboard } from '../Whiteboard';
 import { TLEditorSnapshot } from '@tldraw/tldraw';
-import { broadcastWhiteboardUpdate } from '@/lib/actions/whiteboard.actions';
 import { ScrollArea } from '../ui/scroll-area';
 import { SessionTimer } from './SessionTimer';
 import { CardHeader } from '../ui/card';
@@ -34,6 +33,7 @@ interface StudentSessionViewProps {
     whiteboardSnapshot: TLEditorSnapshot | null;
     whiteboardControllerId: string | null;
     timerTimeLeft: number;
+    onWhiteboardPersist: (snapshot: TLEditorSnapshot) => void;
 }
 
 export function StudentSessionView({
@@ -51,7 +51,8 @@ export function StudentSessionView({
     documentUrl,
     whiteboardSnapshot,
     whiteboardControllerId,
-    timerTimeLeft
+    timerTimeLeft,
+    onWhiteboardPersist,
 }: StudentSessionViewProps) {
     const { toast } = useToast();
 
@@ -80,13 +81,6 @@ export function StudentSessionView({
         }
     };
 
-    const handleWhiteboardPersist = (snapshot: TLEditorSnapshot) => {
-        // Seul l'élève contrôleur peut diffuser ses changements
-        if (currentUserId === whiteboardControllerId) {
-            broadcastWhiteboardUpdate(sessionId, snapshot);
-        }
-    }
-
     const renderMainContent = () => {
         switch(activeTool) {
             case 'document':
@@ -95,9 +89,11 @@ export function StudentSessionView({
                  return (
                     <Whiteboard
                         sessionId={sessionId}
-                        initialSnapshot={whiteboardSnapshot ?? undefined}
-                        isController={currentUserId === whiteboardControllerId}
-                        onPersist={handleWhiteboardPersist}
+                        isTeacher={false}
+                        whiteboardSnapshot={whiteboardSnapshot}
+                        onWhiteboardPersist={onWhiteboardPersist}
+                        whiteboardControllerId={whiteboardControllerId}
+                        currentUserId={currentUserId}
                     />
                 );
             case 'camera':
@@ -127,9 +123,11 @@ export function StudentSessionView({
                  return (
                     <Whiteboard
                         sessionId={sessionId}
-                        initialSnapshot={whiteboardSnapshot ?? undefined}
-                        isController={currentUserId === whiteboardControllerId}
-                        onPersist={handleWhiteboardPersist}
+                        isTeacher={false}
+                        whiteboardSnapshot={whiteboardSnapshot}
+                        onWhiteboardPersist={onWhiteboardPersist}
+                        whiteboardControllerId={whiteboardControllerId}
+                        currentUserId={currentUserId}
                     />
                 );
         }

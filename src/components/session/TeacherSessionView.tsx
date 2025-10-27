@@ -19,7 +19,6 @@ import { CloudinaryUploadWidget } from '../CloudinaryUploadWidget';
 import { Button } from '../ui/button';
 import { shareDocument } from '@/lib/actions/session.actions';
 import { TLEditorSnapshot } from '@tldraw/tldraw';
-import { broadcastWhiteboardUpdate } from '@/lib/actions/whiteboard.actions';
 import { SessionStatus } from './SessionStatus';
 import { SessionTimer } from './SessionTimer';
 import { DocumentHistory } from './DocumentHistory';
@@ -53,6 +52,7 @@ interface TeacherSessionViewProps {
     onStartTimer: () => void;
     onPauseTimer: () => void;
     onResetTimer: (newDuration?: number) => void;
+    onWhiteboardPersist: (snapshot: TLEditorSnapshot) => void;
 }
 
 
@@ -83,7 +83,9 @@ export function TeacherSessionView({
     onStartTimer,
     onPauseTimer,
     onResetTimer,
-}: TeacherSessionViewProps) {
+    onWhiteboardPersist,
+    whiteboardSnapshot
+}: TeacherSessionViewProps & { whiteboardSnapshot: TLEditorSnapshot | null }) {
     const remoteStreamsMap = new Map(remoteParticipants.map(p => [p.id, p.stream]));
     
     const studentsWithRaisedHands = allSessionUsers.filter(u => u.role === 'ELEVE' && raisedHands.has(u.id)) as User[];
@@ -128,10 +130,6 @@ export function TeacherSessionView({
     
     const handleDocumentShare = (doc: DocumentInHistory) => {
         shareDocument(sessionId, { name: doc.name, url: doc.url });
-    }
-
-    const handleWhiteboardPersist = (snapshot: TLEditorSnapshot) => {
-        broadcastWhiteboardUpdate(sessionId, snapshot);
     }
 
     const handleSetWhiteboardController = (userId: string) => {
@@ -206,8 +204,11 @@ export function TeacherSessionView({
                 return (
                     <Whiteboard 
                         sessionId={sessionId}
-                        onPersist={handleWhiteboardPersist}
-                        isController={currentUserId === whiteboardControllerId}
+                        onWhiteboardPersist={onWhiteboardPersist}
+                        isTeacher={true}
+                        whiteboardSnapshot={whiteboardSnapshot}
+                        whiteboardControllerId={whiteboardControllerId}
+                        currentUserId={currentUserId}
                     />
                 );
             case 'quiz':
@@ -253,8 +254,11 @@ export function TeacherSessionView({
                 return (
                     <Whiteboard 
                         sessionId={sessionId}
-                        onPersist={handleWhiteboardPersist}
-                        isController={currentUserId === whiteboardControllerId}
+                        onWhiteboardPersist={onWhiteboardPersist}
+                        isTeacher={true}
+                        whiteboardSnapshot={whiteboardSnapshot}
+                        whiteboardControllerId={whiteboardControllerId}
+                        currentUserId={currentUserId}
                     />
                 );
         }
