@@ -48,6 +48,18 @@ export type ClassroomWithDetails = PrismaClassroom & { eleves: (PrismaUser & { e
 
 export type SessionParticipant = Pick<PrismaUser, 'id' | 'name' | 'role'>;
 
+// Définition pour les détails d'une session, utilisée par la route API et la page
+export interface SessionDetails {
+    id: string;
+    teacher: PrismaUser;
+    students: PrismaUser[];
+    classroom: { id: string; nom: string } | null;
+    documentHistory: DocumentInHistory[];
+    startTime: string;
+    endTime: string | null;
+}
+
+
 // Types pour Pusher
  export interface PusherMember {
     id: string;
