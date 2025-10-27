@@ -33,6 +33,7 @@ function EditorManager({
   useEffect(() => {
     if (initialSnapshot) {
       try {
+        // CORRECTION : Utiliser editor.store.loadSnapshot pour le TLStoreSnapshot
         editor.store.loadSnapshot(initialSnapshot);
       } catch (error) {
         console.error("Erreur lors du chargement du snapshot:", error);
@@ -45,6 +46,7 @@ function EditorManager({
     if (!isController) return;
 
     const handleChange = () => {
+      // CORRECTION : Utiliser editor.store.getSnapshot pour obtenir le TLStoreSnapshot
       const snapshot = editor.store.getSnapshot();
       onPersist(snapshot);
     };
