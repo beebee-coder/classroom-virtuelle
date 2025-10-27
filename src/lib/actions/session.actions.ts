@@ -390,13 +390,14 @@ export async function cleanupExpiredSessions() {
         if (expiredSessions.length > 0) {
             console.log(`🗑️ [ACTION CLEANUP] - ${expiredSessions.length} sessions expirées à nettoyer`);
             
-            for (const session of expiredSessions) {
-                console.log(`  -> Marquage comme terminée: ${session.id} (démarrée: ${session.startTime.toISOString()})`);
-                await prisma.coursSession.update({
-                    where: { id: session.id },
-                    data: { endTime: new Date() }
-                });
-            }
+            await prisma.coursSession.updateMany({
+                where: {
+                    id: { in: expiredSessions.map(s => s.id) }
+                },
+                data: {
+                    endTime: new Date()
+                }
+            });
             
             console.log(`✅ [ACTION CLEANUP] - ${expiredSessions.length} sessions nettoyées`);
         } else {
