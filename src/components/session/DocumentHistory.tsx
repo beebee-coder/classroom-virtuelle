@@ -6,9 +6,9 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Button } from '@/components/ui/button';
 import { FileText, Share2, History } from 'lucide-react';
 import { ScrollArea } from '../ui/scroll-area';
-import { DocumentInHistory } from '@/lib/types';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { DocumentInHistory } from '@/types';
 
 interface DocumentHistoryProps {
     documents: DocumentInHistory[];

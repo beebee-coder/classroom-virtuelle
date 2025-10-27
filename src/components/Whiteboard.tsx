@@ -31,7 +31,10 @@ function EditorManager({ onPersist, initialSnapshot, isController }: {
             try {
                 // Pour éviter de recharger le snapshot que l'on vient de créer,
                 // on peut comparer les ID de document.
-                if (editor.document.id !== initialSnapshot.document.id) {
+                const currentDocumentId = editor.store.get('document:document')!.id;
+                const newDocumentId = initialSnapshot.store['document:document'].id;
+
+                if (currentDocumentId !== newDocumentId) {
                     editor.loadSnapshot(initialSnapshot);
                 }
             } catch (e) {
