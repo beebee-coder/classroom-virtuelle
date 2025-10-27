@@ -34,9 +34,9 @@ function WhiteboardEditorLogic({
   useEffect(() => {
     if (initialSnapshot && editor) {
       try {
-        // Compare only store part of the snapshot
         const currentStoreSnapshot = editor.getSnapshot().store;
-        if (JSON.stringify(currentStoreSnapshot) !== JSON.stringify(initialSnapshot.store)) {
+        // Compare only store part of the snapshot. We cast to any to bypass the faulty type definition.
+        if (JSON.stringify(currentStoreSnapshot) !== JSON.stringify((initialSnapshot as any).store)) {
           editor.loadSnapshot(initialSnapshot);
         }
       } catch (error) {
