@@ -25,8 +25,6 @@ import { DocumentHistory } from './DocumentHistory';
 import { DocumentViewer } from './DocumentViewer';
 import { cn } from '@/lib/utils';
 
-
-// Dans TeacherSessionView.tsx - CORRECTION DES PROPS
 interface TeacherSessionViewProps {
     sessionId: string;
     localStream: MediaStream | null;
@@ -54,7 +52,6 @@ interface TeacherSessionViewProps {
     onStartTimer: () => void;
     onPauseTimer: () => void;
     onResetTimer: (newDuration?: number) => void;
-    // CORRECTION: Utiliser TLStoreSnapshot au lieu de TLEditorSnapshot
     onWhiteboardPersist: (snapshot: TLStoreSnapshot) => void;
     whiteboardSnapshot: TLStoreSnapshot | null;
 }

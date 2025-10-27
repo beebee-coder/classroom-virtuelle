@@ -16,8 +16,9 @@ import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';
 import { endCoursSession, broadcastTimerEvent, broadcastActiveTool, updateStudentSessionStatus } from '@/lib/actions/session.actions';
 import { ComprehensionLevel } from '@/types';
-import { TLEditorSnapshot } from '@tldraw/tldraw';
+import { TLStoreSnapshot } from '@tldraw/tldraw';
 import { useWhiteboardSync } from '@/hooks/useWhiteboardSync';
+import { broadcastWhiteboardUpdate } from '@/lib/actions/whiteboard.actions';
 
 interface DocumentSharedEvent {
     name: string;
@@ -71,30 +72,9 @@ export default function SessionClient({
   } = useWhiteboardSync(sessionId, null);
   const [whiteboardControllerId, setWhiteboardControllerId] = useState<string | null>(initialTeacher.id);
   
-  const broadcastControllerChange = useCallback(async (newControllerId: string) => {
-    try {
-      await fetch(`/api/session/${sessionId}/whiteboard-controller`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ controllerId: newControllerId }),
-      });
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de changer le contrôleur du tableau blanc.' });
-    }
-  }, [sessionId, toast]);
-
-// Dans le composant SessionClient, corrigez la fonction handleWhiteboardPersist :
-const handleWhiteboardPersist = useCallback((snapshot: TLStoreSnapshot) => {
-  // Stocker localement
-  setWhiteboardSnapshot(snapshot);
-  
-  // Diffuser aux autres participants si vous êtes le contrôleur
-  if (currentUserRole === 'PROFESSEUR' || currentUserId === whiteboardControllerId) {
-    broadcastWhiteboardUpdate(sessionId, snapshot, currentUserId);
-  }
-}, [sessionId, currentUserId, currentUserRole, whiteboardControllerId]);
-
-
+  const handleWhiteboardPersist = useCallback((snapshot: TLStoreSnapshot) => {
+    persistWhiteboardSnapshot(snapshot);
+  }, [persistWhiteboardSnapshot]);
 
   useEffect(() => {
     const getMedia = async (): Promise<void> => {
@@ -355,10 +335,18 @@ const handleWhiteboardPersist = useCallback((snapshot: TLStoreSnapshot) => {
     }
   };
   
-  const handleWhiteboardControllerChange = (userId: string): void => {
+  const handleWhiteboardControllerChange = async (userId: string) => {
       if (currentUserRole === 'PROFESSEUR') {
           const newControllerId = userId === whiteboardControllerId ? initialTeacher.id : userId;
-          broadcastControllerChange(newControllerId);
+           try {
+              await fetch(`/api/session/${sessionId}/whiteboard-controller`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ controllerId: newControllerId }),
+              });
+            } catch (error) {
+              toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de changer le contrôleur du tableau blanc.' });
+            }
       }
   };
 
@@ -420,7 +408,7 @@ const handleWhiteboardPersist = useCallback((snapshot: TLStoreSnapshot) => {
             onStartTimer={() => broadcastTimerEvent(sessionId, 'timer-started')}
             onPauseTimer={() => broadcastTimerEvent(sessionId, 'timer-paused')}
             onResetTimer={handleResetTimer}
-            onWhiteboardPersist={persistWhiteboardSnapshot}
+            onWhiteboardPersist={handleWhiteboardPersist}
             whiteboardSnapshot={whiteboardSnapshot}          />
         ) : (
           <StudentSessionView
@@ -439,7 +427,7 @@ const handleWhiteboardPersist = useCallback((snapshot: TLStoreSnapshot) => {
             whiteboardSnapshot={whiteboardSnapshot}
             whiteboardControllerId={whiteboardControllerId}
             timerTimeLeft={timerTimeLeft}
-            onWhiteboardPersist={persistWhiteboardSnapshot}
+            onWhiteboardPersist={handleWhiteboardPersist}
           />
         )}
       </main>
