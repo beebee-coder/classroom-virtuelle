@@ -1,4 +1,3 @@
-
 // src/components/Whiteboard.tsx
 'use client';
 import { Tldraw, useEditor, TLStoreSnapshot, TLRecord } from '@tldraw/tldraw';
@@ -124,4 +123,3 @@ function debounce<T extends (...args: any[]) => void>(
     timeout = setTimeout(() => func(...args), wait);
   };
 }
-
