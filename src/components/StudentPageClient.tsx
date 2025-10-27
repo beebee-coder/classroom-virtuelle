@@ -150,59 +150,60 @@ export default function StudentPageClient({
     }, []);
 
     useEffect(() => {
-        if (!student?.id) return;
+        // Ne s'abonner que si c'est la vue de l'élève
+        if (isTeacherView || !student?.id) return;
     
-    // CORRECTION DE LA FONCTION checkMissedInvitations
-const checkMissedInvitations = async () => {
-    try {
-        console.log('📡 [CLIENT ÉLÈVE] - Vérification des invitations manquées...');
-        const response = await fetch(`/api/session/pending-invitations?studentId=${student.id}`);
-        
-        if (response.ok) {
-            const pendingInvitations = await response.json();
-            
-            // FILTRE CRITIQUE : Ne prendre que les invitations récentes (moins de 5 minutes)
-            const recentInvitations = pendingInvitations.filter((inv: any) => {
-                const invitationTime = new Date(inv.data.timestamp).getTime();
-                const currentTime = new Date().getTime();
-                const fiveMinutesAgo = currentTime - (5 * 60 * 1000); // 5 minutes
+        // CORRECTION DE LA FONCTION checkMissedInvitations
+        const checkMissedInvitations = async () => {
+            try {
+                console.log('📡 [CLIENT ÉLÈVE] - Vérification des invitations manquées...');
+                const response = await fetch(`/api/session/pending-invitations?studentId=${student.id}`);
                 
-                return invitationTime > fiveMinutesAgo;
-            });
-            
-            if (recentInvitations.length > 0) {
-                const latestInvitation = recentInvitations[0].data;
-                
-                // Vérifier si l'invitation a déjà été traitée
-                if (!processedInvitations.has(latestInvitation.sessionId)) {
-                    console.log('📨 [CLIENT ÉLÈVE] - Invitation récente trouvée:', latestInvitation);
-                    handleInvitation(latestInvitation);
-                } else {
-                    console.log('⏭️ [CLIENT ÉLÈVE] - Invitation récente déjà traitée, ignorée.');
+                if (response.ok) {
+                    const pendingInvitations = await response.json();
+                    
+                    // FILTRE CRITIQUE : Ne prendre que les invitations récentes (moins de 5 minutes)
+                    const recentInvitations = pendingInvitations.filter((inv: any) => {
+                        const invitationTime = new Date(inv.data.timestamp).getTime();
+                        const currentTime = new Date().getTime();
+                        const fiveMinutesAgo = currentTime - (5 * 60 * 1000); // 5 minutes
+                        
+                        return invitationTime > fiveMinutesAgo;
+                    });
+                    
+                    if (recentInvitations.length > 0) {
+                        const latestInvitation = recentInvitations[0].data;
+                        
+                        // Vérifier si l'invitation a déjà été traitée
+                        if (!processedInvitations.has(latestInvitation.sessionId)) {
+                            console.log('📨 [CLIENT ÉLÈVE] - Invitation récente trouvée:', latestInvitation);
+                            handleInvitation(latestInvitation);
+                        } else {
+                            console.log('⏭️ [CLIENT ÉLÈVE] - Invitation récente déjà traitée, ignorée.');
+                        }
+                    } else {
+                        console.log('✅ [CLIENT ÉLÈVE] - Aucune invitation récente trouvée.');
+                        
+                        // NETTOYAGE : Supprimer les invitations trop anciennes du cache
+                        if (pendingInvitations.length > 0) {
+                            console.log(`🗑️ [CLIENT ÉLÈVE] - Nettoyage de ${pendingInvitations.length} invitations expirées`);
+                            // Marquer toutes les anciennes invitations comme traitées pour éviter les rappels
+                            const expiredIds = pendingInvitations.map((inv: any) => inv.data.sessionId);
+                            setProcessedInvitations(prev => new Set([...prev, ...expiredIds]));
+                        }
+                    }
+                } else if (response.status !== 404) {
+                    const errorData = await response.json();
+                    toast({
+                        variant: "destructive",
+                        title: "Erreur réseau",
+                        description: `Impossible de vérifier les invitations: ${errorData.error || response.statusText}`,
+                    });
                 }
-            } else {
-                console.log('✅ [CLIENT ÉLÈVE] - Aucune invitation récente trouvée.');
-                
-                // NETTOYAGE : Supprimer les invitations trop anciennes du cache
-                if (pendingInvitations.length > 0) {
-                    console.log(`🗑️ [CLIENT ÉLÈVE] - Nettoyage de ${pendingInvitations.length} invitations expirées`);
-                    // Marquer toutes les anciennes invitations comme traitées pour éviter les rappels
-                    const expiredIds = pendingInvitations.map((inv: any) => inv.data.sessionId);
-                    setProcessedInvitations(prev => new Set([...prev, ...expiredIds]));
-                }
+            } catch (error) {
+                console.error('❌ [CLIENT ÉLÈVE] - Erreur lors de la vérification des invitations manquées:', error);
             }
-        } else if (response.status !== 404) {
-            const errorData = await response.json();
-            toast({
-                variant: "destructive",
-                title: "Erreur réseau",
-                description: `Impossible de vérifier les invitations: ${errorData.error || response.statusText}`,
-            });
-        }
-    } catch (error) {
-        console.error('❌ [CLIENT ÉLÈVE] - Erreur lors de la vérification des invitations manquées:', error);
-    }
-};
+        };
         checkMissedInvitations();
     
         // Canal pour les invitations personnelles
@@ -215,7 +216,7 @@ const checkMissedInvitations = async () => {
             console.log(`🔌 [CLIENT ÉLÈVE] - Désabonnement des canaux.`);
             pusherClient.unsubscribe(invitationChannelName);
         };
-    }, [student?.id, handleInvitation, toast, processedInvitations]);
+    }, [student?.id, handleInvitation, toast, processedInvitations, isTeacherView]);
 
     // Nettoyer les invitations traitées après un certain temps
     useEffect(() => {
