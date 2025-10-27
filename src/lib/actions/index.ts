@@ -14,4 +14,3 @@ export * from './teacher.actions';
 export * from './activity.actions';
 export * from './parent.actions';
 export * from './user.actions';
-export * from './whiteboard.actions';
