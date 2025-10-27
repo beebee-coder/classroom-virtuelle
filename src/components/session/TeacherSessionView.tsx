@@ -198,7 +198,6 @@ export function TeacherSessionView({
                     <Whiteboard 
                         sessionId={sessionId}
                         onWhiteboardPersist={onWhiteboardPersist}
-                        isTeacher={true}
                         whiteboardSnapshot={whiteboardSnapshot}
                         whiteboardControllerId={whiteboardControllerId}
                         currentUserId={currentUserId}
@@ -250,7 +249,6 @@ export function TeacherSessionView({
                     <Whiteboard 
                         sessionId={sessionId}
                         onWhiteboardPersist={onWhiteboardPersist}
-                        isTeacher={true}
                         whiteboardSnapshot={whiteboardSnapshot}
                         whiteboardControllerId={whiteboardControllerId}
                         currentUserId={currentUserId}
