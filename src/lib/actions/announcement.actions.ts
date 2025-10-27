@@ -45,20 +45,22 @@ export async function createAnnouncement(formData: FormData) {
   // Invalider le cache Redis
   if (redis) {
     try {
+      const pipeline = redis.pipeline();
       if (target === 'public') {
-          await redis.del(PUBLIC_ANNOUNCEMENTS_CACHE_KEY);
+          pipeline.del(PUBLIC_ANNOUNCEMENTS_CACHE_KEY);
       } else {
           // Invalider le cache pour la classe et pour chaque élève de la classe
-          await redis.del(CLASS_ANNOUNCEMENTS_CACHE_KEY(target));
+          pipeline.del(CLASS_ANNOUNCEMENTS_CACHE_KEY(target));
           const students = await prisma.user.findMany({ where: { classeId: target }, select: { id: true } });
           const studentKeys = students.map(s => STUDENT_ANNOUNCEMENTS_CACHE_KEY(s.id));
-          if(studentKeys.length > 0) await redis.del(...studentKeys);
+          if(studentKeys.length > 0) pipeline.del(...studentKeys);
       }
-      // Invalider le cache public car les annonces publiques sont aussi retournées pour les classes/étudiants
-      await redis.del(PUBLIC_ANNOUNCEMENTS_CACHE_KEY);
+      // Toujours invalider le cache public car il est une source pour les autres
+      pipeline.del(PUBLIC_ANNOUNCEMENTS_CACHE_KEY);
+      await pipeline.exec();
       console.log('🔄 Cache Redis pour les annonces invalidé.');
     } catch (e) {
-      console.error('Erreur lors de l\'invalidation du cache Redis pour les annonces :', e);
+      console.error('⚠️ Erreur lors de l\'invalidation du cache Redis pour les annonces (non bloquant):', e);
     }
   }
 
@@ -83,7 +85,7 @@ export const getPublicAnnouncements = cache(async (limit: number = 3): Promise<A
             return JSON.parse(cached);
         }
       } catch (e) {
-        console.error('Erreur lors de la lecture du cache Redis pour les annonces publiques :', e);
+        console.error('⚠️ Erreur lors de la lecture du cache Redis pour les annonces publiques (non bloquant):', e);
       }
     }
 
@@ -105,7 +107,7 @@ export const getPublicAnnouncements = cache(async (limit: number = 3): Promise<A
       try {
         await redis.set(cacheKey, JSON.stringify(announcements), 'EX', 3600); // Cache pour 1 heure
       } catch (e) {
-        console.error('Erreur lors de l\'écriture dans le cache Redis pour les annonces publiques :', e);
+        console.error('⚠️ Erreur lors de l\'écriture dans le cache Redis pour les annonces publiques (non bloquant):', e);
       }
     }
 
@@ -122,7 +124,7 @@ export async function getStudentAnnouncements(studentId: string): Promise<Announ
             return JSON.parse(cached);
         }
       } catch (e) {
-        console.error(`Erreur lors de la lecture du cache Redis pour les annonces de l'élève ${studentId} :`, e);
+        console.error(`⚠️ Erreur lors de la lecture du cache Redis pour l'élève ${studentId} (non bloquant):`, e);
       }
     }
 
@@ -151,7 +153,7 @@ export async function getStudentAnnouncements(studentId: string): Promise<Announ
       try {
         await redis.set(cacheKey, JSON.stringify(announcements), 'EX', 3600); // Cache 1 heure
       } catch (e) {
-        console.error(`Erreur lors de l'écriture dans le cache Redis pour les annonces de l'élève ${studentId} :`, e);
+        console.error(`⚠️ Erreur lors de l'écriture dans le cache Redis pour l'élève ${studentId} (non bloquant):`, e);
       }
     }
     
@@ -168,7 +170,7 @@ export async function getClassAnnouncements(classroomId: string): Promise<Announ
             return JSON.parse(cached);
         }
       } catch (e) {
-         console.error(`Erreur lors de la lecture du cache Redis pour les annonces de la classe ${classroomId} :`, e);
+         console.error(`⚠️ Erreur lors de la lecture du cache Redis pour la classe ${classroomId} (non bloquant):`, e);
       }
     }
 
@@ -194,7 +196,7 @@ export async function getClassAnnouncements(classroomId: string): Promise<Announ
       try {
         await redis.set(cacheKey, JSON.stringify(announcements), 'EX', 3600);
       } catch (e) {
-         console.error(`Erreur lors de l'écriture dans le cache Redis pour les annonces de la classe ${classroomId} :`, e);
+         console.error(`⚠️ Erreur lors de l'écriture dans le cache Redis pour la classe ${classroomId} (non bloquant):`, e);
       }
     }
     

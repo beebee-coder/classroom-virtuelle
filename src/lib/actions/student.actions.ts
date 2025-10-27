@@ -19,7 +19,7 @@ export async function getStudentData(id: string) {
                 return JSON.parse(cachedData);
             }
         } catch (error) {
-             console.error('❌ Erreur de lecture du cache Redis pour getStudentData:', error);
+             console.error('⚠️ Erreur de lecture du cache Redis pour getStudentData (non bloquant):', error);
         }
     }
     
@@ -47,7 +47,7 @@ export async function getStudentData(id: string) {
             // Mettre en cache les données avec une expiration de 1 heure
             await redis.set(cacheKey, JSON.stringify(student), 'EX', 3600);
         } catch (error) {
-            console.error('❌ Erreur d\'écriture du cache Redis pour getStudentData:', error);
+            console.error('⚠️ Erreur d\'écriture du cache Redis pour getStudentData (non bloquant):', error);
         }
     }
 
@@ -72,7 +72,7 @@ export async function setStudentCareer(studentId: string, careerId: string | nul
             await redis.del(STUDENT_DATA_CACHE_KEY(studentId));
             console.log(`🔄 Cache Redis pour l'élève ${studentId} invalidé.`);
         } catch(error) {
-            console.error('❌ Erreur d\'invalidation du cache Redis pour setStudentCareer:', error);
+            console.error('⚠️ Erreur d\'invalidation du cache Redis pour setStudentCareer (non bloquant):', error);
         }
     }
     

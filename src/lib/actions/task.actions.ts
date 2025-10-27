@@ -25,7 +25,7 @@ async function invalidateTaskCaches(studentId?: string) {
         await pipeline.exec();
         console.log(`🔄 Cache Redis pour les tâches (et élève ${studentId}) invalidé.`);
       } catch(e) {
-        console.error('Erreur lors de l\'invalidation du cache des tâches :', e);
+        console.error('⚠️ Erreur lors de l\'invalidation du cache des tâches (non bloquant):', e);
       }
     }
 }
