@@ -20,6 +20,7 @@ interface ClassroomData {
 
 // Composant de layout d'erreur
 function TeacherLayoutError({ message }: { message: string }) {
+  'use client';
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="text-center p-8 max-w-md">

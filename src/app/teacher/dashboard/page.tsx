@@ -12,7 +12,8 @@ import { CreateAnnouncementForm } from '@/components/CreateAnnouncementForm';
 export const dynamic = 'force-dynamic';
 
 // Composant d'erreur pour afficher un état de fallback
-function DashboardErrorState({ message, retryAction }: { message: string; retryAction?: () => void }) {
+function DashboardErrorState({ message }: { message: string }) {
+  'use client';
   return (
     <div className="container mx-auto px-4 py-8">
       <Card className="border-destructive/50">
@@ -31,14 +32,12 @@ function DashboardErrorState({ message, retryAction }: { message: string; retryA
           <p className="text-sm text-muted-foreground mb-4">
             Une erreur est survenue lors du chargement des données. Veuillez réessayer.
           </p>
-          {retryAction && (
-            <button
-              onClick={retryAction}
+          <button
+              onClick={() => window.location.reload()}
               className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
             >
               Réessayer
             </button>
-          )}
         </CardContent>
       </Card>
     </div>
