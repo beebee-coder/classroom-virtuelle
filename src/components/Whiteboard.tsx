@@ -1,60 +1,66 @@
-// src/components/Whiteboard.tsx
+// src/components/Whiteboard.tsx - VERSION FINALE CORRIGÉE
 'use client';
-import { Tldraw, useEditor, TLEditorSnapshot } from '@tldraw/tldraw';
+import { Tldraw, useEditor, TLStoreSnapshot, TLRecord } from '@tldraw/tldraw';
 import '@tldraw/tldraw/tldraw.css';
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 
 interface WhiteboardProps {
   sessionId: string;
-  onWhiteboardPersist: (snapshot: TLEditorSnapshot) => void;
-  whiteboardSnapshot: TLEditorSnapshot | null;
+  onWhiteboardPersist: (snapshot: TLStoreSnapshot) => void;
+  whiteboardSnapshot: TLStoreSnapshot | null;
   whiteboardControllerId: string | null;
   currentUserId: string;
 }
 
-function WhiteboardEditorLogic({
-    onPersist,
-    initialSnapshot,
-    isController
-}: {
-    onPersist: (snapshot: TLEditorSnapshot) => void;
-    initialSnapshot: TLEditorSnapshot | null;
-    isController: boolean;
+// Composant interne pour gérer la logique de l'éditeur
+function EditorManager({ 
+  onPersist, 
+  initialSnapshot, 
+  isController 
+}: { 
+  onPersist: (snapshot: TLStoreSnapshot) => void;
+  initialSnapshot: TLStoreSnapshot | null;
+  isController: boolean;
 }) {
-    const editor = useEditor();
+  const editor = useEditor();
 
-    useEffect(() => {
-        editor.updateInstanceState({ isReadonly: !isController });
-    }, [isController, editor]);
+  // Gestion du mode lecture seule
+  useEffect(() => {
+    editor.updateInstanceState({ isReadonly: !isController });
+  }, [isController, editor]);
 
-    useEffect(() => {
-        if (initialSnapshot) {
-            // Compare stringified snapshots to avoid re-loading on minor UI changes
-            if (JSON.stringify(initialSnapshot) !== JSON.stringify(editor.getSnapshot())) {
-                editor.loadSnapshot(initialSnapshot);
-            }
-        }
-    }, [editor, initialSnapshot]);
+  // Charger le snapshot initial
+  useEffect(() => {
+    if (initialSnapshot) {
+      try {
+        editor.store.loadSnapshot(initialSnapshot);
+      } catch (error) {
+        console.error("Erreur lors du chargement du snapshot:", error);
+      }
+    }
+  }, [editor, initialSnapshot]);
 
-    useEffect(() => {
-        if (!isController) return;
+  // Écouter les changements et persister
+  useEffect(() => {
+    if (!isController) return;
 
-        const handleChange = () => {
-            const snapshot = editor.getSnapshot();
-            onPersist(snapshot);
-        };
+    const handleChange = () => {
+      const snapshot = editor.store.getSnapshot();
+      onPersist(snapshot);
+    };
 
-        const debouncedHandleChange = debounce(handleChange, 200);
+    const debouncedHandleChange = debounce(handleChange, 200);
 
-        const unsubscribe = editor.store.listen(debouncedHandleChange, {
-            scope: 'document',
-            source: 'user',
-        });
+    // S'abonner aux changements du store
+    const unsubscribe = editor.store.listen(debouncedHandleChange, {
+      scope: 'document',
+      source: 'user',
+    });
 
-        return () => unsubscribe();
-    }, [editor, onPersist, isController]);
+    return () => unsubscribe();
+  }, [editor, onPersist, isController]);
 
-    return null;
+  return null;
 }
 
 export function Whiteboard({ 
@@ -66,8 +72,13 @@ export function Whiteboard({
 }: WhiteboardProps) {
   const isController = currentUserId === whiteboardControllerId;
 
+  const handlePersist = useCallback((snapshot: TLStoreSnapshot) => {
+    onWhiteboardPersist(snapshot);
+  }, [onWhiteboardPersist]);
+
   return (
     <div className="h-full w-full flex flex-col">
+      {/* En-tête avec statut */}
       <div className="flex items-center justify-between p-2 bg-gray-50 border-b">
         <div className="text-sm font-medium">
           Tableau Blanc {isController ? '🎨 (Contrôleur)' : '👀 (Observateur)'}
@@ -78,14 +89,16 @@ export function Whiteboard({
           {isController ? 'Mode Édition' : 'Mode Lecture'}
         </div>
       </div>
+
+      {/* Zone de dessin */}
       <div className="flex-1">
         <Tldraw 
           persistenceKey={`session_whiteboard_${sessionId}`}
           forceMobile={false}
           autoFocus={false}
         >
-          <WhiteboardEditorLogic 
-            onPersist={onWhiteboardPersist}
+          <EditorManager 
+            onPersist={handlePersist}
             initialSnapshot={whiteboardSnapshot}
             isController={isController}
           />
