@@ -1,4 +1,3 @@
-
 // src/components/Whiteboard.tsx
 'use client';
 import { Tldraw, useEditor, TLStoreSnapshot, TLEditorSnapshot } from '@tldraw/tldraw';
@@ -34,9 +33,9 @@ function WhiteboardEditorLogic({
   useEffect(() => {
     if (initialSnapshot && editor) {
       try {
-        const currentStoreSnapshot = editor.getSnapshot().store;
-        // Compare only store part of the snapshot. We cast to any to bypass the faulty type definition.
-        if (JSON.stringify(currentStoreSnapshot) !== JSON.stringify((initialSnapshot as any).store)) {
+        const currentSnapshot = editor.getSnapshot();
+        // Compare snapshots to avoid unnecessary reloads
+        if (JSON.stringify(currentSnapshot) !== JSON.stringify(initialSnapshot)) {
           editor.loadSnapshot(initialSnapshot);
         }
       } catch (error) {
@@ -55,7 +54,6 @@ function WhiteboardEditorLogic({
 
     const debouncedHandleChange = debounce(handleChange, 200);
 
-    // S'abonner aux changements du store
     const unsubscribe = editor.store.listen(
       () => {
         debouncedHandleChange(editor.getSnapshot());
