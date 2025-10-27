@@ -1,9 +1,21 @@
-// src/middleware.ts
-import { withAuth } from 'next-auth/middleware';
+// middleware.ts
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
-export default withAuth;
+export function middleware(request: NextRequest) {
+  // Headers pour optimiser les performances
+  const response = NextResponse.next();
+  
+  response.headers.set('X-Edge-Runtime', 'true');
+  response.headers.set('Cache-Control', 'public, max-age=300');
+  
+  return response;
+}
 
 export const config = {
-  // Le matcher ne doit pas inclure la page de login elle-même pour éviter les boucles de redirection.
-  matcher: ['/teacher/:path*', '/student/:path*'],
+  matcher: [
+    '/session/:path*',
+    '/api/session/:path*',
+    '/api/whiteboard/:path*'
+  ],
 };
