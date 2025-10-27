@@ -9,123 +9,71 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// Enum pour les rôles
-enum Role {
-  ELEVE
-  PROFESSEUR
-}
+// =====================================================================
+// ==                            MODÈLES                              ==
+// =====================================================================
 
-// Modèle Utilisateur
 model User {
-  id                String      @id @default(cuid())
-  name              String?
-  email             String?     @unique
-  emailVerified     DateTime?
-  image             String?
-  role              Role        @default(ELEVE)
-  classeId          String?
-  classe            Classroom?  @relation("ClasseEleves", fields: [classeId], references: [id])
-  classesEnseignees Classroom[] @relation("ProfesseurClasses")
-  points            Int         @default(0)
-  ambition          String?
-  parentPassword    String? // Mot de passe pour la validation parentale (NON HASHÉ pour la démo)
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+  id              String         @id @default(cuid())
+  name            String?
+  email           String         @unique
+  emailVerified   DateTime?
+  image           String?
+  password        String?
+  parentPassword  String?        // Mot de passe pour l'espace parental
+  role            Role           @default(ELEVE)
+  ambition        String?
+  points          Int            @default(0)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
-  // Relations
-  sentMessages        Message[]
-  reactions           Reaction[]
-  announcements       Announcement[]
-  sessionsParticipees CoursSession[]    @relation("Participants")
-  studentProgress     StudentProgress[]
-  etat                EtatEleve?
-  CoursSession        CoursSession[]
+  classe          Classroom?     @relation("MembresClasse", fields: [classeId], references: [id])
+  classeId        String?
 
-  @@map("users")
+  annonces        Announcement[]
+  messages        Message[]      @relation("MessagesEnvoyes")
+  reactions       Reaction[]
+  sessionsParticipees CoursSession[] @relation("ParticipantsSession")
+
+  etat            EtatEleve?     @relation(fields: [etatEleveId], references: [id])
+  etatEleveId     String?        @unique
+
+  classeEnseignee Classroom[]    @relation("ProfesseurClasse")
+
+  sessionsEnseignees CoursSession[] @relation("ProfesseurSession")
+  studentProgress StudentProgress[]
 }
 
-// Modèle Classe
 model Classroom {
   id           String         @id @default(cuid())
   nom          String
+  professeur   User           @relation("ProfesseurClasse", fields: [professeurId], references: [id])
   professeurId String
-  professeur   User           @relation("ProfesseurClasses", fields: [professeurId], references: [id])
-  eleves       User[]         @relation("ClasseEleves")
+  eleves       User[]         @relation("MembresClasse")
   sessions     CoursSession[]
   annonces     Announcement[]
-
-  @@map("classrooms")
+  messages     Message[]
 }
 
-// Modèle Session de Cours
-model CoursSession {
-  id              String    @id @default(cuid())
-  startTime       DateTime  @default(now())
-  endTime         DateTime?
-  professeurId    String
-  professeur      User      @relation(fields: [professeurId], references: [id])
-  classroomId     String
-  classe          Classroom @relation(fields: [classroomId], references: [id])
-  participants    User[]    @relation("Participants")
-  documentHistory Json[]    @default([])
-
-  @@map("cours_sessions")
-}
-
-// Modèle État de l'élève
 model EtatEleve {
-  id         String  @id @default(cuid())
-  eleveId    String  @unique
-  eleve      User    @relation(fields: [eleveId], references: [id])
+  id         String     @id @default(cuid())
+  eleve      User       @relation(fields: [eleveId], references: [id], onDelete: Cascade)
+  eleveId    String     @unique
+  isPunished Boolean    @default(false)
+  
+  metier     Metier?    @relation(fields: [metierId], references: [id], onDelete: SetNull)
   metierId   String?
-  metier     Metier? @relation(fields: [metierId], references: [id])
-  isPunished Boolean @default(false)
-
-  @@map("etats_eleves")
 }
 
-// Modèle Métier
 model Metier {
-  id          String      @id
+  id          String   @id @default(cuid())
   nom         String
   description String
-  icon        String
-  theme       Json // Stocke les couleurs, curseur, etc.
-  eleves      EtatEleve[]
-
-  @@map("metiers")
+  icon        String   // Nom de l'icône Lucide
+  theme       Json     // Objet JSON pour le thème (couleurs, etc.)
+  etats       EtatEleve[]
 }
 
-// Enums pour les tâches
-enum TaskType {
-  DAILY
-  WEEKLY
-  MONTHLY
-}
-
-enum TaskCategory {
-  HOME
-  MATH
-  LANGUAGE
-  SCIENCE
-  ART
-  SPORT
-  SOCIAL
-}
-
-enum TaskDifficulty {
-  EASY
-  MEDIUM
-  HARD
-}
-
-enum ValidationType {
-  AUTOMATIC
-  PROFESSOR
-  PARENT
-}
-
-// Modèle Tâche
 model Task {
   id             String         @id @default(cuid())
   title          String
@@ -138,74 +86,123 @@ model Task {
   requiresProof  Boolean        @default(false)
   isActive       Boolean        @default(true)
   createdAt      DateTime       @default(now())
-
+  updatedAt      DateTime       @updatedAt
+  
   studentProgress StudentProgress[]
-
-  @@map("tasks")
 }
 
-enum ProgressStatus {
-  TODO
-  PENDING_VALIDATION
-  VERIFIED
-  REJECTED
-}
-
-// Modèle Progression de l'élève
 model StudentProgress {
-  id             String         @id @default(cuid())
+  id             String   @id @default(cuid())
+  student        User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
   studentId      String
-  student        User           @relation(fields: [studentId], references: [id])
+  task           Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   taskId         String
-  task           Task           @relation(fields: [taskId], references: [id])
-  status         ProgressStatus @default(TODO)
-  completionDate DateTime       @default(now())
-  submissionUrl  String? // URL de la preuve (image, etc.)
+  status         ProgressStatus @default(PENDING_VALIDATION)
+  completionDate DateTime @default(now())
+  submissionUrl  String?
   pointsAwarded  Int?
-  feedback       Json? // Stocke le feedback détaillé
-  recipeName     String? // Nom de la recette pour les tâches de cuisine
-
+  feedback       Json?     // Pour les retours détaillés (ex: recette)
+  recipeName     String?   // Nom de la recette pour la tâche de cuisine
+  
   @@unique([studentId, taskId])
-  @@map("student_progress")
 }
 
-// Modèle Message pour le chat de classe
-model Message {
-  id          String     @id @default(cuid())
-  message     String
-  createdAt   DateTime   @default(now())
-  classroomId String
-  senderId    String
-  sender      User       @relation(fields: [senderId], references: [id])
-  reactions   Reaction[]
-
-  @@map("messages")
+model CoursSession {
+  id              String    @id @default(cuid())
+  professeur      User      @relation("ProfesseurSession", fields: [professeurId], references: [id])
+  professeurId    String
+  classe          Classroom @relation(fields: [classroomId], references: [id])
+  classroomId     String
+  startTime       DateTime  @default(now())
+  endTime         DateTime?
+  participants    User[]    @relation("ParticipantsSession")
+  messages        Message[]
+  documentHistory DocumentInHistory[]
 }
 
-// Modèle Réaction à un message
-model Reaction {
-  id        String  @id @default(cuid())
-  emoji     String
-  messageId String
-  message   Message @relation(fields: [messageId], references: [id])
-  userId    String
-  user      User    @relation(fields: [userId], references: [id])
-
-  @@unique([messageId, userId, emoji])
-  @@map("reactions")
+model DocumentInHistory {
+  id             String       @id @default(cuid())
+  name           String
+  url            String
+  createdAt      DateTime     @default(now())
+  coursSession   CoursSession @relation(fields: [coursSessionId], references: [id], onDelete: Cascade)
+  coursSessionId String
 }
 
-// Modèle Annonce
 model Announcement {
   id            String     @id @default(cuid())
   title         String
   content       String
+  author        User       @relation(fields: [authorId], references: [id])
+  authorId      String
+  classe        Classroom? @relation(fields: [classeId], references: [id])
+  classeId      String?
   attachmentUrl String?
   createdAt     DateTime   @default(now())
-  authorId      String
-  author        User       @relation(fields: [authorId], references: [id])
-  classeId      String?
-  classe        Classroom? @relation(fields: [classeId], references: [id])
+  updatedAt     DateTime   @updatedAt
+}
 
-  @@map("announcements")
+model Message {
+  id          String         @id @default(cuid())
+  message     String
+  createdAt   DateTime       @default(now())
+  sender      User           @relation("MessagesEnvoyes", fields: [senderId], references: [id])
+  senderId    String
+  session     CoursSession?  @relation(fields: [sessionId], references: [id])
+  sessionId   String?
+  classroom   Classroom?     @relation(fields: [classroomId], references: [id])
+  classroomId String?
+  reactions   Reaction[]
+}
+
+model Reaction {
+  id        String   @id @default(cuid())
+  emoji     String
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  message   Message  @relation(fields: [messageId], references: [id])
+  messageId String
+}
+
+// =====================================================================
+// ==                               ENUMS                             ==
+// =====================================================================
+
+enum Role {
+  ELEVE
+  PROFESSEUR
+  ADMIN
+}
+
+enum TaskType {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum TaskCategory {
+  MATH
+  LANGUAGE
+  SCIENCE
+  ART
+  SPORT
+  HOME
+}
+
+enum TaskDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum ValidationType {
+  AUTOMATIC
+  PARENT
+  PROFESSOR
+}
+
+enum ProgressStatus {
+  PENDING_VALIDATION
+  VERIFIED
+  REJECTED
 }
