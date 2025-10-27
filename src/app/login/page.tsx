@@ -22,7 +22,7 @@ export default function LoginPage() {
     const searchParams = useSearchParams();
 
     const errorParam = searchParams?.get('error') || '';
-    const callbackUrl = searchParams?.get('callbackUrl') || '/';
+    const callbackUrl = searchParams?.get('callbackUrl') || (session?.user?.role === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard');
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -30,20 +30,22 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const [selectedRole, setSelectedRole] = useState<Role | null>(null);
 
-    // Effet pour gérer les erreurs et les redirections
+    // Effet pour gérer UNIQUEMENT la redirection si l'utilisateur est authentifié
+    useEffect(() => {
+        if (status === 'authenticated') {
+            console.log(`[LOGIN] Utilisateur déjà authentifié : ${session.user.email}. Tentative de redirection vers ${callbackUrl}`);
+            router.push(callbackUrl);
+        }
+    }, [status, session, router, callbackUrl]);
+    
+    // Effet pour gérer UNIQUEMENT les erreurs
     useEffect(() => {
         if (errorParam === 'CredentialsSignin') {
             setError("Identifiants incorrects. Assurez-vous d'utiliser les comptes de démo (ex: teacher@example.com ou ahmed0@example.com avec le mot de passe 'password').");
         } else if (errorParam) {
             setError("Une erreur de connexion est survenue. Veuillez réessayer.");
         }
-        
-        if (status === 'authenticated' && session?.user) {
-            console.log(`[LOGIN] Utilisateur déjà authentifié : ${session.user.email}. Tentative de redirection vers ${callbackUrl}`);
-            router.push(callbackUrl);
-        }
-
-    }, [errorParam, status, session, router, callbackUrl]);
+    }, [errorParam]);
 
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -75,8 +77,8 @@ export default function LoginPage() {
             } else if (result?.ok && result.url) {
                 console.log(`✅ [LOGIN] Connexion réussie, redirection vers: ${result.url}`);
                 router.push(result.url);
-            } else {
-                // Fallback si la redirection ne fonctionne pas comme prévu
+            } else if (result?.ok) {
+                // Fallback si l'URL n'est pas retournée mais la connexion est OK
                  router.push(callbackUrl);
             }
 
@@ -99,10 +101,10 @@ export default function LoginPage() {
         setPassword('password');
     };
     
-    // Si la session est en cours de chargement, afficher un loader.
-    if (status === "loading") {
+    // Si la session est en cours de chargement ou déjà authentifiée, afficher un loader pour éviter l'affichage du formulaire.
+    if (status === "loading" || status === "authenticated") {
         return (
-            <div className="flex items-center justify-center min-h-screen">
+            <div className="flex items-center justify-center min-h-screen bg-background">
                 <Loader2 className="h-12 w-12 animate-spin" />
             </div>
         );
@@ -237,3 +239,5 @@ export default function LoginPage() {
         </div>
     );
 }
+
+    
