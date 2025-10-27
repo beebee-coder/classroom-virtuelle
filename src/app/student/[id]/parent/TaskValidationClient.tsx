@@ -194,7 +194,7 @@ export function TaskValidationClient({
       )}
       
       {/* Detailed Feedback Modal */}
-      <AlertDialog open={!!feedbackTask} onOpenChange={(open) => !open && setFeedbackTask(null)}>
+      <AlertDialog open={!!feedbackTask} onOpenChange={(open: boolean) => !open && setFeedbackTask(null)}>
         <AlertDialogContent>
             <AlertDialogHeader>
                 <AlertDialogTitle>Évaluation de la Recette : {feedbackTask?.title}</AlertDialogTitle>
@@ -209,15 +209,15 @@ export function TaskValidationClient({
                 </div>
                 <div className="space-y-2">
                     <Label>Goût : {taste}/10</Label>
-                    <Slider value={[taste]} onValueChange={([v]) => setTaste(v)} max={10} step={1} />
+                    <Slider value={[taste]} onValueChange={([v]: number[]) => setTaste(v)} max={10} step={1} />
                 </div>
                  <div className="space-y-2">
                     <Label>Présentation : {presentation}/10</Label>
-                    <Slider value={[presentation]} onValueChange={([v]) => setPresentation(v)} max={10} step={1} />
+                    <Slider value={[presentation]} onValueChange={([v]: number[]) => setPresentation(v)} max={10} step={1} />
                 </div>
                  <div className="space-y-2">
                     <Label>Autonomie : {autonomy}/10</Label>
-                    <Slider value={[autonomy]} onValueChange={([v]) => setAutonomy(v)} max={10} step={1} />
+                    <Slider value={[autonomy]} onValueChange={([v]: number[]) => setAutonomy(v)} max={10} step={1} />
                 </div>
                  <div className="space-y-2">
                     <Label htmlFor="comment">Commentaire (optionnel)</Label>

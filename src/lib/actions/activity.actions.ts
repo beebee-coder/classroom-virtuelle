@@ -3,37 +3,56 @@
 
 import { getServerSession } from 'next-auth';
 import { authOptions } from "@/lib/auth-options";
+import prisma from '../prisma';
 
-const POINTS_PER_INTERVAL = 20;
-const MAX_DAILY_POINTS = 200;
+const POINTS_PER_INTERVAL = 1; // Réduit pour une accumulation plus lente
+const MAX_DAILY_POINTS = 50;
 
-// ---=== BYPASS: LOGIQUE SANS PRISMA ===---
-// Cette action est simulée et n'affecte aucune base de données.
+/**
+ * Suivi de l'activité de l'élève. A appeler périodiquement (heartbeat).
+ * Attribue des points pour l'activité et met à jour la dernière vue.
+ */
 export async function trackStudentActivity(activeSeconds: number) {
-  try {
-    const session = await getServerSession(authOptions);
-    const userId = session?.user?.id;
-    
-    if (!userId || session?.user?.role !== 'ELEVE') {
-      console.log('👤 [SERVEUR - Heartbeat] Action ignorée: Non-élève.');
-      return { success: true, pointsAwarded: 0, reason: 'Not an authenticated student' };
-    }
-    
-    console.log(`💓 [SERVEUR - Heartbeat] Ping Reçu (factice): Élève ${userId}.`);
+  const session = await getServerSession(authOptions);
+  
+  // 1. Vérification robuste de la session et du rôle
+  if (!session?.user?.id || session.user.role !== 'ELEVE') {
+    console.log('👤 [HEARTBEAT] Action ignorée: Non-élève ou non authentifié.');
+    return { success: true, pointsAwarded: 0, reason: 'Not an authenticated student' };
+  }
+  
+  const userId = session.user.id;
+  console.log(`💓 [HEARTBEAT] Ping reçu pour l'élève ${userId}.`);
 
-    // La logique de transaction et de mise à jour de la base de données est supprimée.
-    // On simule simplement l'attribution de points pour le logging.
+  try {
+    // 2. Mise à jour de la dernière vue de l'utilisateur
+    await prisma.user.update({
+      where: { id: userId },
+      data: { lastSeen: new Date() }
+    });
+    console.log(`  -> Dernière vue mise à jour pour ${userId}.`);
+
+    // 3. Logique d'attribution de points (simplifiée pour la démo)
+    // Dans une vraie application, on vérifierait la date de la dernière attribution, etc.
     const pointsToAward = POINTS_PER_INTERVAL;
-    console.log(`💰 [SERVEUR - Heartbeat] Effet (factice): +${pointsToAward} points pour ${userId}.`);
+    
+    // Mettre à jour les points de l'élève
+    const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: { points: { increment: pointsToAward } }
+    });
+
+    console.log(`💰 [HEARTBEAT] Effet: +${pointsToAward} points pour ${userId}. Total: ${updatedUser.points}`);
 
     return { 
       success: true, 
       pointsAwarded: pointsToAward,
-      dailyPoints: (Math.random() * 100) + pointsToAward // Valeur factice
+      dailyPoints: updatedUser.points, // Le total est retourné pour la démo
     };
 
   } catch (error) {
-    console.error('❌ [SERVEUR - Heartbeat] Erreur:', error);
-    throw new Error('Failed to track activity.');
+    console.error(`❌ [HEARTBEAT] Erreur pour l'élève ${userId}:`, error);
+    // Ne pas lancer d'erreur pour ne pas casser le client, juste retourner un échec.
+    return { success: false, error: 'Failed to track activity.' };
   }
 }
