@@ -1,9 +1,10 @@
+
 // src/app/login/page.tsx - VERSION CORRIGÉE
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { signIn, useSession } from 'next-auth/react';
+import { signIn, signOut, useSession } from 'next-auth/react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -21,57 +22,47 @@ export default function LoginPage() {
     const searchParams = useSearchParams();
 
     const errorParam = searchParams?.get('error') || '';
-    const callbackUrl = searchParams?.get('callbackUrl') || '';
+    const callbackUrl = searchParams?.get('callbackUrl') || '/';
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [selectedRole, setSelectedRole] = useState<Role | null>(null);
-    const [isClient, setIsClient] = useState(false);
 
-    useEffect(() => {
-        setIsClient(true);
-    }, []);
-
+    // Effet pour gérer les erreurs et les redirections
     useEffect(() => {
         if (errorParam === 'CredentialsSignin') {
             setError("Identifiants incorrects. Assurez-vous d'utiliser les comptes de démo (ex: teacher@example.com ou ahmed0@example.com avec le mot de passe 'password').");
         } else if (errorParam) {
             setError("Une erreur de connexion est survenue. Veuillez réessayer.");
         }
-    }, [errorParam]);
-
-    useEffect(() => {
-        if (status === "authenticated" && session?.user) {
-            let targetUrl = '/';
-
-            // Priorité 1: Redirection basée sur le rôle
-            if (session.user.role === 'PROFESSEUR') {
-                targetUrl = '/teacher/dashboard';
-            } else if (session.user.role === 'ELEVE') {
-                targetUrl = '/student/dashboard';
-            }
-            // Priorité 2: Utiliser un callbackUrl valide s'il ne redirige pas déjà vers une page de rôle
-            else if (callbackUrl && callbackUrl !== '/' && !callbackUrl.includes('/login')) {
-                 targetUrl = callbackUrl;
-            }
-            
-            console.log(`✅ [LOGIN] Connexion réussie, redirection vers: ${targetUrl}`);
-            router.push(targetUrl);
+        
+        if (status === 'authenticated' && session?.user) {
+            console.log(`[LOGIN] Utilisateur déjà authentifié : ${session.user.email}. Tentative de redirection vers ${callbackUrl}`);
+            router.push(callbackUrl);
         }
-    }, [status, session, router, callbackUrl]);
+
+    }, [errorParam, status, session, router, callbackUrl]);
+
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         setError('');
 
+        if (!email || !password) {
+            setError('Veuillez remplir tous les champs.');
+            setLoading(false);
+            return;
+        }
+
         try {
             const result = await signIn('credentials', {
                 email: email.trim().toLowerCase(),
                 password: password,
                 redirect: false,
+                callbackUrl: callbackUrl,
             });
 
             if (result?.error) {
@@ -79,12 +70,16 @@ export default function LoginPage() {
                 if (result.error === 'CredentialsSignin') {
                     setError("Identifiants incorrects. Veuillez vérifier votre email et mot de passe. Utilisez 'password' comme mot de passe pour les comptes de démo.");
                 } else {
-                    setError(`Erreur de connexion: ${result.error}`);
+                     setError("Une erreur de connexion est survenue. Il est possible que votre session précédente soit invalide. Essayez de vous reconnecter.");
                 }
-            } else if (result?.ok) {
-                console.log('✅ [LOGIN] Connexion réussie via credentials');
-                // La redirection sera gérée par l'effet useSession
+            } else if (result?.ok && result.url) {
+                console.log(`✅ [LOGIN] Connexion réussie, redirection vers: ${result.url}`);
+                router.push(result.url);
+            } else {
+                // Fallback si la redirection ne fonctionne pas comme prévu
+                 router.push(callbackUrl);
             }
+
         } catch (error) {
             console.error('💥 [LOGIN] Erreur inattendue:', error);
             setError("Une erreur inattendue est survenue. Veuillez réessayer.");
@@ -104,16 +99,8 @@ export default function LoginPage() {
         setPassword('password');
     };
     
-    // Si la session est en cours de chargement ou déjà authentifiée, afficher un loader.
-    if (status === "loading" || status === "authenticated") {
-        return (
-            <div className="flex items-center justify-center min-h-screen">
-                <Loader2 className="h-12 w-12 animate-spin" />
-            </div>
-        );
-    }
-
-    if (!isClient) {
+    // Si la session est en cours de chargement, afficher un loader.
+    if (status === "loading") {
         return (
             <div className="flex items-center justify-center min-h-screen">
                 <Loader2 className="h-12 w-12 animate-spin" />
