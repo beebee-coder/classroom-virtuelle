@@ -1,6 +1,6 @@
 // src/components/Whiteboard.tsx
 'use client';
-import { Tldraw, useEditor, TLStoreSnapshot, TLEditorSnapshot } from '@tldraw/tldraw';
+import { Tldraw, useEditor, TLEditorSnapshot } from '@tldraw/tldraw';
 import '@tldraw/tldraw/tldraw.css';
 import { useEffect, useCallback } from 'react';
 
@@ -35,7 +35,7 @@ function WhiteboardEditorLogic({
       try {
         const currentSnapshot = editor.getSnapshot();
         // Compare snapshots to avoid unnecessary reloads
-        if (JSON.stringify(currentSnapshot) !== JSON.stringify(initialSnapshot)) {
+        if (JSON.stringify(currentSnapshot.store) !== JSON.stringify((initialSnapshot as any).store)) {
           editor.loadSnapshot(initialSnapshot);
         }
       } catch (error) {
