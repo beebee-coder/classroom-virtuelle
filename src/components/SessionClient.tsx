@@ -176,18 +176,14 @@ export default function SessionClient({
   
   const screenPeerRef = useRef<PeerInstance | null>(null);
 
-  // ---=== 2. GESTION DES CONNEXIONS PEER-TO-PEER (WEBRTC) - ROBUSTE ===---
+  // ---=== 2. GESTION DES CONNEXIONS PEER-TO-PEER (WEBRTC) - DÉFINITIVE & ROBUSTE ===---
 
   const cleanupPeerConnection = useCallback((userId: string) => {
     const peer = peersRef.current.get(userId);
     if (peer) {
         console.log(`🧹 [PEER] Nettoyage de la connexion pour ${userId}.`);
-        try {
-            if (!peer.destroyed) {
-                peer.destroy();
-            }
-        } catch (e) {
-            console.warn(`⚠️ [PEER] Erreur à la destruction du peer pour ${userId}:`, e);
+        if (!peer.destroyed) {
+            peer.destroy();
         }
         peersRef.current.delete(userId);
     }
@@ -201,13 +197,34 @@ export default function SessionClient({
         return prev;
     });
   }, []);
+  
+  // Ce `useEffect` est le cœur de la nouvelle logique WebRTC.
+  // Il s'exécute chaque fois que la liste des utilisateurs en ligne change.
+  useEffect(() => {
+    if (!localStreamRef.current) return;
+
+    const otherUserIds = onlineUserIds.filter(id => id !== currentUserId);
+
+    otherUserIds.forEach(userId => {
+        // La règle d'or pour éviter le "glare" : l'ID le plus petit initie.
+        const shouldInitiate = currentUserId < userId;
+
+        if (shouldInitiate && !peersRef.current.has(userId)) {
+            console.log(`🤝 [PEER] Règle appliquée: J'initie la connexion vers ${userId} (mon ID est plus petit).`);
+            const peer = createPeer(userId, true);
+            peersRef.current.set(userId, peer);
+        }
+    });
+
+  }, [onlineUserIds, currentUserId, localStreamRef.current]);
+
 
   const createPeer = useCallback((targetUserId: string, initiator: boolean): PeerInstance => {
-    console.log(`🤝 [PEER] Création d'un peer vers ${targetUserId}. Initiateur: ${initiator}`);
+    console.log(`[PEER] Création d'un peer vers ${targetUserId}. Initiateur: ${initiator}`);
     
     const peer = new SimplePeer({
         initiator,
-        trickle: false, // Simplifie la négociation en envoyant un seul gros objet de signal
+        trickle: true, // trickle est plus performant pour un grand nombre de pairs.
         stream: localStreamRef.current ?? undefined,
         config: {
             iceServers: [
@@ -224,7 +241,7 @@ export default function SessionClient({
             userId: currentUserId,
             target: targetUserId,
             signal,
-            isReturnSignal: !initiator,
+            isReturnSignal: !initiator
         });
     });
 
@@ -253,33 +270,18 @@ export default function SessionClient({
     
     const channelName = `presence-session-${sessionId}`;
     const channel = pusherClient.subscribe(channelName);
-    let isSubscribed = true;
 
     console.log(`🔌 [PUSHER] - Abonnement au canal: ${channelName}`);
     
-    const handleSubscriptionSucceeded = (members: PusherSubscriptionSucceededEvent): void => {
-        const memberIds = Object.keys(members.members || {});
+    const handleSubscriptionSucceeded = (data: PusherSubscriptionSucceededEvent): void => {
+        const memberIds = Object.keys(data.members || {});
         setOnlineUserIds(memberIds);
-        console.log(`✅ [PUSHER] Abonnement réussi. ${memberIds.length} participant(s) en ligne.`);
-
-        // Seuls ceux déjà présents initient la connexion vers les nouveaux
-        const otherUserIds = memberIds.filter(id => id !== currentUserId);
-        console.log(`  -> Envoi d'offres à ${otherUserIds.length} participant(s) déjà présent(s).`);
-        otherUserIds.forEach(userId => {
-            if (!peersRef.current.has(userId)) {
-                const peer = createPeer(userId, true); // Je suis l'initiateur
-                peersRef.current.set(userId, peer);
-            }
-        });
+        console.log(`✅ [PUSHER] Abonnement réussi. ${memberIds.length} participant(s) en ligne:`, memberIds);
     };
 
     const handleMemberAdded = (member: PusherMemberEvent): void => {
-      if (member.id === currentUserId) return;
-      console.log(`➕ [PUSHER] Nouveau participant: ${member.id}. Je lui envoie une offre.`);
-      setOnlineUserIds(prev => [...prev, member.id]);
-      
-      const peer = createPeer(member.id, true); // J'étais là avant, donc je suis l'initiateur
-      peersRef.current.set(member.id, peer);
+      console.log(`➕ [PUSHER] Nouveau participant: ${member.id}.`);
+      setOnlineUserIds(prev => [...new Set([...prev, member.id])]);
     };
 
     const handleMemberRemoved = (member: PusherMemberEvent): void => {
@@ -294,9 +296,14 @@ export default function SessionClient({
         console.log(`📡 [PUSHER] <- Signal reçu de ${data.userId}.`);
         let peer = peersRef.current.get(data.userId);
         
-        // Si c'est une offre (initiateur) et que le peer n'existe pas, je le crée pour répondre
-        if (data.isReturnSignal === false && !peer) {
-            console.log(`  -> C'est une offre. Création d'un peer non-initiateur pour y répondre.`);
+        // Si c'est une offre et que je n'ai pas initié, je crée le peer pour répondre.
+        if (data.signal.type === 'offer' && !peer) {
+            const shouldIHaveInitiated = currentUserId < data.userId;
+            if (shouldIHaveInitiated) {
+                console.warn(`⚠️ [PEER] J'ai reçu une offre de ${data.userId}, mais j'aurais dû initier. Je l'ignore pour éviter le glare.`);
+                return;
+            }
+            console.log(`[PEER] Réception d'une offre de ${data.userId}, création d'un peer non-initiateur pour répondre.`);
             peer = createPeer(data.userId, false);
             peersRef.current.set(data.userId, peer);
         }
@@ -346,12 +353,11 @@ export default function SessionClient({
     channel.bind('whiteboard-controller-update', handleWhiteboardControllerUpdate);
 
     return (): void => {
-        if (!isSubscribed) return;
-        isSubscribed = false;
         console.log(`🔌 [PUSHER] Nettoyage des abonnements pour la session ${sessionId}`);
+        channel.unbind_all();
+        pusherClient.unsubscribe(channelName);
         peersRef.current.forEach((_, userId) => cleanupPeerConnection(userId));
         peersRef.current.clear();
-        pusherClient.unsubscribe(channelName);
     };
   }, [sessionId, currentUserId, createPeer, cleanupPeerConnection, router, toast, currentUserRole]);
   
