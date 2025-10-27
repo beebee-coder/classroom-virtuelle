@@ -1,3 +1,4 @@
+
 // src/app/session/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
@@ -12,16 +13,16 @@ export async function GET(
   try {
     const sessionId = params.id;
 
-    // Timeout de secours
+    // Timeout de secours pour éviter que la requête ne reste bloquée indéfiniment
     const timeoutPromise = new Promise<never>((_, reject) => 
-      setTimeout(() => reject(new Error('Timeout')), 10000)
+      setTimeout(() => reject(new Error('Timeout de la requête dépassé')), 10000) // 10 secondes
     );
 
     const sessionPromise = prisma.coursSession.findUnique({
       where: { id: sessionId },
       include: {
         professeur: {
-          select: { id: true, name: true, email: true }
+          select: { id: true, name: true, email: true, image: true, role: true }
         },
         classe: {
           select: { id: true, nom: true }
@@ -31,7 +32,10 @@ export async function GET(
             id: true, 
             name: true, 
             email: true,
-            role: true
+            role: true,
+            image: true,
+            ambition: true,
+            points: true,
           }
         },
         documentHistory: {
@@ -41,17 +45,19 @@ export async function GET(
       },
     });
 
+    // Exécuter la requête avec le timeout
     const session = await Promise.race([sessionPromise, timeoutPromise]);
 
     if (!session) {
+      console.warn(`[API SESSION] Session non trouvée pour l'ID: ${sessionId}`);
       return NextResponse.json(
         { error: 'Session non trouvée' },
         { status: 404 }
       );
     }
 
-    // Réponse optimisée
-    return NextResponse.json({
+    // Préparer une réponse JSON optimisée et claire
+    const responsePayload = {
       id: session.id,
       teacher: session.professeur,
       classroom: session.classe,
@@ -59,20 +65,22 @@ export async function GET(
       documentHistory: session.documentHistory,
       startTime: session.startTime,
       endTime: session.endTime,
-    });
+    };
+    
+    return NextResponse.json(responsePayload);
 
   } catch (error) {
-    console.error('❌ Erreur chargement session:', error);
+    console.error(`❌ Erreur lors du chargement de la session ${params.id}:`, error);
     
-    if (error instanceof Error && error.message === 'Timeout') {
+    if (error instanceof Error && error.message.includes('Timeout')) {
       return NextResponse.json(
-        { error: 'Timeout du serveur' },
-        { status: 504 }
+        { error: 'La requête a pris trop de temps. Le serveur est peut-être surchargé.' },
+        { status: 504 } // Gateway Timeout
       );
     }
 
     return NextResponse.json(
-      { error: 'Erreur interne du serveur' },
+      { error: 'Erreur interne du serveur lors de la récupération de la session.' },
       { status: 500 }
     );
   }
