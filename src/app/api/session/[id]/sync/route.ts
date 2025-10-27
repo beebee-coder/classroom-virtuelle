@@ -7,6 +7,8 @@ import { pusherTrigger } from '@/lib/pusher/server';
 
 const WHITEBOARD_SNAPSHOT_KEY = (sessionId: string) => `whiteboard:${sessionId}:snapshot`;
 const WHITEBOARD_CHANNEL = (sessionId: string) => `whiteboard-channel-${sessionId}`;
+const WHITEBOARD_UPDATE_EVENT = 'whiteboard-update-event';
+
 
 // POST handler for publishing whiteboard updates
 export async function POST(
@@ -32,11 +34,10 @@ export async function POST(
       return new NextResponse('Snapshot data is required', { status: 400 });
     }
     
-    // Publish to Redis Pub/Sub - the redis-subscriber will pick this up
-    // We also include the sender's socket ID so Pusher can exclude them
+    // Publier vers Redis Pub/Sub. Le service `redis-subscriber` écoutera cet événement.
     await redis.publish(WHITEBOARD_CHANNEL(sessionId), JSON.stringify({
         snapshot,
-        senderSocketId: source // We'll pass the socketId as 'source'
+        senderSocketId: source // L'ID du socket de l'expéditeur pour l'exclure de la diffusion Pusher
     }));
 
     return NextResponse.json({ success: true });
@@ -67,7 +68,7 @@ export async function GET(
         if (snapshotJson) {
             return NextResponse.json(JSON.parse(snapshotJson));
         }
-        return NextResponse.json(null); // No snapshot saved yet
+        return NextResponse.json(null); // Pas de snapshot sauvegardé pour le moment
     } catch (error) {
         console.error(`💥 [API SYNC GET] - Erreur pour la session ${sessionId}:`, error);
         return new NextResponse('Internal Server Error', { status: 500 });

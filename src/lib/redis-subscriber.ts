@@ -15,10 +15,12 @@ if (!redisUrl) {
 }
 
 const subscriber = new Redis(redisUrl);
-const publisher = new Redis(redisUrl); // Pour sauvegarder le snapshot
+const publisher = new Redis(redisUrl); // Client séparé pour les commandes SET
 
 const WHITEBOARD_SNAPSHOT_KEY = (sessionId: string) => `whiteboard:${sessionId}:snapshot`;
 const WHITEBOARD_CHANNEL_PATTERN = 'whiteboard-channel-*';
+const WHITEBOARD_UPDATE_EVENT = 'whiteboard-update-event';
+
 
 console.log('✅ [REDIS SUBSCRIBER] - Démarrage du service...');
 console.log(`👂 Écoute du pattern de canal: ${WHITEBOARD_CHANNEL_PATTERN}`);
@@ -45,13 +47,12 @@ subscriber.on('pmessage', async (pattern, channel, message) => {
     // Déclencher l'événement Pusher vers les clients, en excluant l'expéditeur
     await pusherTrigger(
       pusherChannelName, 
-      'whiteboard-update-event', 
+      WHITEBOARD_UPDATE_EVENT, 
       { snapshot }, 
       { socket_id: senderSocketId }
     );
     
     // Sauvegarder le dernier snapshot dans une clé Redis normale
-    // On utilise un client séparé (publisher) car un client abonné ne peut pas exécuter d'autres commandes.
     await publisher.set(WHITEBOARD_SNAPSHOT_KEY(sessionId), JSON.stringify(snapshot));
 
     console.log(`  -> 🎨 Diffusé sur Pusher [${pusherChannelName}] et snapshot sauvegardé.`);
@@ -69,3 +70,5 @@ subscriber.on('error', (err) => {
 publisher.on('error', (err) => {
     console.error('❌ Erreur de connexion du client publisher Redis:', err);
 });
+
+console.log("🚀 [REDIS SUBSCRIBER] - Service prêt et en attente de messages.");

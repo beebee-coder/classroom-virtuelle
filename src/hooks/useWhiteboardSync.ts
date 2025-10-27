@@ -6,14 +6,13 @@ import { TLEditorSnapshot } from '@tldraw/tldraw';
 import { pusherClient } from '../lib/pusher/client';
 
 const WHITEBOARD_UPDATE_EVENT = 'whiteboard-update-event';
-const DEBOUNCE_SAVE_TIME = 2000; // 2 secondes
+const DEBOUNCE_SAVE_TIME = 500; // 500ms
 
 export const useWhiteboardSync = (
     sessionId: string,
-    initialControllerId: string
+    initialSnapshot: TLEditorSnapshot | null
 ) => {
-    const [whiteboardSnapshot, setWhiteboardSnapshot] = useState<TLEditorSnapshot | null>(null);
-    const [whiteboardControllerId, setWhiteboardControllerId] = useState<string>(initialControllerId);
+    const [whiteboardSnapshot, setWhiteboardSnapshot] = useState<TLEditorSnapshot | null>(initialSnapshot);
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Effet pour récupérer le snapshot initial au chargement
@@ -32,8 +31,11 @@ export const useWhiteboardSync = (
                 console.error("Erreur lors de la récupération du snapshot initial:", error);
             }
         };
-        fetchInitialSnapshot();
-    }, [sessionId]);
+
+        if (!initialSnapshot) {
+             fetchInitialSnapshot();
+        }
+    }, [sessionId, initialSnapshot]);
 
     // Effet pour écouter les mises à jour via Pusher
     useEffect(() => {
@@ -45,35 +47,31 @@ export const useWhiteboardSync = (
         };
         
         channel.bind(WHITEBOARD_UPDATE_EVENT, handleUpdate);
-        channel.bind('whiteboard-controller-update', (data: { controllerId: string }) => {
-            setWhiteboardControllerId(data.controllerId);
-        });
 
         return () => {
             channel.unbind(WHITEBOARD_UPDATE_EVENT, handleUpdate);
-            channel.unbind('whiteboard-controller-update');
             pusherClient.unsubscribe(channelName);
+             if (saveTimeoutRef.current) {
+                clearTimeout(saveTimeoutRef.current);
+            }
         };
     }, [sessionId]);
 
     // Callback pour persister/diffuser le snapshot
     const persistWhiteboardSnapshot = useCallback((snapshot: TLEditorSnapshot) => {
-        // Mettre à jour l'état local immédiatement pour une réactivité optimale
         setWhiteboardSnapshot(snapshot);
 
-        // Annuler le timeout précédent pour le débouclage
         if (saveTimeoutRef.current) {
             clearTimeout(saveTimeoutRef.current);
         }
 
-        // Définir un nouveau timeout pour envoyer les données au serveur
         saveTimeoutRef.current = setTimeout(() => {
             fetch(`/api/session/${sessionId}/sync`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     snapshot,
-                    source: pusherClient.connection.socket_id, // Exclure l'expéditeur de la diffusion Pusher
+                    source: pusherClient.connection.socket_id,
                 }),
             }).catch(error => {
                 console.error("Erreur lors de la synchronisation du tableau blanc:", error);
@@ -82,24 +80,9 @@ export const useWhiteboardSync = (
 
     }, [sessionId]);
     
-     const broadcastControllerChange = useCallback(async (newControllerId: string) => {
-        try {
-            await fetch(`/api/session/${sessionId}/whiteboard-controller`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ controllerId: newControllerId }),
-            });
-        } catch (error) {
-            console.error("Erreur lors de la diffusion du changement de contrôleur:", error);
-        }
-    }, [sessionId]);
 
     return {
         whiteboardSnapshot,
-        setWhiteboardSnapshot,
-        whiteboardControllerId,
-        setWhiteboardControllerId,
         persistWhiteboardSnapshot,
-        broadcastControllerChange,
     };
 };
