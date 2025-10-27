@@ -1,7 +1,6 @@
-
 // src/components/Whiteboard.tsx
 'use client';
-import { Tldraw, useEditor, TLStoreSnapshot, TLRecord, StoreSnapshot } from '@tldraw/tldraw';
+import { Tldraw, useEditor, TLStoreSnapshot, TLRecord } from '@tldraw/tldraw';
 import '@tldraw/tldraw/tldraw.css';
 import { useEffect, useCallback } from 'react';
 
