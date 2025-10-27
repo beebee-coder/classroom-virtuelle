@@ -300,7 +300,7 @@ export async function broadcastActiveTool(sessionId: string, tool: string) {
 
 export async function updateStudentSessionStatus(
   sessionId: string,
-  status: { isHandRaised?: boolean; understanding: ComprehensionLevel }
+  status: { isHandRaised?: boolean; understanding?: ComprehensionLevel }
 ) {
   console.log(`🙋 [ACTION STATUS] - Mise à jour du statut pour un élève dans la session ${sessionId}`);
   const session = await getServerSession(authOptions);
