@@ -1,25 +1,25 @@
-// src/components/Whiteboard.tsx
+// src/components/Whiteboard.tsx - VERSION CORRIGÉE
 'use client';
-import { Tldraw, useEditor, TLEditorSnapshot } from '@tldraw/tldraw';
+import { Tldraw, useEditor, TLStoreSnapshot, TLRecord } from '@tldraw/tldraw';
 import '@tldraw/tldraw/tldraw.css';
 import { useEffect, useCallback } from 'react';
 
 interface WhiteboardProps {
   sessionId: string;
-  onWhiteboardPersist: (snapshot: TLEditorSnapshot) => void;
-  whiteboardSnapshot: TLEditorSnapshot | null;
+  onWhiteboardPersist: (snapshot: TLStoreSnapshot) => void;
+  whiteboardSnapshot: TLStoreSnapshot | null;
   whiteboardControllerId: string | null;
   currentUserId: string;
 }
 
 // Composant interne pour gérer la logique de l'éditeur
-function WhiteboardEditorLogic({
-  onPersist,
-  initialSnapshot,
-  isController,
-}: {
-  onPersist: (snapshot: TLEditorSnapshot) => void;
-  initialSnapshot: TLEditorSnapshot | null;
+function EditorManager({ 
+  onPersist, 
+  initialSnapshot, 
+  isController 
+}: { 
+  onPersist: (snapshot: TLStoreSnapshot) => void;
+  initialSnapshot: TLStoreSnapshot | null;
   isController: boolean;
 }) {
   const editor = useEditor();
@@ -31,13 +31,9 @@ function WhiteboardEditorLogic({
 
   // Charger le snapshot initial
   useEffect(() => {
-    if (initialSnapshot && editor) {
+    if (initialSnapshot) {
       try {
-        const currentSnapshot = editor.getSnapshot();
-        // Compare snapshots to avoid unnecessary reloads
-        if (JSON.stringify(currentSnapshot.store) !== JSON.stringify((initialSnapshot as any).store)) {
-          editor.loadSnapshot(initialSnapshot);
-        }
+        editor.store.loadSnapshot(initialSnapshot);
       } catch (error) {
         console.error("Erreur lors du chargement du snapshot:", error);
       }
@@ -48,18 +44,18 @@ function WhiteboardEditorLogic({
   useEffect(() => {
     if (!isController) return;
 
-    const handleChange = (snapshot: TLEditorSnapshot) => {
+    const handleChange = () => {
+      const snapshot = editor.store.getSnapshot();
       onPersist(snapshot);
     };
 
     const debouncedHandleChange = debounce(handleChange, 200);
 
-    const unsubscribe = editor.store.listen(
-      () => {
-        debouncedHandleChange(editor.getSnapshot());
-      },
-      { scope: 'document', source: 'user' }
-    );
+    // S'abonner aux changements du store
+    const unsubscribe = editor.store.listen(debouncedHandleChange, {
+      scope: 'document',
+      source: 'user',
+    });
 
     return () => unsubscribe();
   }, [editor, onPersist, isController]);
@@ -67,21 +63,22 @@ function WhiteboardEditorLogic({
   return null;
 }
 
-export function Whiteboard({
-  sessionId,
-  onWhiteboardPersist,
-  whiteboardSnapshot,
-  whiteboardControllerId,
-  currentUserId,
+export function Whiteboard({ 
+    sessionId, 
+    onWhiteboardPersist,
+    whiteboardSnapshot,
+    whiteboardControllerId,
+    currentUserId,
 }: WhiteboardProps) {
   const isController = currentUserId === whiteboardControllerId;
 
-  const handlePersist = useCallback((snapshot: TLEditorSnapshot) => {
+  const handlePersist = useCallback((snapshot: TLStoreSnapshot) => {
     onWhiteboardPersist(snapshot);
   }, [onWhiteboardPersist]);
 
   return (
     <div className="h-full w-full flex flex-col">
+      {/* En-tête avec statut */}
       <div className="flex items-center justify-between p-2 bg-gray-50 border-b">
         <div className="text-sm font-medium">
           Tableau Blanc {isController ? '🎨 (Contrôleur)' : '👀 (Observateur)'}
@@ -92,14 +89,15 @@ export function Whiteboard({
           {isController ? 'Mode Édition' : 'Mode Lecture'}
         </div>
       </div>
+
+      {/* Zone de dessin */}
       <div className="flex-1">
-        <Tldraw
+        <Tldraw 
           persistenceKey={`session_whiteboard_${sessionId}`}
           forceMobile={false}
           autoFocus={false}
-          snapshot={whiteboardSnapshot ?? undefined}
         >
-          <WhiteboardEditorLogic
+          <EditorManager 
             onPersist={handlePersist}
             initialSnapshot={whiteboardSnapshot}
             isController={isController}
@@ -111,7 +109,7 @@ export function Whiteboard({
 }
 
 function debounce<T extends (...args: any[]) => void>(
-  func: T,
+  func: T, 
   wait: number
 ): (...args: Parameters<T>) => void {
   let timeout: NodeJS.Timeout | null = null;

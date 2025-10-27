@@ -9,7 +9,7 @@ const isPusherConfigured =
     process.env.PUSHER_SECRET &&
     process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
 
-let pusherServer: Pusher;
+export let pusherServer: Pusher;
 
 if (isPusherConfigured) {
     pusherServer = new Pusher({

@@ -83,6 +83,18 @@ export default function SessionClient({
     }
   }, [sessionId, toast]);
 
+// Dans le composant SessionClient, corrigez la fonction handleWhiteboardPersist :
+const handleWhiteboardPersist = useCallback((snapshot: TLStoreSnapshot) => {
+  // Stocker localement
+  setWhiteboardSnapshot(snapshot);
+  
+  // Diffuser aux autres participants si vous êtes le contrôleur
+  if (currentUserRole === 'PROFESSEUR' || currentUserId === whiteboardControllerId) {
+    broadcastWhiteboardUpdate(sessionId, snapshot, currentUserId);
+  }
+}, [sessionId, currentUserId, currentUserRole, whiteboardControllerId]);
+
+
 
   useEffect(() => {
     const getMedia = async (): Promise<void> => {

@@ -26,6 +26,7 @@ import { DocumentViewer } from './DocumentViewer';
 import { cn } from '@/lib/utils';
 
 
+// Dans TeacherSessionView.tsx - CORRECTION DES PROPS
 interface TeacherSessionViewProps {
     sessionId: string;
     localStream: MediaStream | null;
@@ -45,18 +46,18 @@ interface TeacherSessionViewProps {
     classroom: ClassroomWithDetails | null;
     documentUrl: string | null;
     documentHistory: DocumentInHistory[];
-    whiteboardControllerId: string | null; // Qui contrôle le TB
-    onWhiteboardControllerChange: (userId: string) => void; // Pour changer le contrôleur
+    whiteboardControllerId: string | null;
+    onWhiteboardControllerChange: (userId: string) => void;
     initialDuration: number;
     timerTimeLeft: number;
     isTimerRunning: boolean;
     onStartTimer: () => void;
     onPauseTimer: () => void;
     onResetTimer: (newDuration?: number) => void;
+    // CORRECTION: Utiliser TLStoreSnapshot au lieu de TLEditorSnapshot
     onWhiteboardPersist: (snapshot: TLStoreSnapshot) => void;
-    whiteboardSnapshot: TLStoreSnapshot | null
+    whiteboardSnapshot: TLStoreSnapshot | null;
 }
-
 
 export function TeacherSessionView({
     sessionId,
