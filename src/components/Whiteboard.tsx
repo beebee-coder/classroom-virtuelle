@@ -1,6 +1,6 @@
-// src/components/Whiteboard.tsx
+// src/components/Whiteboard.tsx - VERSION CORRIGÉE AVEC API ACTUELLE
 'use client';
-import { Tldraw, useEditor, TLStoreSnapshot, TLRecord } from '@tldraw/tldraw';
+import { Tldraw, useEditor, TLStoreSnapshot, TLRecord, useLocalStorageState } from '@tldraw/tldraw';
 import '@tldraw/tldraw/tldraw.css';
 import { useEffect, useCallback } from 'react';
 
@@ -29,25 +29,31 @@ function EditorManager({
     editor.updateInstanceState({ isReadonly: !isController });
   }, [isController, editor]);
 
-  // Charger le snapshot initial
+  // Charger le snapshot initial - API CORRIGÉE
   useEffect(() => {
     if (initialSnapshot) {
       try {
-        // CORRECTION : Utiliser editor.store.loadSnapshot pour le TLStoreSnapshot
-        editor.store.loadSnapshot(initialSnapshot);
+        // CORRECTION : Utiliser l'approche recommandée pour charger un snapshot
+        // Vider d'abord le store actuel puis appliquer le snapshot
+        editor.store.clear();
+        const records = Object.values(initialSnapshot.store);
+        editor.store.put(records);
       } catch (error) {
         console.error("Erreur lors du chargement du snapshot:", error);
       }
     }
   }, [editor, initialSnapshot]);
 
-  // Écouter les changements et persister
+  // Écouter les changements et persister - API CORRIGÉE
   useEffect(() => {
     if (!isController) return;
 
     const handleChange = () => {
-      // CORRECTION : Utiliser editor.store.getSnapshot pour obtenir le TLStoreSnapshot
-      const snapshot = editor.store.getSnapshot();
+      // CORRECTION : Créer manuellement le snapshot
+      const snapshot: TLStoreSnapshot = {
+        store: Object.fromEntries(editor.store.allRecords().map(record => [record.id, record])),
+        schema: editor.store.schema.serialize(),
+      };
       onPersist(snapshot);
     };
 
@@ -56,7 +62,6 @@ function EditorManager({
     // S'abonner aux changements du store
     const unsubscribe = editor.store.listen(debouncedHandleChange, {
       scope: 'document',
-      source: 'user',
     });
 
     return () => unsubscribe();
