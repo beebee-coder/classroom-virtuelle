@@ -1,3 +1,4 @@
+
 // src/components/Whiteboard.tsx
 'use client';
 import { Tldraw, useEditor, TLEditorSnapshot } from '@tldraw/tldraw';
@@ -27,11 +28,11 @@ function EditorManager({ onPersist, initialSnapshot, isController }: {
 
     // Charger le snapshot initial ou les mises à jour
     useEffect(() => {
-        if (initialSnapshot) {
+        if (initialSnapshot && initialSnapshot.store) {
             try {
                 // Pour éviter de recharger le snapshot que l'on vient de créer,
-                // on peut comparer les ID de document.
-                const currentDocumentId = editor.store.get('document:document')!.id;
+                // on compare les ID de document.
+                const currentDocumentId = editor.document.id;
                 const newDocumentId = initialSnapshot.store['document:document'].id;
 
                 if (currentDocumentId !== newDocumentId) {
