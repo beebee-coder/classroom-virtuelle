@@ -1,3 +1,4 @@
+
 // src/components/Whiteboard.tsx
 'use client';
 import { Tldraw, useEditor, TLStoreSnapshot, TLRecord } from '@tldraw/tldraw';
@@ -35,9 +36,9 @@ function WhiteboardEditorLogic({
     if (initialSnapshot && editor) {
       try {
         // Pour éviter de recharger le même snapshot, on peut faire une comparaison simple
-        const currentSnapshot = editor.getSnapshot();
-        if (JSON.stringify(currentSnapshot.store) !== JSON.stringify(initialSnapshot.store)) {
-          editor.loadSnapshot(initialSnapshot);
+        const currentSnapshot = editor.store.getSnapshot();
+        if (JSON.stringify(currentSnapshot) !== JSON.stringify(initialSnapshot)) {
+          editor.store.loadSnapshot(initialSnapshot);
         }
       } catch (error) {
         console.error("Erreur lors du chargement du snapshot:", error);
@@ -50,7 +51,7 @@ function WhiteboardEditorLogic({
     if (!isController) return;
 
     const handleChange = () => {
-      const snapshot = editor.getSnapshot();
+      const snapshot = editor.store.getSnapshot();
       onPersist(snapshot);
     };
 
@@ -123,3 +124,4 @@ function debounce<T extends (...args: any[]) => void>(
     timeout = setTimeout(() => func(...args), wait);
   };
 }
+
