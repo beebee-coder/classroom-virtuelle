@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn, useSession } from 'next-auth/react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,18 +15,10 @@ import type { Role } from '@prisma/client';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 
-// Composant qui utilise useSearchParams - doit être wrapé dans Suspense
-function LoginForm() {
+export default function LoginPage() {
     const router = useRouter();
     const { data: session, status } = useSession();
-
-    // Utiliser URLSearchParams côté client au lieu de useSearchParams()
-    const [searchParams, setSearchParams] = useState<URLSearchParams | null>(null);
-
-    useEffect(() => {
-        // Récupérer les paramètres d'URL côté client
-        setSearchParams(new URLSearchParams(window.location.search));
-    }, []);
+    const searchParams = useSearchParams();
 
     const errorParam = searchParams?.get('error') || '';
     const callbackUrl = searchParams?.get('callbackUrl') || '';
@@ -36,6 +28,11 @@ function LoginForm() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
 
     useEffect(() => {
         if (errorParam === 'CredentialsSignin') {
@@ -70,19 +67,28 @@ function LoginForm() {
         setLoading(true);
         setError('');
 
-        const result = await signIn('credentials', {
-            email: email,
-            password: password,
-            redirect: false,
-        });
+        try {
+            const result = await signIn('credentials', {
+                email: email.trim().toLowerCase(),
+                password: password,
+                redirect: false,
+            });
 
-        if (result?.error) {
-            console.error('❌ [LOGIN] Erreur lors de la tentative de connexion:', result.error);
-             if (result.error === 'CredentialsSignin') {
-                setError("Identifiants incorrects. Veuillez vérifier votre email et mot de passe.");
-            } else {
-                setError("Une erreur inattendue est survenue. Veuillez réessayer.");
+            if (result?.error) {
+                console.error('❌ [LOGIN] Erreur lors de la tentative de connexion:', result.error);
+                if (result.error === 'CredentialsSignin') {
+                    setError("Identifiants incorrects. Veuillez vérifier votre email et mot de passe. Utilisez 'password' comme mot de passe pour les comptes de démo.");
+                } else {
+                    setError(`Erreur de connexion: ${result.error}`);
+                }
+            } else if (result?.ok) {
+                console.log('✅ [LOGIN] Connexion réussie via credentials');
+                // La redirection sera gérée par l'effet useSession
             }
+        } catch (error) {
+            console.error('💥 [LOGIN] Erreur inattendue:', error);
+            setError("Une erreur inattendue est survenue. Veuillez réessayer.");
+        } finally {
             setLoading(false);
         }
     };
@@ -96,10 +102,18 @@ function LoginForm() {
             setEmail('ahmed0@example.com');
         }
         setPassword('password');
-    }
+    };
     
     // Si la session est en cours de chargement ou déjà authentifiée, afficher un loader.
     if (status === "loading" || status === "authenticated") {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <Loader2 className="h-12 w-12 animate-spin" />
+            </div>
+        );
+    }
+
+    if (!isClient) {
         return (
             <div className="flex items-center justify-center min-h-screen">
                 <Loader2 className="h-12 w-12 animate-spin" />
@@ -114,6 +128,7 @@ function LoginForm() {
                 alt="Classroom background"
                 fill
                 className="object-cover -z-10 opacity-20"
+                priority
             />
             <div className="absolute top-4 left-4">
                 <Button variant="ghost" asChild className="bg-background/50 backdrop-blur-sm">
@@ -170,31 +185,44 @@ function LoginForm() {
                                 </div>
                             </div>
 
-                            <div className="relative">
-                                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    placeholder="Identifiant"
-                                    className="pl-10 h-12 bg-muted/50 border-0 focus-visible:ring-primary text-base"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    disabled={loading}
-                                    required
-                                />
-                            </div>
-                            <div className="relative">
-                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                                <Input
-                                    id="password"
-                                    type="password"
-                                    placeholder="Mot de passe"
-                                    className="pl-10 h-12 bg-muted/50 border-0 focus-visible:ring-primary text-base"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    disabled={loading}
-                                    required
-                                />
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="email" className="text-sm font-medium">
+                                        Email
+                                    </Label>
+                                    <div className="relative">
+                                        <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                                        <Input
+                                            id="email"
+                                            type="email"
+                                            placeholder="exemple@email.com"
+                                            className="pl-10 h-12 bg-muted/50 border-0 focus-visible:ring-primary text-base"
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            disabled={loading}
+                                            required
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="password" className="text-sm font-medium">
+                                        Mot de passe
+                                    </Label>
+                                    <div className="relative">
+                                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                                        <Input
+                                            id="password"
+                                            type="password"
+                                            placeholder="Votre mot de passe"
+                                            className="pl-10 h-12 bg-muted/50 border-0 focus-visible:ring-primary text-base"
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            disabled={loading}
+                                            required
+                                        />
+                                    </div>
+                                </div>
                             </div>
                         </CardContent>
                         <CardFooter className="bg-background/20 p-6 flex-col gap-4">
@@ -203,15 +231,17 @@ function LoginForm() {
                                 className="w-full font-semibold text-lg py-7 shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow"
                                 disabled={loading || !email || !password}
                             >
-                                {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : "Se connecter"}
+                                {loading ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                        Connexion...
+                                    </>
+                                ) : (
+                                    "Se connecter"
+                                )}
                             </Button>
-                            <p className="text-xs text-muted-foreground">
-                                Pas encore de compte ?{' '}
-                                <Button variant="link" className="p-0 h-auto text-xs" asChild>
-                                    <Link href="#">
-                                        S'inscrire !
-                                    </Link>
-                                </Button>
+                            <p className="text-xs text-muted-foreground text-center">
+                                Pour les comptes de démo, utilisez le mot de passe: <strong>password</strong>
                             </p>
                         </CardFooter>
                     </form>
@@ -219,9 +249,4 @@ function LoginForm() {
             </div>
         </div>
     );
-}
-
-// Export principal
-export default function LoginPage() {
-    return <LoginForm />;
 }
