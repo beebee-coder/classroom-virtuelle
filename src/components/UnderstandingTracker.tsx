@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { ScrollArea } from './ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { useState, useEffect, useRef } from 'react';
-import { ComprehensionLevel } from '@/lib/types';
+import { ComprehensionLevel } from '@/types';
 
 interface UnderstandingTrackerProps {
   students: User[];

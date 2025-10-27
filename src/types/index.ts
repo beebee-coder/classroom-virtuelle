@@ -21,14 +21,19 @@ import type {
 
 import type { Instance as PeerInstance, SignalData as PeerSignalData } from 'simple-peer';
 import { TLEditorSnapshot } from "@tldraw/tldraw";
-import { ComprehensionLevel } from '@/lib/types';
 
 // Re-export des types Prisma de base si nécessaire ailleurs, mais il vaut mieux importer directement.
 export * from '@prisma/client';
 
-// Types composites et spécifiques à l'application
-export type ClassroomWithDetails = import('@prisma/client').Classroom & { eleves: (import('@prisma/client').User & { etat: import('@prisma/client').EtatEleve | null })[] };
+// Enum pour les niveaux de compréhension
+export enum ComprehensionLevel {
+  UNDERSTOOD = 'understood',
+  CONFUSED = 'confused',
+  LOST = 'lost',
+  NONE = 'none',
+}
 
+// Type défini manuellement car il n'est pas un modèle Prisma
 export type DocumentInHistory = {
   id: string;
   name: string;
@@ -36,6 +41,12 @@ export type DocumentInHistory = {
   createdAt: Date;
   coursSessionId: string;
 };
+
+
+// Types composites et spécifiques à l'application
+export type ClassroomWithDetails = PrismaClassroom & { eleves: (PrismaUser & { etat: PrismaEtatEleve | null })[] };
+
+export type SessionParticipant = Pick<PrismaUser, 'id' | 'name' | 'role'>;
 
 // Types pour Pusher
  export interface PusherMember {
@@ -69,67 +80,12 @@ export type DocumentInHistory = {
     isReturnSignal?: boolean;
   }
   
-  // Types pour les événements de session
-  export  interface SpotlightEvent {
-    participantId: string;
-  }
-  
-  export  interface HandRaiseEvent {
-    userId: string;
-    isRaised: boolean;
-  }
-  
-  export  interface UnderstandingEvent {
-    userId: string;
-    status: ComprehensionLevel;
-  }
-  
-  export  interface TimerEvent {
-    duration?: number;
-    timeLeft?: number;
-    isRunning?: boolean;
-  }
-  
-  export  interface ToolEvent {
-    tool: string;
-  }
-  
-  export interface DocumentEvent {
-    name: string;
-    url: string;
-    newHistory: DocumentInHistory[];
-  }
-  
-  // Définition de types locaux
-  export  interface PeerData {
-    id: string;
-    peer: PeerInstance;
-  }
-  
-  export  interface RemoteParticipant {
-    id: string;
-    stream: MediaStream | undefined;
-  }
-  
-  export type ActiveTool = 'whiteboard' | 'document' | 'quiz' | 'camera';
-  
   export  interface SessionClientProps {
     sessionId: string;
-    initialStudents: import('@prisma/client').User[];
-    initialTeacher: import('@prisma/client').User;
-    currentUserRole: import('@prisma/client').Role;
+    initialStudents: PrismaUser[];
+    initialTeacher: PrismaUser;
+    currentUserRole: PrismaRole;
     currentUserId: string;
     classroom: ClassroomWithDetails | null;
     initialDocumentHistory: DocumentInHistory[];
   }
-
-  export interface WhiteboardUpdateEvent {
-    senderId: string;
-    snapshot: TLEditorSnapshot;
-  }
-
-  export interface WhiteboardControllerEvent {
-    controllerId: string;
-  }
-  
-export type SessionParticipant = Pick<import('@prisma/client').User, 'id' | 'name' | 'role'>;

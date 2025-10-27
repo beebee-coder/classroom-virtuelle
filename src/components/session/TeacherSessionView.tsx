@@ -12,7 +12,7 @@ import { HandRaiseController } from '../HandRaiseController';
 import { UnderstandingTracker } from '../UnderstandingTracker';
 import { Whiteboard } from '../Whiteboard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { ComprehensionLevel } from '@/lib/types';
+import { ComprehensionLevel } from '@/types';
 import { ClassStudentList } from './ClassStudentList';
 import { Loader2, UploadCloud, File, Trash2, Share2, Award, Users, Grid, Presentation } from 'lucide-react';
 import { CloudinaryUploadWidget } from '../CloudinaryUploadWidget';
@@ -83,7 +83,7 @@ export function TeacherSessionView({
     timerTimeLeft,
     isTimerRunning,
     onStartTimer,
-    onPauseTimer,
+onPauseTimer,
     onResetTimer,
     onWhiteboardPersist,
     whiteboardSnapshot

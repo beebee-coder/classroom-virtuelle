@@ -8,7 +8,7 @@ import { authOptions } from '@/lib/auth-options';
 import prisma from '../prisma';
 import type { CoursSession, User } from '@prisma/client';
 import { Role } from '@prisma/client';
-import { ComprehensionLevel } from '@/lib/types';
+import { ComprehensionLevel } from '@/types';
 
 
 

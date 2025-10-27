@@ -15,7 +15,7 @@ import { StudentSessionView } from './session/StudentSessionView';
 import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';
 import { endCoursSession, broadcastTimerEvent, broadcastActiveTool, updateStudentSessionStatus, shareDocument } from '@/lib/actions/session.actions';
-import { ComprehensionLevel } from '@/lib/types';
+import { ComprehensionLevel } from '@/types';
 import { TLEditorSnapshot } from '@tldraw/tldraw';
 import { useWhiteboardSync } from '@/hooks/useWhiteboardSync';
 
