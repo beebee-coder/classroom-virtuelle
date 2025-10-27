@@ -32,12 +32,12 @@ function WhiteboardEditorLogic({
 
   // Charger le snapshot initial
   useEffect(() => {
-    if (initialSnapshot && editor.store) {
+    if (initialSnapshot && editor) {
       try {
         // Pour éviter de recharger le même snapshot, on peut faire une comparaison simple
-        const currentSnapshot = editor.store.getSnapshot();
+        const currentSnapshot = editor.getSnapshot();
         if (JSON.stringify(currentSnapshot.store) !== JSON.stringify(initialSnapshot.store)) {
-          editor.store.loadSnapshot(initialSnapshot);
+          editor.loadSnapshot(initialSnapshot);
         }
       } catch (error) {
         console.error("Erreur lors du chargement du snapshot:", error);
@@ -50,7 +50,7 @@ function WhiteboardEditorLogic({
     if (!isController) return;
 
     const handleChange = () => {
-      const snapshot = editor.store.getSnapshot();
+      const snapshot = editor.getSnapshot();
       onPersist(snapshot);
     };
 
