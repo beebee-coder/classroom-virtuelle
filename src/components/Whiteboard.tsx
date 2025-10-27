@@ -1,3 +1,4 @@
+
 // src/components/Whiteboard.tsx
 'use client';
 import { Tldraw, useEditor, TLStoreSnapshot, TLRecord, StoreSnapshot } from '@tldraw/tldraw';
@@ -35,7 +36,7 @@ function WhiteboardEditorLogic({
     if (initialSnapshot && editor) {
       try {
         const currentStoreSnapshot = editor.store.getSnapshot('document');
-        if (JSON.stringify(currentStoreSnapshot.store) !== JSON.stringify(initialSnapshot.store)) {
+        if (JSON.stringify(currentStoreSnapshot) !== JSON.stringify(initialSnapshot)) {
           editor.store.loadSnapshot(initialSnapshot);
         }
       } catch (error) {
