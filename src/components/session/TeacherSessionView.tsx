@@ -18,7 +18,7 @@ import { Loader2, UploadCloud, File, Trash2, Share2, Award, Users, Grid, Present
 import { CloudinaryUploadWidget } from '../CloudinaryUploadWidget';
 import { Button } from '../ui/button';
 import { shareDocument } from '@/lib/actions/session.actions';
-import { TLStoreSnapshot } from '@tldraw/tldraw';
+import { TLEditorSnapshot } from '@tldraw/tldraw';
 import { SessionStatus } from './SessionStatus';
 import { SessionTimer } from './SessionTimer';
 import { DocumentHistory } from './DocumentHistory';
@@ -52,8 +52,8 @@ interface TeacherSessionViewProps {
     onStartTimer: () => void;
     onPauseTimer: () => void;
     onResetTimer: (newDuration?: number) => void;
-    onWhiteboardPersist: (snapshot: TLStoreSnapshot) => void;
-    whiteboardSnapshot: TLStoreSnapshot | null;
+    onWhiteboardPersist: (snapshot: TLEditorSnapshot) => void;
+    whiteboardSnapshot: TLEditorSnapshot | null;
 }
 
 export function TeacherSessionView({

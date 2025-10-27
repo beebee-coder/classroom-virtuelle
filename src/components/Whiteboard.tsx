@@ -1,65 +1,60 @@
 // src/components/Whiteboard.tsx
 'use client';
-import { Tldraw, useEditor, TLStoreSnapshot, TLRecord } from '@tldraw/tldraw';
+import { Tldraw, useEditor, TLEditorSnapshot } from '@tldraw/tldraw';
 import '@tldraw/tldraw/tldraw.css';
-import { useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
 
 interface WhiteboardProps {
   sessionId: string;
-  onWhiteboardPersist: (snapshot: TLStoreSnapshot) => void;
-  whiteboardSnapshot: TLStoreSnapshot | null;
+  onWhiteboardPersist: (snapshot: TLEditorSnapshot) => void;
+  whiteboardSnapshot: TLEditorSnapshot | null;
   whiteboardControllerId: string | null;
   currentUserId: string;
 }
 
-function EditorManager({ 
-  onPersist, 
-  initialSnapshot, 
-  isController 
-}: { 
-  onPersist: (snapshot: TLStoreSnapshot) => void;
-  initialSnapshot: TLStoreSnapshot | null;
-  isController: boolean;
+function WhiteboardEditorLogic({
+    onPersist,
+    initialSnapshot,
+    isController
+}: {
+    onPersist: (snapshot: TLEditorSnapshot) => void;
+    initialSnapshot: TLEditorSnapshot | null;
+    isController: boolean;
 }) {
-  const editor = useEditor();
+    const editor = useEditor();
 
-  useEffect(() => {
-    editor.updateInstanceState({ isReadonly: !isController });
-  }, [isController, editor]);
+    useEffect(() => {
+        editor.updateInstanceState({ isReadonly: !isController });
+    }, [isController, editor]);
 
-  useEffect(() => {
-    if (initialSnapshot) {
-      try {
-        // Compare current store to avoid unnecessary reloads
-        const currentStore = editor.store.getSnapshot('document');
-        if (JSON.stringify(currentStore) !== JSON.stringify(initialSnapshot)) {
-          editor.store.loadSnapshot(initialSnapshot);
+    useEffect(() => {
+        if (initialSnapshot) {
+            // Compare stringified snapshots to avoid re-loading on minor UI changes
+            if (JSON.stringify(initialSnapshot) !== JSON.stringify(editor.getSnapshot())) {
+                editor.loadSnapshot(initialSnapshot);
+            }
         }
-      } catch (error) {
-        console.error("Erreur lors du chargement du snapshot:", error);
-      }
-    }
-  }, [editor, initialSnapshot]);
+    }, [editor, initialSnapshot]);
 
-  useEffect(() => {
-    if (!isController) return;
+    useEffect(() => {
+        if (!isController) return;
 
-    const handleChange = () => {
-      const snapshot = editor.store.getSnapshot('document');
-      onPersist(snapshot);
-    };
+        const handleChange = () => {
+            const snapshot = editor.getSnapshot();
+            onPersist(snapshot);
+        };
 
-    const debouncedHandleChange = debounce(handleChange, 200);
+        const debouncedHandleChange = debounce(handleChange, 200);
 
-    const unsubscribe = editor.store.listen(debouncedHandleChange, {
-      scope: 'document',
-      source: 'user',
-    });
+        const unsubscribe = editor.store.listen(debouncedHandleChange, {
+            scope: 'document',
+            source: 'user',
+        });
 
-    return () => unsubscribe();
-  }, [editor, onPersist, isController]);
+        return () => unsubscribe();
+    }, [editor, onPersist, isController]);
 
-  return null;
+    return null;
 }
 
 export function Whiteboard({ 
@@ -89,7 +84,7 @@ export function Whiteboard({
           forceMobile={false}
           autoFocus={false}
         >
-          <EditorManager 
+          <WhiteboardEditorLogic 
             onPersist={onWhiteboardPersist}
             initialSnapshot={whiteboardSnapshot}
             isController={isController}

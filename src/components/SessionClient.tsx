@@ -16,7 +16,7 @@ import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';
 import { endCoursSession, broadcastTimerEvent, broadcastActiveTool, updateStudentSessionStatus } from '@/lib/actions/session.actions';
 import { ComprehensionLevel } from '@/types';
-import { TLStoreSnapshot } from '@tldraw/tldraw';
+import { TLEditorSnapshot } from '@tldraw/tldraw';
 import { useWhiteboardSync } from '@/hooks/useWhiteboardSync';
 import { broadcastWhiteboardUpdate } from '@/lib/actions/whiteboard.actions';
 
@@ -72,7 +72,7 @@ export default function SessionClient({
   } = useWhiteboardSync(sessionId, null);
   const [whiteboardControllerId, setWhiteboardControllerId] = useState<string | null>(initialTeacher.id);
   
-  const handleWhiteboardPersist = useCallback((snapshot: TLStoreSnapshot) => {
+  const handleWhiteboardPersist = useCallback((snapshot: TLEditorSnapshot) => {
     persistWhiteboardSnapshot(snapshot);
   }, [persistWhiteboardSnapshot]);
 
