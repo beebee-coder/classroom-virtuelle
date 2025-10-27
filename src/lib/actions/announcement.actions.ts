@@ -44,6 +44,7 @@ export async function createAnnouncement(formData: FormData) {
   
   // Invalider le cache Redis
   if (redis) {
+    try {
       if (target === 'public') {
           await redis.del(PUBLIC_ANNOUNCEMENTS_CACHE_KEY);
       } else {
@@ -56,6 +57,9 @@ export async function createAnnouncement(formData: FormData) {
       // Invalider le cache public car les annonces publiques sont aussi retournées pour les classes/étudiants
       await redis.del(PUBLIC_ANNOUNCEMENTS_CACHE_KEY);
       console.log('🔄 Cache Redis pour les annonces invalidé.');
+    } catch (e) {
+      console.error('Erreur lors de l\'invalidation du cache Redis pour les annonces :', e);
+    }
   }
 
   // Revalidation des chemins
@@ -72,11 +76,15 @@ export async function createAnnouncement(formData: FormData) {
 export const getPublicAnnouncements = cache(async (limit: number = 3): Promise<AnnouncementWithAuthor[]> => {
     const cacheKey = PUBLIC_ANNOUNCEMENTS_CACHE_KEY;
     if (redis) {
+      try {
         const cached = await redis.get(cacheKey);
         if (cached) {
             console.log('⚡️ [CACHE] Annonces publiques servies depuis Redis.');
             return JSON.parse(cached);
         }
+      } catch (e) {
+        console.error('Erreur lors de la lecture du cache Redis pour les annonces publiques :', e);
+      }
     }
 
     console.log(`📢 [DB] - Récupération de ${limit} annonces publiques.`);
@@ -94,7 +102,11 @@ export const getPublicAnnouncements = cache(async (limit: number = 3): Promise<A
     });
 
     if (redis) {
+      try {
         await redis.set(cacheKey, JSON.stringify(announcements), 'EX', 3600); // Cache pour 1 heure
+      } catch (e) {
+        console.error('Erreur lors de l\'écriture dans le cache Redis pour les annonces publiques :', e);
+      }
     }
 
     return announcements;
@@ -103,11 +115,15 @@ export const getPublicAnnouncements = cache(async (limit: number = 3): Promise<A
 export async function getStudentAnnouncements(studentId: string): Promise<AnnouncementWithAuthor[]> {
     const cacheKey = STUDENT_ANNOUNCEMENTS_CACHE_KEY(studentId);
     if(redis) {
+      try {
         const cached = await redis.get(cacheKey);
         if(cached) {
             console.log(`⚡️ [CACHE] Annonces pour l'élève ${studentId} servies depuis Redis.`);
             return JSON.parse(cached);
         }
+      } catch (e) {
+        console.error(`Erreur lors de la lecture du cache Redis pour les annonces de l'élève ${studentId} :`, e);
+      }
     }
 
     console.log(`📢 [DB] - Récupération des annonces pour l'élève ${studentId}.`);
@@ -132,7 +148,11 @@ export async function getStudentAnnouncements(studentId: string): Promise<Announ
     });
 
     if(redis) {
+      try {
         await redis.set(cacheKey, JSON.stringify(announcements), 'EX', 3600); // Cache 1 heure
+      } catch (e) {
+        console.error(`Erreur lors de l'écriture dans le cache Redis pour les annonces de l'élève ${studentId} :`, e);
+      }
     }
     
     return announcements;
@@ -141,11 +161,15 @@ export async function getStudentAnnouncements(studentId: string): Promise<Announ
 export async function getClassAnnouncements(classroomId: string): Promise<AnnouncementWithAuthor[]> {
     const cacheKey = CLASS_ANNOUNCEMENTS_CACHE_KEY(classroomId);
     if(redis) {
+      try {
         const cached = await redis.get(cacheKey);
         if(cached) {
              console.log(`⚡️ [CACHE] Annonces pour la classe ${classroomId} servies depuis Redis.`);
             return JSON.parse(cached);
         }
+      } catch (e) {
+         console.error(`Erreur lors de la lecture du cache Redis pour les annonces de la classe ${classroomId} :`, e);
+      }
     }
 
     console.log(`📢 [DB] - Récupération des annonces pour la classe ${classroomId}.`);
@@ -167,7 +191,11 @@ export async function getClassAnnouncements(classroomId: string): Promise<Announ
     });
 
     if(redis) {
+      try {
         await redis.set(cacheKey, JSON.stringify(announcements), 'EX', 3600);
+      } catch (e) {
+         console.error(`Erreur lors de l'écriture dans le cache Redis pour les annonces de la classe ${classroomId} :`, e);
+      }
     }
     
     return announcements;

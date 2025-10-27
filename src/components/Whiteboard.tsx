@@ -31,7 +31,13 @@ function EditorManager({
 
   // Charger le snapshot initial
   useEffect(() => {
-    if (initialSnapshot) {
+    if (initialSnapshot && editor.store) {
+      // Comparaison simple pour éviter de recharger le même snapshot
+      const currentDocId = editor.document.id;
+      const newDocId = initialSnapshot.store['document:document']?.id;
+      
+      if (newDocId && currentDocId === newDocId) return;
+
       try {
         editor.store.loadSnapshot(initialSnapshot);
       } catch (error) {

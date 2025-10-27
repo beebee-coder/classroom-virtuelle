@@ -6,16 +6,11 @@ declare global {
   var prisma: PrismaClient | undefined;
 }
 
-// Correction du typage pour les options Prisma
+// L'URL de la base de données est lue depuis .env via schema.prisma, pas besoin de la spécifier ici.
 const prismaClientOptions: Prisma.PrismaClientOptions = {
   log: process.env.NODE_ENV === 'development' 
     ? ['query', 'error', 'warn'] as Prisma.LogLevel[]
     : ['error'] as Prisma.LogLevel[],
-  datasources: {
-    db: {
-      url: process.env.DATABASE_URL,
-    },
-  },
 };
 
 const prisma = global.prisma || new PrismaClient(prismaClientOptions);

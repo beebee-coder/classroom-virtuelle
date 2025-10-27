@@ -20,7 +20,7 @@ import type {
 } from '@prisma/client';
 
 import type { Instance as PeerInstance, SignalData as PeerSignalData } from 'simple-peer';
-import { TLEditorSnapshot } from "@tldraw/tldraw";
+import { TLStoreSnapshot } from "@tldraw/tldraw";
 
 // Re-export des types Prisma de base si nécessaire ailleurs, mais il vaut mieux importer directement.
 export * from '@prisma/client';

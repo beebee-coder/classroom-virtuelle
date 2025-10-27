@@ -16,7 +16,7 @@ import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';
 import { endCoursSession, broadcastTimerEvent, broadcastActiveTool, updateStudentSessionStatus } from '@/lib/actions/session.actions';
 import { ComprehensionLevel } from '@/types';
-import { TLEditorSnapshot } from '@tldraw/tldraw';
+import { TLStoreSnapshot } from '@tldraw/tldraw';
 import { useWhiteboardSync } from '@/hooks/useWhiteboardSync';
 
 interface DocumentSharedEvent {
@@ -67,12 +67,21 @@ export default function SessionClient({
 
   const {
       whiteboardSnapshot,
-      setWhiteboardSnapshot,
-      whiteboardControllerId,
-      setWhiteboardControllerId,
       persistWhiteboardSnapshot,
-      broadcastControllerChange,
-  } = useWhiteboardSync(sessionId, initialTeacher.id);
+  } = useWhiteboardSync(sessionId, null);
+  const [whiteboardControllerId, setWhiteboardControllerId] = useState<string | null>(initialTeacher.id);
+  
+  const broadcastControllerChange = useCallback(async (newControllerId: string) => {
+    try {
+      await fetch(`/api/session/${sessionId}/whiteboard-controller`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ controllerId: newControllerId }),
+      });
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de changer le contrôleur du tableau blanc.' });
+    }
+  }, [sessionId, toast]);
 
 
   useEffect(() => {

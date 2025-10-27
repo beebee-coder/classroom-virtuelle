@@ -9,7 +9,7 @@ if (!process.env.REDIS_URL) {
 }
 
 // Crée un client Redis. L'option `lazyConnect` empêche la connexion immédiate.
-// L'option `maxRetriesPerRequest` est mise à null pour éviter des erreurs si Redis n'est pas disponible.
+// L'option `maxRetriesPerRequest` est mise à 0 pour éviter des erreurs si Redis n'est pas disponible dans un environnement serverless.
 const redis = process.env.REDIS_URL 
     ? new Redis(process.env.REDIS_URL, { 
         lazyConnect: true,
@@ -17,13 +17,15 @@ const redis = process.env.REDIS_URL
       }) 
     : null;
 
-// Gérer les erreurs de connexion de manière asynchrone
-redis?.on('error', (err) => {
-    console.error('❌ Erreur de connexion Redis:', err.message);
-});
+// Gérer les erreurs de connexion de manière asynchrone pour ne pas bloquer le serveur
+if (redis) {
+    redis.on('error', (err) => {
+        console.error('❌ Erreur de connexion Redis:', err.message);
+    });
 
-redis?.on('connect', () => {
-    console.log('✅ Connecté à Redis avec succès.');
-});
+    redis.on('connect', () => {
+        console.log('✅ Connecté à Redis avec succès.');
+    });
+}
 
 export default redis;

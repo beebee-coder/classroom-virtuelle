@@ -15,6 +15,7 @@ const STUDENT_DATA_CACHE_KEY = (id: string) => `student:${id}`;
 // Fonction pour invalider les caches liés aux tâches
 async function invalidateTaskCaches(studentId?: string) {
     if (redis) {
+      try {
         const pipeline = redis.pipeline();
         pipeline.del(TASKS_CACHE_KEY);
         if (studentId) {
@@ -23,6 +24,9 @@ async function invalidateTaskCaches(studentId?: string) {
         }
         await pipeline.exec();
         console.log(`🔄 Cache Redis pour les tâches (et élève ${studentId}) invalidé.`);
+      } catch(e) {
+        console.error('Erreur lors de l\'invalidation du cache des tâches :', e);
+      }
     }
 }
 

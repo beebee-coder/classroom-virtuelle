@@ -11,7 +11,7 @@ import { StudentSessionControls, ComprehensionLevel } from '../StudentSessionCon
 import { updateStudentSessionStatus } from '@/lib/actions/session.actions';
 import { useToast } from '@/hooks/use-toast';
 import { Whiteboard } from '../Whiteboard';
-import { TLEditorSnapshot } from '@tldraw/tldraw';
+import { TLStoreSnapshot } from '@tldraw/tldraw';
 import { ScrollArea } from '../ui/scroll-area';
 import { SessionTimer } from './SessionTimer';
 import { CardHeader } from '../ui/card';
@@ -30,10 +30,10 @@ interface StudentSessionViewProps {
     currentUserId: string;
     activeTool: string;
     documentUrl: string | null;
-    whiteboardSnapshot: TLEditorSnapshot | null;
+    whiteboardSnapshot: TLStoreSnapshot | null;
     whiteboardControllerId: string | null;
     timerTimeLeft: number;
-    onWhiteboardPersist: (snapshot: TLEditorSnapshot) => void;
+    onWhiteboardPersist: (snapshot: TLStoreSnapshot) => void;
 }
 
 export function StudentSessionView({
