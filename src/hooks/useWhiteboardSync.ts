@@ -23,7 +23,7 @@ export const useWhiteboardSync = (
                     const snapshot = await response.json();
                     if (snapshot) {
                         setWhiteboardSnapshot(snapshot);
-                        console.log('🎨 [TB SYNC] - Snapshot initial chargé depuis Redis.');
+                        console.log('🎨 [TB SYNC] - Snapshot initial chargé depuis l\'API.');
                     }
                 }
             } catch (error) {
