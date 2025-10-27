@@ -1,7 +1,7 @@
 // src/hooks/useWhiteboardSync.ts
 'use client';
 
-import { useState, useCallback, RefObject, useEffect } from 'react';
+import { useState, useCallback, RefObject, useEffect, useRef } from 'react';
 import { TLEditorSnapshot } from '@tldraw/tldraw';
 import type { Instance as PeerInstance } from 'simple-peer';
 
@@ -19,25 +19,36 @@ export const useWhiteboardSync = (
 ) => {
     const [whiteboardSnapshot, setWhiteboardSnapshot] = useState<TLEditorSnapshot | null>(null);
     const [whiteboardControllerId, setWhiteboardControllerId] = useState<string>(initialControllerId);
+    
+    // Références pour s'assurer que les logs n'apparaissent qu'une fois
+    const hasLoggedEmission = useRef(false);
+    const hasLoggedReception = useRef(false);
 
     const handleWhiteboardUpdate = useCallback((data: any) => {
         try {
             const message: WhiteboardMessage = JSON.parse(data.toString());
 
             if (message.type === WHITEBOARD_EVENT_TYPE) {
+                if (!hasLoggedReception.current) {
+                    console.log('📡 [TB RÉCEPTION] - Première donnée de tableau blanc reçue par un observateur.');
+                    hasLoggedReception.current = true;
+                }
                 setWhiteboardSnapshot(message.payload as TLEditorSnapshot);
             } else if (message.type === CONTROLLER_CHANGE_EVENT_TYPE) {
-                // MISE À JOUR : s'assurer que tout le monde met à jour son contrôleur
                 const newControllerId = (message.payload as { controllerId: string }).controllerId;
                 setWhiteboardControllerId(newControllerId);
             }
         } catch (error) {
-            console.error('Erreur lors du traitement du message du tableau blanc:', error);
+            // Ignorer les erreurs de parsing pour les messages non-JSON
         }
     }, []);
 
     const broadcastWhiteboardUpdate = useCallback((snapshot: TLEditorSnapshot) => {
         if (peersRef.current) {
+            if (!hasLoggedEmission.current) {
+                console.log('🎨 [TB ÉMISSION] - Première donnée de tableau blanc envoyée par le contrôleur.');
+                hasLoggedEmission.current = true;
+            }
             const message: WhiteboardMessage = {
                 type: WHITEBOARD_EVENT_TYPE,
                 payload: snapshot
@@ -54,6 +65,7 @@ export const useWhiteboardSync = (
     
     const broadcastControllerChange = useCallback((newControllerId: string) => {
         if (peersRef.current) {
+            console.log(`👑 [TB CONTRÔLE] - Diffusion du changement de contrôleur vers: ${newControllerId}`);
             const message: WhiteboardMessage = {
                 type: CONTROLLER_CHANGE_EVENT_TYPE,
                 payload: { controllerId: newControllerId }
@@ -70,7 +82,6 @@ export const useWhiteboardSync = (
         }
     }, [peersRef]);
 
-    // Attacher/détacher le gestionnaire d'événements 'data' aux pairs
     useEffect(() => {
         const peers = peersRef.current;
         if (peers) {
@@ -91,7 +102,7 @@ export const useWhiteboardSync = (
         whiteboardSnapshot,
         setWhiteboardSnapshot,
         whiteboardControllerId,
-        setWhiteboardControllerId, // Exposer pour les mises à jour locales
+        setWhiteboardControllerId,
         handleWhiteboardUpdate,
         broadcastWhiteboardUpdate,
         broadcastControllerChange,
