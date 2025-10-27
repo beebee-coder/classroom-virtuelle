@@ -29,114 +29,102 @@ type AnnouncementWithAuthor = Announcement & {
 export default async function StudentDashboardPage() {
     console.log('🧑‍🎓 [PAGE] - Chargement du tableau de bord élève.');
 
+    // Authentification
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id || session.user.role !== 'ELEVE') {
+        console.log('🔒 [PAGE ELEVE] - Redirection: utilisateur non authentifié ou non élève');
+        redirect('/login');
+    }
+
+    // Chargement des données de l'élève
+    let student: StudentWithDetails | null = null;
     try {
-        // Authentification
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id || session.user.role !== 'ELEVE') {
-            console.log('🔒 [PAGE ELEVE] - Redirection: utilisateur non authentifié ou non élève');
-            redirect('/login');
-        }
-
-        // Chargement des données de l'élève
-        let student: StudentWithDetails | null = null;
-        try {
-            student = await getStudentData(session.user.id);
-        } catch (studentError) {
-            console.error('❌ [PAGE ELEVE] - Erreur lors du chargement des données élève:', studentError);
-            throw new Error('Impossible de charger vos données. Veuillez réessayer.');
-        }
-
-        if (!student) {
-            console.error('❌ [PAGE ELEVE] - Données de l\'élève non trouvées, redirection.');
-            notFound();
-        }
-
-        console.log('✅ [PAGE ELEVE] - Données de l\'élève chargées:', student.name);
-
-        // Chargement des données supplémentaires avec gestion d'erreur individuelle
-        const metier = student.etat?.metier;
-        const classeId = student.classe?.id;
-
-        let announcements: AnnouncementWithAuthor[] = [];
-        let tasks: Task[] = [];
-
-        try {
-            announcements = await getStudentAnnouncements(student.id);
-            console.log(`✅ [PAGE ELEVE] - ${announcements.length} annonces chargées`);
-        } catch (announcementsError) {
-            console.error('❌ [PAGE ELEVE] - Erreur lors du chargement des annonces:', announcementsError);
-            // On continue avec un tableau vide pour les annonces
-        }
-
-        try {
-            tasks = await prisma.task.findMany({ 
-                where: { isActive: true } 
-            });
-            console.log(`✅ [PAGE ELEVE] - ${tasks.length} tâches chargées`);
-        } catch (tasksError) {
-            console.error('❌ [PAGE ELEVE] - Erreur lors du chargement des tâches:', tasksError);
-            // On continue avec un tableau vide pour les tâches
-        }
-
-        // Récupération de tous les métiers pour le composant client
-        let allCareers: Metier[] = [];
-        try {
-            allCareers = await prisma.metier.findMany();
-            console.log(`✅ [PAGE ELEVE] - ${allCareers.length} métiers chargés`);
-        } catch (careersError) {
-            console.error('❌ [PAGE ELEVE] - Erreur lors du chargement des métiers:', careersError);
-            // On continue avec un tableau vide pour les métiers
-        }
-
-        return (
-            <CareerThemeWrapper career={metier ?? undefined}>
-                <SidebarProvider>
-                    <div className="flex flex-col min-h-screen w-full">
-                        <Header user={session.user}>
-                            <SidebarTrigger />
-                            {classeId && session.user.role && (
-                                <ChatSheet 
-                                    classroomId={classeId} 
-                                    userId={session.user.id} 
-                                    userRole={session.user.role} 
-                                />
-                            )}
-                        </Header>
-                        <div className="flex flex-1">
-                            <Sidebar>
-                                <SidebarContent>
-                                    <Menu user={session.user} />
-                                </SidebarContent>
-                            </Sidebar>
-                            <SidebarInset>
-                                <StudentPageClient
-                                    student={student}
-                                    announcements={announcements}
-                                    allCareers={allCareers}
-                                    isTeacherView={false}
-                                    tasks={tasks}
-                                    user={session.user}
-                                />
-                            </SidebarInset>
-                        </div>
-                    </div>
-                </SidebarProvider>
-            </CareerThemeWrapper>
-        );
-
-    } catch (error) {
-        console.error('💥 [PAGE ELEVE] - Erreur critique lors du chargement du tableau de bord:', error);
-
-        // Si c'est une erreur de données élève, on redirige vers login
-        if (error instanceof Error && error.message.includes('Impossible de charger vos données')) {
-            redirect('/login');
-        }
-
-        // Pour les autres erreurs, on affiche une page d'erreur
+        student = await getStudentData(session.user.id);
+    } catch (studentError) {
+        console.error('❌ [PAGE ELEVE] - Erreur lors du chargement des données élève:', studentError);
+        // Afficher une page d'erreur si les données de base ne peuvent être chargées
         return (
             <StudentDashboardError 
-                message="Impossible de charger votre tableau de bord. Veuillez vérifier votre connexion et réessayer." 
+                message="Impossible de charger vos données. Veuillez vérifier votre connexion et réessayer." 
             />
         );
     }
+
+    if (!student) {
+        console.error('❌ [PAGE ELEVE] - Données de l\'élève non trouvées, affichage de la page Not Found.');
+        // Si l'élève n'est pas trouvé dans la DB, c'est une condition "Not Found"
+        notFound();
+    }
+
+    console.log('✅ [PAGE ELEVE] - Données de l\'élève chargées:', student.name);
+
+    // Chargement des données supplémentaires avec gestion d'erreur individuelle
+    const metier = student.etat?.metier;
+    const classeId = student.classe?.id;
+
+    let announcements: AnnouncementWithAuthor[] = [];
+    let tasks: Task[] = [];
+    let allCareers: Metier[] = [];
+
+    try {
+        announcements = await getStudentAnnouncements(student.id);
+        console.log(`✅ [PAGE ELEVE] - ${announcements.length} annonces chargées`);
+    } catch (announcementsError) {
+        console.error('❌ [PAGE ELEVE] - Erreur lors du chargement des annonces:', announcementsError);
+        // On continue avec un tableau vide pour les annonces
+    }
+
+    try {
+        tasks = await prisma.task.findMany({ 
+            where: { isActive: true } 
+        });
+        console.log(`✅ [PAGE ELEVE] - ${tasks.length} tâches chargées`);
+    } catch (tasksError) {
+        console.error('❌ [PAGE ELEVE] - Erreur lors du chargement des tâches:', tasksError);
+        // On continue avec un tableau vide pour les tâches
+    }
+
+    try {
+        allCareers = await prisma.metier.findMany();
+        console.log(`✅ [PAGE ELEVE] - ${allCareers.length} métiers chargés`);
+    } catch (careersError) {
+        console.error('❌ [PAGE ELEVE] - Erreur lors du chargement des métiers:', careersError);
+        // On continue avec un tableau vide pour les métiers
+    }
+
+    return (
+        <CareerThemeWrapper career={metier ?? undefined}>
+            <SidebarProvider>
+                <div className="flex flex-col min-h-screen w-full">
+                    <Header user={session.user}>
+                        <SidebarTrigger />
+                        {classeId && session.user.role && (
+                            <ChatSheet 
+                                classroomId={classeId} 
+                                userId={session.user.id} 
+                                userRole={session.user.role} 
+                            />
+                        )}
+                    </Header>
+                    <div className="flex flex-1">
+                        <Sidebar>
+                            <SidebarContent>
+                                <Menu user={session.user} />
+                            </SidebarContent>
+                        </Sidebar>
+                        <SidebarInset>
+                            <StudentPageClient
+                                student={student}
+                                announcements={announcements}
+                                allCareers={allCareers}
+                                isTeacherView={false}
+                                tasks={tasks}
+                                user={session.user}
+                            />
+                        </SidebarInset>
+                    </div>
+                </div>
+            </SidebarProvider>
+        </CareerThemeWrapper>
+    );
 }
