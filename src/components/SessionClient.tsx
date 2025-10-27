@@ -174,6 +174,7 @@ export default function SessionClient({
             userId: currentUserId,
             target: targetUserId,
             signal,
+            isReturnSignal: !initiator
         });
     });
 
@@ -198,6 +199,8 @@ export default function SessionClient({
   }, [sessionId, currentUserId, cleanupPeerConnection, localStream, handleWhiteboardUpdate]);
 
   useEffect(() => {
+    if (!localStream) return;
+
     const channelName = `presence-session-${sessionId}`;
     const channel = pusherClient.subscribe(channelName);
 
@@ -207,8 +210,7 @@ export default function SessionClient({
         const otherUserIds = memberIds.filter(id => id !== currentUserId);
         
         otherUserIds.forEach(userId => {
-            if (currentUserId < userId) {
-                console.log(`[INITIATE] Règle: J'initie vers ${userId}`);
+            if (currentUserId > userId) {
                 const peer = createPeer(userId, true);
                 peersRef.current.set(userId, peer);
             }
@@ -217,8 +219,7 @@ export default function SessionClient({
 
     channel.bind('pusher:member_added', (member: { id: string }) => {
         setOnlineUserIds(prev => [...new Set([...prev, member.id])]);
-        if (currentUserId < member.id) {
-            console.log(`[INITIATE] Règle: J'initie vers le nouvel arrivant ${member.id}`);
+        if (currentUserId > member.id) {
             const peer = createPeer(member.id, true);
             peersRef.current.set(member.id, peer);
         }
@@ -235,16 +236,16 @@ export default function SessionClient({
         let peer = peersRef.current.get(data.userId);
         
         if (!peer) {
-            if (data.signal.type === 'offer') {
+             if (data.signal.type === 'offer') {
                 if (currentUserId < data.userId) {
+                    // This should not happen with the strict initiator rule, but as a safeguard.
                     console.warn(`[GLARE] J'ai reçu une offre de ${data.userId} mais j'aurais dû initier. Je l'ignore.`);
                     return;
                 }
-                console.log(`[RESPOND] Je réponds à l'offre de ${data.userId}`);
                 peer = createPeer(data.userId, false);
                 peersRef.current.set(data.userId, peer);
             } else {
-                 console.warn(`[SIGNAL] Signal reçu pour un peer non-existant de ${data.userId}.`);
+                 // If we get an answer/ICE candidate for a peer that doesn't exist, we can ignore it.
                  return;
             }
         }
@@ -254,7 +255,6 @@ export default function SessionClient({
         }
     });
 
-    // ... autres gestionnaires d'événements ...
     const handleSessionEnded = (): void => {
         toast({ title: 'Session terminée', description: 'Le professeur a mis fin à la session.' });
         router.push(currentUserRole === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard');
@@ -274,8 +274,6 @@ export default function SessionClient({
       toast({ title: 'Document partagé', description: `Le professeur a partagé un nouveau document.` });
     });
     
-    // Les événements du tableau blanc sont gérés par le hook `useWhiteboardSync` via les data channels
-    // mais on garde le changement de contrôleur via Pusher car c'est un événement peu fréquent.
     channel.bind('whiteboard-controller-update', (data: { controllerId: string }) => setWhiteboardControllerId(data.controllerId));
 
 
@@ -286,7 +284,7 @@ export default function SessionClient({
         peersRef.current.forEach((_, userId) => cleanupPeerConnection(userId));
         peersRef.current.clear();
     };
-  }, [sessionId, currentUserId, createPeer, cleanupPeerConnection, router, toast, currentUserRole, setWhiteboardControllerId]);
+  }, [sessionId, currentUserId, createPeer, cleanupPeerConnection, router, toast, currentUserRole, setWhiteboardControllerId, localStream]);
   
   // ---=== 3. GESTION DU CYCLE DE VIE ET INTERACTIONS ===---
   useEffect(() => {
@@ -407,7 +405,7 @@ export default function SessionClient({
             raisedHands={raisedHands}
             understandingStatus={understandingStatus}
             currentUserId={currentUserId}
-            onScreenShare={() => {}}
+            onScreenShare={() => { } }
             isScreenSharing={false}
             activeTool={activeTool}
             onToolChange={handleToolChange}
@@ -423,7 +421,7 @@ export default function SessionClient({
             onPauseTimer={() => broadcastTimerEvent(sessionId, 'timer-paused')}
             onResetTimer={handleResetTimer}
             onWhiteboardPersist={broadcastWhiteboardUpdate} // Passe la fonction de diffusion
-          />
+            whiteboardSnapshot={null}          />
         ) : (
           <StudentSessionView
             sessionId={sessionId}

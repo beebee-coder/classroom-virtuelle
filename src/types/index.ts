@@ -1,6 +1,24 @@
 // src/types/index.ts
 // Importer les types depuis notre source de vérité unique
-import type { User, Role, Classroom, EtatEleve, Document as PrismaDocument } from '@/lib/types';
+import type { 
+    User as PrismaUser,
+    Classroom as PrismaClassroom,
+    Metier as PrismaMetier,
+    CoursSession as PrismaCoursSession,
+    Task as PrismaTask,
+    StudentProgress as PrismaStudentProgress,
+    Reaction as PrismaReaction,
+    Message as PrismaMessage,
+    Announcement as PrismaAnnouncement,
+    EtatEleve as PrismaEtatEleve,
+    Role as PrismaRole,
+    TaskType as PrismaTaskType,
+    TaskCategory as PrismaTaskCategory,
+    TaskDifficulty as PrismaTaskDifficulty,
+    ValidationType as PrismaValidationType,
+    ProgressStatus as PrismaProgressStatus
+} from '@prisma/client';
+
 import type { Instance as PeerInstance, SignalData as PeerSignalData } from 'simple-peer';
 import { TLEditorSnapshot } from "@tldraw/tldraw";
 import { ComprehensionLevel } from '@/lib/types';
