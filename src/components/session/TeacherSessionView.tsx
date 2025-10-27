@@ -1,7 +1,7 @@
 // src/components/session/TeacherSessionView.tsx
 'use client';
 
-import { useState, type ReactNode, useEffect, useMemo } from 'react';
+import { useState, type ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { User, Role } from '@prisma/client';
@@ -14,7 +14,7 @@ import { Whiteboard } from '../Whiteboard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { ComprehensionLevel } from '@/lib/types';
 import { ClassStudentList } from './ClassStudentList';
-import { Loader2, UploadCloud, File, Trash2, Share2, Award } from 'lucide-react';
+import { Loader2, UploadCloud, File, Trash2, Share2, Award, Users, Grid, Presentation } from 'lucide-react';
 import { CloudinaryUploadWidget } from '../CloudinaryUploadWidget';
 import { Button } from '../ui/button';
 import { shareDocument } from '@/lib/actions/session.actions';
@@ -23,6 +23,7 @@ import { SessionStatus } from './SessionStatus';
 import { SessionTimer } from './SessionTimer';
 import { DocumentHistory } from './DocumentHistory';
 import { DocumentViewer } from './DocumentViewer';
+import { cn } from '@/lib/utils';
 
 
 interface TeacherSessionViewProps {
@@ -53,6 +54,7 @@ interface TeacherSessionViewProps {
     onPauseTimer: () => void;
     onResetTimer: (newDuration?: number) => void;
     onWhiteboardPersist: (snapshot: TLEditorSnapshot) => void;
+    whiteboardSnapshot: TLEditorSnapshot | null
 }
 
 
@@ -85,7 +87,8 @@ export function TeacherSessionView({
     onResetTimer,
     onWhiteboardPersist,
     whiteboardSnapshot
-}: TeacherSessionViewProps & { whiteboardSnapshot: TLEditorSnapshot | null }) {
+}: TeacherSessionViewProps) {
+    const [teacherView, setTeacherView] = useState<'content' | 'grid'>('content');
     const remoteStreamsMap = new Map(remoteParticipants.map(p => [p.id, p.stream]));
     
     const studentsWithRaisedHands = allSessionUsers.filter(u => u.role === 'ELEVE' && raisedHands.has(u.id)) as User[];
@@ -130,6 +133,12 @@ export function TeacherSessionView({
         shareDocument(sessionId, { name: doc.name, url: doc.url });
     }
 
+    const handleSpotlightAndSwitch = useCallback((participantId: string) => {
+        onSpotlightParticipant(participantId);
+        onToolChange('camera');
+        setTeacherView('content');
+    }, [onSpotlightParticipant, onToolChange]);
+
     const renderParticipant = (participant: SessionParticipant, isDuplicate = false) => {
         const stream = participant.id === teacher.id ? localStream : remoteStreamsMap.get(participant.id);
         const key = `${participant.id}-${isDuplicate ? 'duplicate' : 'original'}`;
@@ -143,7 +152,7 @@ export function TeacherSessionView({
                     isSpotlighted={participant.id === spotlightedUser?.id}
                     isTeacher={true}
                     participantUserId={participant.id}
-                    onSpotlightParticipant={onSpotlightParticipant}
+                    onSpotlightParticipant={handleSpotlightAndSwitch}
                     displayName={participant.name ?? ''}
                     isHandRaised={raisedHands.has(participant.id)}
                     onSetWhiteboardController={onWhiteboardControllerChange}
@@ -156,7 +165,7 @@ export function TeacherSessionView({
                 key={key}
                 student={participant as User}
                 isOnline={classOnlineIds.includes(participant.id)}
-                onSpotlightParticipant={onSpotlightParticipant}
+                onSpotlightParticipant={handleSpotlightAndSwitch}
                 isHandRaised={raisedHands.has(participant.id)}
             />
         );
@@ -262,11 +271,28 @@ export function TeacherSessionView({
     return (
         <div className="flex-1 flex min-h-0 min-w-0">
             <div className="flex-1 flex flex-col min-h-0 min-w-0">
-                 <div className="flex-1 min-h-0 relative">
-                    {renderActiveTool()}
+                <div className="p-4 border-b flex justify-between items-center">
+                    <h2 className="text-lg font-semibold">Vue du Professeur</h2>
+                    <div className="flex items-center gap-2">
+                        <Button variant={teacherView === 'content' ? 'default' : 'outline'} size="sm" onClick={() => setTeacherView('content')}>
+                           <Presentation className="mr-2 h-4 w-4" /> Contenu Principal
+                        </Button>
+                        <Button variant={teacherView === 'grid' ? 'default' : 'outline'} size="sm" onClick={() => setTeacherView('grid')}>
+                            <Grid className="mr-2 h-4 w-4" /> Grille des Participants
+                        </Button>
+                    </div>
                 </div>
-                <div className="w-full overflow-hidden relative mt-6">
-                    <div className="marquee-container flex space-x-4 px-2 hover:[animation-play-state:paused]">
+                 <div className="flex-1 min-h-0 relative p-4">
+                     {teacherView === 'content' ? renderActiveTool() : (
+                        <ScrollArea className="h-full">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                {allParticipants.map(p => renderParticipant(p))}
+                            </div>
+                        </ScrollArea>
+                     )}
+                </div>
+                <div className="w-full overflow-hidden relative h-32 flex-shrink-0">
+                    <div className="absolute inset-0 marquee-container flex space-x-4 px-2 hover:[animation-play-state:paused]">
                         {allParticipants.map(p => (
                             <div key={p.id} className="w-48 flex-shrink-0">
                                 {renderParticipant(p)}

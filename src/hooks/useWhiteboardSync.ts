@@ -4,6 +4,7 @@
 import { useState, useCallback, RefObject, useEffect, useRef } from 'react';
 import { TLEditorSnapshot } from '@tldraw/tldraw';
 import type { Instance as PeerInstance } from 'simple-peer';
+import { pusherClient } from '../lib/pusher/client';
 
 const WHITEBOARD_EVENT_TYPE = 'whiteboard-update';
 const CONTROLLER_CHANGE_EVENT_TYPE = 'whiteboard-controller-change';
@@ -15,12 +16,12 @@ interface WhiteboardMessage {
 
 export const useWhiteboardSync = (
     initialControllerId: string,
-    peersRef: RefObject<Map<string, PeerInstance>>
+    peersRef: RefObject<Map<string, PeerInstance>>,
+    sessionId: string // Ajout de l'ID de session pour le canal Pusher
 ) => {
     const [whiteboardSnapshot, setWhiteboardSnapshot] = useState<TLEditorSnapshot | null>(null);
     const [whiteboardControllerId, setWhiteboardControllerId] = useState<string>(initialControllerId);
     
-    // Références pour s'assurer que les logs n'apparaissent qu'une fois
     const hasLoggedEmission = useRef(false);
     const hasLoggedReception = useRef(false);
 
@@ -34,13 +35,16 @@ export const useWhiteboardSync = (
                     hasLoggedReception.current = true;
                 }
                 setWhiteboardSnapshot(message.payload as TLEditorSnapshot);
-            } else if (message.type === CONTROLLER_CHANGE_EVENT_TYPE) {
-                const newControllerId = (message.payload as { controllerId: string }).controllerId;
-                setWhiteboardControllerId(newControllerId);
             }
         } catch (error) {
             // Ignorer les erreurs de parsing pour les messages non-JSON
         }
+    }, []);
+
+    // Gérer les changements de contrôleur reçus via Pusher
+    const handleControllerChange = useCallback((data: { controllerId: string }) => {
+        console.log(`👑 [TB CONTRÔLE] - Changement de contrôleur reçu via Pusher: ${data.controllerId}`);
+        setWhiteboardControllerId(data.controllerId);
     }, []);
 
     const broadcastWhiteboardUpdate = useCallback((snapshot: TLEditorSnapshot) => {
@@ -63,24 +67,21 @@ export const useWhiteboardSync = (
         }
     }, [peersRef]);
     
-    const broadcastControllerChange = useCallback((newControllerId: string) => {
-        if (peersRef.current) {
-            console.log(`👑 [TB CONTRÔLE] - Diffusion du changement de contrôleur vers: ${newControllerId}`);
-            const message: WhiteboardMessage = {
-                type: CONTROLLER_CHANGE_EVENT_TYPE,
-                payload: { controllerId: newControllerId }
-            };
-             const messageString = JSON.stringify(message);
-
-            setWhiteboardControllerId(newControllerId); 
-
-            for (const peer of peersRef.current.values()) {
-                if (peer.connected) {
-                    peer.send(messageString);
-                }
-            }
+    // La diffusion du changement de contrôleur se fait via une action serveur et Pusher
+    // pour garantir que tout le monde reçoit le message, même les nouveaux arrivants.
+    const broadcastControllerChange = useCallback(async (newControllerId: string) => {
+        console.log(`👑 [TB CONTRÔLE] - Demande de changement de contrôleur vers: ${newControllerId}`);
+        // L'appel API déclenchera l'événement Pusher pour tous les clients
+        try {
+            await fetch(`/api/session/${sessionId}/whiteboard-controller`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ controllerId: newControllerId }),
+            });
+        } catch (error) {
+            console.error("Erreur lors de la diffusion du changement de contrôleur:", error);
         }
-    }, [peersRef]);
+    }, [sessionId]);
 
     useEffect(() => {
         const peers = peersRef.current;
@@ -89,14 +90,21 @@ export const useWhiteboardSync = (
                 peer.on('data', handleWhiteboardUpdate);
             });
         }
+        
+        const channelName = `presence-session-${sessionId}`;
+        const channel = pusherClient.subscribe(channelName);
+        channel.bind('whiteboard-controller-update', handleControllerChange);
+
         return () => {
             if (peers) {
                 peers.forEach(peer => {
                     peer.off('data', handleWhiteboardUpdate);
                 });
             }
+            channel.unbind('whiteboard-controller-update', handleControllerChange);
+            pusherClient.unsubscribe(channelName);
         };
-    }, [peersRef, handleWhiteboardUpdate]);
+    }, [peersRef, handleWhiteboardUpdate, sessionId, handleControllerChange]);
 
     return {
         whiteboardSnapshot,
