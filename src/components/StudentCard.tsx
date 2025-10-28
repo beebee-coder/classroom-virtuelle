@@ -64,9 +64,14 @@ export function StudentCard({
             </div>
 
             <div className="student-card__header">
-                <figure className="student-card__profile">
-                    <AvatarImage src={student.image ?? `https://api.dicebear.com/7.x/pixel-art/svg?seed=${student.id}`} alt={`Avatar de ${student.name ?? ''}`}/>
-                </figure>
+                <Avatar className="student-card__profile">
+                    <AvatarImage 
+                      src={student.image ?? `https://api.dicebear.com/7.x/pixel-art/svg?seed=${student.id}`} 
+                      alt={`Avatar de ${student.name ?? ''}`}
+                      className="avatar-image"
+                    />
+                    <AvatarFallback>{student.name?.charAt(0)}</AvatarFallback>
+                </Avatar>
                 {isTopStudent && (
                     <Crown className="absolute -top-1 -right-1 h-7 w-7 text-yellow-300 transform rotate-12 drop-shadow-lg" />
                 )}
