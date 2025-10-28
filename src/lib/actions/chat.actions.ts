@@ -14,93 +14,306 @@ export type MessageWithReactions = Message & {
 };
 
 export async function getMessages(classroomId: string): Promise<MessageWithReactions[]> {
-    console.log(`💬 [ACTION] Récupération des messages pour la classe ${classroomId}.`);
+    console.log(`💬 [ACTION] Récupération des messages pour la classe ${classroomId}`);
     
-    return prisma.message.findMany({
-        where: { classroomId },
-        include: {
-            sender: { select: { id: true, name: true, image: true }},
-            reactions: {
-                include: {
-                    user: { select: { id: true, name: true }}
-                }
-            }
-        },
-        orderBy: {
-            createdAt: 'asc'
+    try {
+        // Validation de l'ID de classe
+        if (!classroomId || typeof classroomId !== 'string') {
+            throw new Error('ID de classe invalide');
         }
-    });
-}
 
-export async function sendMessage(formData: FormData): Promise<MessageWithReactions> {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) throw new Error('Unauthorized');
-    
-    const senderId = session.user.id;
-    const messageContent = formData.get('message') as string;
-    const classroomId = formData.get('classroomId') as string;
-    
-    console.log(`💬 [ACTION] Envoi du message "${messageContent}" par ${senderId} à la classe ${classroomId}`);
-
-    const newMessage = await prisma.message.create({
-        data: {
-            message: messageContent,
-            classroomId,
-            senderId,
-        },
-         include: {
-            sender: { select: { id: true, name: true, image: true }},
-            reactions: {
-                include: {
-                    user: { select: { id: true, name: true }}
-                }
-            }
-        },
-    });
-
-    await pusherTrigger(`presence-classe-${classroomId}`, 'new-message', newMessage);
-
-    return newMessage;
-}
-
-export async function toggleReaction(messageId: string, emoji: string) {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) throw new Error('Unauthorized');
-    
-    const userId = session.user.id;
-    
-    console.log(`👍 [ACTION] Ajout/retrait de la réaction ${emoji} sur le message ${messageId} par ${userId}.`);
-
-    const existingReaction = await prisma.reaction.findFirst({
-        where: { messageId, userId, emoji }
-    });
-
-    const message = await prisma.message.findUnique({ where: { id: messageId }});
-    if (!message?.classroomId) throw new Error("Message not found or not in a classroom");
-    
-    const channelName = `presence-classe-${message.classroomId}`;
-
-    if (existingReaction) {
-        await prisma.reaction.delete({ where: { id: existingReaction.id }});
-        await pusherTrigger(channelName, 'reaction-update', { messageId, reaction: existingReaction, action: 'removed' });
-    } else {
-        const newReaction = await prisma.reaction.create({
-            data: { messageId, userId, emoji },
-            include: { user: { select: { id: true, name: true }}}
+        // Vérifier que la classe existe
+        const classroom = await prisma.classroom.findUnique({
+            where: { id: classroomId },
+            select: { id: true }
         });
-        await pusherTrigger(channelName, 'reaction-update', { messageId, reaction: newReaction, action: 'added' });
+
+        if (!classroom) {
+            console.error(`❌ [ACTION] Classe non trouvée: ${classroomId}`);
+            throw new Error('Classe non trouvée');
+        }
+
+        const messages = await prisma.message.findMany({
+            where: { classroomId },
+            include: {
+                sender: { 
+                    select: { 
+                        id: true, 
+                        name: true, 
+                        image: true 
+                    }
+                },
+                reactions: {
+                    include: {
+                        user: { 
+                            select: { 
+                                id: true, 
+                                name: true 
+                            }
+                        }
+                    }
+                }
+            },
+            orderBy: {
+                createdAt: 'asc'
+            }
+        });
+
+        console.log(`✅ [ACTION] ${messages.length} messages récupérés pour la classe ${classroomId}`);
+        return messages;
+
+    } catch (error) {
+        console.error(`❌ [ACTION] Erreur lors de la récupération des messages:`, error);
+        throw new Error('Impossible de charger les messages');
     }
 }
 
-export async function deleteChatHistory(classroomId: string) {
-    const session = await getServerSession(authOptions);
-    if (session?.user?.role !== 'PROFESSEUR') throw new Error('Unauthorized');
+export async function sendMessage(formData: FormData): Promise<{ success: boolean; message?: MessageWithReactions; error?: string }> {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.id) {
+            throw new Error('Non autorisé');
+        }
+        
+        const senderId = session.user.id;
+        const messageContent = formData.get('message') as string;
+        const classroomId = formData.get('classroomId') as string;
 
-    console.log(`🗑️ [ACTION] Effacement de l'historique du chat pour la classe ${classroomId}.`);
-    
-    await prisma.message.deleteMany({
-        where: { classroomId }
-    });
-    
-    await pusherTrigger(`presence-classe-${classroomId}`, 'history-cleared', {});
+        // Validation des données
+        if (!messageContent?.trim()) {
+            throw new Error('Le message ne peut pas être vide');
+        }
+
+        if (!classroomId) {
+            throw new Error('ID de classe manquant');
+        }
+
+        console.log(`💬 [ACTION] Envoi du message par ${senderId} à la classe ${classroomId}`);
+
+        // CORRECTION: Utiliser 'professeurId' et 'eleves' au lieu de 'teacherId' et 'students'
+        const userAccess = await prisma.classroom.findFirst({
+            where: {
+                id: classroomId,
+                OR: [
+                    { professeurId: senderId }, // CORRECTION: 'professeurId' au lieu de 'teacherId'
+                    { eleves: { some: { id: senderId } } } // CORRECTION: 'eleves' au lieu de 'students'
+                ]
+            },
+            select: { id: true }
+        });
+
+        if (!userAccess) {
+            throw new Error('Accès non autorisé à cette classe');
+        }
+
+        const newMessage = await prisma.message.create({
+            data: {
+                message: messageContent.trim(),
+                classroomId,
+                senderId,
+            },
+            include: {
+                sender: { 
+                    select: { 
+                        id: true, 
+                        name: true, 
+                        image: true 
+                    }
+                },
+                reactions: {
+                    include: {
+                        user: { 
+                            select: { 
+                                id: true, 
+                                name: true 
+                            }
+                        }
+                    }
+                }
+            },
+        });
+
+        // Envoyer via Pusher
+        await pusherTrigger(
+            `presence-classe-${classroomId}`, 
+            'new-message', 
+            newMessage
+        );
+
+        console.log(`✅ [ACTION] Message envoyé avec succès: ${newMessage.id}`);
+        return { success: true, message: newMessage };
+
+    } catch (error) {
+        console.error('❌ [ACTION] Erreur lors de l\'envoi du message:', error);
+        return { 
+            success: false, 
+            error: error instanceof Error ? error.message : 'Erreur lors de l\'envoi du message' 
+        };
+    }
+}
+
+export async function toggleReaction(messageId: string, emoji: string): Promise<{ success: boolean; error?: string }> {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.id) {
+            throw new Error('Non autorisé');
+        }
+        
+        const userId = session.user.id;
+        
+        console.log(`👍 [ACTION] Gestion réaction ${emoji} sur message ${messageId} par ${userId}`);
+
+        // Validation des données
+        if (!messageId || !emoji) {
+            throw new Error('Données de réaction invalides');
+        }
+
+        // Vérifier que le message existe
+        const message = await prisma.message.findUnique({ 
+            where: { id: messageId },
+            include: {
+                classroom: {
+                    select: { id: true }
+                }
+            }
+        });
+        
+        if (!message) {
+            throw new Error('Message non trouvé');
+        }
+
+        if (!message.classroomId) {
+            throw new Error('Message non associé à une classe');
+        }
+
+        const classroomId = message.classroomId;
+        const channelName = `presence-classe-${classroomId}`;
+
+        // CORRECTION: Utiliser 'professeurId' et 'eleves' au lieu de 'teacherId' et 'students'
+        const userAccess = await prisma.classroom.findFirst({
+            where: {
+                id: classroomId,
+                OR: [
+                    { professeurId: userId }, // CORRECTION: 'professeurId' au lieu de 'teacherId'
+                    { eleves: { some: { id: userId } } } // CORRECTION: 'eleves' au lieu de 'students'
+                ]
+            },
+            select: { id: true }
+        });
+
+        if (!userAccess) {
+            throw new Error('Accès non autorisé à cette classe');
+        }
+
+        const existingReaction = await prisma.reaction.findFirst({
+            where: { messageId, userId, emoji }
+        });
+
+        if (existingReaction) {
+            // Supprimer la réaction existante
+            await prisma.reaction.delete({ 
+                where: { id: existingReaction.id } 
+            });
+            
+            await pusherTrigger(channelName, 'reaction-update', { 
+                messageId, 
+                reaction: existingReaction, 
+                action: 'removed' 
+            });
+            
+            console.log(`✅ [ACTION] Réaction retirée: ${emoji}`);
+        } else {
+            // Ajouter une nouvelle réaction
+            const newReaction = await prisma.reaction.create({
+                data: { messageId, userId, emoji },
+                include: { 
+                    user: { 
+                        select: { 
+                            id: true, 
+                            name: true 
+                        }
+                    }
+                }
+            });
+            
+            await pusherTrigger(channelName, 'reaction-update', { 
+                messageId, 
+                reaction: newReaction, 
+                action: 'added' 
+            });
+            
+            console.log(`✅ [ACTION] Réaction ajoutée: ${emoji}`);
+        }
+
+        return { success: true };
+
+    } catch (error) {
+        console.error('❌ [ACTION] Erreur lors de la gestion de la réaction:', error);
+        return { 
+            success: false, 
+            error: error instanceof Error ? error.message : 'Erreur lors de la gestion de la réaction' 
+        };
+    }
+}
+
+export async function deleteChatHistory(classroomId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+        const session = await getServerSession(authOptions);
+        
+        // Vérifier les autorisations
+        if (session?.user?.role !== 'PROFESSEUR') {
+            throw new Error('Accès réservé aux professeurs');
+        }
+
+        // Validation de l'ID de classe
+        if (!classroomId) {
+            throw new Error('ID de classe manquant');
+        }
+
+        console.log(`🗑️ [ACTION] Effacement de l'historique pour la classe ${classroomId}`);
+        
+        // CORRECTION: Utiliser 'professeurId' au lieu de 'teacherId'
+        const classroom = await prisma.classroom.findFirst({
+            where: { 
+                id: classroomId,
+                professeurId: session.user.id // CORRECTION: 'professeurId' au lieu de 'teacherId'
+            },
+            select: { id: true }
+        });
+
+        if (!classroom) {
+            throw new Error('Classe non trouvée ou accès non autorisé');
+        }
+
+        // Supprimer d'abord les réactions (à cause des contraintes de clé étrangère)
+        await prisma.reaction.deleteMany({
+            where: {
+                message: {
+                    classroomId: classroomId
+                }
+            }
+        });
+
+        // Puis supprimer les messages
+        await prisma.message.deleteMany({
+            where: { classroomId }
+        });
+        
+        // Notifier via Pusher
+        await pusherTrigger(
+            `presence-classe-${classroomId}`, 
+            'history-cleared', 
+            {}
+        );
+
+        console.log(`✅ [ACTION] Historique effacé pour la classe ${classroomId}`);
+        return { success: true };
+
+    } catch (error) {
+        console.error('❌ [ACTION] Erreur lors de l\'effacement de l\'historique:', error);
+        return { 
+            success: false, 
+            error: error instanceof Error ? error.message : 'Erreur lors de l\'effacement de l\'historique' 
+        };
+    }
 }

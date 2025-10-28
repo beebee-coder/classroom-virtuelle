@@ -65,17 +65,57 @@ export const authOptions: AuthOptions = {
         token.id = user.id;
         const prismaUser = user as CustomUser;
         token.role = prismaUser.role;
+        // CORRECTION: Utiliser le bon champ selon le schéma Prisma
+        // Le schéma montre que User a 'classeId' (relation avec Classroom)
         token.classeId = prismaUser.classeId;
       }
+      
+      // Vérifier périodiquement la validité de l'utilisateur
+      if (token.id) {
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.id as string },
+            select: { id: true, role: true, classeId: true }
+          });
+          
+          if (dbUser) {
+            token.role = dbUser.role;
+            token.classeId = dbUser.classeId;
+          }
+        } catch (error) {
+          console.error('❌ [AUTH - JWT Callback] Erreur de vérification utilisateur:', error);
+        }
+      }
+      
       return token;
     },
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as Role;
+        // CORRECTION: Utiliser le bon champ selon le schéma Prisma
         session.user.classeId = token.classeId as string | undefined;
+        
+        console.log(`🔐 [AUTH - Session Callback] Session créée pour: ${session.user.name} (ID: ${session.user.id}, Rôle: ${session.user.role})`);
       }
       return session;
     },
+    async redirect({ url, baseUrl }) {
+      // Rediriger vers la page d'origine ou le dashboard par défaut
+      if (url.startsWith(baseUrl)) return url;
+      return baseUrl;
+    },
   },
+  events: {
+    async signIn({ user, isNewUser }) {
+      console.log(`🔔 [AUTH - Event] Connexion de ${user.email} - Nouvel utilisateur: ${isNewUser}`);
+    },
+    async signOut({ token }) {
+      console.log(`🔔 [AUTH - Event] Déconnexion de l'utilisateur ID: ${token?.id}`);
+    },
+    async session({ session }) {
+      console.log(`🔔 [AUTH - Event] Session utilisée par: ${session.user?.email}`);
+    },
+  },
+  debug: process.env.NODE_ENV === 'development',
 };

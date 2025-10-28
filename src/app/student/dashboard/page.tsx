@@ -12,7 +12,7 @@ import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger 
 import Menu from '@/components/Menu';
 import prisma from '@/lib/prisma';
 import type { User, Metier, Announcement, StudentProgress, Task, Classroom, EtatEleve } from '@prisma/client';
-import { StudentDashboardError } from '@/components/StudentDashboardError';
+
 export const dynamic = 'force-dynamic';
 
 // Type cohérent avec ce que retourne getStudentData
@@ -26,6 +26,21 @@ type AnnouncementWithAuthor = Announcement & {
     author: { name: string | null };
 };
 
+// CORRECTION: Composant d'erreur sans interactivité
+function StudentDashboardError({ message }: { message: string }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="text-center">
+        <h1 className="text-2xl font-bold text-destructive mb-4">Erreur</h1>
+        <p className="text-muted-foreground mb-6">{message}</p>
+        <p className="text-sm text-muted-foreground">
+          Veuillez recharger la page ou contacter l'administrateur.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default async function StudentDashboardPage() {
     console.log('🧑‍🎓 [PAGE] - Chargement du tableau de bord élève.');
 
@@ -36,13 +51,13 @@ export default async function StudentDashboardPage() {
         redirect('/login');
     }
 
-    // Chargement des données de l'élève
+    console.log(`✅ [PAGE ELEVE] - Session trouvée pour: ${session.user.name} (${session.user.id})`);
+
     let student: StudentWithDetails | null = null;
     try {
         student = await getStudentData(session.user.id);
     } catch (studentError) {
         console.error('❌ [PAGE ELEVE] - Erreur lors du chargement des données élève:', studentError);
-        // Afficher une page d'erreur si les données de base ne peuvent être chargées
         return (
             <StudentDashboardError 
                 message="Impossible de charger vos données. Veuillez vérifier votre connexion et réessayer." 
@@ -51,60 +66,58 @@ export default async function StudentDashboardPage() {
     }
 
     if (!student) {
-        console.error('❌ [PAGE ELEVE] - Données de l\'élève non trouvées, affichage de la page Not Found.');
-        // Si l'élève n'est pas trouvé dans la DB, c'est une condition "Not Found"
+        console.error('❌ [PAGE ELEVE] - Aucune donnée retournée par getStudentData. Affichage de la page Not Found.');
         notFound();
     }
-
+    
     console.log('✅ [PAGE ELEVE] - Données de l\'élève chargées:', student.name);
 
-    // Chargement des données supplémentaires avec gestion d'erreur individuelle
+    // Chargement des données supplémentaires
     const metier = student.etat?.metier;
     const classeId = student.classe?.id;
 
-    let announcements: AnnouncementWithAuthor[] = [];
-    let tasks: Task[] = [];
-    let allCareers: Metier[] = [];
+    console.log(`📊 [PAGE ELEVE] - Métier: ${metier?.nom || 'Aucun'}, Classe: ${classeId || 'Aucune'}`);
 
-    try {
-        announcements = await getStudentAnnouncements(student.id);
-        console.log(`✅ [PAGE ELEVE] - ${announcements.length} annonces chargées`);
-    } catch (announcementsError) {
-        console.error('❌ [PAGE ELEVE] - Erreur lors du chargement des annonces:', announcementsError);
-        // On continue avec un tableau vide pour les annonces
-    }
+    // Chargement parallèle des données pour de meilleures performances
+    const [announcements, tasks, allCareers] = await Promise.allSettled([
+        getStudentAnnouncements(student.id).catch(err => {
+            console.error('❌ [PAGE ELEVE] - Erreur lors du chargement des annonces:', err);
+            return [] as AnnouncementWithAuthor[]; // Retourner un tableau vide en cas d'erreur
+        }),
+        
+        prisma.task.findMany({ where: { isActive: true } }).catch(err => {
+            console.error('❌ [PAGE ELEVE] - Erreur lors du chargement des tâches:', err);
+            return [] as Task[]; // Retourner un tableau vide en cas d'erreur
+        }),
+        
+        prisma.metier.findMany().catch(err => {
+            console.error('❌ [PAGE ELEVE] - Erreur lors du chargement des métiers:', err);
+            return [] as Metier[]; // Retourner un tableau vide en cas d'erreur
+        })
+    ]);
 
-    try {
-        tasks = await prisma.task.findMany({ 
-            where: { isActive: true } 
-        });
-        console.log(`✅ [PAGE ELEVE] - ${tasks.length} tâches chargées`);
-    } catch (tasksError) {
-        console.error('❌ [PAGE ELEVE] - Erreur lors du chargement des tâches:', tasksError);
-        // On continue avec un tableau vide pour les tâches
-    }
+    // Extraction des résultats avec gestion d'erreur
+    const announcementsData = announcements.status === 'fulfilled' ? announcements.value : [];
+    const tasksData = tasks.status === 'fulfilled' ? tasks.value : [];
+    const allCareersData = allCareers.status === 'fulfilled' ? allCareers.value : [];
 
-    try {
-        allCareers = await prisma.metier.findMany();
-        console.log(`✅ [PAGE ELEVE] - ${allCareers.length} métiers chargés`);
-    } catch (careersError) {
-        console.error('❌ [PAGE ELEVE] - Erreur lors du chargement des métiers:', careersError);
-        // On continue avec un tableau vide pour les métiers
-    }
+    console.log(`📦 [PAGE ELEVE] - Données supplémentaires chargées: ${announcementsData.length} annonces, ${tasksData.length} tâches, ${allCareersData.length} métiers.`);
 
     return (
         <CareerThemeWrapper career={metier ?? undefined}>
             <SidebarProvider>
                 <div className="flex flex-col min-h-screen w-full">
                     <Header user={session.user}>
-                        <SidebarTrigger />
-                        {classeId && session.user.role && (
-                            <ChatSheet 
-                                classroomId={classeId} 
-                                userId={session.user.id} 
-                                userRole={session.user.role} 
-                            />
-                        )}
+                        <div className="flex items-center gap-2">
+                            <SidebarTrigger />
+                            {classeId && session.user.role && (
+                                <ChatSheet 
+                                    classroomId={classeId} 
+                                    userId={session.user.id} 
+                                    userRole={session.user.role} 
+                                />
+                            )}
+                        </div>
                     </Header>
                     <div className="flex flex-1">
                         <Sidebar>
@@ -115,10 +128,10 @@ export default async function StudentDashboardPage() {
                         <SidebarInset>
                             <StudentPageClient
                                 student={student}
-                                announcements={announcements}
-                                allCareers={allCareers}
+                                announcements={announcementsData}
+                                allCareers={allCareersData}
                                 isTeacherView={false}
-                                tasks={tasks}
+                                tasks={tasksData}
                                 user={session.user}
                             />
                         </SidebarInset>

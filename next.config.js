@@ -1,12 +1,12 @@
 // next.config.js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Augmenter les timeouts
   experimental: {
     serverComponentsExternalPackages: ['@tldraw/tldraw'],
-    // serverActions: {
-    //   bodySizeLimit: '8mb',
-    // },
+    // Ajout de la configuration pour autoriser les origines de développement
+    allowedDevOrigins: [
+      "https://6000-firebase-studio-1761127865714.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev",
+    ],
   },
   
   // Optimisations de performance
