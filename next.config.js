@@ -3,12 +3,13 @@
 const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['@tldraw/tldraw'],
-    // Ajout de la configuration pour autoriser les origines de développement
-    allowedDevOrigins: [
-      "https://6000-firebase-studio-1761127865714.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev",
-    ],
   },
   
+  // Ajout de la configuration pour autoriser les origines de développement
+  allowedDevOrigins: [
+    "https://6000-firebase-studio-1761127865714.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev",
+  ],
+
   // Optimisations de performance
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
