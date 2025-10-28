@@ -43,7 +43,6 @@ export function TaskEditor({ initialTasks }: TaskEditorProps) {
             await saveTask(formData);
             toast({ title: `Tâche ${editingTask ? 'mise à jour' : 'créée'} avec succès !` });
             setDialogOpen(false);
-            // La revalidation se fait dans l'action serveur, mais un refresh client peut être plus rapide visuellement
             router.refresh(); 
         } catch (error) {
             toast({ variant: "destructive", title: "Erreur", description: "Impossible de sauvegarder la tâche." });
@@ -74,8 +73,9 @@ export function TaskEditor({ initialTasks }: TaskEditorProps) {
   }
 
   return (
-    <div>
-      <div className="flex justify-end mb-4">
+    // ✅ CORRECTION: Ajouter une hauteur minimale et gestion du débordement
+    <div className="h-full flex flex-col min-h-[500px]">
+      <div className="flex justify-end mb-4 p-6 pb-0">
         <Button onClick={openNewTaskDialog}>
           <PlusCircle className="mr-2" />
           Ajouter une tâche
@@ -84,11 +84,11 @@ export function TaskEditor({ initialTasks }: TaskEditorProps) {
 
       <Dialog open={dialogOpen} onOpenChange={(isOpen) => {
           if (!isOpen) {
-              setEditingTask(null); // Reset editing task on close
+              setEditingTask(null);
           }
           setDialogOpen(isOpen);
       }}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingTask ? 'Modifier la tâche' : 'Créer une nouvelle tâche'}</DialogTitle>
             <DialogDescription>
@@ -170,36 +170,39 @@ export function TaskEditor({ initialTasks }: TaskEditorProps) {
         </DialogContent>
       </Dialog>
 
-      <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Titre</TableHead>
-              <TableHead>Points</TableHead>
-              <TableHead>Fréquence</TableHead>
-              <TableHead>Catégorie</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {tasks.map(task => (
-              <TableRow key={task.id}>
-                <TableCell className="font-medium">{task.title}</TableCell>
-                <TableCell>{task.points}</TableCell>
-                <TableCell>{task.type}</TableCell>
-                <TableCell>{task.category}</TableCell>
-                <TableCell className="space-x-2">
-                  <Button variant="outline" size="icon" onClick={() => openEditTaskDialog(task)} disabled={isPending}>
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button variant="destructive" size="icon" onClick={() => handleDelete(task.id)} disabled={isPending}>
-                    <Trash className="h-4 w-4" />
-                  </Button>
-                </TableCell>
+      {/* ✅ CORRECTION: Section table avec défilement si nécessaire */}
+      <div className="flex-1 p-6 pt-4 overflow-auto">
+        <div className="border rounded-lg bg-background">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Titre</TableHead>
+                <TableHead>Points</TableHead>
+                <TableHead>Fréquence</TableHead>
+                <TableHead>Catégorie</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {tasks.map(task => (
+                <TableRow key={task.id}>
+                  <TableCell className="font-medium">{task.title}</TableCell>
+                  <TableCell>{task.points}</TableCell>
+                  <TableCell>{task.type}</TableCell>
+                  <TableCell>{task.category}</TableCell>
+                  <TableCell className="space-x-2">
+                    <Button variant="outline" size="icon" onClick={() => openEditTaskDialog(task)} disabled={isPending}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button variant="destructive" size="icon" onClick={() => handleDelete(task.id)} disabled={isPending}>
+                      <Trash className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
   );

@@ -1,4 +1,3 @@
-// src/app/teacher/tasks/page.tsx
 import { TaskEditor } from "@/components/TaskEditor";
 import { BackButton } from "@/components/BackButton";
 import { auth } from '@/auth';
@@ -22,16 +21,26 @@ export default async function TasksPage() {
   });
 
   return (
-    <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex items-center gap-4 mb-8">
-          <BackButton />
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Éditeur de Tâches</h1>
-            <p className="text-muted-foreground">Créez et gérez les tâches pour tous les élèves.</p>
+    <main className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* ✅ CORRECTION: Structure améliorée avec conteneur approprié */}
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-center gap-4 mb-8">
+            <BackButton />
+            <div className="flex-1">
+              <h1 className="text-3xl font-bold tracking-tight">Éditeur de Tâches</h1>
+              <p className="text-muted-foreground mt-2">
+                Créez et gérez les tâches pour tous les élèves.
+              </p>
+            </div>
           </div>
+          
+          {/* ✅ CORRECTION: Conteneur spécifique pour TaskEditor */}
+          <div className="bg-card rounded-lg border shadow-sm">
+            <TaskEditor initialTasks={tasks} />
+          </div>
+        </div>
       </div>
-      {/* ✅ PASSER LES DATES DIRECTEMENT - Next.js les sérialise automatiquement */}
-      <TaskEditor initialTasks={tasks} />
     </main>
   );
 }

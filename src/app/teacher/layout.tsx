@@ -62,7 +62,7 @@ export default async function TeacherLayout({
     
     // Fallback simple sans dépendances pour éviter les plantages en cascade
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex items-center justify-center bg-background ">
         <div className="text-center p-8 border rounded-lg shadow-md max-w-md">
           <h1 className="text-2xl font-bold text-destructive mb-4">
             Erreur de chargement
