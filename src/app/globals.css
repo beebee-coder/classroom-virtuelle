@@ -5,6 +5,7 @@
 /* Import du nouveau style pour les icônes */
 @import "../styles/nav-icons.css";
 @import "../styles/cube.css";
+@import "../styles/student-card.css";
 
 body {
   font-family: Arial, Helvetica, sans-serif;

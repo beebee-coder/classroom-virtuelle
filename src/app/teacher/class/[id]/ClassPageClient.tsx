@@ -1,10 +1,9 @@
-// src/app/teacher/class/[id]/ClassPageClient.tsx - Version avec invitations
+// src/app/teacher/class/[id]/ClassPageClient.tsx
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { createCoursSession } from '@/lib/actions/session.actions';
 import { useRouter } from 'next/navigation';
@@ -12,17 +11,17 @@ import { useToast } from '@/hooks/use-toast';
 import { CreateAnnouncementForm } from '@/components/CreateAnnouncementForm';
 import { AddStudentForm } from './AddStudentForm';
 import { BackButton } from '@/components/BackButton';
-import { Video, XSquare, Crown, Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Video, Loader2 } from 'lucide-react';
 import { usePresenceForTeacher } from '@/hooks/usePresenceForTeacher';
 import { AnnouncementCarousel } from '@/components/AnnouncementCarousel';
+import { StudentCard } from '@/components/StudentCard'; // Import du nouveau composant
 import type { User, Classroom, Announcement, EtatEleve } from '@prisma/client';
 
 type AnnouncementWithAuthor = Announcement & { author: { name: string | null } };
 type StudentForCard = User & { etat: { isPunished: boolean } | null };
 type ClassroomWithStudentsAndPunishment = Classroom & {
     eleves: (User & {
-        etat: { isPunished: boolean } | null;
+        etat: { isPunished: boolean, metierId?: string | null } | null;
     })[];
 };
 
@@ -47,7 +46,6 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
     const router = useRouter();
     const { toast } = useToast();
 
-    // Utilisation du nouveau hook pour gérer la présence
     const { onlineUsers: onlineStudents, isConnected, error: presenceError } = usePresenceForTeacher(
         teacher?.id, 
         classroom?.id,
@@ -65,7 +63,6 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
       }, [onlineStudents, isConnected, presenceError, teacher.id, classroom.id]);
 
 
-    // Afficher une erreur si la connexion de présence échoue
     if (presenceError) {
         console.error('❌ [CLIENT CLASSE] - Erreur de connexion temps réel:', presenceError);
         toast({
@@ -131,7 +128,7 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
             console.log(`  Résultats des invitations: ${successful.length} succès, ${failed.length} échecs.`);
             toast({
                 title: 'Session créée et invitations envoyées !',
-                description: `Session vidéo lancée avec ${successful.length} élève(s). ${failed.length > 0 ? `${failed.length} échec(s) d'envoi.` : ''}`,
+                description: `Session vidéo lancée avec ${successful.length} élève(s). ${failed.length > 0 ? `${failed.length > 0 ? failed.length : ''} échec(s) d'envoi.` : ''}`,
                 duration: 5000,
             });
         }
@@ -158,21 +155,11 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
     }
 };
 
-    // Tri sécurisé des élèves
     const sortedStudents = [...(classroom.eleves || [])].sort((a, b) => {
         const pointsA = a.points ?? 0;
         const pointsB = b.points ?? 0;
         return pointsB - pointsA;
     });
-
-    // Fonction pour générer l'avatar de façon sécurisée
-    const getStudentAvatarUrl = (student: StudentForCard): string => {
-        return student.image ?? `https://api.dicebear.com/7.x/pixel-art/svg?seed=${student.id || 'default'}`;
-    };
-
-    const getStudentInitial = (student: StudentForCard): string => {
-        return student.name?.charAt(0)?.toUpperCase() || '?';
-    };
 
     const onlineSelectedCount = selectedStudents.filter(id => onlineStudents.includes(id)).length;
 
@@ -214,7 +201,7 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                         </span>
                     </CardTitle>
                     <CardDescription>
-                        Sélectionnez les élèves <span className="font-bold text-green-600">en ligne</span> (indicateur vert) pour démarrer une session vidéo.
+                        Sélectionnez les élèves <span className="font-bold text-green-600">en ligne</span> pour démarrer une session vidéo.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -225,79 +212,19 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                             </p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                            {sortedStudents.map((student, index) => {
-                                const isOnline = onlineStudents.includes(student.id);
-                                const isSelected = selectedStudents.includes(student.id);
-                                
-                                return (
-                                    <Card 
-                                        key={student.id} 
-                                        className={cn(`transition-all duration-200`,
-                                            isSelected 
-                                                ? 'ring-2 ring-primary shadow-md' 
-                                                : 'hover:shadow-sm',
-                                            !isOnline && 'opacity-60 bg-muted/50'
-                                        )}
-                                    >
-                                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                            <CardTitle className="text-sm font-medium truncate max-w-[120px]">
-                                                {student.name || 'Élève sans nom'}
-                                            </CardTitle>
-                                            <div className="flex items-center gap-2">
-                                                {isOnline ? (
-                                                    <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" title="En ligne" />
-                                                ) : (
-                                                    <div className="h-2 w-2 rounded-full bg-gray-400" title="Hors ligne" />
-                                                )}
-                                                <Checkbox
-                                                    checked={isSelected}
-                                                    onCheckedChange={() => handleSelectStudent(student.id)}
-                                                    disabled={isStartingSession || !isOnline}
-                                                    aria-label={`Sélectionner ${student.name}`}
-                                                />
-                                            </div>
-                                        </CardHeader>
-                                        <CardContent className="text-center">
-                                            <div className="relative inline-block">
-                                                <Avatar 
-                                                    className="h-20 w-20 cursor-pointer" 
-                                                    onClick={() => router.push(`/student/${student.id}?viewAs=teacher`)}
-                                                >
-                                                    <AvatarImage 
-                                                        src={getStudentAvatarUrl(student)} 
-                                                        alt={`Avatar de ${student.name ?? ''}`}
-                                                    />
-                                                    <AvatarFallback>
-                                                        {getStudentInitial(student)}
-                                                    </AvatarFallback>
-                                                </Avatar>
-                                                {index === 0 && sortedStudents.length > 1 && (
-                                                    <Crown className="absolute -top-2 -right-2 h-6 w-6 text-yellow-400 transform rotate-12" />
-                                                )}
-                                                {student.etat?.isPunished && (
-                                                    <div className="absolute -bottom-1 -right-1 bg-destructive rounded-full p-1">
-                                                        <XSquare className="h-4 w-4 text-destructive-foreground" />
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <p className="text-xs text-muted-foreground mt-2 truncate">
-                                                {student.email || 'Aucun email'}
-                                            </p>
-                                            <p className="text-xl font-bold mt-1">
-                                                {student.points ?? 0} pts
-                                            </p>
-                                            <div className="mt-1 text-xs">
-                                                {isOnline ? (
-                                                    <span className="text-green-600 font-medium">● En ligne</span>
-                                                ) : (
-                                                    <span className="text-gray-500">● Hors ligne</span>
-                                                )}
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                );
-                            })}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
+                           {sortedStudents.map((student, index) => (
+                                <StudentCard
+                                    key={student.id}
+                                    student={student}
+                                    isOnline={onlineStudents.includes(student.id)}
+                                    isSelected={selectedStudents.includes(student.id)}
+                                    isTopStudent={index === 0 && sortedStudents.length > 1}
+                                    isPunished={student.etat?.isPunished ?? false}
+                                    onSelect={() => handleSelectStudent(student.id)}
+                                    isSelectionDisabled={isStartingSession}
+                                />
+                           ))}
                         </div>
                     )}
                 </CardContent>
