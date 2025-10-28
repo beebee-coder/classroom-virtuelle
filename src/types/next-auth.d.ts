@@ -7,13 +7,13 @@ declare module "next-auth" {
   interface Session {
     user: {
       id: string
-      role: Role  // CORRECTION: Utiliser le type Role de Prisma au lieu de string
+      role: Role
       classeId?: string | null;
     } & DefaultSession["user"]
   }
 
   interface User {
-    role: Role;  // CORRECTION: Utiliser le type Role de Prisma
+    role: Role;
     classeId?: string | null;
   }
 }
@@ -21,7 +21,7 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
   interface JWT extends NextAuthJWT {
     id: string
-    role: Role  // CORRECTION: Utiliser le type Role de Prisma
+    role: Role
     classeId?: string | null;
   }
 }

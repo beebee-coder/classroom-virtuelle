@@ -90,13 +90,12 @@ export async function sendMessage(formData: FormData): Promise<{ success: boolea
 
         console.log(`💬 [ACTION] Envoi du message par ${senderId} à la classe ${classroomId}`);
 
-        // CORRECTION: Utiliser 'professeurId' et 'eleves' au lieu de 'teacherId' et 'students'
         const userAccess = await prisma.classroom.findFirst({
             where: {
                 id: classroomId,
                 OR: [
-                    { professeurId: senderId }, // CORRECTION: 'professeurId' au lieu de 'teacherId'
-                    { eleves: { some: { id: senderId } } } // CORRECTION: 'eleves' au lieu de 'students'
+                    { professeurId: senderId },
+                    { eleves: { some: { id: senderId } } }
                 ]
             },
             select: { id: true }
@@ -189,13 +188,12 @@ export async function toggleReaction(messageId: string, emoji: string): Promise<
         const classroomId = message.classroomId;
         const channelName = `presence-classe-${classroomId}`;
 
-        // CORRECTION: Utiliser 'professeurId' et 'eleves' au lieu de 'teacherId' et 'students'
         const userAccess = await prisma.classroom.findFirst({
             where: {
                 id: classroomId,
                 OR: [
-                    { professeurId: userId }, // CORRECTION: 'professeurId' au lieu de 'teacherId'
-                    { eleves: { some: { id: userId } } } // CORRECTION: 'eleves' au lieu de 'students'
+                    { professeurId: userId },
+                    { eleves: { some: { id: userId } } }
                 ]
             },
             select: { id: true }
@@ -272,11 +270,10 @@ export async function deleteChatHistory(classroomId: string): Promise<{ success:
 
         console.log(`🗑️ [ACTION] Effacement de l'historique pour la classe ${classroomId}`);
         
-        // CORRECTION: Utiliser 'professeurId' au lieu de 'teacherId'
         const classroom = await prisma.classroom.findFirst({
             where: { 
                 id: classroomId,
-                professeurId: session.user.id // CORRECTION: 'professeurId' au lieu de 'teacherId'
+                professeurId: session.user.id
             },
             select: { id: true }
         });

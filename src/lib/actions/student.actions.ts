@@ -34,7 +34,7 @@ export async function getStudentData(id: string) {
         const student = await prisma.user.findUnique({
             where: { id },
             include: {
-                classe: true, // CORRECTION: Revenir à 'classe' pour correspondre au schéma
+                classe: true,
                 etat: {
                     include: {
                         metier: true
@@ -79,13 +79,12 @@ export async function setStudentCareer(studentId: string, careerId: string | nul
     console.log(`🎨 [ACTION] Changement de métier pour l'élève ${studentId} vers le métier ${careerId}`);
 
     try {
-        // CORRECTION: Inclure 'classeId' dans la sélection
         const student = await prisma.user.findUnique({
             where: { id: studentId },
             select: { 
                 id: true, 
                 role: true, 
-                classeId: true // CORRECTION: Ajouter classeId
+                classeId: true
             }
         });
 
@@ -132,7 +131,6 @@ export async function setStudentCareer(studentId: string, careerId: string | nul
         // Revalider les pages concernées
         revalidatePath('/student/dashboard');
         revalidatePath(`/student/${studentId}`);
-        // CORRECTION: Utiliser student.classeId qui existe maintenant
         if (student.classeId) {
             revalidatePath(`/teacher/class/${student.classeId}`);
         }
@@ -156,9 +154,8 @@ export async function getStudentProgress(studentId: string) {
             include: {
                 task: true
             },
-            // CORRECTION: Utiliser le bon champ de tri
             orderBy: {
-                completionDate: 'desc' // CORRECTION: 'completionDate' au lieu de 'updatedAt'
+                completionDate: 'desc'
             }
         });
 
@@ -177,7 +174,7 @@ export async function getStudentDetails(studentId: string) {
             include: {
                 classe: {
                     include: {
-                        professeur: { // CORRECTION: 'professeur' au lieu de 'teacher'
+                        professeur: {
                             select: {
                                 id: true,
                                 name: true,
@@ -195,9 +192,8 @@ export async function getStudentDetails(studentId: string) {
                     include: {
                         task: true
                     },
-                    // CORRECTION: Utiliser le bon champ de tri
                     orderBy: {
-                        completionDate: 'desc' // CORRECTION: 'completionDate' au lieu de 'updatedAt'
+                        completionDate: 'desc'
                     }
                 }
             }

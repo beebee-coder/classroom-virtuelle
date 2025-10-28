@@ -65,8 +65,6 @@ export const authOptions: AuthOptions = {
         token.id = user.id;
         const prismaUser = user as CustomUser;
         token.role = prismaUser.role;
-        // CORRECTION: Utiliser le bon champ selon le schéma Prisma
-        // Le schéma montre que User a 'classeId' (relation avec Classroom)
         token.classeId = prismaUser.classeId;
       }
       
@@ -93,7 +91,6 @@ export const authOptions: AuthOptions = {
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as Role;
-        // CORRECTION: Utiliser le bon champ selon le schéma Prisma
         session.user.classeId = token.classeId as string | undefined;
         
         console.log(`🔐 [AUTH - Session Callback] Session créée pour: ${session.user.name} (ID: ${session.user.id}, Rôle: ${session.user.role})`);

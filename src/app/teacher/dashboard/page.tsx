@@ -19,10 +19,9 @@ export default async function TeacherDashboardPage() {
   try {
     console.log(`👨‍🏫 [DASHBOARD] Chargement du tableau de bord pour le professeur: ${session.user.id}`);
 
-    // CORRECTION: Utiliser 'professeurId' au lieu de 'teacherId'
     const classroomsData = await prisma.classroom.findMany({
       where: { 
-        professeurId: session.user.id // CORRECTION: Changé de teacherId à professeurId
+        professeurId: session.user.id
       },
       select: { 
         id: true, 
