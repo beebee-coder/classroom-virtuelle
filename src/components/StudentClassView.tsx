@@ -5,16 +5,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Crown, Star } from "lucide-react";
 import type { ClassroomWithStudents } from "@/app/student/class/[id]/page";
+import type { User } from "@prisma/client";
 
 interface StudentClassViewProps {
   classroom: ClassroomWithStudents;
 }
 
 export function StudentClassView({ classroom }: StudentClassViewProps) {
-    // Note: The User type from prisma doesn't explicitly have points, but the dummy data does.
-    // We cast to `any` to handle the dummy data structure. A more robust solution
-    // would be to have a dedicated type.
-    const sortedStudents = [...classroom.eleves].sort((a: any, b: any) => (b.points ?? 0) - (a.points ?? 0));
+    const sortedStudents = [...classroom.eleves].sort((a: User, b: User) => (b.points ?? 0) - (a.points ?? 0));
 
   return (
     <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -28,7 +26,7 @@ export function StudentClassView({ classroom }: StudentClassViewProps) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {sortedStudents.map((student: any, index) => (
+        {sortedStudents.map((student: User, index) => (
           <Card key={student.id} className="transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
             <CardHeader className="items-center">
               <div className="relative">
