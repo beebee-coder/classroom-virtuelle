@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth-options';
 import { redirect } from 'next/navigation';
 import prisma from '@/lib/prisma';
 import TeacherLayoutClient from './TeacherLayoutClient';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,13 +23,11 @@ export default async function TeacherLayout({
   try {
     console.log(`👨‍🏫 [LAYOUT] Chargement du layout pour le professeur: ${session.user.id}`);
 
-    // CORRECTION: Simplifier les requêtes pour éviter les dépendances circulaires
     const classrooms = await prisma.classroom.findMany({
       where: { professeurId: session.user.id },
       select: { id: true, nom: true },
     });
 
-    // CORRECTION: Calculer le nombre de validations directement ici
     const tasksToValidate = await prisma.studentProgress.count({
       where: {
         status: 'PENDING_VALIDATION',
@@ -61,22 +61,21 @@ export default async function TeacherLayout({
   } catch (error) {
     console.error("❌ [LAYOUT] Erreur dans le layout enseignant:", error);
     
-    // Fallback simple sans dépendances
+    // Fallback simple sans dépendances pour éviter les plantages en cascade
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
+        <div className="text-center p-8 border rounded-lg shadow-md max-w-md">
           <h1 className="text-2xl font-bold text-destructive mb-4">
             Erreur de chargement
           </h1>
           <p className="text-muted-foreground mb-6">
-            Impossible de charger les données du layout enseignant.
+            Impossible de charger les données pour la section enseignant. Veuillez réessayer plus tard ou contacter le support.
           </p>
-          <a 
-            href="/teacher/dashboard" 
-            className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors inline-block"
-          >
-            Retour au tableau de bord
-          </a>
+          <Button asChild>
+            <Link href="/teacher/dashboard">
+              Retour au tableau de bord
+            </Link>
+          </Button>
         </div>
       </div>
     );
