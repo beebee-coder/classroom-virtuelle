@@ -7,13 +7,21 @@ import { Users, Book, Video, Clock } from "lucide-react";
 import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
 
+export const dynamic = 'force-dynamic';
+
 export default async function TeacherProfilePage() {
   const session = await auth();
   if (!session?.user || session.user.role !== 'PROFESSEUR') {
       redirect('/login');
   }
 
-  const user = session.user;
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+  });
+  
+  if (!user) {
+    redirect('/login');
+  }
   
   const classrooms = await prisma.classroom.findMany({
       where: { professeurId: user.id },
