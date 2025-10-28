@@ -14,6 +14,7 @@ import { Loader2, User, KeyRound, Save } from 'lucide-react';
 import { updateUserSettings } from '@/lib/actions/user.actions';
 import { ProfileAvatar } from './ProfileAvatar';
 import type { User as PrismaUser } from '@prisma/client';
+import { useRouter } from 'next/navigation';
 
 const profileFormSchema = z.object({
   name: z.string().min(2, {
@@ -31,6 +32,7 @@ interface SettingsClientProps {
 
 export function SettingsClient({ user }: SettingsClientProps) {
   const { toast } = useToast();
+  const router = useRouter();
   const [isProfilePending, startProfileTransition] = useTransition();
   const [isPasswordPending, startPasswordTransition] = useTransition();
 
@@ -56,6 +58,7 @@ export function SettingsClient({ user }: SettingsClientProps) {
           title: "Profil mis à jour",
           description: "Votre nom a été modifié avec succès.",
         });
+        router.refresh(); // Rafraîchit les données du serveur
       } catch (error) {
         toast({
           variant: "destructive",
