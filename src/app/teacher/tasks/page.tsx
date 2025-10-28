@@ -21,7 +21,7 @@ export default async function TasksPage() {
   });
 
   return (
-    <div className="h-full flex flex-col">
+    <>
       <div className="flex items-center gap-4 mb-8">
         <BackButton />
         <div>
@@ -33,6 +33,6 @@ export default async function TasksPage() {
       </div>
       
       <TaskEditor initialTasks={tasks} />
-    </div>
+    </>
   );
 }
