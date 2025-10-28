@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { cache } from 'react';
 import { auth } from "@/auth";
 import prisma from '../prisma';
-import redis from '../redis';
+import getClient from '../redis';
 import type { Announcement } from '@prisma/client';
 
 export type AnnouncementWithAuthor = Announcement & { author: { name: string | null } };
@@ -42,6 +42,7 @@ export async function createAnnouncement(formData: FormData) {
   console.log('  Annonce insérée en base de données.');
   
   // Invalider le cache Redis
+  const redis = await getClient();
   if (redis) {
     try {
       const pipeline = redis.pipeline();
@@ -76,6 +77,7 @@ export async function createAnnouncement(formData: FormData) {
 
 export const getPublicAnnouncements = cache(async (limit: number = 3): Promise<AnnouncementWithAuthor[]> => {
     const cacheKey = PUBLIC_ANNOUNCEMENTS_CACHE_KEY;
+    const redis = await getClient();
     if (redis) {
       try {
         const cached = await redis.get(cacheKey);
@@ -116,6 +118,7 @@ export const getPublicAnnouncements = cache(async (limit: number = 3): Promise<A
 export async function getStudentAnnouncements(studentId: string): Promise<AnnouncementWithAuthor[]> {
     console.log(`📢 [ACTION] getStudentAnnouncements pour l'élève: ${studentId}`);
     const cacheKey = STUDENT_ANNOUNCEMENTS_CACHE_KEY(studentId);
+    const redis = await getClient();
     if(redis) {
       try {
         const cached = await redis.get(cacheKey);
@@ -163,6 +166,7 @@ export async function getStudentAnnouncements(studentId: string): Promise<Announ
 export async function getClassAnnouncements(classroomId: string): Promise<AnnouncementWithAuthor[]> {
     console.log(`📢 [ACTION] getClassAnnouncements pour la classe: ${classroomId}`);
     const cacheKey = CLASS_ANNOUNCEMENTS_CACHE_KEY(classroomId);
+    const redis = await getClient();
     if(redis) {
       try {
         const cached = await redis.get(cacheKey);

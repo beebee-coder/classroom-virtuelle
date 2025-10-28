@@ -1,7 +1,7 @@
 // src/app/api/session/[id]/sync/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import redis from '@/lib/redis';
+import getClient from '@/lib/redis';
 
 const WHITEBOARD_SNAPSHOT_KEY = (sessionId: string) => `whiteboard:${sessionId}:snapshot`;
 const WHITEBOARD_CHANNEL = (sessionId: string) => `whiteboard-channel-${sessionId}`;
@@ -18,6 +18,7 @@ export async function POST(
     return new NextResponse('Unauthorized', { status: 403 });
   }
 
+  const redis = await getClient();
   if (!redis) {
       return new NextResponse('Redis not configured', { status: 500 });
   }
@@ -55,6 +56,7 @@ export async function GET(
         return new NextResponse('Unauthorized', { status: 403 });
     }
 
+    const redis = await getClient();
     if (!redis) {
         return new NextResponse('Redis not configured', { status: 500 });
     }

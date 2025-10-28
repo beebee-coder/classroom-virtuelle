@@ -1,7 +1,7 @@
 // src/app/teacher/class/[id]/ClassPageClient.tsx - Version avec invitations
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -33,7 +33,14 @@ interface ClassPageClientProps {
 }
 
 export default function ClassPageClient({ classroom, teacher, announcements }: ClassPageClientProps) {
-    console.log(`👨‍🏫 [CLIENT CLASSE] - Initialisation pour la classe "${classroom.nom}"`);
+    const hasLoggedRef = useRef(false);
+    useEffect(() => {
+        if (!hasLoggedRef.current) {
+          console.log(`👨‍🏫 [CLIENT CLASSE] - Initialisation pour la classe "${classroom.nom}"`);
+          hasLoggedRef.current = true;
+        }
+      }, [classroom.nom]);
+    
     const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
     const [isStartingSession, setIsStartingSession] = useState<boolean>(false);
     const [isSendingInvitations, setIsSendingInvitations] = useState<boolean>(false);

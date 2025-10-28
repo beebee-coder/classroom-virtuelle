@@ -3,7 +3,7 @@
 
 import { revalidatePath } from 'next/cache';
 import prisma from '../prisma';
-import redis from '../redis';
+import getClient from '../redis';
 
 const STUDENT_DATA_CACHE_KEY = (id: string) => `student:${id}`;
 
@@ -15,6 +15,7 @@ export async function getStudentData(id: string) {
     }
 
     const cacheKey = STUDENT_DATA_CACHE_KEY(id);
+    const redis = await getClient();
     
     // Tentative de récupération depuis le cache
     if (redis) {
@@ -120,6 +121,7 @@ export async function setStudentCareer(studentId: string, careerId: string | nul
         console.log(`✅ [ACTION] Métier mis à jour pour l'élève ${studentId}`);
 
         // Invalider le cache de l'élève
+        const redis = await getClient();
         if (redis) {
             try {
                 await redis.del(STUDENT_DATA_CACHE_KEY(studentId));

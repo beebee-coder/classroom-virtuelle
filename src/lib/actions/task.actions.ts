@@ -4,7 +4,7 @@
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import prisma from '../prisma';
-import redis from '../redis';
+import getClient from '../redis';
 import { ProgressStatus, type Task, type StudentProgress, Role } from '@prisma/client';
 
 const TASKS_CACHE_KEY = 'tasks:all';
@@ -13,6 +13,7 @@ const STUDENT_DATA_CACHE_KEY = (id: string) => `student:${id}`;
 
 // Fonction pour invalider les caches liés aux tâches
 async function invalidateTaskCaches(studentId?: string) {
+    const redis = await getClient();
     if (redis) {
       try {
         const pipeline = redis.pipeline();

@@ -1,7 +1,7 @@
-// src/components/StudentPageClient.tsx - Version corrigée
+// src/components/StudentPageClient.tsx - CORRECTION
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -66,15 +66,30 @@ export default function StudentPageClient({
     const { toast } = useToast();
     const router = useRouter();
 
-    const classroomId = student?.classeId;
-    console.log('🧑‍🎓 [CLIENT ÉLÈVE] - Initialisation de la page pour:', student.name);
-
-    // Intégration du hook de présence
+    // CORRECTION : Utiliser useRef pour la référence stable du Set
+    const processedInvitationsRef = useRef<Set<string>>(new Set());
+    
+    // CORRECTION : Appeler le hook usePresenceForStudent
     const { isConnected, error, teacherOnline } = usePresenceForStudent(
         student.id,
-        classroomId ?? undefined,
+        student.classeId ?? undefined,
         true // enabled
     );
+
+    // Synchroniser le ref avec l'état
+    useEffect(() => {
+        processedInvitationsRef.current = processedInvitations;
+    }, [processedInvitations]);
+
+    // CORRECTION : useRef pour les logs uniques
+    const hasLoggedRef = useRef(false);
+    
+    useEffect(() => {
+        if (!hasLoggedRef.current) {
+            console.log('🧑‍🎓 [CLIENT ÉLÈVE] - Initialisation de la page pour:', student.name);
+            hasLoggedRef.current = true;
+        }
+    }, [student.name]);
 
     // Afficher le statut de connexion
     useEffect(() => {
@@ -114,9 +129,10 @@ export default function StudentPageClient({
         }
     }, [router, toast]);
 
+    // CORRECTION : handleInvitation avec dépendances stables
     const handleInvitation = useCallback((data: SessionInvitation) => {
-        // Éviter les doublons
-        if (processedInvitations.has(data.sessionId)) {
+        // Éviter les doublons en utilisant le ref
+        if (processedInvitationsRef.current.has(data.sessionId)) {
             console.log('⏭️ [CLIENT ÉLÈVE] - Invitation déjà traitée, ignorée:', data.sessionId);
             return;
         }
@@ -130,7 +146,7 @@ export default function StudentPageClient({
             description: `Le professeur ${data.teacherName} vous a invité(e).`,
             duration: 10000,
         });
-    }, [toast, processedInvitations]);
+    }, [toast]); // ← SUPPRESSION de processedInvitations des dépendances
 
     const handleDeclineInvitation = useCallback(() => {
         console.log('🚫 [CLIENT ÉLÈVE] - Invitation refusée.');
@@ -153,7 +169,6 @@ export default function StudentPageClient({
         // Ne s'abonner que si c'est la vue de l'élève
         if (isTeacherView || !student?.id) return;
     
-        // CORRECTION DE LA FONCTION checkMissedInvitations
         const checkMissedInvitations = async () => {
             try {
                 console.log('📡 [CLIENT ÉLÈVE] - Vérification des invitations manquées...');
@@ -174,8 +189,8 @@ export default function StudentPageClient({
                     if (recentInvitations.length > 0) {
                         const latestInvitation = recentInvitations[0].data;
                         
-                        // Vérifier si l'invitation a déjà été traitée
-                        if (!processedInvitations.has(latestInvitation.sessionId)) {
+                        // Vérifier si l'invitation a déjà été traitée en utilisant le ref
+                        if (!processedInvitationsRef.current.has(latestInvitation.sessionId)) {
                             console.log('📨 [CLIENT ÉLÈVE] - Invitation récente trouvée:', latestInvitation);
                             handleInvitation(latestInvitation);
                         } else {
@@ -216,7 +231,7 @@ export default function StudentPageClient({
             console.log(`🔌 [CLIENT ÉLÈVE] - Désabonnement des canaux.`);
             pusherClient.unsubscribe(invitationChannelName);
         };
-    }, [student?.id, handleInvitation, toast, processedInvitations, isTeacherView]);
+    }, [student?.id, handleInvitation, toast, isTeacherView]); // ← SUPPRESSION de processedInvitations
 
     // Nettoyer les invitations traitées après un certain temps
     useEffect(() => {
@@ -227,7 +242,6 @@ export default function StudentPageClient({
                     const newSet = new Set<string>();
                     let count = 0;
                     // Itérer sur le Set pour garder les plus récents (Set conserve l'ordre d'insertion)
-                    // C'est une simplification. une vraie solution utiliserait des timestamps.
                     const recentItems = Array.from(prev).slice(-5);
                     recentItems.forEach(item => newSet.add(item));
                     return newSet;
@@ -280,8 +294,7 @@ export default function StudentPageClient({
                     </div>
                 </CardContent>
             </Card>
-
-            {sessionInvitation && (
+  {sessionInvitation && (
                 <Card className="bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0 shadow-lg relative">
                     <button 
                         onClick={handleCloseInvitation}

@@ -1,45 +1,67 @@
 // src/lib/redis.ts
 import Redis from 'ioredis';
 
-// Assurez-vous que votre variable d'environnement REDIS_URL est définie.
-if (!process.env.REDIS_URL) {
+declare global {
+  // eslint-disable-next-line no-var
+  var redis: Redis | undefined;
+}
+
+const redisUrl = process.env.REDIS_URL;
+
+if (!redisUrl) {
     console.warn("⚠️ Avertissement : La variable d'environnement REDIS_URL n'est pas définie. Redis ne sera pas utilisé.");
 }
 
-// Configuration de la stratégie de reconnexion
 const retryStrategy = (times: number): number | null => {
-    // Si nous avons déjà essayé 3 fois, on abandonne.
     if (times > 3) {
       console.error("❌ Redis: Nombre maximum de tentatives de reconnexion atteint. Abandon de la connexion.");
       return null;
     }
-    // Délai exponentiel : 500ms, 1000ms, 2000ms
     const delay = Math.min(times * 500, 2000);
     console.log(`🔌 Redis: Tentative de reconnexion n°${times}. Prochaine tentative dans ${delay}ms.`);
     return delay;
 };
 
+// Fonction pour obtenir une instance de client Redis connectée
+async function getClient(): Promise<Redis | null> {
+    if (!redisUrl) {
+        return null;
+    }
+    
+    // Si l'instance n'existe pas, la créer
+    if (!global.redis) {
+        console.log('🔗 [REDIS] Création d\'une nouvelle connexion...');
+        global.redis = new Redis(redisUrl, {
+            retryStrategy,
+            maxRetriesPerRequest: 1,
+        });
 
-// Crée un client Redis. L'option `lazyConnect` empêche la connexion immédiate.
-const redis = process.env.REDIS_URL 
-    ? new Redis(process.env.REDIS_URL, { 
-        lazyConnect: true,
-        retryStrategy: retryStrategy, // Appliquer la nouvelle stratégie
-        maxRetriesPerRequest: 1, // Éviter qu'une seule commande soit réessayée indéfiniment
-      }) 
-    : null;
+        global.redis.on('error', (err: Error) => {
+            console.error('❌ Erreur Redis:', err.message);
+        });
 
-// Gérer les erreurs de connexion de manière asynchrone pour ne pas bloquer le serveur
-if (redis) {
-    redis.on('error', (err) => {
-        // Le logging est déjà géré par retryStrategy, on évite le bruit.
-        // On peut logguer une fois si nécessaire :
-        // console.error('❌ Erreur de connexion Redis:', err.message);
-    });
+        global.redis.on('connect', () => {
+            console.log('✅ Connecté à Redis avec succès.');
+        });
+    }
 
-    redis.on('connect', () => {
-        console.log('✅ Connecté à Redis avec succès.');
-    });
+    // Si la connexion n'est pas encore prête, attendre qu'elle le soit
+    if (global.redis.status !== 'ready' && global.redis.status !== 'connect') {
+        console.log(`⏳ [REDIS] Connexion non prête (statut: ${global.redis.status}). En attente...`);
+        try {
+            await global.redis.connect();
+        } catch (error) {
+            console.error('❌ [REDIS] Échec de la connexion manuelle:', error);
+            // Si la connexion échoue, détruire l'instance pour forcer une nouvelle tentative au prochain appel.
+            if (global.redis) {
+                global.redis.disconnect();
+                global.redis = undefined;
+            }
+            return null;
+        }
+    }
+    
+    return global.redis;
 }
 
-export default redis;
+export default getClient;

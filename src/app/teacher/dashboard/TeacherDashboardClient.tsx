@@ -6,6 +6,8 @@ import { Users, CheckCircle, Megaphone } from 'lucide-react';
 import Link from 'next/link';
 import { CreateAnnouncementForm } from '@/components/CreateAnnouncementForm';
 import type { Session } from 'next-auth';
+import { useEffect, useRef } from 'react'; // AJOUT des imports
+import { useSingleEffect } from '@/hooks/useSingleEffect';
 
 interface ClassroomData {
   id: string;
@@ -23,12 +25,20 @@ export default function TeacherDashboardClient({
   classrooms, 
   validationCount 
 }: TeacherDashboardClientProps) {
-  
-  console.log('👨‍🏫 [DASHBOARD CLIENT] Rendu du tableau de bord avec:', {
-    user: user?.name,
-    classroomsCount: classrooms.length,
-    validationCount
-  });
+  // CORRECTION : Utiliser le hook personnalisé pour un log unique
+
+    const hasLoggedRef = useRef(false);
+  useEffect(() => {
+    // Ne logger qu'une seule fois, même en mode développement avec StrictMode
+    if (!hasLoggedRef.current) {
+      console.log('👨‍🏫 [DASHBOARD CLIENT] Rendu du tableau de bord avec:', {
+        user: user?.name,
+        classroomsCount: classrooms.length,
+        validationCount
+      });
+      hasLoggedRef.current = true;
+    }
+  }, [user?.name, classrooms.length, validationCount]);
 
   return (
     <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">

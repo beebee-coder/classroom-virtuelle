@@ -1,7 +1,7 @@
 // src/components/LoginClient.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn, useSession } from 'next-auth/react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
@@ -29,12 +29,28 @@ export default function LoginClient() {
     const [loading, setLoading] = useState(false);
     const [selectedRole, setSelectedRole] = useState<Role | null>(null);
 
-    // Effet pour gérer UNIQUEMENT la redirection si l'utilisateur est authentifié
+    const redirectControllerRef = useRef({
+        attempted: false,
+        timeout: null as NodeJS.Timeout | null
+    });    // Effet pour gérer UNIQUEMENT la redirection si l'utilisateur est authentifié
     useEffect(() => {
-        if (status === 'authenticated') {
+        const controller = redirectControllerRef.current;
+        
+        if (status === 'authenticated' && !controller.attempted) {
             console.log(`[LOGIN] Utilisateur déjà authentifié : ${session.user.email}. Tentative de redirection vers ${callbackUrl}`);
-            router.push(callbackUrl);
+            controller.attempted = true;
+            
+            // Utiliser un timeout pour s'assurer que la redirection ne se fait qu'une fois
+            controller.timeout = setTimeout(() => {
+                router.push(callbackUrl);
+            }, 100);
         }
+
+        return () => {
+            if (controller.timeout) {
+                clearTimeout(controller.timeout);
+            }
+        };
     }, [status, session, router, callbackUrl]);
     
     // Effet pour gérer UNIQUEMENT les erreurs
@@ -75,10 +91,13 @@ export default function LoginClient() {
                 }
             } else if (result?.ok && result.url) {
                 console.log(`✅ [LOGIN] Connexion réussie, redirection vers: ${result.url}`);
+                
+                redirectControllerRef.current.attempted = true;
                 router.push(result.url);
             } else if (result?.ok) {
                 // Fallback si l'URL n'est pas retournée mais la connexion est OK
-                 router.push(callbackUrl);
+                redirectControllerRef.current.attempted = true;
+                router.push(callbackUrl);
             }
 
         } catch (error) {

@@ -1,9 +1,10 @@
 // src/hooks/usePresenceForStudent.tsx
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { pusherClient } from '@/lib/pusher/client';
 import type { PresenceChannel } from 'pusher-js';
+import { useSingleEffect } from './useSingleEffect';
 
 interface UsePresenceForStudentReturn {
   isConnected: boolean;
@@ -21,16 +22,60 @@ export const usePresenceForStudent = (
   const [teacherOnline, setTeacherOnline] = useState(false);
   
   const channelRef = useRef<PresenceChannel | null>(null);
+  
+  // CORRECTION : Stocker les références des handlers pour un cleanup propre
+  const handlersRef = useRef<{
+    subscriptionSucceeded?: (data: any) => void;
+    memberAdded?: (member: any) => void;
+    memberRemoved?: (member: any) => void;
+    subscriptionError?: (status: any) => void;
+  }>({});
+
+  useSingleEffect(() => {
+    if (enabled && userId && classroomId) {
+      console.log(`🕵️ [PRESENCE ELEVE] - Initialisation pour l'élève ${userId} dans la classe ${classroomId}`);
+    }
+  }, [enabled, userId, classroomId]);
+  // CORRECTION : Fonction de cleanup centralisée
+  const cleanupChannel = useCallback((channelName: string) => {
+    
+    if (channelRef.current) {
+      try {
+        // Débinder chaque handler individuellement
+        const handlers = handlersRef.current;
+        if (handlers.subscriptionSucceeded) {
+          channelRef.current.unbind('pusher:subscription_succeeded', handlers.subscriptionSucceeded);
+        }
+        if (handlers.memberAdded) {
+          channelRef.current.unbind('pusher:member_added', handlers.memberAdded);
+        }
+        if (handlers.memberRemoved) {
+          channelRef.current.unbind('pusher:member_removed', handlers.memberRemoved);
+        }
+        if (handlers.subscriptionError) {
+          channelRef.current.unbind('pusher:subscription_error', handlers.subscriptionError);
+        }
+        
+        // Réinitialiser les handlers
+        handlersRef.current = {};
+        
+        // Désabonner du canal
+        pusherClient.unsubscribe(channelName);
+      } catch(e) {
+        console.warn(`⚠️ [PRESENCE ELEVE] - Avertissement lors du nettoyage du canal ${channelName}:`, e);
+      }
+      channelRef.current = null;
+    }
+    
+    setIsConnected(false);
+    setTeacherOnline(false);
+  }, []);
 
   useEffect(() => {
     // Validation des paramètres et de l'état "enabled"
     if (!enabled || !userId || !classroomId) {
       if (channelRef.current) {
-        console.log('🔚 [PRESENCE ELEVE] - Désactivation, nettoyage du canal existant.');
-        pusherClient.unsubscribe(channelRef.current.name);
-        channelRef.current = null;
-        setIsConnected(false);
-        setTeacherOnline(false);
+        cleanupChannel(channelRef.current.name);
       }
       return;
     }
@@ -48,12 +93,13 @@ export const usePresenceForStudent = (
     try {
       // Nettoyer l'ancien canal avant de s'abonner à un nouveau
       if (channelRef.current) {
-        pusherClient.unsubscribe(channelRef.current.name);
+        cleanupChannel(channelRef.current.name);
       }
       
       const channel = pusherClient.subscribe(channelName) as PresenceChannel;
       channelRef.current = channel;
 
+      // CORRECTION : Définir les handlers avec des références stables
       const handleSubscriptionSucceeded = (data: { members: any }) => {
         console.log(`✅ [PRESENCE ELEVE] - Abonnement réussi au canal ${channelName}`);
         setIsConnected(true);
@@ -98,6 +144,14 @@ export const usePresenceForStudent = (
         setTeacherOnline(false);
       };
 
+      // Stocker les références des handlers pour le cleanup
+      handlersRef.current = {
+        subscriptionSucceeded: handleSubscriptionSucceeded,
+        memberAdded: handleMemberAdded,
+        memberRemoved: handleMemberRemoved,
+        subscriptionError: handleSubscriptionError
+      };
+
       // Lier les événements
       channel.bind('pusher:subscription_succeeded', handleSubscriptionSucceeded);
       channel.bind('pusher:member_added', handleMemberAdded);
@@ -105,18 +159,7 @@ export const usePresenceForStudent = (
       channel.bind('pusher:subscription_error', handleSubscriptionError);
 
       return () => {
-        console.log(`🔚 [PRESENCE ELEVE] - Nettoyage des écouteurs et désabonnement du canal ${channelName}`);
-        if (channelRef.current) {
-          try {
-            channelRef.current.unbind_all();
-            pusherClient.unsubscribe(channelName);
-          } catch(e) {
-            console.warn(`⚠️ [PRESENCE ELEVE] - Avertissement lors du nettoyage du canal ${channelName}:`, e);
-          }
-          channelRef.current = null;
-        }
-        setIsConnected(false);
-        setTeacherOnline(false);
+        cleanupChannel(channelName);
       };
 
     } catch (err) {
@@ -125,7 +168,7 @@ export const usePresenceForStudent = (
       setIsConnected(false);
       setTeacherOnline(false);
     }
-  }, [userId, classroomId, enabled]);
+  }, [userId, classroomId, enabled, cleanupChannel]); // AJOUT de cleanupChannel
 
   return { 
     isConnected, 
