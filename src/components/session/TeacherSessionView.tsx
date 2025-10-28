@@ -264,7 +264,7 @@ onPauseTimer,
         }
     };
 
-    const allParticipants = [teacher, ...students];
+    const allParticipants = useMemo(() => [teacher, ...students], [teacher, students]);
 
     return (
         <div className="flex-1 flex min-h-0 min-w-0">
