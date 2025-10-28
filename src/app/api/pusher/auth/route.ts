@@ -8,26 +8,21 @@ export async function POST(request: Request) {
   console.log('🚪 [API PUSHER AUTH] - Requête d\'authentification reçue.');
   
   try {
-    // Vérification que la requête contient du JSON
-    const contentType = request.headers.get('content-type');
-    if (!contentType || !contentType.includes('application/json')) {
-      console.error('❌ [API PUSHER AUTH] - Content-Type must be application/json');
-      return new NextResponse('Content-Type must be application/json', { status: 400 });
-    }
+    const formData = await request.formData();
+    const socketId = formData.get('socket_id') as string;
+    const channel = formData.get('channel_name') as string;
 
-    const body = await request.json();
-    const { socket_id: socketId, channel_name: channel } = body;
     console.log(`  Socket ID: ${socketId}, Channel: ${channel}`);
 
     if (!socketId || !channel) {
-      console.error('❌ [API PUSHER AUTH] - socket_id ou channel_name manquant');
+      console.error('❌ [API PUSHER AUTH] - socket_id ou channel_name manquant dans la requête.');
       return new NextResponse('Bad Request: socket_id and channel_name are required', { status: 400 });
     }
     
     const session = await getServerSession(authOptions);
 
     if (!session || !session.user) {
-      console.error('❌ [API PUSHER AUTH] - Aucune session utilisateur trouvée');
+      console.error('❌ [API PUSHER AUTH] - Aucune session utilisateur trouvée. Accès refusé.');
       return new NextResponse('Unauthorized', { status: 401 });
     }
 
@@ -45,7 +40,7 @@ export async function POST(request: Request) {
     
     console.log('  Préparation des données utilisateur pour Pusher:', userData);
     const authResponse = await authenticateUser(socketId, channel, userData);
-    console.log('✅ [API PUSHER AUTH] - Autorisation réussie');
+    console.log('✅ [API PUSHER AUTH] - Autorisation réussie pour le canal', channel);
     
     return NextResponse.json(authResponse);
 
@@ -55,7 +50,7 @@ export async function POST(request: Request) {
   }
 }
 
-// Ajout d'un handler OPTIONS pour CORS si nécessaire
+// Handler OPTIONS pour les requêtes CORS
 export async function OPTIONS() {
   return new NextResponse(null, {
     status: 200,
