@@ -14,11 +14,11 @@ export async function getStudentData(id: string) {
         return null;
     }
 
-    const cacheKey = STUDENT_DATA_CACHE_KEY(id);
     const redis = await getClient();
     
-    // Tentative de récupération depuis le cache
+    // ✅ CORRECTION: Vérifier que redis n'est pas null avant de l'utiliser
     if (redis) {
+        const cacheKey = STUDENT_DATA_CACHE_KEY(id);
         try {
             const cachedData = await redis.get(cacheKey);
             if (cachedData) {
@@ -28,6 +28,8 @@ export async function getStudentData(id: string) {
         } catch (error) {
             console.error('⚠️ [ACTION] Erreur de lecture du cache Redis (non bloquant):', error);
         }
+    } else {
+        console.log('⚠️ [ACTION] Redis non disponible, lecture directe depuis la base de données');
     }
     
     console.log(`🧑‍🎓 [DB] Récupération des données pour l'élève ID: ${id}`);
@@ -58,8 +60,9 @@ export async function getStudentData(id: string) {
 
         console.log(`✅ [ACTION] Données chargées pour l'élève: ${student.name} (classe: ${student.classe?.nom || 'Aucune'})`);
 
-        // Mise en cache des données
+        // ✅ CORRECTION: Vérifier que redis n'est pas null avant la mise en cache
         if (redis) {
+            const cacheKey = STUDENT_DATA_CACHE_KEY(id);
             try {
                 // Mettre en cache les données avec une expiration de 1 heure
                 await redis.set(cacheKey, JSON.stringify(student), 'EX', 3600);
@@ -120,7 +123,7 @@ export async function setStudentCareer(studentId: string, careerId: string | nul
         
         console.log(`✅ [ACTION] Métier mis à jour pour l'élève ${studentId}`);
 
-        // Invalider le cache de l'élève
+        // ✅ CORRECTION: Vérifier que redis n'est pas null avant l'invalidation
         const redis = await getClient();
         if (redis) {
             try {
@@ -129,6 +132,8 @@ export async function setStudentCareer(studentId: string, careerId: string | nul
             } catch(error) {
                 console.error('⚠️ [ACTION] Erreur d\'invalidation du cache Redis (non bloquant):', error);
             }
+        } else {
+            console.log('⚠️ [ACTION] Redis non disponible, pas d\'invalidation du cache');
         }
         
         // Revalider les pages concernées

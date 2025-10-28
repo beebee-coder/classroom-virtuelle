@@ -2,7 +2,7 @@
 'use client';
 import { Tldraw, useEditor, TLStoreSnapshot, TLRecord, useLocalStorageState } from '@tldraw/tldraw';
 import '@tldraw/tldraw/tldraw.css';
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 
 interface WhiteboardProps {
   sessionId: string;
@@ -23,43 +23,56 @@ function EditorManager({
   isController: boolean;
 }) {
   const editor = useEditor();
+  const [hasLoadedInitial, setHasLoadedInitial] = useState(false);
 
   // Gestion du mode lecture seule
   useEffect(() => {
     editor.updateInstanceState({ isReadonly: !isController });
   }, [isController, editor]);
 
-  // Charger le snapshot initial - API CORRIGÉE
+  // ✅ CORRECTION: Charger le snapshot initial UNE SEULE FOIS
   useEffect(() => {
-    if (initialSnapshot) {
+    if (initialSnapshot && !hasLoadedInitial && editor && editor.store) {
       try {
-        // CORRECTION : Utiliser l'approche recommandée pour charger un snapshot
-        // Vider d'abord le store actuel puis appliquer le snapshot
-        editor.store.clear();
-        const records = Object.values(initialSnapshot.store);
-        editor.store.put(records);
+        console.log('🎨 [WHITEBOARD] Chargement du snapshot initial');
+        
+        // ✅ APPROCHE CORRECTE: Utiliser loadSnapshot si disponible
+        if (typeof editor.store.loadSnapshot === 'function') {
+          editor.store.loadSnapshot(initialSnapshot);
+        } else {
+          // ✅ APPROCHE ALTERNATIVE: Mettre à jour les records individuellement
+          const records = Object.values(initialSnapshot.store) as TLRecord[];
+          editor.store.mergeRemoteChanges(() => {
+            editor.store.clear();
+            editor.store.put(records);
+          });
+        }
+        
+        setHasLoadedInitial(true);
       } catch (error) {
-        console.error("Erreur lors du chargement du snapshot:", error);
+        console.error('❌ [WHITEBOARD] Erreur lors du chargement du snapshot:', error);
+        setHasLoadedInitial(true); // Éviter les boucles infinies
       }
     }
-  }, [editor, initialSnapshot]);
+  }, [editor, initialSnapshot, hasLoadedInitial]);
 
-  // Écouter les changements et persister - API CORRIGÉE
+  // ✅ CORRECTION: Écouter les changements et persister
   useEffect(() => {
     if (!isController) return;
 
     const handleChange = () => {
-      // CORRECTION : Créer manuellement le snapshot
-      const snapshot: TLStoreSnapshot = {
-        store: Object.fromEntries(editor.store.allRecords().map(record => [record.id, record])),
-        schema: editor.store.schema.serialize(),
-      };
-      onPersist(snapshot);
+      try {
+        // ✅ APPROCHE CORRECTE: Créer le snapshot avec la méthode Tldraw
+        const snapshot = editor.store.getSnapshot();
+        onPersist(snapshot);
+      } catch (error) {
+        console.error('❌ [WHITEBOARD] Erreur lors de la création du snapshot:', error);
+      }
     };
 
-    const debouncedHandleChange = debounce(handleChange, 200);
+    const debouncedHandleChange = debounce(handleChange, 500); // Augmenté à 500ms pour plus de stabilité
 
-    // S'abonner aux changements du store
+    // S'abonner aux changements
     const unsubscribe = editor.store.listen(debouncedHandleChange, {
       scope: 'document',
     });
@@ -80,6 +93,7 @@ export function Whiteboard({
   const isController = currentUserId === whiteboardControllerId;
 
   const handlePersist = useCallback((snapshot: TLStoreSnapshot) => {
+    console.log('💾 [WHITEBOARD] Persistance du snapshot');
     onWhiteboardPersist(snapshot);
   }, [onWhiteboardPersist]);
 
@@ -97,12 +111,17 @@ export function Whiteboard({
         </div>
       </div>
 
-      {/* Zone de dessin */}
-      <div className="flex-1">
+      {/* ✅ CORRECTION: Ajouter une clé pour forcer le remontage si nécessaire */}
+      <div className="flex-1" key={`whiteboard-${sessionId}-${isController}`}>
         <Tldraw 
           persistenceKey={`session_whiteboard_${sessionId}`}
           forceMobile={false}
           autoFocus={false}
+          onMount={(editor) => {
+            console.log('🎨 [WHITEBOARD] Éditeur Tldraw monté');
+            // Initialiser en mode lecture seule si nécessaire
+            editor.updateInstanceState({ isReadonly: !isController });
+          }}
         >
           <EditorManager 
             onPersist={handlePersist}

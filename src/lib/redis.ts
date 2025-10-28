@@ -1,67 +1,54 @@
-// src/lib/redis.ts
+
+//src/lib/redis.ts
 import Redis from 'ioredis';
 
-declare global {
-  // eslint-disable-next-line no-var
-  var redis: Redis | undefined;
+let redisClient: Redis | null = null;
+
+// Fonction pour obtenir le client Redis
+export async function getClient(): Promise<Redis | null> {
+  // Si le client est déjà initialisé, le retourner
+  if (redisClient) {
+    return redisClient;
+  }
+
+  // Si REDIS_URL n'est pas définie, retourner null
+  if (!process.env.REDIS_URL) {
+    console.warn('⚠️ REDIS_URL non définie, Redis désactivé');
+    return null;
+  }
+
+  try {
+    // Initialiser le client Redis
+    redisClient = new Redis(process.env.REDIS_URL, {
+      retryStrategy: (times: number) => {
+        if (times > 3) return null;
+        const delay = Math.min(times * 500, 2000);
+        console.log(`🔌 Redis reconnexion n°${times} dans ${delay}ms`);
+        return delay;
+      },
+      maxRetriesPerRequest: 1,
+    });
+
+    // Gestion des événements
+    redisClient.on('error', (err: Error) => {
+      console.error('❌ Erreur Redis:', err.message);
+    });
+
+    redisClient.on('connect', () => {
+      console.log('✅ Connecté à Redis avec succès');
+    });
+
+    redisClient.on('ready', () => {
+      console.log('✅ Redis prêt à recevoir des commandes');
+    });
+
+    return redisClient;
+  } catch (error) {
+    console.error('❌ Échec de l initialisation Redis:', error);
+    redisClient = null;
+    return null;
+  }
 }
 
-const redisUrl = process.env.REDIS_URL;
-
-if (!redisUrl) {
-    console.warn("⚠️ Avertissement : La variable d'environnement REDIS_URL n'est pas définie. Redis ne sera pas utilisé.");
-}
-
-const retryStrategy = (times: number): number | null => {
-    if (times > 3) {
-      console.error("❌ Redis: Nombre maximum de tentatives de reconnexion atteint. Abandon de la connexion.");
-      return null;
-    }
-    const delay = Math.min(times * 500, 2000);
-    console.log(`🔌 Redis: Tentative de reconnexion n°${times}. Prochaine tentative dans ${delay}ms.`);
-    return delay;
-};
-
-// Fonction pour obtenir une instance de client Redis connectée
-async function getClient(): Promise<Redis | null> {
-    if (!redisUrl) {
-        return null;
-    }
-    
-    // Si l'instance n'existe pas, la créer
-    if (!global.redis) {
-        console.log('🔗 [REDIS] Création d\'une nouvelle connexion...');
-        global.redis = new Redis(redisUrl, {
-            retryStrategy,
-            maxRetriesPerRequest: 1,
-        });
-
-        global.redis.on('error', (err: Error) => {
-            console.error('❌ Erreur Redis:', err.message);
-        });
-
-        global.redis.on('connect', () => {
-            console.log('✅ Connecté à Redis avec succès.');
-        });
-    }
-
-    // Si la connexion n'est pas encore prête, attendre qu'elle le soit
-    if (global.redis.status !== 'ready' && global.redis.status !== 'connect') {
-        console.log(`⏳ [REDIS] Connexion non prête (statut: ${global.redis.status}). En attente...`);
-        try {
-            await global.redis.connect();
-        } catch (error) {
-            console.error('❌ [REDIS] Échec de la connexion manuelle:', error);
-            // Si la connexion échoue, détruire l'instance pour forcer une nouvelle tentative au prochain appel.
-            if (global.redis) {
-                global.redis.disconnect();
-                global.redis = undefined;
-            }
-            return null;
-        }
-    }
-    
-    return global.redis;
-}
-
+// Export par défaut pour la compatibilité
 export default getClient;

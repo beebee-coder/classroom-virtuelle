@@ -1,10 +1,10 @@
-// src/app/api/session/[id]/sync/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import getClient from '@/lib/redis';
+
+// Stockage en mémoire temporaire (pour développement)
+const memoryStore = new Map();
 
 const WHITEBOARD_SNAPSHOT_KEY = (sessionId: string) => `whiteboard:${sessionId}:snapshot`;
-const WHITEBOARD_CHANNEL = (sessionId: string) => `whiteboard-channel-${sessionId}`;
 
 // POST handler for publishing whiteboard updates
 export async function POST(
@@ -18,11 +18,6 @@ export async function POST(
     return new NextResponse('Unauthorized', { status: 403 });
   }
 
-  const redis = await getClient();
-  if (!redis) {
-      return new NextResponse('Redis not configured', { status: 500 });
-  }
-
   try {
     const body = await request.json();
     const { snapshot, senderSocketId } = body;
@@ -31,44 +26,38 @@ export async function POST(
       return new NextResponse('Snapshot data is required', { status: 400 });
     }
     
-    // Publier vers Redis Pub/Sub. Le service `redis-subscriber` écoutera cet événement.
-    await redis.publish(WHITEBOARD_CHANNEL(sessionId), JSON.stringify({
-        snapshot,
-        senderSocketId: senderSocketId
-    }));
+    // ✅ Stockage en mémoire
+    console.log(`💾 [SYNC POST] Stockage snapshot pour session ${sessionId}`);
+    memoryStore.set(WHITEBOARD_SNAPSHOT_KEY(sessionId), snapshot);
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error(`💥 [API SYNC] - Erreur interne pour la session ${sessionId}:`, error);
+    console.error(`💥 [API SYNC] - Erreur pour la session ${sessionId}:`, error);
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }
 
 // GET handler for retrieving the last known snapshot
 export async function GET(
-    request: NextRequest,
-    { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: { id: string } }
 ) {
-    const sessionId = params.id;
-    const session = await auth();
+  const sessionId = params.id;
+  const session = await auth();
 
-    if (!session?.user) {
-        return new NextResponse('Unauthorized', { status: 403 });
-    }
-
-    const redis = await getClient();
-    if (!redis) {
-        return new NextResponse('Redis not configured', { status: 500 });
-    }
+  if (!session?.user) {
+    return new NextResponse('Unauthorized', { status: 403 });
+  }
+  
+  try {
+    // ✅ Récupération depuis la mémoire
+    const snapshot = memoryStore.get(WHITEBOARD_SNAPSHOT_KEY(sessionId)) || null;
+    console.log(`💾 [SYNC GET] Récupération pour ${sessionId}:`, snapshot ? 'données trouvées' : 'aucune donnée');
     
-    try {
-        const snapshotJson = await redis.get(WHITEBOARD_SNAPSHOT_KEY(sessionId));
-        if (snapshotJson) {
-            return NextResponse.json(JSON.parse(snapshotJson));
-        }
-        return NextResponse.json(null); // Pas de snapshot sauvegardé pour le moment
-    } catch (error) {
-        console.error(`💥 [API SYNC GET] - Erreur pour la session ${sessionId}:`, error);
-        return new NextResponse('Internal Server Error', { status: 500 });
-    }
+    // ✅ IMPORTANT: Retourner directement le snapshot (pas d'objet wrapper)
+    return NextResponse.json(snapshot);
+  } catch (error) {
+    console.error(`💥 [API SYNC GET] - Erreur pour la session ${sessionId}:`, error);
+    return new NextResponse('Internal Server Error', { status: 500 });
+  }
 }
