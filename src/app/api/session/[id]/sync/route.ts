@@ -1,7 +1,6 @@
 // src/app/api/session/[id]/sync/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options';
+import { auth } from '@/auth';
 import redis from '@/lib/redis';
 
 const WHITEBOARD_SNAPSHOT_KEY = (sessionId: string) => `whiteboard:${sessionId}:snapshot`;
@@ -13,7 +12,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   const sessionId = params.id;
-  const session = await getServerSession(authOptions);
+  const session = await auth();
 
   if (!session?.user) {
     return new NextResponse('Unauthorized', { status: 403 });
@@ -50,7 +49,7 @@ export async function GET(
     { params }: { params: { id: string } }
 ) {
     const sessionId = params.id;
-    const session = await getServerSession(authOptions);
+    const session = await auth();
 
     if (!session?.user) {
         return new NextResponse('Unauthorized', { status: 403 });

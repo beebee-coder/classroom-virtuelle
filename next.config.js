@@ -1,10 +1,6 @@
 // next.config.js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    // serverComponentsExternalPackages: ['@tldraw/tldraw'], // Cette ligne peut être décommentée si tldraw est utilisé
-  },
-  
   // Correction: 'allowedDevOrigins' est une option de premier niveau, pas sous 'experimental'.
   allowedDevOrigins: [
     "https://6000-firebase-studio-1761127865714.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev",

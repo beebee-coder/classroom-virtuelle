@@ -1,6 +1,5 @@
 // src/app/student/[id]/page.tsx
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options';
+import { auth } from '@/auth';
 import { redirect, notFound } from 'next/navigation';
 import { getStudentData } from '@/lib/actions/student.actions';
 import StudentPageClient from '@/components/StudentPageClient';
@@ -26,7 +25,7 @@ type AnnouncementWithAuthor = Announcement & {
 
 export default async function StudentProfilePage({ params }: { params: { id: string } }) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     const viewingUser = session?.user;
     
     if (!viewingUser) {

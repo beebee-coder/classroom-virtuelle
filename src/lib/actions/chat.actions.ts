@@ -1,8 +1,7 @@
 // src/lib/actions/chat.actions.ts
 'use server';
 
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options';
+import { auth } from "@/auth";
 import { pusherTrigger } from '@/lib/pusher/server';
 import prisma from '@/lib/prisma';
 import type { Message, Reaction, User } from '@prisma/client';
@@ -71,7 +70,7 @@ export async function getMessages(classroomId: string): Promise<MessageWithReact
 export async function sendMessage(formData: FormData): Promise<{ success: boolean; message?: MessageWithReactions; error?: string }> {
     console.log(`💬 [ACTION] sendMessage`);
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         if (!session?.user?.id) {
             throw new Error('Non autorisé');
         }
@@ -155,7 +154,7 @@ export async function sendMessage(formData: FormData): Promise<{ success: boolea
 export async function toggleReaction(messageId: string, emoji: string): Promise<{ success: boolean; error?: string }> {
     console.log(`👍 [ACTION] toggleReaction pour message: ${messageId}, emoji: ${emoji}`);
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         if (!session?.user?.id) {
             throw new Error('Non autorisé');
         }
@@ -259,7 +258,7 @@ export async function toggleReaction(messageId: string, emoji: string): Promise<
 export async function deleteChatHistory(classroomId: string): Promise<{ success: boolean; error?: string }> {
     console.log(`🗑️ [ACTION] deleteChatHistory pour la classe: ${classroomId}`);
     try {
-        const session = await getServerSession(authOptions);
+        const session = await auth();
         
         // Vérifier les autorisations
         if (session?.user?.role !== 'PROFESSEUR') {

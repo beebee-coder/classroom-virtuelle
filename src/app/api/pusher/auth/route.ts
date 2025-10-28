@@ -1,14 +1,12 @@
 // src/app/api/pusher/auth/route.ts
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { auth } from "@/auth";
 import { authenticateUser } from '@/lib/pusher/server';
-import { authOptions } from '@/lib/auth-options';
 
 export async function POST(request: Request) {
   console.log('🚪 [API PUSHER AUTH] - Requête d\'authentification reçue.');
   
   try {
-    // Correction: Pusher envoie les données en 'form-data', pas en JSON.
     const formData = await request.formData();
     const socketId = formData.get('socket_id') as string;
     const channel = formData.get('channel_name') as string;
@@ -20,7 +18,7 @@ export async function POST(request: Request) {
       return new NextResponse('Bad Request: socket_id and channel_name are required', { status: 400 });
     }
     
-    const session = await getServerSession(authOptions);
+    const session = await auth();
 
     if (!session || !session.user) {
       console.error('❌ [API PUSHER AUTH] - Aucune session utilisateur trouvée. Accès refusé.');

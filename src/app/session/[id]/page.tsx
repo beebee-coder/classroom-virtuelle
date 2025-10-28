@@ -1,7 +1,6 @@
 // src/app/session/[id]/page.tsx
 import { Suspense } from 'react';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options';
+import { auth } from "@/auth";
 import { redirect } from 'next/navigation';
 import SessionClient from '@/components/SessionClient';
 import SessionLoading from '@/components/SessionLoading';
@@ -68,7 +67,7 @@ async function fetchSessionData(sessionId: string): Promise<{ data: SessionDetai
 
 
 export default async function SessionPage({ params }: { params: { id: string } }) {
-  const userSession = await getServerSession(authOptions);
+  const userSession = await auth();
 
   if (!userSession?.user) {
     redirect(`/login?callbackUrl=/session/${params.id}`);

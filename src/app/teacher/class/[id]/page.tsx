@@ -1,8 +1,7 @@
 // src/app/teacher/class/[id]/page.tsx
 import { notFound, redirect } from 'next/navigation';
 import ClassPageClient from './ClassPageClient';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options';
+import { auth } from '@/auth';
 import { getClassAnnouncements } from '@/lib/actions/announcement.actions';
 import prisma from '@/lib/prisma';
 import type { User, Classroom, Announcement, EtatEleve } from '@prisma/client';
@@ -17,7 +16,7 @@ type AnnouncementWithAuthor = Announcement & { author: { name: string | null } }
 
 export default async function ClassPage({ params }: { params: { id: string } }) {
   const classroomId = params.id;
-  const session = await getServerSession(authOptions);
+  const session = await auth();
 
   if (!session?.user || session.user.role !== 'PROFESSEUR') {
       redirect('/login');

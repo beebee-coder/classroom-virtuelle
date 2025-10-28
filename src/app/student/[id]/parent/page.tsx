@@ -1,7 +1,6 @@
 // src/app/student/[id]/parent/page.tsx
 import { notFound, redirect } from 'next/navigation';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options';
+import { auth } from '@/auth';
 import { Header } from '@/components/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { KeyRound } from 'lucide-react';
@@ -21,7 +20,7 @@ export default async function ParentValidationPage({
   params: { id: string };
   searchParams: { pw?: string };
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   const studentId = params.id;
   
   const student = await prisma.user.findUnique({

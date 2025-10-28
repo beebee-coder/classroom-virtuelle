@@ -1,6 +1,5 @@
 // src/app/teacher/layout.tsx
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options';
+import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import prisma from '@/lib/prisma';
 import TeacherLayoutClient from './TeacherLayoutClient';
@@ -14,7 +13,7 @@ export default async function TeacherLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
 
   if (!session?.user || session.user.role !== 'PROFESSEUR') {
     redirect('/login');

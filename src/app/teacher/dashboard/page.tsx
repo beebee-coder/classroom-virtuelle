@@ -1,6 +1,5 @@
 // src/app/teacher/dashboard/page.tsx
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options';
+import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
 import { getTasksForProfessorValidation } from '@/lib/actions/teacher.actions';
 import prisma from '@/lib/prisma';
@@ -10,7 +9,7 @@ import type { Classroom } from '@prisma/client';
 export const dynamic = 'force-dynamic';
 
 export default async function TeacherDashboardPage() {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
 
   if (!session?.user || session.user.role !== 'PROFESSEUR') {
     redirect('/login');
