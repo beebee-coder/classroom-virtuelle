@@ -10,7 +10,7 @@ import { ProgressStatus } from '@prisma/client';
 type DetailedFeedback = { taste: number, presentation: number, autonomy: number, comment: string };
 
 export async function setParentPassword(studentId: string, password: string) {
-    console.log(`🔐 [ACTION] Définition du mot de passe parental pour l'élève ${studentId}`);
+    console.log(`🔐 [ACTION] setParentPassword pour l'élève: ${studentId}`);
     if (password.length < 4) {
         throw new Error("Le mot de passe doit contenir au moins 4 caractères.");
     }
@@ -19,19 +19,25 @@ export async function setParentPassword(studentId: string, password: string) {
         data: { parentPassword: password } // Note: Dans une vraie app, il faudrait hasher ce mot de passe.
     });
     revalidatePath(`/student/${studentId}/parent`);
+    console.log(`✅ [ACTION] Mot de passe parental défini pour ${studentId}`);
 }
 
 export async function verifyParentPassword(studentId: string, password: string): Promise<boolean> {
-    console.log(`🔐 [ACTION] Vérification du mot de passe parental pour l'élève ${studentId}`);
+    console.log(`🔐 [ACTION] verifyParentPassword pour l'élève: ${studentId}`);
     const student = await prisma.user.findUnique({
         where: { id: studentId }
     });
-    if (!student || !student.parentPassword) return false;
-    return student.parentPassword === password;
+    if (!student || !student.parentPassword) {
+        console.log(`  -> Échec: élève ou mot de passe non trouvé.`);
+        return false;
+    }
+    const isValid = student.parentPassword === password;
+    console.log(`  -> Résultat vérification: ${isValid}`);
+    return isValid;
 }
 
 export async function getTasksForValidation(studentId: string): Promise<(Task & { progressId: string })[]> {
-    console.log(`👀 [ACTION] Récupération des tâches pour validation parentale pour l'élève ${studentId}`);
+    console.log(`👀 [ACTION] getTasksForValidation (parent) pour l'élève: ${studentId}`);
     
     const progressEntries = await prisma.studentProgress.findMany({
         where: {
@@ -46,6 +52,7 @@ export async function getTasksForValidation(studentId: string): Promise<(Task & 
         }
     });
 
+    console.log(`  -> ${progressEntries.length} tâche(s) trouvée(s).`);
     // Transformer les données pour correspondre au type de retour attendu
     return progressEntries.map(p => ({
         ...p.task,
@@ -60,13 +67,14 @@ export async function validateTaskByParent(
     feedback?: DetailedFeedback,
     recipeName?: string,
 ) {
-  console.log(`👍 [ACTION] Validation parentale pour la progression ${progressId}`, { approved, feedback, recipeName });
+  console.log(`👍 [ACTION] validateTaskByParent pour la progression: ${progressId}`, { approved, feedback, recipeName });
   const progress = await prisma.studentProgress.findUnique({
     where: { id: progressId },
     include: { task: true, student: true }
   });
 
   if (!progress) {
+    console.error(`❌ [ACTION] Progression non trouvée: ${progressId}`);
     throw new Error("Progression de tâche non trouvée.");
   }
   
@@ -89,16 +97,19 @@ export async function validateTaskByParent(
         data: { points: { increment: finalPoints } }
       })
     ]);
+    console.log(`  -> Tâche approuvée. +${finalPoints} points pour ${studentId}.`);
   } else {
     await prisma.studentProgress.update({
       where: { id: progressId },
       data: { status: ProgressStatus.REJECTED }
     });
+    console.log(`  -> Tâche rejetée.`);
   }
 
   revalidatePath(`/student/${studentId}/parent`);
   revalidatePath(`/student/dashboard`);
   revalidatePath(`/student/${studentId}`);
   
+  console.log(`✅ [ACTION] Validation parentale terminée pour ${progressId}.`);
   return { pointsAwarded: approved ? progress.task.points : 0 };
 }

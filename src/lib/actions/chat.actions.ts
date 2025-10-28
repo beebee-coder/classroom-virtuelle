@@ -14,7 +14,7 @@ export type MessageWithReactions = Message & {
 };
 
 export async function getMessages(classroomId: string): Promise<MessageWithReactions[]> {
-    console.log(`💬 [ACTION] Récupération des messages pour la classe ${classroomId}`);
+    console.log(`💬 [ACTION] getMessages pour la classe: ${classroomId}`);
     
     try {
         // Validation de l'ID de classe
@@ -69,6 +69,7 @@ export async function getMessages(classroomId: string): Promise<MessageWithReact
 }
 
 export async function sendMessage(formData: FormData): Promise<{ success: boolean; message?: MessageWithReactions; error?: string }> {
+    console.log(`💬 [ACTION] sendMessage`);
     try {
         const session = await getServerSession(authOptions);
         if (!session?.user?.id) {
@@ -88,7 +89,7 @@ export async function sendMessage(formData: FormData): Promise<{ success: boolea
             throw new Error('ID de classe manquant');
         }
 
-        console.log(`💬 [ACTION] Envoi du message par ${senderId} à la classe ${classroomId}`);
+        console.log(`  -> par ${senderId} à la classe ${classroomId}`);
 
         const userAccess = await prisma.classroom.findFirst({
             where: {
@@ -152,6 +153,7 @@ export async function sendMessage(formData: FormData): Promise<{ success: boolea
 }
 
 export async function toggleReaction(messageId: string, emoji: string): Promise<{ success: boolean; error?: string }> {
+    console.log(`👍 [ACTION] toggleReaction pour message: ${messageId}, emoji: ${emoji}`);
     try {
         const session = await getServerSession(authOptions);
         if (!session?.user?.id) {
@@ -160,7 +162,7 @@ export async function toggleReaction(messageId: string, emoji: string): Promise<
         
         const userId = session.user.id;
         
-        console.log(`👍 [ACTION] Gestion réaction ${emoji} sur message ${messageId} par ${userId}`);
+        console.log(`  -> par ${userId}`);
 
         // Validation des données
         if (!messageId || !emoji) {
@@ -255,6 +257,7 @@ export async function toggleReaction(messageId: string, emoji: string): Promise<
 }
 
 export async function deleteChatHistory(classroomId: string): Promise<{ success: boolean; error?: string }> {
+    console.log(`🗑️ [ACTION] deleteChatHistory pour la classe: ${classroomId}`);
     try {
         const session = await getServerSession(authOptions);
         
@@ -267,8 +270,6 @@ export async function deleteChatHistory(classroomId: string): Promise<{ success:
         if (!classroomId) {
             throw new Error('ID de classe manquant');
         }
-
-        console.log(`🗑️ [ACTION] Effacement de l'historique pour la classe ${classroomId}`);
         
         const classroom = await prisma.classroom.findFirst({
             where: { 

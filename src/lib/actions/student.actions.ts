@@ -8,8 +8,9 @@ import redis from '../redis';
 const STUDENT_DATA_CACHE_KEY = (id: string) => `student:${id}`;
 
 export async function getStudentData(id: string) {
+    console.log(`🧑‍🎓 [ACTION] getStudentData pour l'ID: ${id}`);
     if (!id) {
-        console.error('❌ [STUDENT ACTIONS] ID manquant pour getStudentData');
+        console.error('❌ [ACTION] ID manquant pour getStudentData');
         return null;
     }
 
@@ -24,7 +25,7 @@ export async function getStudentData(id: string) {
                 return JSON.parse(cachedData);
             }
         } catch (error) {
-            console.error('⚠️ [STUDENT ACTIONS] Erreur de lecture du cache Redis (non bloquant):', error);
+            console.error('⚠️ [ACTION] Erreur de lecture du cache Redis (non bloquant):', error);
         }
     }
     
@@ -45,38 +46,38 @@ export async function getStudentData(id: string) {
         });
 
         if (!student) {
-            console.error(`❌ [STUDENT ACTIONS] Élève non trouvé avec l'ID: ${id}`);
+            console.error(`❌ [ACTION] Élève non trouvé avec l'ID: ${id}`);
             return null;
         }
 
         if (student.role !== 'ELEVE') {
-            console.error(`❌ [STUDENT ACTIONS] L'utilisateur ${id} n'est pas un élève (rôle: ${student.role})`);
+            console.error(`❌ [ACTION] L'utilisateur ${id} n'est pas un élève (rôle: ${student.role})`);
             return null;
         }
 
-        console.log(`✅ [STUDENT ACTIONS] Données chargées pour l'élève: ${student.name} (classe: ${student.classe?.nom || 'Aucune'})`);
+        console.log(`✅ [ACTION] Données chargées pour l'élève: ${student.name} (classe: ${student.classe?.nom || 'Aucune'})`);
 
         // Mise en cache des données
         if (redis) {
             try {
                 // Mettre en cache les données avec une expiration de 1 heure
                 await redis.set(cacheKey, JSON.stringify(student), 'EX', 3600);
-                console.log(`💾 [STUDENT ACTIONS] Données mises en cache pour l'élève ${id}`);
+                console.log(`💾 [ACTION] Données mises en cache pour l'élève ${id}`);
             } catch (error) {
-                console.error('⚠️ [STUDENT ACTIONS] Erreur d\'écriture du cache Redis (non bloquant):', error);
+                console.error('⚠️ [ACTION] Erreur d\'écriture du cache Redis (non bloquant):', error);
             }
         }
 
         return student;
 
     } catch (error) {
-        console.error(`❌ [STUDENT ACTIONS] Erreur base de données pour l'élève ${id}:`, error);
+        console.error(`❌ [ACTION] Erreur base de données pour l'élève ${id}:`, error);
         return null;
     }
 }
 
 export async function setStudentCareer(studentId: string, careerId: string | null): Promise<{ success: boolean; error?: string }> {
-    console.log(`🎨 [ACTION] Changement de métier pour l'élève ${studentId} vers le métier ${careerId}`);
+    console.log(`🎨 [ACTION] setStudentCareer pour l'élève ${studentId} vers le métier ${careerId}`);
 
     try {
         const student = await prisma.user.findUnique({
@@ -116,15 +117,15 @@ export async function setStudentCareer(studentId: string, careerId: string | nul
             }
         });
         
-        console.log(`✅ [STUDENT ACTIONS] Métier mis à jour pour l'élève ${studentId}`);
+        console.log(`✅ [ACTION] Métier mis à jour pour l'élève ${studentId}`);
 
         // Invalider le cache de l'élève
         if (redis) {
             try {
                 await redis.del(STUDENT_DATA_CACHE_KEY(studentId));
-                console.log(`🔄 [STUDENT ACTIONS] Cache Redis pour l'élève ${studentId} invalidé.`);
+                console.log(`🔄 [ACTION] Cache Redis pour l'élève ${studentId} invalidé.`);
             } catch(error) {
-                console.error('⚠️ [STUDENT ACTIONS] Erreur d\'invalidation du cache Redis (non bloquant):', error);
+                console.error('⚠️ [ACTION] Erreur d\'invalidation du cache Redis (non bloquant):', error);
             }
         }
         
@@ -138,7 +139,7 @@ export async function setStudentCareer(studentId: string, careerId: string | nul
         return { success: true };
 
     } catch (error) {
-        console.error(`❌ [STUDENT ACTIONS] Erreur lors du changement de métier pour ${studentId}:`, error);
+        console.error(`❌ [ACTION] Erreur lors du changement de métier pour ${studentId}:`, error);
         return { 
             success: false, 
             error: error instanceof Error ? error.message : 'Erreur lors du changement de métier' 
@@ -148,6 +149,7 @@ export async function setStudentCareer(studentId: string, careerId: string | nul
 
 // Fonction utilitaire pour obtenir les progrès de l'élève
 export async function getStudentProgress(studentId: string) {
+    console.log(`📈 [ACTION] getStudentProgress pour l'élève: ${studentId}`);
     try {
         const progress = await prisma.studentProgress.findMany({
             where: { studentId },
@@ -158,16 +160,17 @@ export async function getStudentProgress(studentId: string) {
                 completionDate: 'desc'
             }
         });
-
+        console.log(`  -> ${progress.length} entrées de progression trouvées.`);
         return progress;
     } catch (error) {
-        console.error(`❌ [STUDENT ACTIONS] Erreur lors de la récupération des progrès pour ${studentId}:`, error);
+        console.error(`❌ [ACTION] Erreur lors de la récupération des progrès pour ${studentId}:`, error);
         return [];
     }
 }
 
 // Fonction pour récupérer les détails complets d'un élève
 export async function getStudentDetails(studentId: string) {
+    console.log(`ℹ️ [ACTION] getStudentDetails pour l'élève: ${studentId}`);
     try {
         const student = await prisma.user.findUnique({
             where: { id: studentId },
@@ -200,12 +203,14 @@ export async function getStudentDetails(studentId: string) {
         });
 
         if (!student || student.role !== 'ELEVE') {
+            console.log(`  -> Élève non trouvé ou rôle incorrect.`);
             return null;
         }
 
+        console.log(`✅ [ACTION] Détails complets récupérés pour ${studentId}.`);
         return student;
     } catch (error) {
-        console.error(`❌ [STUDENT ACTIONS] Erreur lors de la récupération des détails pour ${studentId}:`, error);
+        console.error(`❌ [ACTION] Erreur lors de la récupération des détails pour ${studentId}:`, error);
         return null;
     }
 }

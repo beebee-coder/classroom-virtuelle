@@ -8,12 +8,13 @@ import { Role } from '@prisma/client';
 export async function createClass(formData: FormData) {
     const nom = formData.get('nom') as string;
     const teacherId = formData.get('teacherId') as string;
+    
+    console.log(`🏫 [ACTION] createClass: "${nom}" pour le professeur ${teacherId}`);
 
     if (!nom || !teacherId) {
+        console.error('❌ [ACTION] Données manquantes pour createClass');
         throw new Error('Nom de la classe et ID du professeur sont requis.');
     }
-    
-    console.log(`🏫 [ACTION] Création de la classe: "${nom}" pour le professeur ${teacherId}`);
 
     const newClass = await prisma.classroom.create({
         data: {
@@ -24,6 +25,7 @@ export async function createClass(formData: FormData) {
     
     revalidatePath('/teacher/classes');
     
+    console.log(`✅ [ACTION] Classe créée avec succès: ${newClass.id}`);
     return newClass;
 }
 
@@ -32,14 +34,16 @@ export async function addStudentToClass(formData: FormData) {
     const email = formData.get('email') as string;
     const classroomId = formData.get('classroomId') as string;
     
+    console.log(`🧑‍🎓 [ACTION] addStudentToClass: ${name} (${email}) à la classe ${classroomId}`);
+    
     if (!name || !email || !classroomId) {
+        console.error('❌ [ACTION] Données manquantes pour addStudentToClass');
         throw new Error("Le nom, l'email et l'ID de la classe sont requis.");
     }
     
-    console.log(`🧑‍🎓 [ACTION] Ajout de l'élève ${name} (${email}) à la classe ${classroomId}`);
-
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
+        console.error(`❌ [ACTION] Email déjà existant: ${email}`);
         throw new Error("Un utilisateur avec cet email existe déjà.");
     }
 
@@ -67,5 +71,6 @@ export async function addStudentToClass(formData: FormData) {
 
     revalidatePath(`/teacher/class/${classroomId}`);
 
+    console.log(`✅ [ACTION] Élève ajouté avec succès: ${newStudent.id}`);
     return newStudent;
 }

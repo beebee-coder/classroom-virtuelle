@@ -23,7 +23,7 @@ async function invalidateTaskCaches(studentId?: string) {
             pipeline.del(STUDENT_DATA_CACHE_KEY(studentId));
         }
         await pipeline.exec();
-        console.log(`🔄 Cache Redis pour les tâches (et élève ${studentId}) invalidé.`);
+        console.log(`🔄 Cache Redis pour les tâches (et élève ${studentId || 'aucun'}) invalidé.`);
       } catch(e) {
         console.error('⚠️ Erreur lors de l\'invalidation du cache des tâches (non bloquant):', e);
       }
@@ -31,6 +31,7 @@ async function invalidateTaskCaches(studentId?: string) {
 }
 
 export async function saveTask(formData: FormData): Promise<Task> {
+    console.log(`📝 [ACTION] saveTask`);
     const session = await getServerSession(authOptions);
     if (session?.user?.role !== 'PROFESSEUR') {
         throw new Error('Unauthorized');
@@ -52,24 +53,26 @@ export async function saveTask(formData: FormData): Promise<Task> {
     let savedTask: Task;
 
     if (taskId) {
-        console.log(`📝 [ACTION] Mise à jour de la tâche ID: ${taskId}`);
+        console.log(`  -> Mise à jour de la tâche ID: ${taskId}`);
         savedTask = await prisma.task.update({
             where: { id: taskId },
             data: taskData,
         });
     } else {
-        console.log(`📝 [ACTION] Création d'une nouvelle tâche`);
+        console.log(`  -> Création d'une nouvelle tâche`);
         savedTask = await prisma.task.create({ data: taskData });
     }
 
     await invalidateTaskCaches();
     revalidatePath('/teacher/tasks');
     revalidatePath('/student/dashboard', 'layout'); // Pour tous les élèves
+    console.log(`✅ [ACTION] Tâche sauvegardée avec succès: ${savedTask.id}`);
     return savedTask;
 }
 
 
 export async function deleteTask(id: string): Promise<{ success: boolean }> {
+    console.log(`🗑️ [ACTION] deleteTask: ${id}`);
     const session = await getServerSession(authOptions);
     if (session?.user?.role !== 'PROFESSEUR') {
         throw new Error('Unauthorized');
@@ -80,16 +83,19 @@ export async function deleteTask(id: string): Promise<{ success: boolean }> {
     await invalidateTaskCaches();
     revalidatePath('/teacher/tasks');
     revalidatePath('/student/dashboard', 'layout');
+    console.log(`✅ [ACTION] Tâche supprimée avec succès: ${id}`);
     return { success: true };
 }
 
 export async function completeTask(taskId: string, submissionUrl?: string): Promise<StudentProgress> {
+  console.log(`🏁 [ACTION] completeTask: ${taskId}`);
   const session = await getServerSession(authOptions);
   
   if (!session?.user || session.user.role !== Role.ELEVE) {
     throw new Error("Authentification élève requise.");
   }
   const studentId = session.user.id;
+  console.log(`  -> par l'élève: ${studentId}`);
 
   const existingProgress = await prisma.studentProgress.findFirst({
       where: { studentId, taskId }
@@ -106,6 +112,7 @@ export async function completeTask(taskId: string, submissionUrl?: string): Prom
   } else {
     newStatus = ProgressStatus.PENDING_VALIDATION;
   }
+  console.log(`  -> Nouveau statut: ${newStatus}`);
 
   let progress;
 
@@ -134,6 +141,7 @@ export async function completeTask(taskId: string, submissionUrl?: string): Prom
         where: { id: studentId },
         data: { points: { increment: taskData.points } }
     });
+    console.log(`  -> Tâche auto-validée. +${taskData.points} points pour ${studentId}.`);
   }
   
   await invalidateTaskCaches(studentId);
@@ -145,6 +153,7 @@ export async function completeTask(taskId: string, submissionUrl?: string): Prom
   if (taskData.validationType === 'PARENT') {
       revalidatePath(`/student/${studentId}/parent`);
   }
-
+  
+  console.log(`✅ [ACTION] Tâche complétée avec succès: ${progress.id}`);
   return progress;
 }

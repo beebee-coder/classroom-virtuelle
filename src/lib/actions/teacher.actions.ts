@@ -14,7 +14,7 @@ export type TaskForProfessorValidation = StudentProgress & {
 
 
 export async function getTasksForProfessorValidation(teacherId: string): Promise<TaskForProfessorValidation[]> {
-    console.log(`👀 [ACTION] Récupération des tâches à valider pour le professeur ${teacherId}.`);
+    console.log(`🧑‍🏫 [ACTION] getTasksForProfessorValidation pour le professeur: ${teacherId}.`);
     
     // 1. Trouver les classes du professeur
     const classrooms = await prisma.classroom.findMany({
@@ -22,6 +22,7 @@ export async function getTasksForProfessorValidation(teacherId: string): Promise
         select: { id: true }
     });
     const classroomIds = classrooms.map(c => c.id);
+    console.log(`  -> Professeur gère ${classroomIds.length} classe(s).`);
 
     // 2. Trouver les élèves dans ces classes
     const students = await prisma.user.findMany({
@@ -31,7 +32,7 @@ export async function getTasksForProfessorValidation(teacherId: string): Promise
     const studentIds = students.map(s => s.id);
 
     // 3. Trouver les soumissions en attente de ces élèves pour les tâches nécessitant une validation par le professeur
-    return prisma.studentProgress.findMany({
+    const tasks = await prisma.studentProgress.findMany({
         where: {
             studentId: { in: studentIds },
             status: ProgressStatus.PENDING_VALIDATION,
@@ -49,6 +50,8 @@ export async function getTasksForProfessorValidation(teacherId: string): Promise
             completionDate: 'asc'
         }
     });
+    console.log(`  -> ${tasks.length} tâche(s) trouvée(s) pour validation.`);
+    return tasks;
 }
 
 export interface ProfessorValidationPayload {
@@ -59,7 +62,7 @@ export interface ProfessorValidationPayload {
 }
 
 export async function validateTaskByProfessor(payload: ProfessorValidationPayload) {
-    console.log('👍 [ACTION] Validation de tâche par le professeur:', payload);
+    console.log('👍 [ACTION] validateTaskByProfessor:', payload);
     const { progressId, approved, pointsAwarded } = payload;
     
     const progress = await prisma.studentProgress.findUnique({
@@ -68,11 +71,13 @@ export async function validateTaskByProfessor(payload: ProfessorValidationPayloa
     });
 
     if (!progress) {
+        console.error(`❌ [ACTION] Progression non trouvée: ${progressId}`);
         throw new Error("Progression de tâche non trouvée.");
     }
     
     if (approved) {
         const finalPoints = pointsAwarded ?? progress.task.points;
+        console.log(`  -> Approbation. Attribution de ${finalPoints} points à ${progress.student.name}.`);
         
         await prisma.$transaction([
             prisma.studentProgress.update({
@@ -88,6 +93,7 @@ export async function validateTaskByProfessor(payload: ProfessorValidationPayloa
             })
         ]);
     } else {
+        console.log(`  -> Rejet de la tâche.`);
         await prisma.studentProgress.update({
             where: { id: progressId },
             data: { 
@@ -100,7 +106,8 @@ export async function validateTaskByProfessor(payload: ProfessorValidationPayloa
     revalidatePath('/teacher/validations');
     revalidatePath(`/student/dashboard`); // Pour que l'élève voie la mise à jour
     revalidatePath(`/student/${progress.studentId}`);
-
+    
+    console.log(`✅ [ACTION] Validation terminée pour ${progressId}.`);
     return {
         studentName: progress.student.name,
         taskTitle: progress.task.title,
@@ -109,7 +116,7 @@ export async function validateTaskByProfessor(payload: ProfessorValidationPayloa
 }
 
 export async function resetAllStudentData() {
-  console.log('🔄 [ACTION] Réinitialisation de toutes les données élève.');
+  console.log('🔄 [ACTION] resetAllStudentData - Lancement de la réinitialisation complète.');
   
   await prisma.$transaction([
     // 1. Remettre tous les points des élèves à 0
@@ -123,8 +130,8 @@ export async function resetAllStudentData() {
 
   console.log("✅ [ACTION] Toutes les données des élèves ont été réinitialisées.");
 
-  revalidatePath('/teacher'); // Revalider toutes les pages enseignantes
-  revalidatePath('/student'); // Revalider toutes les pages élèves
+  revalidatePath('/teacher', 'layout'); // Revalider toutes les pages enseignantes
+  revalidatePath('/student', 'layout'); // Revalider toutes les pages élèves
   
   return { success: true, message: "Toutes les données des élèves ont été réinitialisées avec succès." };
 }

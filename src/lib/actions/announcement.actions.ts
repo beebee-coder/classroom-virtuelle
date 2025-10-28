@@ -115,6 +115,7 @@ export const getPublicAnnouncements = cache(async (limit: number = 3): Promise<A
 });
 
 export async function getStudentAnnouncements(studentId: string): Promise<AnnouncementWithAuthor[]> {
+    console.log(`📢 [ACTION] getStudentAnnouncements pour l'élève: ${studentId}`);
     const cacheKey = STUDENT_ANNOUNCEMENTS_CACHE_KEY(studentId);
     if(redis) {
       try {
@@ -161,6 +162,7 @@ export async function getStudentAnnouncements(studentId: string): Promise<Announ
 }
 
 export async function getClassAnnouncements(classroomId: string): Promise<AnnouncementWithAuthor[]> {
+    console.log(`📢 [ACTION] getClassAnnouncements pour la classe: ${classroomId}`);
     const cacheKey = CLASS_ANNOUNCEMENTS_CACHE_KEY(classroomId);
     if(redis) {
       try {
