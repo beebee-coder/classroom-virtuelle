@@ -11,6 +11,7 @@ import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger 
 import Menu from '@/components/Menu';
 import prisma from '@/lib/prisma';
 import type { User, Metier, Announcement, StudentProgress, Task, Classroom, EtatEleve } from '@prisma/client';
+import { StudentDashboardError } from '@/components/StudentDashboardError';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,21 +25,6 @@ type StudentWithDetails = User & {
 type AnnouncementWithAuthor = Announcement & {
     author: { name: string | null };
 };
-
-// CORRECTION: Composant d'erreur sans interactivité
-function StudentDashboardError({ message }: { message: string }) {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-destructive mb-4">Erreur</h1>
-        <p className="text-muted-foreground mb-6">{message}</p>
-        <p className="text-sm text-muted-foreground">
-          Veuillez recharger la page ou contacter l'administrateur.
-        </p>
-      </div>
-    </div>
-  );
-}
 
 export default async function StudentDashboardPage() {
     console.log('🧑‍🎓 [PAGE] - Chargement du tableau de bord élève.');
