@@ -23,6 +23,8 @@ import { saveTask, deleteTask } from "@/lib/actions/task.actions";
 import { Loader2, PlusCircle, Edit, Trash } from 'lucide-react';
 import { Task, TaskType, TaskCategory, TaskDifficulty, ValidationType } from "@prisma/client";
 import { useRouter } from "next/navigation";
+import { ScrollArea } from "./ui/scroll-area";
+import { Card } from "./ui/card";
 
 interface TaskEditorProps {
   initialTasks: Task[];
@@ -73,15 +75,7 @@ export function TaskEditor({ initialTasks }: TaskEditorProps) {
   }
 
   return (
-    // ✅ CORRECTION: Ajouter une hauteur minimale et gestion du débordement
-    <div className="h-full flex flex-col min-h-[500px]">
-      <div className="flex justify-end mb-4 p-6 pb-0">
-        <Button onClick={openNewTaskDialog}>
-          <PlusCircle className="mr-2" />
-          Ajouter une tâche
-        </Button>
-      </div>
-
+    <div className="flex flex-col flex-1 min-h-0">
       <Dialog open={dialogOpen} onOpenChange={(isOpen) => {
           if (!isOpen) {
               setEditingTask(null);
@@ -169,41 +163,48 @@ export function TaskEditor({ initialTasks }: TaskEditorProps) {
           </form>
         </DialogContent>
       </Dialog>
-
-      {/* ✅ CORRECTION: Section table avec défilement si nécessaire */}
-      <div className="flex-1 p-6 pt-4 overflow-auto">
-        <div className="border rounded-lg bg-background">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Titre</TableHead>
-                <TableHead>Points</TableHead>
-                <TableHead>Fréquence</TableHead>
-                <TableHead>Catégorie</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tasks.map(task => (
-                <TableRow key={task.id}>
-                  <TableCell className="font-medium">{task.title}</TableCell>
-                  <TableCell>{task.points}</TableCell>
-                  <TableCell>{task.type}</TableCell>
-                  <TableCell>{task.category}</TableCell>
-                  <TableCell className="space-x-2">
-                    <Button variant="outline" size="icon" onClick={() => openEditTaskDialog(task)} disabled={isPending}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="destructive" size="icon" onClick={() => handleDelete(task.id)} disabled={isPending}>
-                      <Trash className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+      
+      <Card className="flex-1 flex flex-col min-h-0">
+          <div className="flex justify-end p-6 pb-4">
+             <Button onClick={openNewTaskDialog}>
+                <PlusCircle className="mr-2" />
+                Ajouter une tâche
+            </Button>
+          </div>
+          <ScrollArea className="flex-1">
+             <div className="p-6 pt-0">
+                <Table>
+                    <TableHeader>
+                    <TableRow>
+                        <TableHead>Titre</TableHead>
+                        <TableHead>Points</TableHead>
+                        <TableHead>Fréquence</TableHead>
+                        <TableHead>Catégorie</TableHead>
+                        <TableHead>Actions</TableHead>
+                    </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                    {initialTasks.map(task => (
+                        <TableRow key={task.id}>
+                        <TableCell className="font-medium">{task.title}</TableCell>
+                        <TableCell>{task.points}</TableCell>
+                        <TableCell>{task.type}</TableCell>
+                        <TableCell>{task.category}</TableCell>
+                        <TableCell className="space-x-2">
+                            <Button variant="outline" size="icon" onClick={() => openEditTaskDialog(task)} disabled={isPending}>
+                            <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="destructive" size="icon" onClick={() => handleDelete(task.id)} disabled={isPending}>
+                            <Trash className="h-4 w-4" />
+                            </Button>
+                        </TableCell>
+                        </TableRow>
+                    ))}
+                    </TableBody>
+                </Table>
+             </div>
+          </ScrollArea>
+      </Card>
     </div>
   );
 }

@@ -21,26 +21,18 @@ export default async function TasksPage() {
   });
 
   return (
-    <main className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* ✅ CORRECTION: Structure améliorée avec conteneur approprié */}
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center gap-4 mb-8">
-            <BackButton />
-            <div className="flex-1">
-              <h1 className="text-3xl font-bold tracking-tight">Éditeur de Tâches</h1>
-              <p className="text-muted-foreground mt-2">
-                Créez et gérez les tâches pour tous les élèves.
-              </p>
-            </div>
-          </div>
-          
-          {/* ✅ CORRECTION: Conteneur spécifique pour TaskEditor */}
-          <div className="bg-card rounded-lg border shadow-sm">
-            <TaskEditor initialTasks={tasks} />
-          </div>
+    <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 h-full flex flex-col">
+      <div className="flex items-center gap-4 mb-8">
+        <BackButton />
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Éditeur de Tâches</h1>
+          <p className="text-muted-foreground">
+            Créez et gérez les tâches pour tous les élèves.
+          </p>
         </div>
       </div>
+      
+      <TaskEditor initialTasks={tasks} />
     </main>
   );
 }
