@@ -28,7 +28,7 @@ const publisher = new Redis(redisUrl); // Client séparé pour les commandes SET
 
 const WHITEBOARD_SNAPSHOT_KEY = (sessionId: string) => `whiteboard:${sessionId}:snapshot`;
 const WHITEBOARD_CHANNEL_PATTERN = 'whiteboard-channel-*';
-const WHITEBOARD_UPDATE_EVENT = 'whiteboard-update-event';
+const WHITEBOARD_UPDATE_EVENT = 'whiteboard-update';
 
 
 console.log('✅ [REDIS SUBSCRIBER] - Démarrage du service...');
@@ -61,7 +61,7 @@ subscriber.on('pmessage', async (pattern, channel, message) => {
       await pusherTrigger(
         pusherChannelName, 
         WHITEBOARD_UPDATE_EVENT, 
-        { snapshot }, 
+        { snapshot, senderId: senderSocketId }, // Inclure le senderId pour l'exclusion côté client
         { socket_id: senderSocketId }
       );
       console.log(`  -> 🎨 Diffusé sur Pusher [${pusherChannelName}].`);

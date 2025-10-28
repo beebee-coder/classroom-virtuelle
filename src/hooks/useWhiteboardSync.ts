@@ -15,6 +15,7 @@ export const useWhiteboardSync = (
     const [whiteboardSnapshot, setWhiteboardSnapshot] = useState<TLStoreSnapshot | null>(initialSnapshot);
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+    // Fonction pour récupérer le snapshot initial
     useEffect(() => {
         const fetchInitialSnapshot = async () => {
             try {
@@ -36,11 +37,13 @@ export const useWhiteboardSync = (
         }
     }, [sessionId, initialSnapshot]);
 
+    // Effet pour l'abonnement Pusher
     useEffect(() => {
         const channelName = `presence-session-${sessionId}`;
         const channel = pusherClient.subscribe(channelName);
 
         const handleUpdate = (data: { snapshot: TLStoreSnapshot, senderId: string }) => {
+            // Ignorer les mises à jour que nous avons nous-mêmes envoyées
             if (data.senderId === pusherClient.connection.socket_id) return;
             setWhiteboardSnapshot(data.snapshot);
         };
@@ -56,6 +59,7 @@ export const useWhiteboardSync = (
         };
     }, [sessionId]);
 
+    // Fonction pour persister les changements via l'API centralisée
     const persistWhiteboardSnapshot = useCallback((snapshot: TLStoreSnapshot) => {
         setWhiteboardSnapshot(snapshot);
 
@@ -64,13 +68,12 @@ export const useWhiteboardSync = (
         }
 
         saveTimeoutRef.current = setTimeout(() => {
-            fetch(`/api/pusher/whiteboard-update`, {
+            fetch(`/api/session/${sessionId}/sync`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    sessionId,
                     snapshot,
-                    senderId: pusherClient.connection.socket_id,
+                    senderSocketId: pusherClient.connection.socket_id, // Important pour l'exclusion
                 }),
             }).catch(error => {
                 console.error("Erreur lors de la synchronisation du tableau blanc:", error);

@@ -3,12 +3,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import redis from '@/lib/redis';
-import { pusherTrigger } from '@/lib/pusher/server';
 
 const WHITEBOARD_SNAPSHOT_KEY = (sessionId: string) => `whiteboard:${sessionId}:snapshot`;
 const WHITEBOARD_CHANNEL = (sessionId: string) => `whiteboard-channel-${sessionId}`;
-const WHITEBOARD_UPDATE_EVENT = 'whiteboard-update-event';
-
 
 // POST handler for publishing whiteboard updates
 export async function POST(
@@ -28,7 +25,7 @@ export async function POST(
 
   try {
     const body = await request.json();
-    const { snapshot, source } = body;
+    const { snapshot, senderSocketId } = body;
 
     if (!snapshot) {
       return new NextResponse('Snapshot data is required', { status: 400 });
@@ -37,7 +34,7 @@ export async function POST(
     // Publier vers Redis Pub/Sub. Le service `redis-subscriber` écoutera cet événement.
     await redis.publish(WHITEBOARD_CHANNEL(sessionId), JSON.stringify({
         snapshot,
-        senderSocketId: source // L'ID du socket de l'expéditeur pour l'exclure de la diffusion Pusher
+        senderSocketId: senderSocketId
     }));
 
     return NextResponse.json({ success: true });
