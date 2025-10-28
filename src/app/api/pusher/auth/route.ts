@@ -8,6 +8,7 @@ export async function POST(request: Request) {
   console.log('🚪 [API PUSHER AUTH] - Requête d\'authentification reçue.');
   
   try {
+    // Correction: Pusher envoie les données en 'form-data', pas en JSON.
     const formData = await request.formData();
     const socketId = formData.get('socket_id') as string;
     const channel = formData.get('channel_name') as string;

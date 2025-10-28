@@ -2,10 +2,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    serverComponentsExternalPackages: ['@tldraw/tldraw'],
+    // serverComponentsExternalPackages: ['@tldraw/tldraw'], // Cette ligne peut être décommentée si tldraw est utilisé
   },
   
-  // Ajout de la configuration pour autoriser les origines de développement
+  // Correction: 'allowedDevOrigins' est une option de premier niveau, pas sous 'experimental'.
   allowedDevOrigins: [
     "https://6000-firebase-studio-1761127865714.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev",
   ],
@@ -18,7 +18,7 @@ const nextConfig = {
   // Timeouts étendus pour Firebase Workstations et les actions serveur
   staticPageGenerationTimeout: 300,
 
-  // Configuration existante des images
+  // Configuration des images
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'placehold.co', port: '', pathname: '/**' },
