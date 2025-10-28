@@ -33,14 +33,16 @@ export default function TeacherLayoutClient({
     <SidebarProvider>
       <div className="flex flex-col min-h-screen">
         <Header user={user}>
-          <SidebarTrigger />
-          {firstClassroomId && user.role && (
-            <ChatSheet 
-              classroomId={firstClassroomId} 
-              userId={user.id} 
-              userRole={user.role as Role} 
-            />
-          )}
+          <div className="flex items-center gap-2">
+            <SidebarTrigger />
+            {firstClassroomId && user.role && (
+              <ChatSheet 
+                classroomId={firstClassroomId} 
+                userId={user.id} 
+                userRole={user.role as Role} 
+              />
+            )}
+          </div>
         </Header>
         <div className="flex flex-1">
           <Sidebar>
@@ -53,7 +55,9 @@ export default function TeacherLayoutClient({
             </SidebarContent>
           </Sidebar>
           <SidebarInset>
-            {children}
+            <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+              {children}
+            </main>
           </SidebarInset>
         </div>
       </div>

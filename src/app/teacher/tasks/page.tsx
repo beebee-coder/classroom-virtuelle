@@ -21,7 +21,7 @@ export default async function TasksPage() {
   });
 
   return (
-    <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 h-full flex flex-col">
+    <div className="h-full flex flex-col">
       <div className="flex items-center gap-4 mb-8">
         <BackButton />
         <div>
@@ -33,6 +33,6 @@ export default async function TasksPage() {
       </div>
       
       <TaskEditor initialTasks={tasks} />
-    </main>
+    </div>
   );
 }

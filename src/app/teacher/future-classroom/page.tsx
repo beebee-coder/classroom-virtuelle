@@ -12,7 +12,7 @@ export default async function FutureClassroomPage() {
   }
 
   return (
-    <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <>
       <div className="flex items-center gap-4 mb-8">
         <BackButton />
         <div>
@@ -44,6 +44,6 @@ export default async function FutureClassroomPage() {
           </CardContent>
         </Card>
       </div>
-    </main>
+    </>
   );
 }
