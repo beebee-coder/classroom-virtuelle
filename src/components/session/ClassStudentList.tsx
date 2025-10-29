@@ -2,7 +2,7 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Wifi, WifiOff, User, Send, Hourglass, Star } from 'lucide-react';
+import { Users, Wifi, WifiOff, User, Send, Hourglass, Star, Edit, Undo2 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -24,6 +24,8 @@ interface ClassStudentListProps {
     onAccordionToggle: (isOpen: boolean) => void;
     onSpotlightParticipant: (participantId: string) => void;
     spotlightedParticipantId: string | null;
+    whiteboardControllerId: string | null;
+    onWhiteboardControllerChange: (participantId: string) => void;
 }
 
 export function ClassStudentList({ 
@@ -35,10 +37,15 @@ export function ClassStudentList({
     hasWaitingStudents,
     onAccordionToggle,
     onSpotlightParticipant,
-    spotlightedParticipantId
+    spotlightedParticipantId,
+    whiteboardControllerId,
+    onWhiteboardControllerChange,
 }: ClassStudentListProps) {
     const allStudents = classroom.eleves || [];
     const teacher = allStudents.find(u => u.id === classroom.professeurId);
+
+    // Ajout du professeur à la liste pour l'affichage unifié
+    const allUsersToList = teacher ? [teacher, ...allStudents.filter(s => s.id !== teacher.id)] : allStudents;
 
     return (
         <Card className="flex flex-col bg-background/80">
@@ -49,7 +56,7 @@ export function ClassStudentList({
                             <Users className="h-5 w-5" /> 
                             Classe {classroom.nom} 
                             <span className="text-sm font-normal text-muted-foreground ml-2">
-                                ({onlineUserIds.length}/{allStudents.length} en ligne)
+                                ({onlineUserIds.length}/{allUsersToList.length} en ligne)
                             </span>
                              {hasWaitingStudents && (
                                 <span className="ml-auto flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-white text-xs font-bold animate-pulse">
@@ -61,23 +68,26 @@ export function ClassStudentList({
                     <AccordionContent>
                         <CardContent className="space-y-3 overflow-y-auto max-h-80 pr-2 pb-2">
                             <TooltipProvider>
-                                {allStudents.length > 0 ? (
-                                    allStudents.map(student => {
-                                        const isOnline = onlineUserIds.includes(student.id);
-                                        const isParticipant = activeParticipantIds.includes(student.id);
+                                {allUsersToList.length > 0 ? (
+                                    allUsersToList.map(user => {
+                                        const isOnline = onlineUserIds.includes(user.id);
+                                        const isParticipant = activeParticipantIds.includes(user.id);
                                         const isWaiting = isOnline && !isParticipant;
                                         return (
                                             <StudentListItem 
-                                                key={student.id}
-                                                student={student}
+                                                key={user.id}
+                                                student={user}
                                                 isOnline={isOnline}
                                                 isParticipant={isParticipant}
                                                 isWaiting={isWaiting}
-                                                isCurrentUser={student.id === currentUserId}
+                                                isCurrentUser={user.id === currentUserId}
                                                 sessionId={sessionId}
                                                 classroomId={classroom.id}
                                                 onSpotlight={onSpotlightParticipant}
-                                                isSpotlighted={student.id === spotlightedParticipantId}
+                                                isSpotlighted={user.id === spotlightedParticipantId}
+                                                isWhiteboardController={user.id === whiteboardControllerId}
+                                                onWhiteboardControllerChange={onWhiteboardControllerChange}
+                                                isTeacher={user.role === 'PROFESSEUR'}
                                             />
                                         )
                                     })
@@ -106,7 +116,10 @@ function StudentListItem({
     sessionId,
     classroomId,
     onSpotlight,
-    isSpotlighted
+    isSpotlighted,
+    isWhiteboardController,
+    onWhiteboardControllerChange,
+    isTeacher
 }: { 
     student: UserType; 
     isOnline: boolean;
@@ -117,13 +130,17 @@ function StudentListItem({
     classroomId: string;
     onSpotlight: (participantId: string) => void;
     isSpotlighted: boolean;
+    isWhiteboardController: boolean;
+    onWhiteboardControllerChange: (participantId: string) => void;
+    isTeacher: boolean;
 }) {
-    const displayName = student.name || student.email || 'Élève';
+    const displayName = student.name || student.email || 'Participant';
     const initials = displayName.charAt(0).toUpperCase();
     const { toast } = useToast();
     const [isPending, startTransition] = useTransition();
 
     const handleReinvite = () => {
+        if(isTeacher) return;
         console.log(`✉️ [CLIENT] Clic pour ré-inviter ${student.name} (${student.id})`);
         startTransition(async () => {
             try {
@@ -146,19 +163,14 @@ function StudentListItem({
         <div className={cn(
             "flex items-center justify-between gap-3 p-2 rounded-lg transition-colors border",
             isSpotlighted ? "bg-amber-50 border-amber-300" :
-            isWaiting ? "bg-blue-50 border-blue-200" :
-            isParticipant ? "bg-green-50 border-green-200" : 
+            isWhiteboardController ? "bg-green-50 border-green-300" :
+            isWaiting ? "bg-blue-50 border-blue-200" : 
+            isParticipant ? "bg-gray-50 border-gray-200" : 
             "bg-muted/30 border-transparent"
         )}>
             <div className="flex items-center gap-3 min-w-0 flex-1">
                 <Avatar className="h-8 w-8">
-                    <AvatarFallback className={cn(
-                        "text-xs",
-                        isSpotlighted ? "bg-amber-100 text-amber-800" :
-                        isWaiting ? "bg-blue-100 text-blue-800" :
-                        isParticipant ? "bg-green-100 text-green-800" : 
-                        "bg-muted text-muted-foreground"
-                    )}>
+                    <AvatarFallback className={cn("text-xs", !isOnline && "bg-muted text-muted-foreground")}>
                         {initials}
                     </AvatarFallback>
                 </Avatar>
@@ -185,7 +197,7 @@ function StudentListItem({
             </div>
             
             <div className='flex items-center gap-1'>
-                {isWaiting && (
+                {isWaiting && !isTeacher && (
                      <Tooltip>
                         <TooltipTrigger asChild>
                             <Button size="icon" variant="ghost" onClick={handleReinvite} disabled={isPending} className="h-7 w-7 text-blue-600">
@@ -197,6 +209,18 @@ function StudentListItem({
                         </TooltipContent>
                     </Tooltip>
                 )}
+
+                 <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button size="icon" variant="ghost" onClick={() => onWhiteboardControllerChange(student.id)} className={cn("h-7 w-7", isWhiteboardController ? "text-green-600" : "text-muted-foreground")}>
+                            {isWhiteboardController && isTeacher ? <Undo2 className="h-4 w-4" /> : <Edit className={cn(isWhiteboardController && "fill-current")} />}
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>{isWhiteboardController ? (isTeacher ? 'Reprendre le contrôle' : 'A le contrôle') : 'Donner le contrôle'}</p>
+                    </TooltipContent>
+                </Tooltip>
+
                  <Tooltip>
                     <TooltipTrigger asChild>
                         <Button size="icon" variant="ghost" onClick={() => onSpotlight(student.id)} className={cn("h-7 w-7", isSpotlighted ? "text-amber-500" : "text-muted-foreground")}>

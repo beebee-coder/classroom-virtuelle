@@ -355,6 +355,8 @@ onPauseTimer,
                                         onAccordionToggle={(isOpen) => setIsClassListExpanded(isOpen)}
                                         onSpotlightParticipant={onSpotlightParticipant}
                                         spotlightedParticipantId={spotlightedUser?.id || null}
+                                        whiteboardControllerId={whiteboardControllerId}
+                                        onWhiteboardControllerChange={onWhiteboardControllerChange}
                                     />
                                 </AnimatedCard>
                             )}

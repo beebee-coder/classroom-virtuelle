@@ -67,6 +67,10 @@ function ParticipantComponent({
     });
   };
 
+  // Le professeur peut voir le bouton si c'est la vidéo de qqn d'autre,
+  // ou si c'est sa propre vidéo et que qqn d'autre a le contrôle (pour le reprendre).
+  const canShowWhiteboardControlButton = isTeacher && onSetWhiteboardController && (!isLocal || !isWhiteboardController);
+
   return (
     <Card className={cn(
         "relative aspect-video bg-muted rounded-lg overflow-hidden flex items-center justify-center group text-white",
@@ -87,7 +91,7 @@ function ParticipantComponent({
        
         <div className="absolute bottom-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
              <TooltipProvider>
-                 {isTeacher && onSetWhiteboardController && !isLocal && (
+                 {canShowWhiteboardControlButton && (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button variant="secondary" size="icon" className="h-6 w-6 bg-black/50 hover:bg-black/80 border-none" onClick={handleSetController}>
