@@ -353,6 +353,8 @@ onPauseTimer,
                                         sessionId={sessionId}
                                         hasWaitingStudents={hasWaitingStudents}
                                         onAccordionToggle={(isOpen) => setIsClassListExpanded(isOpen)}
+                                        onSpotlightParticipant={onSpotlightParticipant}
+                                        spotlightedParticipantId={spotlightedUser?.id || null}
                                     />
                                 </AnimatedCard>
                             )}

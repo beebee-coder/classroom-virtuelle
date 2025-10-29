@@ -2,7 +2,7 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Wifi, WifiOff, User, Send, Hourglass } from 'lucide-react';
+import { Users, Wifi, WifiOff, User, Send, Hourglass, Star } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -22,6 +22,8 @@ interface ClassStudentListProps {
     sessionId: string;
     hasWaitingStudents: boolean;
     onAccordionToggle: (isOpen: boolean) => void;
+    onSpotlightParticipant: (participantId: string) => void;
+    spotlightedParticipantId: string | null;
 }
 
 export function ClassStudentList({ 
@@ -31,9 +33,12 @@ export function ClassStudentList({
     activeParticipantIds, 
     sessionId,
     hasWaitingStudents,
-    onAccordionToggle
+    onAccordionToggle,
+    onSpotlightParticipant,
+    spotlightedParticipantId
 }: ClassStudentListProps) {
     const allStudents = classroom.eleves || [];
+    const teacher = allStudents.find(u => u.id === classroom.professeurId);
 
     return (
         <Card className="flex flex-col bg-background/80">
@@ -71,6 +76,8 @@ export function ClassStudentList({
                                                 isCurrentUser={student.id === currentUserId}
                                                 sessionId={sessionId}
                                                 classroomId={classroom.id}
+                                                onSpotlight={onSpotlightParticipant}
+                                                isSpotlighted={student.id === spotlightedParticipantId}
                                             />
                                         )
                                     })
@@ -98,6 +105,8 @@ function StudentListItem({
     isCurrentUser,
     sessionId,
     classroomId,
+    onSpotlight,
+    isSpotlighted
 }: { 
     student: UserType; 
     isOnline: boolean;
@@ -106,6 +115,8 @@ function StudentListItem({
     isCurrentUser: boolean;
     sessionId: string;
     classroomId: string;
+    onSpotlight: (participantId: string) => void;
+    isSpotlighted: boolean;
 }) {
     const displayName = student.name || student.email || 'Élève';
     const initials = displayName.charAt(0).toUpperCase();
@@ -134,6 +145,7 @@ function StudentListItem({
     return (
         <div className={cn(
             "flex items-center justify-between gap-3 p-2 rounded-lg transition-colors border",
+            isSpotlighted ? "bg-amber-50 border-amber-300" :
             isWaiting ? "bg-blue-50 border-blue-200" :
             isParticipant ? "bg-green-50 border-green-200" : 
             "bg-muted/30 border-transparent"
@@ -142,6 +154,7 @@ function StudentListItem({
                 <Avatar className="h-8 w-8">
                     <AvatarFallback className={cn(
                         "text-xs",
+                        isSpotlighted ? "bg-amber-100 text-amber-800" :
                         isWaiting ? "bg-blue-100 text-blue-800" :
                         isParticipant ? "bg-green-100 text-green-800" : 
                         "bg-muted text-muted-foreground"
@@ -171,7 +184,7 @@ function StudentListItem({
                 </div>
             </div>
             
-            <div className='flex items-center gap-2'>
+            <div className='flex items-center gap-1'>
                 {isWaiting && (
                      <Tooltip>
                         <TooltipTrigger asChild>
@@ -184,6 +197,16 @@ function StudentListItem({
                         </TooltipContent>
                     </Tooltip>
                 )}
+                 <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button size="icon" variant="ghost" onClick={() => onSpotlight(student.id)} className={cn("h-7 w-7", isSpotlighted ? "text-amber-500" : "text-muted-foreground")}>
+                            <Star className={cn(isSpotlighted && "fill-current")} />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>Mettre en vedette</p>
+                    </TooltipContent>
+                </Tooltip>
 
                 {!isOnline ? (
                      <Tooltip>

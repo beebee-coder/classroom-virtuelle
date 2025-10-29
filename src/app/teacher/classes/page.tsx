@@ -109,6 +109,7 @@ export default async function TeacherClassesPage() {
               <h1 className="text-3xl font-bold tracking-tight">Mes Classes</h1>
             </div>
           </div>
+          
           <AddClassForm teacherId={user.id} />
         </div>
         

@@ -18,8 +18,11 @@ export default async function ProfessorValidationPage() {
   const tasksToValidate = await getTasksForProfessorValidation(session.user.id);
 
   return (
-    <>
-      <div className="flex items-center gap-4 mb-8">
+    <main className="container  mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+     
+      <div className=" flex items-center gap-4 mb-8">
         <BackButton />
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Console de Validation</h1>
@@ -41,6 +44,9 @@ export default async function ProfessorValidationPage() {
               <ValidationConsoleClient initialTasks={tasksToValidate} />
           </CardContent>
       </Card>
-    </>
+     
+      </div>
+
+      </main>
   );
 }

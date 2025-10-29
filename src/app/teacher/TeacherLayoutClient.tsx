@@ -44,7 +44,7 @@ export default function TeacherLayoutClient({
             )}
           </div>
         </Header>
-        <div className="flex flex-1">
+        <div className="flex flex-1 ">
           <Sidebar>
             <SidebarContent>
               <Menu 
@@ -55,7 +55,7 @@ export default function TeacherLayoutClient({
             </SidebarContent>
           </Sidebar>
           <SidebarInset>
-            <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <main className="container bg-green-500 px-4 sm:px-6 lg:px-8 py-8">
               {children}
             </main>
           </SidebarInset>

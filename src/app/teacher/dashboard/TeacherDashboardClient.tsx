@@ -42,7 +42,7 @@ export default function TeacherDashboardClient({
 
   return (
     
-    <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <main className="container  mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* En-tête */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
         <div>

@@ -45,11 +45,11 @@ export default async function TeacherDashboardPage() {
 
   } catch (error) {
     console.error("❌ [DASHBOARD] Erreur lors du chargement du tableau de bord:", error);
-    
+  }
     // Afficher un état d'erreur si la récupération des données échoue
     return (
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="text-center">
+      <main className="container  mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="text-center ">
           <h1 className="text-2xl font-bold text-destructive mb-4">
             Erreur de chargement
           </h1>
@@ -66,5 +66,5 @@ export default async function TeacherDashboardPage() {
         </div>
       </main>
     );
-  }
+  
 }
