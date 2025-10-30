@@ -1,7 +1,7 @@
 // src/app/login/page.tsx
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn, useSession } from 'next-auth/react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
@@ -12,16 +12,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 import type { Role } from '@prisma/client';
-import { cn } from '@/lib/utils';
 import Image from 'next/image';
 
 export default function LoginPage() {
     const router = useRouter();
-    const { data: session, status } = useSession();
+    const { status } = useSession();
     const searchParams = useSearchParams();
 
-    const errorParam = searchParams?.get('error') || '';
-    const callbackUrl = searchParams?.get('callbackUrl') || (session?.user?.role === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard');
+    const errorParam = searchParams?.get('error');
+    const callbackUrl = searchParams?.get('callbackUrl') || '/';
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -29,38 +28,13 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const [selectedRole, setSelectedRole] = useState<Role | null>(null);
 
-    const redirectControllerRef = useRef({
-        attempted: false,
-        timeout: null as NodeJS.Timeout | null
-    });
-
-    useEffect(() => {
-        const controller = redirectControllerRef.current;
-        
-        if (status === 'authenticated' && !controller.attempted) {
-            console.log(`[LOGIN] Utilisateur déjà authentifié : ${session.user.email}. Tentative de redirection vers ${callbackUrl}`);
-            controller.attempted = true;
-            
-            controller.timeout = setTimeout(() => {
-                router.push(callbackUrl);
-            }, 100);
-        }
-
-        return () => {
-            if (controller.timeout) {
-                clearTimeout(controller.timeout);
-            }
-        };
-    }, [status, session, router, callbackUrl]);
-    
     useEffect(() => {
         if (errorParam === 'CredentialsSignin') {
-            setError("Identifiants incorrects. Assurez-vous d'utiliser les comptes de démo (ex: teacher@example.com ou ahmed0@example.com avec le mot de passe 'password').");
+            setError("Identifiants ou mot de passe incorrects. Veuillez réessayer.");
         } else if (errorParam) {
             setError("Une erreur de connexion est survenue. Veuillez réessayer.");
         }
     }, [errorParam]);
-
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -73,37 +47,27 @@ export default function LoginPage() {
             return;
         }
 
-        try {
-            const result = await signIn('credentials', {
-                email: email.trim().toLowerCase(),
-                password: password,
-                redirect: false,
-                callbackUrl: callbackUrl,
-            });
+        // next-auth gère la redirection, plus besoin de logique manuelle.
+        const result = await signIn('credentials', {
+            email: email.trim().toLowerCase(),
+            password: password,
+            redirect: true, // Laisser next-auth gérer la redirection
+            callbackUrl: callbackUrl,
+        });
 
-            if (result?.error) {
-                console.error('❌ [LOGIN] Erreur lors de la tentative de connexion:', result.error);
-                if (result.error === 'CredentialsSignin') {
-                    setError("Identifiants incorrects. Veuillez vérifier votre email et mot de passe. Utilisez 'password' comme mot de passe pour les comptes de démo.");
-                } else {
-                     setError("Une erreur de connexion est survenue. Il est possible que votre session précédente soit invalide. Essayez de vous reconnecter.");
-                }
-            } else if (result?.ok && result.url) {
-                console.log(`✅ [LOGIN] Connexion réussie, redirection vers: ${result.url}`);
-                
-                redirectControllerRef.current.attempted = true;
-                router.push(result.url);
-            } else if (result?.ok) {
-                redirectControllerRef.current.attempted = true;
-                router.push(callbackUrl);
+        // signIn avec redirect:true ne retourne de promesse que si une erreur survient.
+        // Si la connexion réussit, l'utilisateur est redirigé, et ce code n'est pas atteint.
+        if (result?.error) {
+            console.error('❌ [LOGIN] Erreur de connexion retournée par signIn:', result.error);
+            if (result.error === 'CredentialsSignin') {
+                setError("Identifiants ou mot de passe incorrects. Vérifiez vos informations et réessayez.");
+            } else {
+                 setError("Une erreur de connexion inattendue est survenue.");
             }
-
-        } catch (error) {
-            console.error('💥 [LOGIN] Erreur inattendue:', error);
-            setError("Une erreur inattendue est survenue. Veuillez réessayer.");
-        } finally {
-            setLoading(false);
         }
+        
+        // Si on arrive ici, c'est que la connexion a échoué.
+        setLoading(false);
     };
 
     const handleDemoFill = (role: Role) => {
@@ -117,6 +81,8 @@ export default function LoginPage() {
         setPassword('password');
     };
     
+    // Si l'utilisateur est déjà connecté, next-auth devrait le rediriger
+    // mais on garde un écran de chargement pour une meilleure expérience.
     if (status === "loading" || status === "authenticated") {
         return (
             <div className="flex items-center justify-center min-h-screen bg-background">

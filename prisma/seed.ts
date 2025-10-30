@@ -1,6 +1,7 @@
 
 import { PrismaClient, Role, TaskType, TaskCategory, TaskDifficulty, ValidationType } from '@prisma/client';
 import * as dotenv from 'dotenv';
+import bcrypt from 'bcryptjs';
 
 dotenv.config({ path: '.env.local' });
 
@@ -32,12 +33,17 @@ async function main() {
 
   console.log('✅ Database cleaned successfully');
 
+  // Hacher le mot de passe commun
+  const hashedPassword = await bcrypt.hash('password', 10);
+  console.log('🔑 Mot de passe commun haché.');
+
   // Créer le professeur d'abord
   const teacher = await prisma.user.create({
     data: {
       email: 'teacher@example.com',
       name: 'Professeur Test',
       role: 'PROFESSEUR' as Role,
+      password: hashedPassword,
     },
   });
   console.log(`👨‍🏫 Created teacher: ${teacher.name} (${teacher.email})`);
@@ -119,6 +125,7 @@ async function main() {
         role: 'ELEVE' as Role,
         classeId: studentData.classeId,
         ambition: studentData.ambition,
+        password: hashedPassword, // Assigner le mot de passe haché
       },
     });
 
@@ -348,5 +355,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
-
-    

@@ -4,7 +4,7 @@ import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import prisma from "./lib/prisma";
 import Credentials from "next-auth/providers/credentials";
 import type { Provider } from "next-auth/providers";
-import { User } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const providers: Provider[] = [
   Credentials({
@@ -22,11 +22,29 @@ const providers: Provider[] = [
         const user = await prisma.user.findUnique({
           where: { email: credentials.email as string },
         });
-        if (user && credentials.password === 'password') {
-          console.log(`✅ [AUTH - Authorize] Authentification réussie pour: ${user.name} (${user.email})`);
-          return user as any;
+
+        // Si l'utilisateur n'existe pas ou n'a pas de mot de passe haché, on refuse.
+        if (!user || !user.password) {
+          console.log(`[AUTH - Authorize] Utilisateur non trouvé ou mot de passe non défini pour: ${credentials.email}`);
+          return null;
         }
+
+        // Comparer le mot de passe fourni avec le mot de passe haché en BDD
+        const isPasswordValid = await bcrypt.compare(
+          credentials.password,
+          user.password
+        );
+
+        if (isPasswordValid) {
+          console.log(`✅ [AUTH - Authorize] Authentification réussie pour: ${user.name} (${user.email})`);
+          // Retourner l'objet utilisateur sans le mot de passe
+          const { password, ...userWithoutPassword } = user;
+          return userWithoutPassword as any;
+        }
+        
+        console.log(`[AUTH - Authorize] Mot de passe invalide pour: ${credentials.email}`);
         return null;
+
       } catch (error) {
         console.error("💥 [AUTH - Authorize] Erreur critique:", error);
         return null;
@@ -43,7 +61,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   pages: {
     signIn: "/login",
-    error: "/login",
+    error: "/login", // Redirige les erreurs vers la page de connexion
   },
   callbacks: {
     async jwt({ token, user }) {
@@ -56,9 +74,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async session({ session, token }) {
       if (token && session.user) {
-        if (token.id) {
-            session.user.id = token.id as string;
-        }
+        session.user.id = token.id as string;
         session.user.role = token.role as any;
         session.user.classeId = token.classeId as string | undefined;
       }
