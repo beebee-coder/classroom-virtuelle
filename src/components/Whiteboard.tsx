@@ -1,7 +1,6 @@
-
 // src/components/Whiteboard.tsx - VERSION CORRIGÉE AVEC API ACTUELLE
 'use client';
-import { Tldraw, useEditor, TLStoreSnapshot, TLRecord, useLocalStorageState, TLEditorSnapshot } from '@tldraw/tldraw';
+import { Tldraw, useEditor, TLStoreSnapshot, TLRecord, uniqueId } from '@tldraw/tldraw';
 import '@tldraw/tldraw/tldraw.css';
 import { useEffect, useCallback, useState } from 'react';
 
@@ -37,10 +36,14 @@ function EditorManager({
       try {
         console.log('🎨 [WHITEBOARD] Chargement du snapshot initial');
         
-        // CORRECTION: Utiliser mergeRemoteChanges avec les records du snapshot
-        const records = Object.values(initialSnapshot.store) as TLRecord[];
+        // CORRECTION: Utiliser mergeRemoteChanges pour charger le snapshot
         editor.store.mergeRemoteChanges(() => {
-          editor.store.clear();
+          // Supprimer tous les records existants
+          const currentRecords = editor.store.allRecords();
+          editor.store.remove(currentRecords.map(record => record.id));
+          
+          // Ajouter les records du snapshot
+          const records = Object.values(initialSnapshot) as TLRecord[];
           editor.store.put(records);
         });
         
@@ -58,10 +61,13 @@ function EditorManager({
 
     const handleChange = () => {
       try {
-        // CORRECTION: Utiliser editor.getSnapshot() pour obtenir le TLEditorSnapshot
-        const snapshot = editor.getSnapshot();
-        // CORRECTION: Extraire le TLStoreSnapshot de l'objet snapshot
-        onPersist(snapshot.store);
+        // CORRECTION: Créer manuellement le snapshot depuis les records actuels
+        const currentRecords = editor.store.allRecords();
+        const snapshot: TLStoreSnapshot = Object.fromEntries(
+          currentRecords.map(record => [record.id, record])
+        ) as unknown as TLStoreSnapshot;
+        
+        onPersist(snapshot);
       } catch (error) {
         console.error('❌ [WHITEBOARD] Erreur lors de la création du snapshot:', error);
       }
