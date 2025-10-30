@@ -18,8 +18,7 @@ export default async function ProfessorValidationPage() {
   const tasksToValidate = await getTasksForProfessorValidation(session.user.id);
 
   return (
-    <main className="container  mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <main className="container flex mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
      
       <div className=" flex items-center gap-4 mb-8">
@@ -45,8 +44,7 @@ export default async function ProfessorValidationPage() {
           </CardContent>
       </Card>
      
-      </div>
-
+ 
       </main>
   );
 }

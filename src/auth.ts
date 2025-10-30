@@ -1,10 +1,10 @@
-
 // src/auth.ts
 import NextAuth from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import prisma from "./lib/prisma";
 import Credentials from "next-auth/providers/credentials";
 import type { Provider } from "next-auth/providers";
+import { User } from "@prisma/client";
 
 const providers: Provider[] = [
   Credentials({
@@ -24,7 +24,7 @@ const providers: Provider[] = [
         });
         if (user && credentials.password === 'password') {
           console.log(`✅ [AUTH - Authorize] Authentification réussie pour: ${user.name} (${user.email})`);
-          return user;
+          return user as any;
         }
         return null;
       } catch (error) {
@@ -56,7 +56,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async session({ session, token }) {
       if (token && session.user) {
-        session.user.id = token.id as string;
+        if (token.id) {
+            session.user.id = token.id as string;
+        }
         session.user.role = token.role as any;
         session.user.classeId = token.classeId as string | undefined;
       }

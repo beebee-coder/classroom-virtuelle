@@ -21,7 +21,7 @@ export default async function TasksPage() {
   });
 
   return (
-    <div className="container bg-blue-500 w-full  px-4 sm:px-6 lg:px-8 py-8">
+    <div className="container flex w-full px-4 sm:px-6 lg:px-8 py-8 gap-6">
 
       <div className="flex items-center gap-4 mb-8">
         <BackButton />
