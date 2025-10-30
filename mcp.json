@@ -1,0 +1,13 @@
+{
+    "mcpServers": {
+      "deepseek": {
+        "command": "node",
+        "args": ["./lib/mcp-deepseek-bridge.js"],
+        "env": {
+          "DEEPSEEK_API_KEY": "${DEEPSEEK_API_KEY}",
+          "NODE_ENV": "development"
+        },
+        "timeout": 30000
+      }
+    }
+  }
