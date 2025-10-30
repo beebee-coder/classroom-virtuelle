@@ -2,12 +2,13 @@
 'use client';
 import { useState } from 'react';
 import { useDeepSeek } from '@/hooks/useDeepSeek';
-import type { ChatMessage } from '@/hooks/useDeepSeek'; // Import correct du type
+import type { ChatMessage } from '@/lib/deepseek-service';
 
 export function DeepSeekChat() {
   const [message, setMessage] = useState('');
   const [conversation, setConversation] = useState<ChatMessage[]>([]);
-  const { chat, isLoading, error, clearError } = useDeepSeek();
+  // Utilisation des nouvelles fonctions spécialisées du hook
+  const { explainConcept, helpWithHomework, isLoading, error, clearError } = useDeepSeek();
 
   const handleSend = async () => {
     if (!message.trim() || isLoading) return;
@@ -20,7 +21,9 @@ export function DeepSeekChat() {
     clearError();
 
     try {
-      const response = await chat(updatedConversation);
+      // Pour cet exemple, nous utilisons 'explainConcept'. 
+      // On pourrait ajouter un sélecteur pour choisir entre 'expliquer' et 'aider aux devoirs'.
+      const response = await explainConcept(message);
       
       const assistantMessage: ChatMessage = { 
         role: 'assistant', 
@@ -29,7 +32,7 @@ export function DeepSeekChat() {
       
       setConversation([...updatedConversation, assistantMessage]);
     } catch {
-      // L'erreur est déjà gérée par le hook
+      // L'erreur est déjà gérée par le hook et affichée dans l'UI.
     }
   };
 
@@ -51,7 +54,7 @@ export function DeepSeekChat() {
       <div className="flex items-center justify-between p-4 border-b bg-gray-50">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-          <h3 className="font-semibold">Assistant DeepSeek</h3>
+          <h3 className="font-semibold">Assistant Pédagogique</h3>
         </div>
         <button
           onClick={clearChat}
@@ -65,8 +68,8 @@ export function DeepSeekChat() {
       <div className="flex-1 p-4 overflow-y-auto space-y-4">
         {conversation.length === 0 && (
           <div className="text-center text-gray-500 mt-8">
-            <p>👋 Bonjour ! Je suis ton assistant DeepSeek.</p>
-            <p className="text-sm">Pose-moi une question sur tes leçons !</p>
+            <p>👋 Bonjour ! Je suis ton assistant pédagogique.</p>
+            <p className="text-sm">Demande-moi de t'expliquer un concept !</p>
           </div>
         )}
         
@@ -115,7 +118,7 @@ export function DeepSeekChat() {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Posez votre question..."
+            placeholder="Explique-moi la photosynthèse..."
             className="flex-1 p-3 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
             rows={2}
             disabled={isLoading}
