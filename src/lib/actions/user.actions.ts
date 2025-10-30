@@ -44,7 +44,7 @@ export async function updateUserSettings(settings: { name?: string; parentPasswo
       throw new Error("Non autorisé");
     }
 
-    const dataToUpdate: { name?: string; parentPassword?: string } = {};
+    const dataToUpdate: { name?: string; parentPassword?: string | null } = {};
 
     if (settings.name) {
         if (settings.name.length < 2) throw new Error("Le nom est trop court.");
@@ -56,6 +56,7 @@ export async function updateUserSettings(settings: { name?: string; parentPasswo
         if (settings.parentPassword && settings.parentPassword.length < 4) {
             throw new Error("Le mot de passe parental est trop court.");
         }
+        // CORRECTION : Assigner `null` si la chaîne est vide, sinon la chaîne elle-même.
         dataToUpdate.parentPassword = settings.parentPassword || null;
         console.log(`  -> Mise à jour du mot de passe parental pour l'élève ${userId}.`);
     }

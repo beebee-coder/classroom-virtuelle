@@ -7,7 +7,6 @@ import Link from 'next/link';
 import { CreateAnnouncementForm } from '@/components/CreateAnnouncementForm';
 import type { Session } from 'next-auth';
 import { useEffect, useRef } from 'react'; // AJOUT des imports
-import { useSingleEffect } from '@/hooks/useSingleEffect';
 
 interface ClassroomData {
   id: string;
@@ -25,9 +24,8 @@ export default function TeacherDashboardClient({
   classrooms, 
   validationCount 
 }: TeacherDashboardClientProps) {
-  // CORRECTION : Utiliser le hook personnalisé pour un log unique
-
-    const hasLoggedRef = useRef(false);
+  // CORRECTION : Utiliser useEffect standard pour la stabilité
+  const hasLoggedRef = useRef(false);
   useEffect(() => {
     // Ne logger qu'une seule fois, même en mode développement avec StrictMode
     if (!hasLoggedRef.current) {
