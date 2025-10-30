@@ -36,17 +36,12 @@ function EditorManager({
       try {
         console.log('🎨 [WHITEBOARD] Chargement du snapshot initial');
         
-        // CORRECTION: Utiliser store.load()
-        if (typeof editor.store.load === 'function') {
-          editor.store.load(initialSnapshot);
-        } else {
-           // Fallback si l'API change encore
-          const records = Object.values(initialSnapshot.store) as TLRecord[];
-          editor.store.mergeRemoteChanges(() => {
-            editor.store.clear();
-            editor.store.put(records);
-          });
-        }
+        // CORRECTION: Utiliser mergeRemoteChanges avec les records du snapshot
+        const records = Object.values(initialSnapshot.store) as TLRecord[];
+        editor.store.mergeRemoteChanges(() => {
+          editor.store.clear();
+          editor.store.put(records);
+        });
         
         setHasLoadedInitial(true);
       } catch (error) {
@@ -62,8 +57,8 @@ function EditorManager({
 
     const handleChange = () => {
       try {
-        // CORRECTION: Utiliser store.get()
-        const snapshot = editor.store.get();
+        // CORRECTION: Utiliser store.getSnapshot()
+        const snapshot = editor.store.getSnapshot();
         onPersist(snapshot);
       } catch (error) {
         console.error('❌ [WHITEBOARD] Erreur lors de la création du snapshot:', error);
