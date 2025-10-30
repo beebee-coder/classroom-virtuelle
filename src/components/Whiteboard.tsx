@@ -118,6 +118,7 @@ export function Whiteboard({
           persistenceKey={`session_whiteboard_${sessionId}`}
           forceMobile={false}
           autoFocus={false}
+          hideUi={!isController}
           onMount={(editor) => {
             console.log('🎨 [WHITEBOARD] Éditeur Tldraw monté');
             editor.updateInstanceState({ isReadonly: !isController });
