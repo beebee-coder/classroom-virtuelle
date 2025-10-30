@@ -4,6 +4,7 @@ const nextConfig = {
   // Correction: 'allowedDevOrigins' est une option de premier niveau, pas sous 'experimental'.
   allowedDevOrigins: [
     "https://6000-firebase-studio-1761127865714.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev",
+    "https://3000-firebase-studio-1761127865714.cluster-lu4mup47g5gm4rtyvhzpwbfadi.cloudworkstations.dev"
   ],
 
   // Optimisations de performance
