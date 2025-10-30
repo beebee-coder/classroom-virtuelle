@@ -24,28 +24,6 @@ const nextConfig = {
       { protocol: 'https', hostname: 'res.cloudinary.com', port: '', pathname: '/**' }
     ],
   },
-  
-  // Configuration Webpack pour la stabilité HMR et WebRTC
-  webpack: (config, { isServer }) => {
-    // Stratégie de polling pour le rechargement à chaud (HMR)
-    config.watchOptions = {
-      ...config.watchOptions,
-      poll: 1000, // Vérifier les changements toutes les 1000ms
-      aggregateTimeout: 300, // Regrouper les changements sur 300ms
-    };
-
-    // Optimisations pour WebRTC et autres dépendances côté client
-    if (!isServer) {
-        config.resolve.fallback = {
-            ...config.resolve.fallback,
-            fs: false,
-            net: false,
-            tls: false,
-        };
-    }
-    
-    return config;
-  },
 };
 
 module.exports = nextConfig;
