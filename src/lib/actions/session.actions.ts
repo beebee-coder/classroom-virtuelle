@@ -3,7 +3,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { pusherTrigger } from '../pusher/server';
-import { auth } from "@/auth";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
 import prisma from '../prisma';
 import type { CoursSession, User } from '@prisma/client';
 import { Role } from '@prisma/client';
@@ -302,7 +303,7 @@ export async function updateStudentSessionStatus(
   status: { isHandRaised?: boolean; understanding?: ComprehensionLevel }
 ) {
   console.log(`🙋 [ACTION STATUS] - Mise à jour du statut pour un élève dans la session ${sessionId}`);
-  const session = await auth();
+  const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     console.error('❌ [ACTION STATUS] - Utilisateur non authentifié.');
     throw new Error('Utilisateur non authentifié');
@@ -345,7 +346,7 @@ export interface SessionDetails {
 export async function reinviteStudentToSession(sessionId: string, studentId: string, classroomId: string) {
     console.log(`🔄 [ACTION REINVITE] - Tentative de ré-invitation de l'élève ${studentId} à la session ${sessionId}`);
     try {
-        const session = await auth();
+        const session = await getServerSession(authOptions);
         if (!session?.user || session.user.role !== 'PROFESSEUR') {
             console.error('❌ [ACTION REINVITE] - Non autorisé: Seul un professeur peut ré-inviter un élève.');
             throw new Error("Seul un professeur peut ré-inviter un élève.");
@@ -453,7 +454,7 @@ export async function broadcastUnderstandingUpdate(
   ) {
     console.log(`📄 [ACTION DOCUMENT] - Partage du document '${document.name}' pour la session ${sessionId}`);
     try {
-      const session = await auth();
+      const session = await getServerSession(authOptions);
       if (!session?.user) {
         throw new Error("Utilisateur non authentifié.");
       }
