@@ -3,7 +3,7 @@
 
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, School } from 'lucide-react';
+import { ArrowRight, School, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
@@ -19,11 +19,8 @@ export default function HomePage() {
     // Rediriger les utilisateurs authentifiés vers leur dashboard
     if (status === 'authenticated' && session?.user) {
       console.log('🔵 [HOMEPAGE] - Utilisateur authentifié, redirection vers dashboard');
-      if (session.user.role === 'PROFESSEUR') {
-        router.push('/teacher/dashboard');
-      } else {
-        router.push('/student/dashboard');
-      }
+      const targetUrl = session.user.role === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard';
+      router.push(targetUrl);
     }
   }, [session, status, router]);
 
@@ -48,21 +45,12 @@ export default function HomePage() {
     };
   }, []);
 
-  // Afficher un loader pendant la vérification de l'authentification
-  if (status === 'loading') {
+  // Afficher un loader pendant la vérification de l'authentification ou si la redirection est en cours
+  if (status === 'loading' || status === 'authenticated') {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  // Si l'utilisateur est authentifié, ne rien afficher (redirection en cours)
-  if (status === 'authenticated') {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        <p className="ml-4">Redirection vers votre dashboard...</p>
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="ml-4 text-muted-foreground">Chargement de votre session...</p>
       </div>
     );
   }

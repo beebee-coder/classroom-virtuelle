@@ -16,7 +16,7 @@ import Image from 'next/image';
 
 export default function LoginForm() {
     const router = useRouter();
-    const { status } = useSession();
+    const { data: session, status } = useSession();
     const searchParams = useSearchParams();
 
     const errorParam = searchParams?.get('error');
@@ -36,17 +36,15 @@ export default function LoginForm() {
         }
     }, [errorParam]);
 
-    // CORRECTION : Redirection dans useEffect
+    // Redirection si l'utilisateur est déjà authentifié
     useEffect(() => {
-        if (status === "authenticated") {
-            console.log('🔵 [LOGIN FORM] - Utilisateur authentifié, redirection vers page d\'accueil');
-            // Rediriger vers la page d'accueil qui gérera la redirection appropriée
-            const timer = setTimeout(() => {
-                router.push('/');
-            }, 100);
-            return () => clearTimeout(timer);
+        if (status === "authenticated" && session?.user) {
+            console.log('🔵 [LOGIN FORM] - Utilisateur déjà authentifié, redirection vers dashboard');
+            const targetUrl = session.user.role === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard';
+            router.push(targetUrl);
         }
-    }, [status, router]);
+    }, [status, session, router]);
+
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -65,14 +63,16 @@ export default function LoginForm() {
         const result = await signIn('credentials', {
             email: email.trim().toLowerCase(),
             password: password,
-            redirect: false,
+            redirect: false, // Important: nous gérons la redirection manuellement
         });
         
         console.log('🔵 [LOGIN FORM] - Résultat de signIn:', result);
 
         if (result?.ok && !result.error) {
-            console.log('✅ [LOGIN FORM] - Connexion réussie. Redirection vers:', callbackUrl);
-            router.push(callbackUrl);
+            console.log('✅ [LOGIN FORM] - Connexion réussie. Redirection en cours...');
+            // La redirection sera gérée par le `useEffect` ci-dessus ou par le rechargement de la page
+            // qui détectera la nouvelle session. Pour forcer, on peut utiliser router.refresh().
+            router.refresh();
         } else {
              if (result?.error === 'CredentialsSignin') {
                 setError("Identifiants ou mot de passe incorrects. Vérifiez vos informations et réessayez.");
@@ -96,20 +96,13 @@ export default function LoginForm() {
         console.log(`🔵 [LOGIN FORM] - Pré-remplissage pour le rôle: ${role}`);
     };
     
-    if (status === "loading") {
+    // Si l'utilisateur est authentifié ou si le statut est en chargement, on affiche un loader
+    // pour attendre que la redirection du `useEffect` s'effectue.
+    if (status === "loading" || status === "authenticated") {
         return (
             <div className="flex items-center justify-center min-h-screen bg-background">
                 <Loader2 className="h-12 w-12 animate-spin" />
-            </div>
-        );
-    }
-
-    // CORRECTION : Retourne seulement l'UI de chargement, pas de redirection pendant le rendu
-    if (status === "authenticated") {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-background">
-                <Loader2 className="h-12 w-12 animate-spin" />
-                <p className='ml-2'>Redirection...</p>
+                <p className='ml-2 text-muted-foreground'>Chargement de la session...</p>
             </div>
         );
     }
