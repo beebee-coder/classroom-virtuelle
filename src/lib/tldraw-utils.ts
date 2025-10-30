@@ -1,13 +1,15 @@
-// src/lib/tldraw-utils.ts - Adaptateur de types
-import { TLStoreSnapshot, TLEditorSnapshot } from '@tldraw/tldraw';
+// src/lib/tldraw-utils.ts
+import { TLStoreSnapshot } from '@tldraw/tldraw';
 
-// Fonction de conversion si nécessaire
-export function convertToStoreSnapshot(editorSnapshot: TLEditorSnapshot): TLStoreSnapshot {
-  // Logique de conversion selon votre version
-  return editorSnapshot as unknown as TLStoreSnapshot;
-}
-
-export function convertToEditorSnapshot(storeSnapshot: TLStoreSnapshot): TLEditorSnapshot {
-  // Logique de conversion selon votre version  
-  return storeSnapshot as unknown as TLEditorSnapshot;
+/**
+ * Fonction utilitaire pour valider un snapshot tldraw.
+ * (Exemple de contenu pour ce fichier)
+ */
+export function isValidSnapshot(snapshot: any): snapshot is TLStoreSnapshot {
+  return (
+    snapshot &&
+    typeof snapshot === 'object' &&
+    'store' in snapshot &&
+    'schema' in snapshot
+  );
 }
