@@ -40,10 +40,13 @@ export default function LoginForm() {
         e.preventDefault();
         setLoading(true);
         setError('');
+        
+        console.log(`🔵 [LOGIN FORM] - Tentative de connexion pour: ${email}`);
 
         if (!email || !password) {
             setError('Veuillez remplir tous les champs.');
             setLoading(false);
+            console.warn('🟡 [LOGIN FORM] - Champs vides.');
             return;
         }
 
@@ -52,8 +55,11 @@ export default function LoginForm() {
             password: password,
             redirect: false, // Important pour gérer la redirection manuellement après
         });
+        
+        console.log('🔵 [LOGIN FORM] - Résultat de signIn:', result);
 
         if (result?.ok && !result.error) {
+            console.log('✅ [LOGIN FORM] - Connexion réussie. Redirection vers:', callbackUrl);
             router.push(callbackUrl);
         } else {
              if (result?.error === 'CredentialsSignin') {
@@ -61,6 +67,7 @@ export default function LoginForm() {
             } else {
                  setError("Une erreur de connexion inattendue est survenue.");
             }
+            console.error('❌ [LOGIN FORM] - Échec de la connexion:', result?.error);
             setLoading(false);
         }
     };
@@ -74,6 +81,7 @@ export default function LoginForm() {
             setEmail('ahmed0@example.com');
         }
         setPassword('password');
+        console.log(`🔵 [LOGIN FORM] - Pré-remplissage pour le rôle: ${role}`);
     };
     
     if (status === "loading") {
@@ -85,6 +93,7 @@ export default function LoginForm() {
     }
 
     if (status === "authenticated") {
+        console.log('🔵 [LOGIN FORM] - Déjà authentifié. Redirection...');
         router.push(callbackUrl);
         return (
             <div className="flex items-center justify-center min-h-screen bg-background">

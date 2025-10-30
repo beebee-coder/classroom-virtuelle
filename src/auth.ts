@@ -5,6 +5,8 @@ import prisma from "./lib/prisma";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 
+console.log("🔵 [auth.ts] - Module en cours d'évaluation...");
+
 // La configuration est maintenant encapsulée pour exporter `handlers`
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
@@ -16,6 +18,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
+        console.log("🔵 [AUTH - Authorize] - Démarrage de l'autorisation...");
         if (!credentials?.email || !credentials?.password) {
           console.error('❌ [AUTH - Authorize] Échec: Email ou mot de passe manquant.');
           return null;
@@ -60,6 +63,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   callbacks: {
     async jwt({ token, user }) {
+      console.log("🔵 [AUTH - jwt callback] - Exécution...");
       if (user) {
         token.id = user.id;
         token.role = user.role;
@@ -68,6 +72,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return token;
     },
     async session({ session, token }) {
+      console.log("🔵 [AUTH - session callback] - Exécution...");
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as any;
@@ -78,3 +83,5 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   debug: process.env.NODE_ENV === "development",
 });
+
+console.log("🔵 [auth.ts] - Évaluation terminée. handlers:", typeof handlers);
