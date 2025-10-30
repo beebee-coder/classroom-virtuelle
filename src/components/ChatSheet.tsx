@@ -9,7 +9,7 @@ import { ScrollArea } from './ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { MessageSquare, Send, Loader2, Smile, Trash2 } from 'lucide-react';
 import { getMessages, sendMessage, toggleReaction, deleteChatHistory } from '@/lib/actions/chat.actions';
-import { pusherClient } from '@/lib/pusher/client';
+import { getPusherClient } from '@/lib/pusher/client';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -78,6 +78,7 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
   useEffect(() => {
     if (!classroomId || !isOpen) return;
 
+    const pusherClient = getPusherClient();
     const channelName = `presence-classe-${classroomId}`;
     
     try {

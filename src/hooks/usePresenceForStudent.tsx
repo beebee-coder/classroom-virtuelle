@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { pusherClient } from '@/lib/pusher/client';
+import { getPusherClient } from '@/lib/pusher/client';
 import type { PresenceChannel } from 'pusher-js';
 
 interface UsePresenceForStudentReturn {
@@ -41,6 +41,7 @@ export const usePresenceForStudent = (
     
     if (channelRef.current) {
       try {
+        const pusherClient = getPusherClient();
         const handlers = handlersRef.current;
         if (handlers.subscriptionSucceeded) {
           channelRef.current.unbind('pusher:subscription_succeeded', handlers.subscriptionSucceeded);
@@ -76,6 +77,7 @@ export const usePresenceForStudent = (
       return;
     }
 
+    const pusherClient = getPusherClient();
     const channelName = `presence-class-${classroomId}`;
 
     if (channelRef.current?.name === channelName && isConnected) {

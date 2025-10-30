@@ -3,7 +3,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { TLStoreSnapshot } from '@tldraw/tldraw';
-import { pusherClient } from '../lib/pusher/client';
+import { getPusherClient } from '../lib/pusher/client';
 
 const WHITEBOARD_UPDATE_EVENT = 'whiteboard-update';
 const DEBOUNCE_SAVE_TIME = 200;
@@ -39,6 +39,7 @@ export const useWhiteboardSync = (
 
     // Effet pour l'abonnement Pusher
     useEffect(() => {
+        const pusherClient = getPusherClient();
         const channelName = `presence-session-${sessionId}`;
         const channel = pusherClient.subscribe(channelName);
 
@@ -61,6 +62,7 @@ export const useWhiteboardSync = (
 
     // Fonction pour persister les changements via l'API centralisée
     const persistWhiteboardSnapshot = useCallback((snapshot: TLStoreSnapshot) => {
+        const pusherClient = getPusherClient();
         setWhiteboardSnapshot(snapshot);
 
         if (saveTimeoutRef.current) {

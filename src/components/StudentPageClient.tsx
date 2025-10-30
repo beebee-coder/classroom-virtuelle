@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Bell, Video, CheckCircle, XCircle, Clock, Trophy, Target, Users, Wifi, WifiOff, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { pusherClient } from '@/lib/pusher/client';
+import { getPusherClient } from '@/lib/pusher/client';
 import { cn } from '@/lib/utils';
 import { KeyRound } from 'lucide-react';
 import { endCoursSession } from '@/lib/actions/session.actions';
@@ -220,6 +220,8 @@ export default function StudentPageClient({
             }
         };
         checkMissedInvitations();
+
+        const pusherClient = getPusherClient();
     
         // Canal pour les invitations personnelles
         const invitationChannelName = `private-user-${student.id}`;

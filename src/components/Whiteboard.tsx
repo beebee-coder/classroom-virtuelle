@@ -30,17 +30,17 @@ function EditorManager({
     editor.updateInstanceState({ isReadonly: !isController });
   }, [isController, editor]);
 
-  // ✅ CORRECTION: Charger le snapshot initial UNE SEULE FOIS
+  // Charger le snapshot initial UNE SEULE FOIS
   useEffect(() => {
     if (initialSnapshot && !hasLoadedInitial && editor && editor.store) {
       try {
         console.log('🎨 [WHITEBOARD] Chargement du snapshot initial');
         
-        // ✅ APPROCHE CORRECTE: Utiliser loadSnapshot si disponible
-        if (typeof editor.store.loadSnapshot === 'function') {
-          editor.store.loadSnapshot(initialSnapshot);
+        // CORRECTION: Utiliser store.load()
+        if (typeof editor.store.load === 'function') {
+          editor.store.load(initialSnapshot);
         } else {
-          // ✅ APPROCHE ALTERNATIVE: Mettre à jour les records individuellement
+           // Fallback si l'API change encore
           const records = Object.values(initialSnapshot.store) as TLRecord[];
           editor.store.mergeRemoteChanges(() => {
             editor.store.clear();
@@ -56,23 +56,22 @@ function EditorManager({
     }
   }, [editor, initialSnapshot, hasLoadedInitial]);
 
-  // ✅ CORRECTION: Écouter les changements et persister
+  // Écouter les changements et persister
   useEffect(() => {
     if (!isController) return;
 
     const handleChange = () => {
       try {
-        // ✅ APPROCHE CORRECTE: Créer le snapshot avec la méthode Tldraw
-        const snapshot = editor.store.getSnapshot();
+        // CORRECTION: Utiliser store.get()
+        const snapshot = editor.store.get();
         onPersist(snapshot);
       } catch (error) {
         console.error('❌ [WHITEBOARD] Erreur lors de la création du snapshot:', error);
       }
     };
 
-    const debouncedHandleChange = debounce(handleChange, 500); // Augmenté à 500ms pour plus de stabilité
+    const debouncedHandleChange = debounce(handleChange, 500);
 
-    // S'abonner aux changements
     const unsubscribe = editor.store.listen(debouncedHandleChange, {
       scope: 'document',
     });
@@ -111,7 +110,6 @@ export function Whiteboard({
         </div>
       </div>
 
-      {/* ✅ CORRECTION: Ajouter une clé pour forcer le remontage si nécessaire */}
       <div className="flex-1" key={`whiteboard-${sessionId}-${isController}`}>
         <Tldraw 
           persistenceKey={`session_whiteboard_${sessionId}`}
@@ -119,7 +117,6 @@ export function Whiteboard({
           autoFocus={false}
           onMount={(editor) => {
             console.log('🎨 [WHITEBOARD] Éditeur Tldraw monté');
-            // Initialiser en mode lecture seule si nécessaire
             editor.updateInstanceState({ isReadonly: !isController });
           }}
         >

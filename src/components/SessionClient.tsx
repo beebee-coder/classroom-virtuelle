@@ -8,7 +8,7 @@ import SimplePeer from 'simple-peer';
 import { useToast } from '@/hooks/use-toast';
 import type { User, Role } from '@prisma/client';
 import type { SessionClientProps, IncomingSignalData, SignalPayload, SessionParticipant } from '@/types';
-import { pusherClient } from '@/lib/pusher/client';
+import { getPusherClient } from '@/lib/pusher/client';
 import SessionLoading from './SessionLoading';
 import { TeacherSessionView } from './session/TeacherSessionView';
 import { StudentSessionView } from './session/StudentSessionView';
@@ -191,6 +191,7 @@ export default function SessionClient({
   }, [sessionId, currentUserId, cleanupPeerConnection, localStream]);
 
   useEffect(() => {
+    const pusherClient = getPusherClient();
     const channelName = `presence-session-${sessionId}`;
     const channel = pusherClient.subscribe(channelName);
 

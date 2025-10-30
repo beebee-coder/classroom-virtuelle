@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { pusherClient } from '@/lib/pusher/client';
+import { getPusherClient } from '@/lib/pusher/client';
 import type { PresenceChannel, Members } from 'pusher-js';
 
 interface UsePresenceForTeacherReturn {
@@ -26,6 +26,7 @@ export const usePresenceForTeacher = (
     // Validation des paramètres et de l'état "enabled"
     if (!enabled || !userId || !classroomId) {
       if (channelRef.current) {
+        const pusherClient = getPusherClient();
         console.log('🔚 [PRESENCE PROF] - Désactivation, nettoyage du canal existant.');
         pusherClient.unsubscribe(channelRef.current.name);
         channelRef.current = null;
@@ -35,6 +36,7 @@ export const usePresenceForTeacher = (
       return;
     }
 
+    const pusherClient = getPusherClient();
     const channelName = `presence-class-${classroomId}`;
 
     // Éviter les doubles abonnements si le canal n'a pas changé
@@ -113,7 +115,7 @@ export const usePresenceForTeacher = (
       setError('Erreur critique de connexion');
       setIsConnected(false);
     }
-  }, [userId, classroomId, enabled]); // isConnected ajouté pour retenter la connexion si elle échoue
+  }, [userId, classroomId, enabled, isConnected]); // isConnected ajouté pour retenter la connexion si elle échoue
 
   return { 
     onlineUsers, 
