@@ -21,8 +21,6 @@ export const usePresenceForStudent = (
   const [teacherOnline, setTeacherOnline] = useState(false);
   
   const channelRef = useRef<PresenceChannel | null>(null);
-  const hasLoggedRef = useRef(false);
-  
   const handlersRef = useRef<{
     subscriptionSucceeded?: (data: any) => void;
     memberAdded?: (member: any) => void;
@@ -30,15 +28,7 @@ export const usePresenceForStudent = (
     subscriptionError?: (status: any) => void;
   }>({});
 
-  useEffect(() => {
-    if (enabled && userId && classroomId && !hasLoggedRef.current) {
-      console.log(`🕵️ [PRESENCE ELEVE] - Initialisation pour l'élève ${userId} dans la classe ${classroomId}`);
-      hasLoggedRef.current = true;
-    }
-  }, [enabled, userId, classroomId]);
-  
   const cleanupChannel = useCallback((channelName: string) => {
-    
     if (channelRef.current) {
       try {
         const pusherClient = getPusherClient();
@@ -65,9 +55,11 @@ export const usePresenceForStudent = (
       channelRef.current = null;
     }
     
+    // Seulement réinitialiser si l'état actuel est connecté
+    // Cela évite des re-renderings inutiles si déjà déconnecté
     setIsConnected(false);
     setTeacherOnline(false);
-  }, []);
+  }, []); // Vide, car setIsConnected/setTeacherOnline sont stables
 
   useEffect(() => {
     if (!enabled || !userId || !classroomId) {
@@ -80,8 +72,8 @@ export const usePresenceForStudent = (
     const pusherClient = getPusherClient();
     const channelName = `presence-class-${classroomId}`;
 
-    if (channelRef.current?.name === channelName && isConnected) {
-      console.log('⏭️ [PRESENCE ELEVE] - Déjà abonné et connecté, ignoré.');
+    // Garde pour éviter de se réabonner inutilement
+    if (channelRef.current?.name === channelName && channelRef.current.subscribed) {
       return;
     }
 
@@ -103,17 +95,17 @@ export const usePresenceForStudent = (
         const members = data.members || {};
         const memberIds = Object.keys(members);
         const hasTeacher = memberIds.some(id => 
-          members[id]?.role === 'PROFESSEUR' || id !== userId
+          members[id]?.role === 'PROFESSEUR'
         );
         
         setTeacherOnline(hasTeacher);
         console.log(`👨‍🏫 [PRESENCE ELEVE] - Professeur en ligne: ${hasTeacher}`, memberIds);
       };
 
-      const handleMemberAdded = (member: { id: string; info?: any }) => {
+      const handleMemberAdded = (member: { id: string; info?: { role: string } }) => {
         console.log(`➕ [PRESENCE ELEVE] - Nouveau membre connecté:`, member.id);
         
-        if (member.id !== userId) {
+        if (member.info?.role === 'PROFESSEUR') {
           setTeacherOnline(true);
           console.log('👨‍🏫 [PRESENCE ELEVE] - Professeur détecté en ligne');
         }
@@ -121,8 +113,7 @@ export const usePresenceForStudent = (
 
       const handleMemberRemoved = (member: { id: string }) => {
         console.log(`➖ [PRESENCE ELEVE] - Membre déconnecté:`, member.id);
-        
-        if (member.id !== userId) {
+        if (channelRef.current?.members.get(member.id)?.info?.role === 'PROFESSEUR') {
           setTeacherOnline(false);
           console.log('👨‍🏫 [PRESENCE ELEVE] - Professeur déconnecté');
         }
@@ -157,7 +148,7 @@ export const usePresenceForStudent = (
       setIsConnected(false);
       setTeacherOnline(false);
     }
-  }, [userId, classroomId, enabled, cleanupChannel, isConnected]);
+  }, [userId, classroomId, enabled, cleanupChannel]);
 
   return { 
     isConnected, 

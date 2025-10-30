@@ -66,14 +66,12 @@ export default function StudentPageClient({
     const { toast } = useToast();
     const router = useRouter();
 
-    // CORRECTION : Utiliser useRef pour la référence stable du Set
-    const processedInvitationsRef = useRef<Set<string>>(new Set());
+    const processedInvitationsRef = useRef<Set<string>>(processedInvitations);
     
-    // CORRECTION : Appeler le hook usePresenceForStudent
     const { isConnected, error, teacherOnline } = usePresenceForStudent(
         student.id,
         student.classeId ?? undefined,
-        true // enabled
+        !isTeacherView // N'activer que si ce n'est pas la vue du prof
     );
 
     // Synchroniser le ref avec l'état
@@ -81,7 +79,6 @@ export default function StudentPageClient({
         processedInvitationsRef.current = processedInvitations;
     }, [processedInvitations]);
 
-    // CORRECTION : useRef pour les logs uniques
     const hasLoggedRef = useRef(false);
     
     useEffect(() => {
@@ -110,7 +107,6 @@ export default function StudentPageClient({
         
         try {
             setSessionInvitation(null);
-            // Marquer l'invitation comme traitée
             setProcessedInvitations(prev => new Set(prev).add(invitation.sessionId));
             
             toast({
@@ -129,9 +125,7 @@ export default function StudentPageClient({
         }
     }, [router, toast]);
 
-    // CORRECTION : handleInvitation avec dépendances stables
     const handleInvitation = useCallback((data: SessionInvitation) => {
-        // Éviter les doublons en utilisant le ref
         if (processedInvitationsRef.current.has(data.sessionId)) {
             console.log('⏭️ [CLIENT ÉLÈVE] - Invitation déjà traitée, ignorée:', data.sessionId);
             return;
@@ -146,7 +140,7 @@ export default function StudentPageClient({
             description: `Le professeur ${data.teacherName} vous a invité(e).`,
             duration: 10000,
         });
-    }, [toast]); // ← SUPPRESSION de processedInvitations des dépendances
+    }, [toast]);
 
     const handleDeclineInvitation = useCallback(() => {
         console.log('🚫 [CLIENT ÉLÈVE] - Invitation refusée.');
@@ -166,7 +160,6 @@ export default function StudentPageClient({
     }, []);
 
     useEffect(() => {
-        // Ne s'abonner que si c'est la vue de l'élève
         if (isTeacherView || !student?.id) return;
     
         const checkMissedInvitations = async () => {
@@ -175,36 +168,14 @@ export default function StudentPageClient({
                 const response = await fetch(`/api/session/pending-invitations?studentId=${student.id}`);
                 
                 if (response.ok) {
-                    const pendingInvitations = await response.json();
+                    const pendingInvitations: { data: SessionInvitation }[] = await response.json();
                     
-                    // FILTRE CRITIQUE : Ne prendre que les invitations récentes (moins de 5 minutes)
-                    const recentInvitations = pendingInvitations.filter((inv: any) => {
-                        const invitationTime = new Date(inv.data.timestamp).getTime();
-                        const currentTime = new Date().getTime();
-                        const fiveMinutesAgo = currentTime - (5 * 60 * 1000); // 5 minutes
+                    if (pendingInvitations.length > 0) {
+                        const latestInvitation = pendingInvitations[0].data;
                         
-                        return invitationTime > fiveMinutesAgo;
-                    });
-                    
-                    if (recentInvitations.length > 0) {
-                        const latestInvitation = recentInvitations[0].data;
-                        
-                        // Vérifier si l'invitation a déjà été traitée en utilisant le ref
                         if (!processedInvitationsRef.current.has(latestInvitation.sessionId)) {
-                            console.log('📨 [CLIENT ÉLÈVE] - Invitation récente trouvée:', latestInvitation);
+                            console.log('📨 [CLIENT ÉLÈVE] - Invitation manquée trouvée:', latestInvitation);
                             handleInvitation(latestInvitation);
-                        } else {
-                            console.log('⏭️ [CLIENT ÉLÈVE] - Invitation récente déjà traitée, ignorée.');
-                        }
-                    } else {
-                        console.log('✅ [CLIENT ÉLÈVE] - Aucune invitation récente trouvée.');
-                        
-                        // NETTOYAGE : Supprimer les invitations trop anciennes du cache
-                        if (pendingInvitations.length > 0) {
-                            console.log(`🗑️ [CLIENT ÉLÈVE] - Nettoyage de ${pendingInvitations.length} invitations expirées`);
-                            // Marquer toutes les anciennes invitations comme traitées pour éviter les rappels
-                            const expiredIds = pendingInvitations.map((inv: any) => inv.data.sessionId);
-                            setProcessedInvitations(prev => new Set([...prev, ...expiredIds]));
                         }
                     }
                 } else if (response.status !== 404) {
@@ -222,8 +193,6 @@ export default function StudentPageClient({
         checkMissedInvitations();
 
         const pusherClient = getPusherClient();
-    
-        // Canal pour les invitations personnelles
         const invitationChannelName = `private-user-${student.id}`;
         console.log(`🔌 [CLIENT ÉLÈVE] - Abonnement au canal d'invitation: ${invitationChannelName}`);
         const invitationChannel = pusherClient.subscribe(invitationChannelName);
@@ -233,27 +202,7 @@ export default function StudentPageClient({
             console.log(`🔌 [CLIENT ÉLÈVE] - Désabonnement des canaux.`);
             pusherClient.unsubscribe(invitationChannelName);
         };
-    }, [student?.id, handleInvitation, toast, isTeacherView]); // ← SUPPRESSION de processedInvitations
-
-    // Nettoyer les invitations traitées après un certain temps
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            // Garder seulement les invitations des dernières 24 heures
-            setProcessedInvitations(prev => {
-                if (prev.size > 10) { // Limiter la taille du Set
-                    const newSet = new Set<string>();
-                    let count = 0;
-                    // Itérer sur le Set pour garder les plus récents (Set conserve l'ordre d'insertion)
-                    const recentItems = Array.from(prev).slice(-5);
-                    recentItems.forEach(item => newSet.add(item));
-                    return newSet;
-                }
-                return prev;
-            });
-        }, 30000); // Nettoyer toutes les 30 secondes
-
-        return () => clearTimeout(timer);
-    }, [processedInvitations]);
+    }, [student?.id, handleInvitation, toast, isTeacherView]);
 
     const metier = student.etat?.metier;
     const completedTasks = student.studentProgress?.filter(p => p.status === 'VERIFIED').length || 0;
@@ -261,42 +210,44 @@ export default function StudentPageClient({
 
     return (
         <div className="container mx-auto p-6 space-y-6">
-            {/* Bannière de statut de présence */}
-            <Card className={cn(
-                "border-l-4",
-                isConnected ? "border-green-500 bg-green-50" : "border-gray-300 bg-gray-50"
-            )}>
-                <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                            {isConnected ? (
-                                <Wifi className="h-5 w-5 text-green-500" />
-                            ) : (
-                                <WifiOff className="h-5 w-5 text-gray-500" />
-                            )}
-                            <div>
-                                <p className="font-medium">
-                                    {isConnected ? "Connecté à la classe" : "Déconnecté de la classe"}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                    {isConnected 
-                                        ? teacherOnline 
-                                            ? "👨‍🏫 Votre professeur est en ligne" 
-                                            : "En attente du professeur..."
-                                        : "Connexion en cours..."
-                                    }
-                                </p>
+            {!isTeacherView && (
+                <Card className={cn(
+                    "border-l-4",
+                    isConnected ? "border-green-500 bg-green-50 dark:bg-green-900/20" : "border-gray-300 bg-gray-50 dark:bg-gray-800/20"
+                )}>
+                    <CardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                                {isConnected ? (
+                                    <Wifi className="h-5 w-5 text-green-500" />
+                                ) : (
+                                    <WifiOff className="h-5 w-5 text-gray-500" />
+                                )}
+                                <div>
+                                    <p className="font-medium">
+                                        {isConnected ? "Connecté à la classe" : "Déconnecté de la classe"}
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                        {isConnected 
+                                            ? teacherOnline 
+                                                ? "👨‍🏫 Votre professeur est en ligne" 
+                                                : "En attente du professeur..."
+                                            : "Connexion en cours..."
+                                        }
+                                    </p>
+                                </div>
                             </div>
+                            {error && (
+                                <Badge variant="destructive" className="text-xs">
+                                    Erreur de connexion
+                                </Badge>
+                            )}
                         </div>
-                        {error && (
-                            <Badge variant="destructive" className="text-xs">
-                                Erreur de connexion
-                            </Badge>
-                        )}
-                    </div>
-                </CardContent>
-            </Card>
-  {sessionInvitation && (
+                    </CardContent>
+                </Card>
+            )}
+            
+            {sessionInvitation && (
                 <Card className="bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0 shadow-lg relative">
                     <button 
                         onClick={handleCloseInvitation}
@@ -360,31 +311,25 @@ export default function StudentPageClient({
                                     <CheckCircle className="h-4 w-4 text-green-500" />
                                     <span>{completedTasks} tâches</span>
                                 </div>
-                                <div className="flex items-center space-x-1">
-                                    {isConnected ? (
-                                        <Wifi className="h-4 w-4 text-green-500" />
-                                    ) : (
-                                        <WifiOff className="h-4 w-4 text-gray-500" />
-                                    )}
-                                    <span className={cn("text-sm", isConnected ? "text-green-600" : "text-gray-500")}>
-                                        {isConnected ? "En ligne" : "Hors ligne"}
-                                    </span>
-                                </div>
                             </div>
                         </div>
-                        {student.classe && !isTeacherView && (
-                             <Button asChild variant="outline">
-                                <a href={`/student/class/${student.classe.id}`}>
-                                    <Users className="mr-2 h-4 w-4"/> Ma Classe
-                                </a>
-                            </Button>
-                        )}
-                        {!isTeacherView && (
-                             <Button asChild variant="outline">
+                        {isTeacherView ? (
+                            <CareerSelector careers={allCareers} studentId={student.id} currentCareerId={metier?.id || null} />
+                        ) : (
+                           <>
+                            {student.classe && (
+                                <Button asChild variant="outline">
+                                    <a href={`/student/class/${student.classe.id}`}>
+                                        <Users className="mr-2 h-4 w-4"/> Ma Classe
+                                    </a>
+                                </Button>
+                            )}
+                            <Button asChild variant="outline">
                                 <a href={`/student/${student.id}/parent`}>
                                     <KeyRound className="mr-2 h-4 w-4"/> Espace Parent
                                 </a>
                             </Button>
+                           </>
                         )}
                     </div>
                 </CardContent>
