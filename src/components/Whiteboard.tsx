@@ -1,7 +1,7 @@
 
 // src/components/Whiteboard.tsx - VERSION CORRIGÉE AVEC API ACTUELLE
 'use client';
-import { Tldraw, useEditor, TLStoreSnapshot, TLRecord, useLocalStorageState } from '@tldraw/tldraw';
+import { Tldraw, useEditor, TLStoreSnapshot, TLRecord, useLocalStorageState, TLEditorSnapshot } from '@tldraw/tldraw';
 import '@tldraw/tldraw/tldraw.css';
 import { useEffect, useCallback, useState } from 'react';
 
@@ -58,9 +58,10 @@ function EditorManager({
 
     const handleChange = () => {
       try {
-        // CORRECTION: Utiliser editor.getSnapshot() au lieu de editor.store.getSnapshot()
+        // CORRECTION: Utiliser editor.getSnapshot() pour obtenir le TLEditorSnapshot
         const snapshot = editor.getSnapshot();
-        onPersist(snapshot);
+        // CORRECTION: Extraire le TLStoreSnapshot de l'objet snapshot
+        onPersist(snapshot.store);
       } catch (error) {
         console.error('❌ [WHITEBOARD] Erreur lors de la création du snapshot:', error);
       }
