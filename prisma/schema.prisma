@@ -1,149 +1,153 @@
-// prisma/schema.prisma - VERSION SANS CYCLE
+// prisma/schema.prisma
+
 datasource db {
-  provider     = "postgresql"
-  url          = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 generator client {
   provider = "prisma-client-js"
 }
 
-// Enum for user roles
+// =================================
+// MODÈLES
+// =================================
+
 enum Role {
-  PROFESSEUR
   ELEVE
+  PROFESSEUR
 }
 
 model User {
-  id              String            @id @default(cuid())
+  id              String         @id @default(cuid())
+  email           String         @unique
   name            String?
-  email           String?           @unique
+  password        String?
+  role            Role
   emailVerified   DateTime?
   image           String?
-  role            Role              @default(ELEVE)
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
   ambition        String?
-  parentPassword  String?
-  points          Int               @default(0)
-
-  // CORRECTION: Utiliser NoAction sur une des relations pour briser le cycle
-  classe          Classroom?        @relation("ElevesClasse", fields: [classeId], references: [id], onDelete: NoAction, onUpdate: Cascade)
+  parentPassword  String?        @map("parent_password")
+  points          Int            @default(0)
+  
   classeId        String?
+  classe          Classroom?     @relation("ClassStudents", fields: [classeId], references: [id], onDelete: SetNull)
 
-  classrooms      Classroom[]       @relation("ProfesseurClasses")
-  sentMessages    Message[]         @relation("SentMessages")
+  classrooms      Classroom[]    @relation("TaughtClasses")
+  sentMessages    Message[]
   reactions       Reaction[]
   announcements   Announcement[]
   studentProgress StudentProgress[]
-  sessionsAsProf  CoursSession[]    @relation("ProfesseurSessions")
-  sessionsAsPart  CoursSession[]    @relation("ParticipantSessions")
 
-  etat        EtatEleve?
+  sessionsAsProf  CoursSession[]  @relation("SessionProfessor")
+  sessionsAsPart  CoursSession[]  @relation("SessionParticipants")
 
-  @@index([classeId])
-}
+  etat            EtatEleve?
 
-model EtatEleve {
-  id         String    @id @default(cuid())
-  eleve      User      @relation(fields: [eleveId], references: [id], onDelete: Cascade)
-  eleveId    String    @unique
-  metier     Metier?   @relation(fields: [metierId], references: [id], onDelete: SetNull)
-  metierId   String?
-  isPunished Boolean   @default(false)
-  lastLogin  DateTime?
-
-  @@index([eleveId])
-  @@index([metierId])
-}
-
-model Metier {
-  id          String      @id @default(cuid())
-  nom         String
-  description String
-  icon        String
-  theme       String?
-  eleves      EtatEleve[]
+  @@map("users")
 }
 
 model Classroom {
   id           String         @id @default(cuid())
   nom          String
-  professeur   User           @relation("ProfesseurClasses", fields: [professeurId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   professeurId String
-  eleves       User[]         @relation("ElevesClasse")
+  professeur   User           @relation("TaughtClasses", fields: [professeurId], references: [id], onDelete: Cascade)
+  eleves       User[]         @relation("ClassStudents")
   sessions     CoursSession[]
   annonces     Announcement[]
   messages     Message[]
 
-  @@index([professeurId])
-}
-
-model CoursSession {
-  id              String              @id @default(cuid())
-  startTime       DateTime            @default(now())
-  endTime         DateTime?
-  professeur      User                @relation("ProfesseurSessions", fields: [professeurId], references: [id], onDelete: Cascade)
-  professeurId    String
-  classe          Classroom           @relation(fields: [classroomId], references: [id], onDelete: Cascade)
-  classroomId     String
-  participants    User[]              @relation("ParticipantSessions")
-  documentHistory DocumentInHistory[]
-
-  @@index([professeurId])
-  @@index([classroomId])
-}
-
-model DocumentInHistory {
-  id             String       @id @default(cuid())
-  name           String
-  url            String
-  createdAt      DateTime     @default(now())
-  coursSession   CoursSession @relation(fields: [coursSessionId], references: [id], onDelete: Cascade)
-  coursSessionId String
-
-  @@index([coursSessionId])
-}
-
-model Announcement {
-  id            String     @id @default(cuid())
-  title         String
-  content       String
-  author        User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  authorId      String
-  classe        Classroom? @relation(fields: [classeId], references: [id], onDelete: Cascade)
-  classeId      String?
-  attachmentUrl String?
-  createdAt     DateTime   @default(now())
-
-  @@index([authorId])
-  @@index([classeId])
+  @@map("classrooms")
 }
 
 model Message {
   id          String     @id @default(cuid())
   message     String
   createdAt   DateTime   @default(now())
-  sender      User       @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
-  senderId    String
   classroomId String
   classroom   Classroom  @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  senderId    String
+  sender      User       @relation(fields: [senderId], references: [id], onDelete: Cascade)
   reactions   Reaction[]
 
-  @@index([senderId])
-  @@index([classroomId])
+  @@map("messages")
 }
 
 model Reaction {
   id        String   @id @default(cuid())
   emoji     String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String
-  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
   messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
-  @@index([messageId])
+  @@unique([messageId, userId, emoji])
+  @@map("reactions")
+}
+
+model Announcement {
+  id            String     @id @default(cuid())
+  title         String
+  content       String
+  attachmentUrl String?
+  createdAt     DateTime   @default(now())
+  authorId      String
+  author        User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  classeId      String?
+  classe        Classroom? @relation(fields: [classeId], references: [id], onDelete: SetNull)
+
+  @@map("announcements")
+}
+
+model CoursSession {
+  id            String    @id @default(cuid())
+  startTime     DateTime  @default(now())
+  endTime       DateTime?
+  professeurId  String
+  professeur    User      @relation("SessionProfessor", fields: [professeurId], references: [id], onDelete: Cascade)
+  classroomId   String
+  classe        Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  participants  User[]    @relation("SessionParticipants")
+
+  documentHistory Document[]
+
+  @@map("cours_sessions")
+}
+
+model Document {
+  id              String       @id @default(cuid())
+  name            String
+  url             String
+  createdAt       DateTime     @default(now())
+  coursSessionId  String
+  coursSession    CoursSession @relation(fields: [coursSessionId], references: [id], onDelete: Cascade)
+
+  @@map("documents")
+}
+
+model EtatEleve {
+  id              String    @id @default(cuid())
+  eleveId         String    @unique
+  eleve           User      @relation(fields: [eleveId], references: [id], onDelete: Cascade)
+  metierId        String?
+  metier          Metier?   @relation(fields: [metierId], references: [id], onDelete: SetNull)
+  isPunished      Boolean   @default(false)
+  lastActivity    DateTime  @default(now())
+  
+  @@map("etats_eleves")
+}
+
+model Metier {
+  id          String      @id @default(cuid())
+  nom         String      @unique
+  description String
+  icon        String?
+  theme       Json?       // JSON pour stocker la palette de couleurs, curseur, etc.
+  etats       EtatEleve[]
+  
+  @@map("metiers")
 }
 
 enum TaskType {
@@ -158,7 +162,7 @@ enum TaskCategory {
   MATH
   SCIENCE
   ART
-  SPORTS
+  SPORT
   SOCIAL
 }
 
@@ -174,42 +178,45 @@ enum ValidationType {
   PROFESSOR
 }
 
+model Task {
+  id            String           @id @default(cuid())
+  title         String
+  description   String
+  points        Int
+  type          TaskType
+  category      TaskCategory
+  difficulty    TaskDifficulty
+  validationType ValidationType
+  requiresProof Boolean          @default(false)
+  isActive      Boolean          @default(true)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  
+  progress      StudentProgress[]
+
+  @@map("tasks")
+}
+
 enum ProgressStatus {
-  TODO
+  PENDING
   PENDING_VALIDATION
   VERIFIED
   REJECTED
 }
 
-model Task {
-  id              String           @id @default(cuid())
-  title           String
-  description     String
-  points          Int
-  type            TaskType
-  category        TaskCategory
-  difficulty      TaskDifficulty
-  validationType  ValidationType
-  requiresProof   Boolean          @default(false)
-  isActive        Boolean          @default(true)
-  createdAt       DateTime         @default(now())
-  studentProgress StudentProgress[]
-}
-
 model StudentProgress {
-  id              String         @id @default(cuid())
-  student         User           @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  studentId       String
-  task            Task           @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  taskId          String
-  status          ProgressStatus @default(TODO)
-  completionDate  DateTime?
-  submissionUrl   String?
-  pointsAwarded   Int?
-  feedback        Json?
-  recipeName      String?
+  id             String         @id @default(cuid())
+  studentId      String
+  student        User           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  taskId         String
+  task           Task           @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  status         ProgressStatus @default(PENDING)
+  completionDate DateTime?
+  submissionUrl  String?
+  pointsAwarded  Int?
+  feedback       Json?          // Stocker le feedback parental détaillé pour la tâche de cuisine
+  recipeName     String?        // Stocker le nom de la recette
 
   @@unique([studentId, taskId])
-  @@index([studentId])
-  @@index([taskId])
+  @@map("student_progress")
 }
