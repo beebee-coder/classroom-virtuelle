@@ -1,6 +1,7 @@
 // src/app/api/session/[id]/whiteboard-controller/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
 import { pusherTrigger } from '@/lib/pusher/server';
 
 export async function POST(
@@ -8,7 +9,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   const sessionId = params.id;
-  const session = await auth();
+  const session = await getServerSession(authOptions);
 
   // Seul le professeur peut changer le contrôleur
   if (session?.user?.role !== 'PROFESSEUR') {

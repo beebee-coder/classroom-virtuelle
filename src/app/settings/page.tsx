@@ -1,6 +1,7 @@
 // src/app/settings/page.tsx
 import { redirect } from 'next/navigation';
-import { auth } from '@/auth';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
 import { Header } from '@/components/Header';
 import { BackButton } from '@/components/BackButton';
 import { SettingsClient } from '@/components/SettingsClient';
@@ -11,7 +12,7 @@ import prisma from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
 
 export default async function SettingsPage() {
-  const session = await auth();
+  const session = await getServerSession(authOptions);
 
   if (!session?.user) {
     redirect('/login');

@@ -2,7 +2,8 @@
 import { BackButton } from "@/components/BackButton";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { auth } from '@/auth';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
 import { Users, Book, Video, Clock } from "lucide-react";
 import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
@@ -10,7 +11,7 @@ import prisma from "@/lib/prisma";
 export const dynamic = 'force-dynamic';
 
 export default async function TeacherProfilePage() {
-  const session = await auth();
+  const session = await getServerSession(authOptions);
   if (!session?.user || session.user.role !== 'PROFESSEUR') {
       redirect('/login');
   }

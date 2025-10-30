@@ -1,6 +1,7 @@
 // src/app/api/pusher/auth/route.ts
 import { NextResponse } from 'next/server';
-import { auth } from "@/auth";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
 import { authenticateUser } from '@/lib/pusher/server';
 
 export async function POST(request: Request) {
@@ -18,7 +19,7 @@ export async function POST(request: Request) {
       return new NextResponse('Bad Request: socket_id and channel_name are required', { status: 400 });
     }
     
-    const session = await auth();
+    const session = await getServerSession(authOptions);
 
     if (!session || !session.user) {
       console.error('❌ [API PUSHER AUTH] - Aucune session utilisateur trouvée. Accès refusé.');

@@ -2,12 +2,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/auth";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
 import prisma from "@/lib/prisma";
 
 export async function updateUserProfileImage(imageUrl: string) {
   console.log(`🖼️ [ACTION] updateUserProfileImage`);
-  const session = await auth();
+  const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
 
   if (!userId) {
@@ -36,7 +37,7 @@ export async function updateUserProfileImage(imageUrl: string) {
 
 export async function updateUserSettings(settings: { name?: string; parentPassword?: string }) {
     console.log(`⚙️ [ACTION] updateUserSettings`);
-    const session = await auth();
+    const session = await getServerSession(authOptions);
     const userId = session?.user?.id;
   
     if (!userId) {

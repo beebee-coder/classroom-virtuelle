@@ -3,7 +3,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { cache } from 'react';
-import { auth } from "@/auth";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
 import prisma from '../prisma';
 import getClient from '../redis';
 import type { Announcement } from '@prisma/client';
@@ -16,7 +17,7 @@ const PUBLIC_ANNOUNCEMENTS_CACHE_KEY = 'announcements:public';
 
 export async function createAnnouncement(formData: FormData) {
   console.log('📢 [ACTION] - Création d\'une annonce...');
-  const session = await auth();
+  const session = await getServerSession(authOptions);
   if (!session?.user || session.user.role !== 'PROFESSEUR') {
       console.error('❌ [ACTION] - Tentative de création d\'annonce non autorisée.');
       throw new Error('Unauthorized');

@@ -1,6 +1,7 @@
 import { TaskEditor } from "@/components/TaskEditor";
 import { BackButton } from "@/components/BackButton";
-import { auth } from '@/auth';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
 import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
 import type { Task } from "@prisma/client";
@@ -9,7 +10,7 @@ import type { Task } from "@prisma/client";
 export const dynamic = 'force-dynamic';
 
 export default async function TasksPage() {
-  const session = await auth();
+  const session = await getServerSession(authOptions);
   if (session?.user?.role !== 'PROFESSEUR') {
     redirect("/login");
   }

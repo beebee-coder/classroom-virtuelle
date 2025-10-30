@@ -2,7 +2,8 @@
 import { Header } from '@/components/Header';
 import { notFound, redirect } from 'next/navigation';
 import { CareerThemeWrapper } from '@/components/CareerThemeWrapper';
-import { auth } from '@/auth';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-options';
 import { ChatSheet } from '@/components/ChatSheet';
 import { getStudentAnnouncements } from '@/lib/actions/announcement.actions';
 import { getStudentData } from '@/lib/actions/student.actions';
@@ -29,8 +30,8 @@ type AnnouncementWithAuthor = Announcement & {
 export default async function StudentDashboardPage() {
     console.log('🧑‍🎓 [PAGE] - Chargement du tableau de bord élève.');
 
-    // Authentification
-    const session = await auth();
+    // CORRECTION : Remplacer auth() par getServerSession
+    const session = await getServerSession(authOptions);
     if (!session?.user?.id || session.user.role !== 'ELEVE') {
         console.log('🔒 [PAGE ELEVE] - Redirection: utilisateur non authentifié ou non élève');
         redirect('/login');

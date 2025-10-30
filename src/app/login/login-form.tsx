@@ -36,6 +36,18 @@ export default function LoginForm() {
         }
     }, [errorParam]);
 
+    // CORRECTION : Redirection dans useEffect
+    useEffect(() => {
+        if (status === "authenticated") {
+            console.log('🔵 [LOGIN FORM] - Utilisateur authentifié, redirection vers page d\'accueil');
+            // Rediriger vers la page d'accueil qui gérera la redirection appropriée
+            const timer = setTimeout(() => {
+                router.push('/');
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+    }, [status, router]);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -53,7 +65,7 @@ export default function LoginForm() {
         const result = await signIn('credentials', {
             email: email.trim().toLowerCase(),
             password: password,
-            redirect: false, // Important pour gérer la redirection manuellement après
+            redirect: false,
         });
         
         console.log('🔵 [LOGIN FORM] - Résultat de signIn:', result);
@@ -92,9 +104,8 @@ export default function LoginForm() {
         );
     }
 
+    // CORRECTION : Retourne seulement l'UI de chargement, pas de redirection pendant le rendu
     if (status === "authenticated") {
-        console.log('🔵 [LOGIN FORM] - Déjà authentifié. Redirection...');
-        router.push(callbackUrl);
         return (
             <div className="flex items-center justify-center min-h-screen bg-background">
                 <Loader2 className="h-12 w-12 animate-spin" />

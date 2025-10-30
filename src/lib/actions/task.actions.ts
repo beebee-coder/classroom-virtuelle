@@ -2,7 +2,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { auth } from '@/auth';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
 import prisma from '../prisma';
 import getClient from '../redis';
 import { ProgressStatus, type Task, type StudentProgress, Role } from '@prisma/client';
@@ -32,7 +33,7 @@ async function invalidateTaskCaches(studentId?: string) {
 
 export async function saveTask(formData: FormData): Promise<Task> {
     console.log(`📝 [ACTION] saveTask`);
-    const session = await auth();
+    const session = await getServerSession(authOptions);
     if (session?.user?.role !== 'PROFESSEUR') {
         throw new Error('Unauthorized');
     }
@@ -73,7 +74,7 @@ export async function saveTask(formData: FormData): Promise<Task> {
 
 export async function deleteTask(id: string): Promise<{ success: boolean }> {
     console.log(`🗑️ [ACTION] deleteTask: ${id}`);
-    const session = await auth();
+    const session = await getServerSession(authOptions);
     if (session?.user?.role !== 'PROFESSEUR') {
         throw new Error('Unauthorized');
     }
@@ -89,7 +90,7 @@ export async function deleteTask(id: string): Promise<{ success: boolean }> {
 
 export async function completeTask(taskId: string, submissionUrl?: string): Promise<StudentProgress> {
   console.log(`🏁 [ACTION] completeTask: ${taskId}`);
-  const session = await auth();
+  const session = await getServerSession(authOptions);
   
   if (!session?.user || session.user.role !== Role.ELEVE) {
     throw new Error("Authentification élève requise.");

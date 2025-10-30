@@ -2,14 +2,15 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users } from 'lucide-react';
 import Link from 'next/link';
-import { auth } from '@/auth';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
 import { redirect } from 'next/navigation';
 import { BackButton } from '@/components/BackButton';
 import { AddClassForm } from '@/components/AddClassForm';
 import prisma from '@/lib/prisma';
 
 export default async function TeacherClassesPage() {
-  const session = await auth();
+  const session = await getServerSession(authOptions);
   
   if (!session?.user || session.user.role !== 'PROFESSEUR') {
     redirect('/login');

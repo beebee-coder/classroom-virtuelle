@@ -1,7 +1,8 @@
 // src/lib/actions/activity.actions.ts
 'use server';
 
-import { auth } from "@/auth";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
 import prisma from '../prisma';
 
 const POINTS_PER_INTERVAL = 1; // Réduit pour une accumulation plus lente
@@ -12,7 +13,7 @@ const MAX_DAILY_POINTS = 50;
  * Attribue des points pour l'activité.
  */
 export async function trackStudentActivity(activeSeconds: number) {
-  const session = await auth();
+  const session = await getServerSession(authOptions);
   
   // 1. Vérification robuste de la session et du rôle
   if (!session?.user?.id || session.user.role !== 'ELEVE') {

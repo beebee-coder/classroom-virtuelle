@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
 
 // Stockage en mémoire temporaire (pour développement)
 const memoryStore = new Map();
@@ -12,7 +13,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   const sessionId = params.id;
-  const session = await auth();
+  const session = await getServerSession(authOptions);
 
   if (!session?.user) {
     return new NextResponse('Unauthorized', { status: 403 });
@@ -43,7 +44,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   const sessionId = params.id;
-  const session = await auth();
+  const session = await getServerSession(authOptions);
 
   if (!session?.user) {
     return new NextResponse('Unauthorized', { status: 403 });

@@ -1,6 +1,7 @@
 // src/app/teacher/validations/page.tsx
 import { BackButton } from "@/components/BackButton";
-import { auth } from '@/auth';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
 import { redirect } from "next/navigation";
 import { getTasksForProfessorValidation } from "@/lib/actions/teacher.actions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +11,7 @@ import { CheckCircle } from "lucide-react";
 export const dynamic = 'force-dynamic';
 
 export default async function ProfessorValidationPage() {
-  const session = await auth();
+  const session = await getServerSession(authOptions);
   if (session?.user?.role !== "PROFESSEUR") {
     redirect("/login");
   }

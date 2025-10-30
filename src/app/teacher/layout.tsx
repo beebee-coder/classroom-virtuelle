@@ -1,6 +1,7 @@
 // src/app/teacher/layout.tsx
-import { auth } from '@/auth';
 import { redirect } from 'next/navigation';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-options';
 import prisma from '@/lib/prisma';
 import TeacherLayoutClient from './TeacherLayoutClient';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,8 @@ export default async function TeacherLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
+  // CORRECTION : Utilisation de getServerSession au lieu de auth()
+  const session = await getServerSession(authOptions);
 
   if (!session?.user || session.user.role !== 'PROFESSEUR') {
     redirect('/login');
@@ -62,7 +64,7 @@ export default async function TeacherLayout({
     
     // Fallback simple sans dépendances pour éviter les plantages en cascade
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background ">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center p-8 border rounded-lg shadow-md max-w-md">
           <h1 className="text-2xl font-bold text-destructive mb-4">
             Erreur de chargement
