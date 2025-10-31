@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useState, memo } from 'react';
 import { useTheme } from 'next-themes';
-import type { ExcalidrawProps, MainMenuProps } from '@excalidraw/excalidraw/types/types';
+import type { ExcalidrawProps } from '@excalidraw/excalidraw/types/types';
 
 // Charger dynamiquement le composant Excalidraw SANS rendu côté serveur (SSR)
 const Excalidraw = dynamic(
@@ -31,12 +31,14 @@ export function Whiteboard({
   const [excalidrawApi, setExcalidrawApi] = useState<any>(null);
   const { theme } = useTheme();
   const [currentTheme, setCurrentTheme] = useState<"light" | "dark">("light");
-  const [MainMenu, setMainMenu] = useState<React.ComponentType<MainMenuProps> | null>(null);
+  const [MainMenu, setMainMenu] = useState<React.ComponentType<any> | null>(null);
+  const [DefaultItems, setDefaultItems] = useState<any>(null);
 
   useEffect(() => {
     import('@excalidraw/excalidraw').then(excalidrawModule => {
        setCurrentTheme(theme === 'dark' ? excalidrawModule.THEME.DARK : excalidrawModule.THEME.LIGHT);
        setMainMenu(() => excalidrawModule.MainMenu);
+       setDefaultItems(excalidrawModule.MainMenu?.DefaultItems);
     });
   }, [theme]);
   
@@ -58,6 +60,19 @@ export function Whiteboard({
     },
     [isController, onWhiteboardChange]
   );
+
+  // Rendu conditionnel pour les éléments du menu
+  const renderMainMenu = () => {
+    if (!MainMenu || !DefaultItems) return null;
+    
+    return (
+      <MainMenu>
+        <DefaultItems.ClearCanvas />
+        <DefaultItems.SaveAsImage />
+        <DefaultItems.ChangeCanvasBackground />
+      </MainMenu>
+    );
+  };
   
   return (
     <div className="h-full w-full">
@@ -84,13 +99,7 @@ export function Whiteboard({
           }
         }}
       >
-        {MainMenu && (
-            <MainMenu>
-                <MainMenu.DefaultItems.ClearCanvas />
-                <MainMenu.DefaultItems.SaveAsImage />
-                <MainMenu.DefaultItems.ChangeCanvasBackground />
-            </MainMenu>
-        )}
+        {renderMainMenu()}
       </Excalidraw>
     </div>
   );

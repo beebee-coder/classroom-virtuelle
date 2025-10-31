@@ -14,6 +14,7 @@ export const useWhiteboardSync = (
 ) => {
     const [sceneData, setSceneData] = useState<ExcalidrawScene | null>(initialScene);
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const lastSceneJSON = useRef<string | null>(null);
 
     // Fonction pour récupérer le snapshot initial
     useEffect(() => {
@@ -23,8 +24,12 @@ export const useWhiteboardSync = (
                 if (response.ok) {
                     const data: ExcalidrawScene | null = await response.json();
                     if (data) {
-                        setSceneData(data);
-                        console.log('🎨 [TB SYNC] - Scène initiale chargée depuis l\'API.');
+                        const sceneJSON = JSON.stringify(data);
+                        if (sceneJSON !== lastSceneJSON.current) {
+                            setSceneData(data);
+                            lastSceneJSON.current = sceneJSON;
+                            console.log('🎨 [TB SYNC] - Scène initiale chargée depuis l\'API.');
+                        }
                     }
                 }
             } catch (error) {
@@ -35,7 +40,7 @@ export const useWhiteboardSync = (
         if (!initialScene) {
              fetchInitialScene();
         }
-    }, [sessionId]);
+    }, [sessionId, initialScene]);
 
     // Effet pour l'abonnement Pusher
     useEffect(() => {
@@ -45,7 +50,12 @@ export const useWhiteboardSync = (
 
         const handleUpdate = (data: { sceneData: ExcalidrawScene, senderId: string }) => {
             if (data.senderId === pusherClient.connection.socket_id) return;
-            setSceneData(data.sceneData);
+            
+            const newSceneJSON = JSON.stringify(data.sceneData);
+            if (newSceneJSON !== lastSceneJSON.current) {
+                setSceneData(data.sceneData);
+                lastSceneJSON.current = newSceneJSON;
+            }
         };
         
         channel.bind(WHITEBOARD_UPDATE_EVENT, handleUpdate);
@@ -61,7 +71,13 @@ export const useWhiteboardSync = (
 
     const persistScene = useCallback((data: ExcalidrawScene) => {
         const pusherClient = getPusherClient();
-        setSceneData(data);
+        const newSceneJSON = JSON.stringify(data);
+
+        // Mise à jour optimiste uniquement si les données changent
+        if (newSceneJSON !== lastSceneJSON.current) {
+            setSceneData(data);
+            lastSceneJSON.current = newSceneJSON;
+        }
 
         if (saveTimeoutRef.current) {
             clearTimeout(saveTimeoutRef.current);

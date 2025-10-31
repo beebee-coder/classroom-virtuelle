@@ -1,49 +1,109 @@
 // src/components/VideoPlayer.tsx
 'use client';
 
-import { useEffect, useRef } from 'react';
-import type { Instance as PeerInstance } from 'simple-peer';
-import { User } from '@prisma/client';
-import { cn } from '@/lib/utils';
+import dynamic from 'next/dynamic';
+import { useCallback, useEffect, useState, memo, useRef } from 'react';
+import { useTheme } from 'next-themes';
+import type { ExcalidrawProps } from '@excalidraw/excalidraw/types/types';
 
-interface VideoPlayerProps {
-  peer: PeerInstance;
-  userId: string;
-  allUsers: User[];
-  isSpotlighted?: boolean;
-  showControls?: boolean;
+// Charger dynamiquement le composant Excalidraw SANS rendu côté serveur (SSR)
+const Excalidraw = dynamic(
+  async () => {
+    const excalidrawModule = await import('@excalidraw/excalidraw');
+    return excalidrawModule.Excalidraw;
+  },
+  { ssr: false }
+);
+
+interface WhiteboardProps {
+  sessionId: string;
+  onWhiteboardChange: (elements: readonly any[], appState: any, files: any) => void;
+  initialElements?: readonly any[];
+  initialAppState?: any;
+  isController: boolean;
 }
 
-export const VideoPlayer = ({ peer, userId, allUsers, isSpotlighted, showControls }: VideoPlayerProps) => {
-  const ref = useRef<HTMLVideoElement>(null);
-  const user = allUsers.find(u => u.id === userId);
+export function Whiteboard({
+  onWhiteboardChange,
+  initialElements,
+  initialAppState,
+  isController,
+}: WhiteboardProps) {
+  const [excalidrawApi, setExcalidrawApi] = useState<any>(null);
+  const { theme } = useTheme();
+  const [currentTheme, setCurrentTheme] = useState<"light" | "dark">("light");
+  
+  // Références pour éviter les boucles infinies
+  const initialElementsRef = useRef(initialElements);
+  const initialAppStateRef = useRef(initialAppState);
+  const isInitialMount = useRef(true);
 
   useEffect(() => {
-    peer.on('stream', stream => {
-      if (ref.current) {
-        ref.current.srcObject = stream;
+    import('@excalidraw/excalidraw').then(excalidrawModule => {
+       setCurrentTheme(theme === 'dark' ? excalidrawModule.THEME.DARK : excalidrawModule.THEME.LIGHT);
+    });
+  }, [theme]);
+  
+  // CORRECTION : Éviter la boucle infinie dans la mise à jour de la scène
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
+    if (excalidrawApi && initialElements) {
+      // Vérifier si les données ont vraiment changé
+      const hasElementsChanged = JSON.stringify(initialElements) !== JSON.stringify(initialElementsRef.current);
+      const hasAppStateChanged = JSON.stringify(initialAppState) !== JSON.stringify(initialAppStateRef.current);
+      
+      if (hasElementsChanged || hasAppStateChanged) {
+        excalidrawApi.updateScene({ 
+          elements: initialElements,
+          appState: initialAppState
+        });
+        
+        // Mettre à jour les références
+        initialElementsRef.current = initialElements;
+        initialAppStateRef.current = initialAppState;
       }
-    });
+    }
+  }, [initialElements, initialAppState, excalidrawApi]);
 
-     peer.on('error', err => {
-      console.error(`Error in peer for ${userId}:`, err);
-    });
+  const handleOnChange = useCallback(
+    (elements: readonly any[], appState: any, files: any) => {
+      if (isController) {
+        onWhiteboardChange(elements, appState, files);
+      }
+    },
+    [isController, onWhiteboardChange]
+  );
 
-    return () => {
-      peer.removeAllListeners('stream');
-      peer.removeAllListeners('error');
-    };
-  }, [peer, userId]);
-
+  // CORRECTION : Simplifier le rendu pour éviter les problèmes de menu
   return (
-    <div className={cn(
-      "relative rounded-lg overflow-hidden border bg-muted transition-all",
-      isSpotlighted && "ring-4 ring-yellow-400 border-yellow-400"
-    )}>
-      <video ref={ref} autoPlay playsInline className="h-full w-full object-cover" />
-      <div className="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
-        {user?.name || userId}
-      </div>
+    <div className="h-full w-full">
+      <Excalidraw
+        excalidrawAPI={(api) => setExcalidrawApi(api)}
+        theme={currentTheme}
+        initialData={{
+          elements: initialElements,
+          appState: initialAppState,
+        }}
+        onChange={handleOnChange}
+        viewModeEnabled={!isController}
+        UIOptions={{
+          canvasActions: {
+            clearCanvas: isController,
+            export: false,
+            loadScene: isController,
+            saveToActiveFile: false,
+            toggleTheme: false,
+            saveAsImage: true,
+          },
+          tools: {
+            image: false,
+          }
+        }}
+      />
     </div>
   );
-};
+}
