@@ -1,14 +1,16 @@
 'use client';
-import dynamic from 'next/dynamic';
-import { useCallback, useEffect, useState } from 'react';
-import { useTheme } from 'next-themes';
 
-// Importer les types seulement, pas le composant
-import type { ExcalidrawProps } from '@excalidraw/excalidraw';
+import dynamic from 'next/dynamic';
+import { useCallback, useEffect, useState, memo } from 'react';
+import { useTheme } from 'next-themes';
+import type { ExcalidrawProps, MainMenuProps } from '@excalidraw/excalidraw/types/types';
 
 // Charger dynamiquement le composant Excalidraw SANS rendu côté serveur (SSR)
-const Excalidraw = dynamic<ExcalidrawProps>(
-  async () => (await import('@excalidraw/excalidraw')).Excalidraw,
+const Excalidraw = dynamic(
+  async () => {
+    const excalidrawModule = await import('@excalidraw/excalidraw');
+    return excalidrawModule.Excalidraw;
+  },
   { ssr: false }
 );
 
@@ -29,11 +31,12 @@ export function Whiteboard({
   const [excalidrawApi, setExcalidrawApi] = useState<any>(null);
   const { theme } = useTheme();
   const [currentTheme, setCurrentTheme] = useState<"light" | "dark">("light");
+  const [MainMenu, setMainMenu] = useState<React.ComponentType<MainMenuProps> | null>(null);
 
   useEffect(() => {
-    // Import THEME only on the client side
     import('@excalidraw/excalidraw').then(excalidrawModule => {
        setCurrentTheme(theme === 'dark' ? excalidrawModule.THEME.DARK : excalidrawModule.THEME.LIGHT);
+       setMainMenu(() => excalidrawModule.MainMenu);
     });
   }, [theme]);
   
@@ -81,6 +84,13 @@ export function Whiteboard({
           }
         }}
       >
+        {MainMenu && (
+            <MainMenu>
+                <MainMenu.DefaultItems.ClearCanvas />
+                <MainMenu.DefaultItems.SaveAsImage />
+                <MainMenu.DefaultItems.ChangeCanvasBackground />
+            </MainMenu>
+        )}
       </Excalidraw>
     </div>
   );
