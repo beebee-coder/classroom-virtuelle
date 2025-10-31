@@ -44,7 +44,7 @@ export type DocumentInHistory = {
 
 
 // Types composites et spécifiques à l'application
-export type ClassroomWithDetails = PrismaClassroom & { eleves: (PrismaUser & { etat: PrismaEtatEleve | null })[] };
+export type ClassroomWithDetails = PrismaClassroom & { eleves: (PrismaUser & { etat: (PrismaEtatEleve & { metier: PrismaMetier | null}) | null })[] };
 
 export type SessionParticipant = Pick<PrismaUser, 'id' | 'name' | 'role'>;
 

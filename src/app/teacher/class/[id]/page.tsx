@@ -5,13 +5,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import { getClassAnnouncements } from '@/lib/actions/announcement.actions';
 import prisma from '@/lib/prisma';
-import type { User, Classroom, Announcement, EtatEleve } from '@prisma/client';
+import type { User, Classroom, Announcement } from '@prisma/client';
+import type { ClassroomWithDetails } from '@/types';
 
-type ClassroomWithStudentsAndPunishment = Classroom & {
-    eleves: (User & {
-        etat: { isPunished: boolean } | null;
-    })[];
-};
 
 type AnnouncementWithAuthor = Announcement & { author: { name: string | null } };
 
@@ -41,6 +37,7 @@ export default async function ClassPage({ params }: { params: { id: string } }) 
           etat: {
             select: {
               isPunished: true,
+              metierId: true, // pour le style des cartes
             },
           },
         },
@@ -57,5 +54,5 @@ export default async function ClassPage({ params }: { params: { id: string } }) 
 
   const announcements = await getClassAnnouncements(classroom.id) as AnnouncementWithAuthor[];
   
-  return <ClassPageClient classroom={classroom as ClassroomWithStudentsAndPunishment} teacher={teacher} announcements={announcements} />;
+  return <ClassPageClient classroom={classroom as ClassroomWithDetails} teacher={teacher} announcements={announcements} />;
 }
