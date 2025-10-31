@@ -18,7 +18,7 @@ export async function runAIGeneration(prompt: string): Promise<string> {
     
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-pro', // CORRECTION : Utilisation d'un nom de modèle stable
       generationConfig: {
         temperature: 0.7,
         topP: 0.8,
