@@ -1,8 +1,7 @@
-
 // src/components/session/TeacherSessionView.tsx
 'use client';
 
-import { useState, type ReactNode, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, type ReactNode, useEffect, useMemo, useCallback } from 'react'; // ⚠️ CORRECTION : Ajouter l'import React
 import { motion, AnimatePresence } from 'framer-motion';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { User, Role } from '@prisma/client';
@@ -59,14 +58,15 @@ interface TeacherSessionViewProps {
     whiteboardScene: ExcalidrawScene | null;
 }
 
-export function TeacherSessionView({
+// ⚠️ CORRECTION : Utiliser React.memo correctement
+export const TeacherSessionView = React.memo(function TeacherSessionView({
     sessionId,
     localStream,
     screenStream,
     remoteParticipants,
     spotlightedUser,
     allSessionUsers,
-    onlineUserIds: allOnlineUserIds, // Renommé pour plus de clarté
+    onlineUserIds: allOnlineUserIds,
     onSpotlightParticipant,
     raisedHands,
     understandingStatus,
@@ -110,9 +110,25 @@ export function TeacherSessionView({
         return classOnlineIds.filter(id => !activeParticipantIds.includes(id) && id !== currentUserId).length;
     }, [classOnlineIds, activeParticipantIds, currentUserId]);
     
-    if (!currentUserId || !teacher) return null;
+    // ⚠️ CORRECTION CRITIQUE : useCallback pour stabiliser handleWhiteboardChange
+    const handleWhiteboardChange = useCallback((
+      elements: readonly ExcalidrawElement[],
+      appState: AppState,
+      files: BinaryFiles
+    ) => {
+      console.log("🔄 [TeacherView] handleWhiteboardChange: Déclenchement de onWhiteboardPersist");
+      onWhiteboardPersist({ elements, appState });
+    }, [onWhiteboardPersist]);
 
-    const handleDocumentUpload = async (result: any) => {
+    // ⚠️ CORRECTION : useCallback pour handleSpotlightAndSwitch
+    const handleSpotlightAndSwitch = useCallback((participantId: string) => {
+        onSpotlightParticipant(participantId);
+        onToolChange('camera');
+        setTeacherView('content');
+    }, [onSpotlightParticipant, onToolChange]);
+
+    // ⚠️ CORRECTION : useCallback pour handleDocumentUpload
+    const handleDocumentUpload = useCallback(async (result: any) => {
         if (result.event === 'success' && result.info) {
              const newDoc = {
                 name: result.info.original_filename || 'Nouveau document',
@@ -120,29 +136,19 @@ export function TeacherSessionView({
             };
             await shareDocument(sessionId, newDoc);
         }
-    };
-    
-    const handleDocumentShare = (doc: DocumentInHistory) => {
+    }, [sessionId]);
+
+    // ⚠️ CORRECTION : useCallback pour handleDocumentShare  
+    const handleDocumentShare = useCallback((doc: DocumentInHistory) => {
         shareDocument(sessionId, { name: doc.name, url: doc.url });
-    }
+    }, [sessionId]);
 
-    const handleSpotlightAndSwitch = useCallback((participantId: string) => {
-        onSpotlightParticipant(participantId);
-        onToolChange('camera');
-        setTeacherView('content');
-    }, [onSpotlightParticipant, onToolChange]);
-    
-    const handleWhiteboardChange = (
-      elements: readonly ExcalidrawElement[],
-      appState: AppState,
-      files: BinaryFiles
-    ) => {
-      console.log("🔄 [TeacherView] handleWhiteboardChange: Déclenchement de onWhiteboardPersist");
-      onWhiteboardPersist({ elements, appState });
-    };
-
-    const renderParticipant = (participant: SessionParticipant, isDuplicate = false) => {
-        const stream = participant.id === teacher.id ? localStream : remoteStreamsMap.get(participant.id);
+    // ⚠️ CORRECTION : useCallback pour renderParticipant avec vérification de null
+    const renderParticipant = useCallback((participant: SessionParticipant | undefined, isDuplicate = false) => {
+        // ⚠️ CORRECTION : Vérifier si participant est undefined
+        if (!participant) return null;
+        
+        const stream = participant.id === teacher?.id ? localStream : remoteStreamsMap.get(participant.id);
         const key = `${participant.id}-${isDuplicate ? 'duplicate' : 'original'}`;
 
         if (stream) {
@@ -171,10 +177,23 @@ export function TeacherSessionView({
                 isHandRaised={raisedHands.has(participant.id)}
             />
         );
-    };
+    }, [
+        teacher?.id, 
+        localStream, 
+        remoteStreamsMap, 
+        currentUserId, 
+        spotlightedUser?.id, 
+        handleSpotlightAndSwitch, 
+        raisedHands, 
+        onWhiteboardControllerChange, 
+        whiteboardControllerId, 
+        classOnlineIds
+    ]);
 
-    const renderActiveTool = () => {
+    // ⚠️ CORRECTION CRITIQUE : useMemo pour renderActiveTool
+    const renderActiveTool = useMemo(() => {
         console.log(`TOOL RENDER: Outil actif est ${activeTool}`);
+        
         if (screenStream) {
              return (
                 <Card className="w-full h-full p-2 bg-black">
@@ -232,7 +251,9 @@ export function TeacherSessionView({
                             <MessageSquare className="h-10 w-10 mx-auto mb-4" />
                             <h3 className="font-semibold">Fonctionnalité Chat</h3>
                             <p className="text-sm">Le chat est disponible dans le panneau latéral.</p>
-                             {classroom?.id && teacher.id && teacher.role && <ChatSheet classroomId={classroom.id} userId={teacher.id} userRole={teacher.role} />}
+                             {classroom?.id && teacher?.id && teacher.role && (
+                                 <ChatSheet classroomId={classroom.id} userId={teacher.id} userRole={teacher.role} />
+                             )}
                         </CardContent>
                     </Card>
                 );
@@ -278,11 +299,36 @@ export function TeacherSessionView({
                     />
                 );
         }
-    };
+    }, [
+        activeTool,
+        screenStream,
+        currentUserId,
+        documentUrl,
+        sessionId,
+        handleWhiteboardChange,
+        whiteboardScene?.elements,
+        whiteboardScene?.appState,
+        whiteboardControllerId,
+        classroom?.id,
+        teacher?.id,
+        teacher?.role,
+        spotlightedUser,
+        localStream,
+        remoteStreamsMap,
+        onSpotlightParticipant,
+        raisedHands,
+        onWhiteboardControllerChange
+    ]);
 
-    const allParticipants = useMemo(() => [teacher, ...students], [teacher, students]);
+    // ⚠️ CORRECTION : Filtrer les participants undefined
+    const allParticipants = useMemo(() => 
+        [teacher, ...students].filter((p): p is SessionParticipant => p !== undefined), 
+        [teacher, students]
+    );
     
     console.log(`🔄 [TeacherView] Rendu. Outil actif: ${activeTool}`);
+
+    if (!currentUserId || !teacher) return null;
 
     return (
         <div className="flex-1 flex min-h-0 min-w-0">
@@ -299,7 +345,7 @@ export function TeacherSessionView({
                     </div>
                 </div>
                  <div className="flex-1 min-h-0 relative p-4">
-                     {teacherView === 'content' ? renderActiveTool() : (
+                     {teacherView === 'content' ? renderActiveTool : (
                         <ScrollArea className="h-full">
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                                 {allParticipants.map(p => renderParticipant(p))}
@@ -309,12 +355,13 @@ export function TeacherSessionView({
                 </div>
                 <div className="w-full overflow-hidden relative h-32 flex-shrink-0">
                     <div className="absolute inset-0 marquee-container flex space-x-4 px-2 hover:[animation-play-state:paused]">
-                        {allParticipants.map(p => (
+                        {/* ⚠️ CORRECTION : Vérifier que p n'est pas undefined */}
+                        {allParticipants.map(p => p && (
                             <div key={p.id} className="w-48 flex-shrink-0">
                                 {renderParticipant(p)}
                             </div>
                         ))}
-                        {allParticipants.map(p => (
+                        {allParticipants.map(p => p && (
                             <div key={`${p.id}-duplicate`} className="w-48 flex-shrink-0" aria-hidden="true">
                                 {renderParticipant(p, true)}
                             </div>
@@ -389,7 +436,9 @@ export function TeacherSessionView({
             </div>
         </div>
     );
-}
+});
+
+// ... (le reste du code pour AnimatedCard reste identique)
 
 interface AnimatedCardProps {
     children: ReactNode;

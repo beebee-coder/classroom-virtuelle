@@ -1,5 +1,4 @@
 // src/lib/pusher/server.ts
-
 import Pusher from 'pusher';
 
 const isPusherConfigured = 
@@ -21,7 +20,7 @@ if (isPusherConfigured) {
     console.log("✅ [PUSHER SERVER] - Client Pusher initialisé avec succès.");
 } else {
     console.warn("⚠️ [PUSHER SERVER] - Configuration Pusher manquante. Le serveur Pusher est en mode factice (mock).");
-    // Création d'un client factice pour éviter les crashs
+    // ⚠️ CORRECTION : Création d'un mock plus robuste
     pusherServer = {
         trigger: (channel: any, event: any, data: any, options?: any) => {
             console.log(`[PUSHER MOCK] - Trigger sur le canal "${channel}", event: "${event}"`, data);
@@ -30,14 +29,24 @@ if (isPusherConfigured) {
         authorizeChannel: (socketId: any, channel: any, userData: any) => {
             console.log(`[PUSHER MOCK] - Authorize pour le canal "${channel}"`);
             if (channel.startsWith('presence-')) {
-              // Pour les canaux de présence, la réponse doit contenir les données utilisateur
-              return Promise.resolve({ auth: 'mock-auth-key', channel_data: JSON.stringify(userData) });
+              // ⚠️ CORRECTION : Format correct pour les canaux de présence
+              const authResponse = {
+                auth: 'mock-auth-key-' + Math.random().toString(36).substr(2, 9),
+                channel_data: JSON.stringify({
+                  user_id: userData.user_id,
+                  user_info: userData.user_info
+                })
+              };
+              console.log('🔧 [PUSHER MOCK] - Réponse d\'auth:', authResponse);
+              return Promise.resolve(authResponse);
             }
-            return Promise.resolve({ auth: 'mock-auth-key' });
+            // Pour les canaux privés
+            return Promise.resolve({ 
+                auth: 'mock-auth-key-' + Math.random().toString(36).substr(2, 9) 
+            });
         }
     } as any;
 }
-
 
 export async function pusherTrigger(channel: string, event: string, data: any, options?: { socket_id?: string }) {
     try {
@@ -48,8 +57,15 @@ export async function pusherTrigger(channel: string, event: string, data: any, o
     }
 }
 
-// La signature de userData doit correspondre à ce qu'attend Pusher pour les canaux de présence :
-// un objet avec `user_id` et `user_info`.
+// ⚠️ CORRECTION : Meilleure gestion d'erreur
 export async function authenticateUser(socketId: string, channel: string, userData: { user_id: string, user_info: object }) {
-    return pusherServer.authorizeChannel(socketId, channel, userData);
+    try {
+        console.log(`🔐 [PUSHER AUTH] - Authentification pour socket ${socketId}, canal ${channel}`);
+        const authResponse = await pusherServer.authorizeChannel(socketId, channel, userData);
+        console.log('✅ [PUSHER AUTH] - Authentification réussie:', authResponse);
+        return authResponse;
+    } catch (error) {
+        console.error('❌ [PUSHER AUTH] - Erreur d\'authentification:', error);
+        throw error;
+    }
 }

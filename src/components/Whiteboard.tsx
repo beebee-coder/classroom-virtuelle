@@ -3,8 +3,6 @@
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useState, memo, useRef } from 'react';
 import { useTheme } from 'next-themes';
-// ⚠️ CORRECTION : Supprimer l'import de MainMenuProps qui n'existe pas
-import type { ExcalidrawProps } from '@excalidraw/excalidraw/types/types';
 
 // Charger dynamiquement le composant Excalidraw SANS rendu côté serveur (SSR)
 const Excalidraw = dynamic(
@@ -23,11 +21,6 @@ const Excalidraw = dynamic(
   }
 );
 
-// ⚠️ CORRECTION : Définir le type localement
-type MainMenuComponent = React.ComponentType<{
-  children?: React.ReactNode;
-}>;
-
 interface WhiteboardProps {
   sessionId: string;
   onWhiteboardChange: (elements: readonly any[], appState: any, files: any) => void;
@@ -36,26 +29,25 @@ interface WhiteboardProps {
   isController: boolean;
 }
 
-// ⚠️ CORRECTION : Utilisation de memo pour éviter les rendus inutiles
+// ⚠️ CORRECTION MAJEURE : Optimisation complète pour éviter les boucles infinies
 export const Whiteboard = memo(function Whiteboard({
+  sessionId,
   onWhiteboardChange,
   initialElements,
   initialAppState,
   isController,
 }: WhiteboardProps) {
   const [excalidrawApi, setExcalidrawApi] = useState<any>(null);
-  const { theme, resolvedTheme } = useTheme();
+  const { resolvedTheme } = useTheme();
   const [currentTheme, setCurrentTheme] = useState<"light" | "dark">("light");
-  // ⚠️ CORRECTION : Utiliser le type local
-  const [MainMenu, setMainMenu] = useState<MainMenuComponent | null>(null);
-  const [DefaultItems, setDefaultItems] = useState<any>(null);
   const [isExcalidrawReady, setIsExcalidrawReady] = useState(false);
   
-  // ⚠️ CORRECTION : Référence pour éviter les cycles de mise à jour
+  // ⚠️ CORRECTION : Références pour éviter les cycles de mise à jour
   const lastInitialElements = useRef<readonly any[] | undefined>();
   const lastInitialAppState = useRef<any>();
-  // ⚠️ CORRECTION : Ajouter la référence manquante pour lastChangeRef
   const lastChangeRef = useRef<string>('');
+  const isUpdatingScene = useRef(false);
+  const changeTimeoutRef = useRef<NodeJS.Timeout>();
 
   // ⚠️ CORRECTION : Chargement des composants Excalidraw une seule fois
   useEffect(() => {
@@ -68,9 +60,6 @@ export const Whiteboard = memo(function Whiteboard({
         
         if (isMounted) {
           setCurrentTheme(resolvedTheme === 'dark' ? excalidrawModule.THEME.DARK : excalidrawModule.THEME.LIGHT);
-          // ⚠️ CORRECTION : Pas besoin de wrapper dans une fonction
-          setMainMenu(() => excalidrawModule.MainMenu);
-          setDefaultItems(excalidrawModule.MainMenu.DefaultItems);
           setIsExcalidrawReady(true);
           console.log('✅ [Whiteboard] Composants Excalidraw chargés');
         }
@@ -84,17 +73,19 @@ export const Whiteboard = memo(function Whiteboard({
     return () => {
       isMounted = false;
     };
-  }, [resolvedTheme]); // ⚠️ CORRECTION : Utilisation de resolvedTheme au lieu de theme
+  }, [resolvedTheme]);
 
-  // ⚠️ CORRECTION : Mise à jour optimisée des données initiales
+  // ⚠️ CORRECTION CRITIQUE : Mise à jour optimisée des données initiales avec protection anti-boucle
   useEffect(() => {
-    if (!excalidrawApi || !initialElements) return;
+    if (!excalidrawApi || isUpdatingScene.current || !initialElements) return;
 
     const elementsChanged = JSON.stringify(initialElements) !== JSON.stringify(lastInitialElements.current);
     const appStateChanged = JSON.stringify(initialAppState) !== JSON.stringify(lastInitialAppState.current);
 
     if (elementsChanged || appStateChanged) {
       console.log('🖼️ [Whiteboard] Mise à jour de la scène avec nouvelles données');
+      
+      isUpdatingScene.current = true;
       
       excalidrawApi.updateScene({ 
         elements: initialElements,
@@ -103,33 +94,48 @@ export const Whiteboard = memo(function Whiteboard({
 
       lastInitialElements.current = initialElements;
       lastInitialAppState.current = initialAppState;
+      
+      // ⚠️ CORRECTION : Réinitialiser le flag après un délai pour éviter les conflits
+      setTimeout(() => {
+        isUpdatingScene.current = false;
+      }, 100);
     }
   }, [initialElements, initialAppState, excalidrawApi]);
 
-  // ⚠️ CORRECTION : Gestion plus stricte des changements avec protection anti-boucle
+  // ⚠️ CORRECTION CRITIQUE : Gestion des changements avec debounce et protection anti-boucle
   const handleOnChange = useCallback(
     (elements: readonly any[], appState: any, files: any) => {
-      if (!isController) {
-        console.log('🚫 [Whiteboard] Changement ignoré (mode vue seule)');
+      // Ignorer si nous sommes en train de mettre à jour la scène ou si pas contrôleur
+      if (isUpdatingScene.current || !isController) {
+        if (!isController) {
+          console.log('🚫 [Whiteboard] Changement ignoré (mode vue seule)');
+        }
         return;
       }
 
-      // ⚠️ CORRECTION : Vérifier si les données ont vraiment changé
-      const currentData = { elements, appState };
-      const currentJSON = JSON.stringify(currentData);
-      
-      if (currentJSON === lastChangeRef.current) {
-        console.log('🔄 [Whiteboard] Changement identique, skip');
-        return;
+      // ⚠️ CORRECTION : Debounce pour éviter les appels trop fréquents
+      if (changeTimeoutRef.current) {
+        clearTimeout(changeTimeoutRef.current);
       }
-      
-      lastChangeRef.current = currentJSON;
 
-      console.log('✍️ [Whiteboard] Changement détecté, appel de onWhiteboardChange');
-      
-      if (elements && appState) {
-        onWhiteboardChange(elements, appState, files);
-      }
+      changeTimeoutRef.current = setTimeout(() => {
+        // Vérifier si les données ont vraiment changé
+        const currentData = { elements, appState };
+        const currentJSON = JSON.stringify(currentData);
+        
+        if (currentJSON === lastChangeRef.current) {
+          console.log('🔄 [Whiteboard] Changement identique, skip');
+          return;
+        }
+        
+        lastChangeRef.current = currentJSON;
+
+        console.log('✍️ [Whiteboard] Changement détecté, appel de onWhiteboardChange');
+        
+        if (elements && appState) {
+          onWhiteboardChange(elements, appState, files);
+        }
+      }, 50); // ⚠️ CORRECTION : Debounce de 50ms
     },
     [isController, onWhiteboardChange]
   );
@@ -142,22 +148,18 @@ export const Whiteboard = memo(function Whiteboard({
     }
   }, [excalidrawApi]);
 
-  // ⚠️ CORRECTION : Rendu simplifié du menu
-  const renderMainMenu = useCallback(() => {
-    if (!MainMenu || !DefaultItems || !isController) return null;
-    
-    return (
-      <MainMenu>
-        <DefaultItems.ClearCanvas />
-        <DefaultItems.SaveAsImage />
-        <DefaultItems.ChangeCanvasBackground />
-      </MainMenu>
-    );
-  }, [MainMenu, DefaultItems, isController]);
+  // ⚠️ CORRECTION : Nettoyage des timeouts
+  useEffect(() => {
+    return () => {
+      if (changeTimeoutRef.current) {
+        clearTimeout(changeTimeoutRef.current);
+      }
+    };
+  }, []);
 
   console.log(`🔄 [Whiteboard] Rendu - Contrôleur: ${isController}, Prêt: ${isExcalidrawReady}`);
 
-  // ⚠️ CORRECTION : Éviter le rendu pendant le chargement
+  // Éviter le rendu pendant le chargement
   if (!isExcalidrawReady) {
     return (
       <div className="h-full w-full flex items-center justify-center">
@@ -193,9 +195,7 @@ export const Whiteboard = memo(function Whiteboard({
             image: false,
           }
         }}
-      >
-        {renderMainMenu()}
-      </Excalidraw>
+      />
     </div>
   );
 });
