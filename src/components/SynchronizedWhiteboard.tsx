@@ -1,11 +1,8 @@
-// src/components/SynchronizedWhiteboard.tsx
 'use client';
 
 import { useState, useCallback } from 'react';
-import type { ExcalidrawElement, AppState, BinaryFiles, ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types/data/types';
 import { Whiteboard } from './Whiteboard';
 import { ExcalidrawScene } from '@/types';
-
 
 interface SynchronizedWhiteboardProps {
   sessionId: string;
@@ -24,7 +21,7 @@ export function SynchronizedWhiteboard({
 }: SynchronizedWhiteboardProps) {
 
   const handleWhiteboardChange = useCallback(
-    (elements: readonly ExcalidrawElement[], appState: AppState, files: BinaryFiles) => {
+    (elements: readonly any[], appState: any, files: any) => {
         onPersist({ elements, appState });
     },
     [onPersist]

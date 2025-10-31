@@ -24,7 +24,8 @@ import { DocumentHistory } from './DocumentHistory';
 import { DocumentViewer } from './DocumentViewer';
 import { cn } from '@/lib/utils';
 import { ChatSheet } from '../ChatSheet';
-import { ExcalidrawElement, AppState, BinaryFiles } from '@excalidraw/excalidraw/types/data/types';
+import { ExcalidrawElement } from '@excalidraw/excalidraw/types/element/types';
+import { AppState, BinaryFiles } from '@excalidraw/excalidraw/types/types';
 
 interface TeacherSessionViewProps {
     sessionId: string;
@@ -82,7 +83,7 @@ export function TeacherSessionView({
     timerTimeLeft,
     isTimerRunning,
     onStartTimer,
-onPauseTimer,
+    onPauseTimer,
     onResetTimer,
     onWhiteboardPersist,
     whiteboardScene

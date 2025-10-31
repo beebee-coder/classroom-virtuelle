@@ -25,6 +25,9 @@ const nextConfig = {
       { protocol: 'https', hostname: 'res.cloudinary.com', port: '', pathname: '/**' }
     ],
   },
+
+  // Ajout de cette ligne pour forcer la reconstruction du cache
+  productionBrowserSourceMaps: true,
 };
 
 module.exports = nextConfig;

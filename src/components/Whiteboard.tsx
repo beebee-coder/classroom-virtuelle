@@ -1,14 +1,14 @@
 'use client';
 import { Excalidraw, THEME, MainMenu } from "@excalidraw/excalidraw";
-import type { ExcalidrawElement, ExcalidrawImperativeAPI, AppState, BinaryFiles } from '@excalidraw/excalidraw/types/data/types';
 import { useCallback, useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
 
+// Types simplifiés pour éviter les imports complexes
 interface WhiteboardProps {
   sessionId: string;
-  onWhiteboardChange: (elements: readonly ExcalidrawElement[], appState: AppState, files: BinaryFiles) => void;
-  initialElements?: readonly ExcalidrawElement[];
-  initialAppState?: AppState;
+  onWhiteboardChange: (elements: readonly any[], appState: any, files: any) => void;
+  initialElements?: readonly any[];
+  initialAppState?: any;
   isController: boolean;
 }
 
@@ -18,7 +18,7 @@ export function Whiteboard({
   initialAppState,
   isController,
 }: WhiteboardProps) {
-  const [excalidrawApi, setExcalidrawApi] = useState<ExcalidrawImperativeAPI | null>(null);
+  const [excalidrawApi, setExcalidrawApi] = useState<any>(null);
   const { theme } = useTheme();
   const [currentTheme, setCurrentTheme] = useState<"light" | "dark">(THEME.LIGHT);
 
@@ -29,7 +29,7 @@ export function Whiteboard({
   // Mettre à jour les données initiales quand elles changent
   useEffect(() => {
     if (excalidrawApi && initialElements) {
-       excalidrawApi.updateScene({ 
+      excalidrawApi.updateScene({ 
         elements: initialElements,
         appState: initialAppState
       });
@@ -37,7 +37,7 @@ export function Whiteboard({
   }, [initialElements, initialAppState, excalidrawApi]);
 
   const handleOnChange = useCallback(
-    (elements: readonly ExcalidrawElement[], appState: AppState, files: BinaryFiles) => {
+    (elements: readonly any[], appState: any, files: any) => {
       if (isController) {
         onWhiteboardChange(elements, appState, files);
       }
@@ -56,7 +56,6 @@ export function Whiteboard({
         }}
         onChange={handleOnChange}
         viewModeEnabled={!isController}
-        zenModeEnabled={!isController}
         UIOptions={{
           canvasActions: {
             clearCanvas: isController,
@@ -66,14 +65,18 @@ export function Whiteboard({
             toggleTheme: false,
             saveAsImage: true,
           },
+          tools: {
+            image: false,
+          }
         }}
       >
         {isController && (
-           <MainMenu>
-              <MainMenu.DefaultItems.ClearCanvas />
-              <MainMenu.DefaultItems.SaveAsImage />
-              <MainMenu.DefaultItems.ToggleTheme />
-              <MainMenu.DefaultItems.Help />
+          <MainMenu>
+            <MainMenu.DefaultItems.ClearCanvas />
+            <MainMenu.DefaultItems.SaveAsImage />
+            <MainMenu.DefaultItems.ChangeCanvasBackground />
+            <MainMenu.Separator />
+            <MainMenu.DefaultItems.Help />
           </MainMenu>
         )}
       </Excalidraw>
