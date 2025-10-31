@@ -1,4 +1,7 @@
 // test-gemini.js
+// IMPORTANT : Chargement des variables d'environnement depuis .env.local
+require('dotenv').config({ path: '.env.local' });
+
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const apiKey = process.env.GEMINI_API_KEY;
