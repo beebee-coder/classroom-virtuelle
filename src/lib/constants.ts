@@ -11,7 +11,8 @@ import {
     RefreshCw,
     Shield,
     KeyRound,
-    Target
+    Target,
+    MessageCircle, // Ajout de l'icône pour l'assistant
 } from 'lucide-react';
 import type { Classroom } from '@prisma/client';
 import { CreateAnnouncementForm } from '@/components/CreateAnnouncementForm';
@@ -91,6 +92,12 @@ export const menuItems = [
                 roles: ['ELEVE'],
                 condition: (user: Session['user']) => !!user?.id,
             },
+            {
+                label: "Assistant Pédagogique",
+                href: "/assistant",
+                icon: MessageCircle, // Nouvelle icône
+                roles: ['ELEVE'],
+            },
         ],
     },
     {
@@ -110,7 +117,7 @@ export const menuItems = [
         items: [
             { 
                 label: "Profil", 
-                href: (user: Session['user']) => user?.role === 'PROFESSEUR' ? '/teacher/profile' : `/student/${user?.id}`, 
+                href: (user: Session['user']) => user?.role === 'PROFESSEUR' ? '/teacher/profile' : `/student/dashboard`, 
                 icon: UserCircle,
                 roles: ['PROFESSEUR', 'ELEVE'],
                 condition: (user: Session['user']) => !!user?.id,
