@@ -20,7 +20,7 @@ import type {
 } from '@prisma/client';
 
 import type { Instance as PeerInstance, SignalData as PeerSignalData } from 'simple-peer';
-import { ExcalidrawElement, AppState } from '@excalidraw/excalidraw/types/data/types';
+import type { ExcalidrawElement, AppState, BinaryFiles } from '@excalidraw/excalidraw/types/data/types';
 
 
 // Re-export des types Prisma de base si nécessaire ailleurs, mais il vaut mieux importer directement.
