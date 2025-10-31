@@ -1,5 +1,3 @@
-
-// src/components/SessionClient.tsx
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -18,7 +16,6 @@ import { PermissionPrompt } from './PermissionPrompt';
 import { endCoursSession, broadcastTimerEvent, broadcastActiveTool, updateStudentSessionStatus } from '@/lib/actions/session.actions';
 import { ComprehensionLevel } from '@/types';
 import { useWhiteboardSync } from '@/hooks/useWhiteboardSync';
-import { broadcastWhiteboardUpdate } from '@/lib/actions/whiteboard.actions';
 
 interface DocumentSharedEvent {
     name: string;
@@ -27,6 +24,19 @@ interface DocumentSharedEvent {
 }
 
 const INITIAL_TIMER_DURATION = 3600;
+
+// ⚠️ CORRECTION : Déplacer les fonctions hors du composant pour éviter les recréations
+const signalViaAPI = async (payload: SignalPayload): Promise<void> => {
+    try {
+        await fetch('/api/pusher/signal', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+    } catch (error) {
+        console.error('❌ [SIGNAL] - Erreur d\'envoi du signal via API:', error);
+    }
+};
 
 export default function SessionClient({
   sessionId,
@@ -62,88 +72,31 @@ export default function SessionClient({
   const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Utiliser useMemo pour éviter les recréations inutiles
+  // ⚠️ CORRECTION : Utiliser useMemo pour éviter les recréations inutiles
   const allSessionUsers: SessionParticipant[] = useMemo(() => 
     [initialTeacher, ...initialStudents], 
     [initialTeacher, initialStudents]
   );
   
   const peersRef = useRef<Map<string, PeerInstance>>(new Map());
+  const isMountedRef = useRef(true);
 
+  // ⚠️ CORRECTION : Initialiser le hook whiteboard avec des dépendances stables
   const {
       sceneData: whiteboardScene,
       persistScene: persistWhiteboardScene,
   } = useWhiteboardSync(sessionId, null);
+  
   const [whiteboardControllerId, setWhiteboardControllerId] = useState<string | null>(initialTeacher.id);
   
+  // ⚠️ CORRECTION : useCallback stable pour whiteboard
   const handleWhiteboardPersist = useCallback((scene: ExcalidrawScene) => {
     console.log("🔄 [SessionClient] handleWhiteboardPersist appelé");
     persistWhiteboardScene(scene);
   }, [persistWhiteboardScene]);
 
-  // CORRECTION : Séparer l'effet média pour éviter les dépendances circulaires
-  useEffect(() => {
-    const getMedia = async (): Promise<void> => {
-      console.log('🎬 [MEDIA] - Demande d\'accès à la caméra et au microphone...');
-      try {
-        const stream: MediaStream = await navigator.mediaDevices.getUserMedia({ 
-          video: { width: 1280, height: 720 },
-          audio: true 
-        });
-        setLocalStream(stream);
-        console.log('✅ [MEDIA] - Flux local (caméra/micro) obtenu.');
-      } catch (error) {
-        console.error('❌ [MEDIA] - Erreur d\'accès à la caméra/micro:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Mode observateur activé',
-          description: 'Impossible d\'accéder à votre caméra/micro. Vous pouvez suivre la session sans participer activement.'
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-    getMedia();
-
-    return (): void => {
-      console.log('🛑 [MEDIA] - Nettoyage des flux médias.');
-      localStream?.getTracks().forEach(track => track.stop());
-      screenStream?.getTracks().forEach(track => track.stop());
-    };
-  }, [toast]); // Retirer localStream et screenStream des dépendances
-
-  const toggleMute = (): void => {
-    if (localStream) {
-        localStream.getAudioTracks().forEach(track => { 
-            track.enabled = !track.enabled; 
-        });
-        setIsMuted(prev => !prev);
-    }
-  };
-
-  const toggleVideo = (): void => {
-      if (localStream) {
-          localStream.getVideoTracks().forEach(track => { 
-              track.enabled = !track.enabled; 
-          });
-          setIsVideoOff(prev => !prev);
-      }
-  };
-
-  const signalViaAPI = async (payload: SignalPayload): Promise<void> => {
-      try {
-          await fetch('/api/pusher/signal', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload)
-          });
-      } catch (error) {
-          console.error('❌ [SIGNAL] - Erreur d\'envoi du signal via API:', error);
-      }
-  }
-
-  // CORRECTION : Déplacer cleanupPeerConnection en dehors des useCallback pour éviter les dépendances circulaires
-  const cleanupPeerConnection = (userId: string): void => {
+  // ⚠️ CORRECTION : Nettoyage des connexions peer
+  const cleanupPeerConnection = useCallback((userId: string): void => {
     const peer = peersRef.current.get(userId);
     if (peer) {
         console.log(`🧹 [PEER] Nettoyage de la connexion pour ${userId}.`);
@@ -160,9 +113,9 @@ export default function SessionClient({
         }
         return prev;
     });
-  };
-  
-  // CORRECTION : Simplifier createPeer et éviter les dépendances problématiques
+  }, []);
+
+  // ⚠️ CORRECTION : useCallback stable pour createPeer
   const createPeer = useCallback((targetUserId: string, initiator: boolean): PeerInstance => {
     console.log(`[PEER] Création d'un peer vers ${targetUserId}. Initiateur: ${initiator}`);
     
@@ -184,7 +137,9 @@ export default function SessionClient({
     });
 
     peer.on('stream', (remoteStream: MediaStream) => {
-        setRemoteStreams(prev => new Map(prev).set(targetUserId, remoteStream));
+        if (isMountedRef.current) {
+            setRemoteStreams(prev => new Map(prev).set(targetUserId, remoteStream));
+        }
     });
 
     peer.on('error', (err: Error) => {
@@ -199,15 +154,59 @@ export default function SessionClient({
     
     peersRef.current.set(targetUserId, peer);
     return peer;
-  }, [sessionId, currentUserId, localStream]); // Retirer cleanupPeerConnection des dépendances
+  }, [sessionId, currentUserId, localStream, cleanupPeerConnection]);
 
-  // CORRECTION : Réorganiser l'effet Pusher pour éviter les dépendances circulaires
+  // ⚠️ CORRECTION : Effet média séparé et simplifié
   useEffect(() => {
+    isMountedRef.current = true;
+    
+    const getMedia = async (): Promise<void> => {
+      console.log('🎬 [MEDIA] - Demande d\'accès à la caméra et au microphone...');
+      try {
+        const stream: MediaStream = await navigator.mediaDevices.getUserMedia({ 
+          video: { width: 1280, height: 720 },
+          audio: true 
+        });
+        if (isMountedRef.current) {
+          setLocalStream(stream);
+          console.log('✅ [MEDIA] - Flux local (caméra/micro) obtenu.');
+        }
+      } catch (error) {
+        console.error('❌ [MEDIA] - Erreur d\'accès à la caméra/micro:', error);
+        if (isMountedRef.current) {
+          toast({
+            variant: 'destructive',
+            title: 'Mode observateur activé',
+            description: 'Impossible d\'accéder à votre caméra/micro. Vous pouvez suivre la session sans participer activement.'
+          });
+        }
+      } finally {
+        if (isMountedRef.current) {
+          setLoading(false);
+        }
+      }
+    };
+    getMedia();
+
+    return (): void => {
+      isMountedRef.current = false;
+      console.log('🛑 [MEDIA] - Nettoyage des flux médias.');
+      localStream?.getTracks().forEach(track => track.stop());
+      screenStream?.getTracks().forEach(track => track.stop());
+    };
+  }, [toast]);
+
+  // ⚠️ CORRECTION : Effet Pusher avec gestion de dépendances optimisée
+  useEffect(() => {
+    if (!sessionId || !currentUserId) return;
+
     const pusherClient = getPusherClient();
     const channelName = `presence-session-${sessionId}`;
     const channel = pusherClient.subscribe(channelName);
 
     const handleSubscriptionSucceeded = (data: { members: Record<string, any> }) => {
+        if (!isMountedRef.current) return;
+        
         const memberIds = Object.keys(data.members);
         setOnlineUserIds(memberIds);
         const otherUserIds = memberIds.filter(id => id !== currentUserId);
@@ -220,6 +219,8 @@ export default function SessionClient({
     };
 
     const handleMemberAdded = (member: { id: string }) => {
+        if (!isMountedRef.current) return;
+        
         setOnlineUserIds(prev => [...new Set([...prev, member.id])]);
         if (currentUserId > member.id) {
             createPeer(member.id, true);
@@ -227,12 +228,14 @@ export default function SessionClient({
     };
 
     const handleMemberRemoved = (member: { id: string }) => {
+        if (!isMountedRef.current) return;
+        
         setOnlineUserIds(prev => prev.filter(id => id !== member.id));
         cleanupPeerConnection(member.id);
     };
 
     const handleSignal = (data: IncomingSignalData) => {
-        if (data.target !== currentUserId) return;
+        if (!isMountedRef.current || data.target !== currentUserId) return;
 
         let peer = peersRef.current.get(data.userId);
         
@@ -247,6 +250,8 @@ export default function SessionClient({
     };
 
     const handleSessionEnded = (): void => {
+        if (!isMountedRef.current) return;
+        
         toast({ title: 'Session terminée', description: 'Le professeur a mis fin à la session.' });
         router.push(currentUserRole === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard');
     };
@@ -257,44 +262,74 @@ export default function SessionClient({
     channel.bind('pusher:member_removed', handleMemberRemoved);
     channel.bind('signal', handleSignal);
     channel.bind('session-ended', handleSessionEnded);
-    channel.bind('participant-spotlighted', (data: {participantId: string}) => 
-        setSpotlightedParticipantId(data.participantId)
-    );
-    channel.bind('hand-raise-update', (data: {userId: string, isRaised: boolean}) => 
-        setRaisedHands(prev => new Set(data.isRaised ? [...prev, data.userId] : [...prev].filter(id => id !== data.userId)))
-    );
-    channel.bind('understanding-update', (data: {userId: string, status: ComprehensionLevel}) => 
-        setUnderstandingStatus(prev => new Map(prev).set(data.userId, data.status))
-    );
-    channel.bind('timer-started', () => setIsTimerRunning(true));
-    channel.bind('timer-paused', () => setIsTimerRunning(false));
-    channel.bind('timer-reset', (data: {duration?: number}) => { 
-        setIsTimerRunning(false); 
-        const d = data.duration || INITIAL_TIMER_DURATION; 
-        setTimerTimeLeft(d); 
-        setTimerDuration(d); 
+    channel.bind('participant-spotlighted', (data: {participantId: string}) => {
+        if (isMountedRef.current) {
+            setSpotlightedParticipantId(data.participantId);
+        }
     });
-    channel.bind('active-tool-changed', (data: {tool: string}) => setActiveTool(data.tool));
+    channel.bind('hand-raise-update', (data: {userId: string, isRaised: boolean}) => {
+        if (isMountedRef.current) {
+            setRaisedHands(prev => new Set(data.isRaised ? [...prev, data.userId] : [...prev].filter(id => id !== data.userId)));
+        }
+    });
+    channel.bind('understanding-update', (data: {userId: string, status: ComprehensionLevel}) => {
+        if (isMountedRef.current) {
+            setUnderstandingStatus(prev => new Map(prev).set(data.userId, data.status));
+        }
+    });
+    channel.bind('timer-started', () => {
+        if (isMountedRef.current) {
+            setIsTimerRunning(true);
+        }
+    });
+    channel.bind('timer-paused', () => {
+        if (isMountedRef.current) {
+            setIsTimerRunning(false);
+        }
+    });
+    channel.bind('timer-reset', (data: {duration?: number}) => { 
+        if (isMountedRef.current) {
+            setIsTimerRunning(false); 
+            const d = data.duration || INITIAL_TIMER_DURATION; 
+            setTimerTimeLeft(d); 
+            setTimerDuration(d); 
+        }
+    });
+    channel.bind('active-tool-changed', (data: {tool: string}) => {
+        if (isMountedRef.current) {
+            setActiveTool(data.tool);
+        }
+    });
     channel.bind('document-shared', (data: DocumentSharedEvent) => {
-      setDocumentUrl(data.url);
-      setDocumentHistory(prev => [...prev, { 
-          id: `doc-${Date.now()}`, 
-          name: data.name, 
-          url: data.url, 
-          createdAt: new Date(), 
-          coursSessionId: sessionId 
-      }]);
-      setActiveTool('document');
-      toast({ title: 'Document partagé', description: `Le professeur a partagé un nouveau document.` });
+      if (isMountedRef.current) {
+          setDocumentUrl(data.url);
+          setDocumentHistory(prev => [...prev, { 
+              id: `doc-${Date.now()}`, 
+              name: data.name, 
+              url: data.url, 
+              createdAt: new Date(), 
+              coursSessionId: sessionId 
+          }]);
+          setActiveTool('document');
+          toast({ title: 'Document partagé', description: `Le professeur a partagé un nouveau document.` });
+      }
     });
     
     channel.bind('whiteboard-controller-update', (data: { controllerId: string }) => {
-        setWhiteboardControllerId(data.controllerId);
+        if (isMountedRef.current) {
+            setWhiteboardControllerId(data.controllerId);
+        }
     });
 
     return (): void => {
+        isMountedRef.current = false;
         console.log(`🔌 [PUSHER] Nettoyage des abonnements pour la session ${sessionId}`);
-        // Unbind spécifique plutôt que unbind_all
+        
+        // Nettoyer les connexions peer d'abord
+        peersRef.current.forEach((_, userId) => cleanupPeerConnection(userId));
+        peersRef.current.clear();
+        
+        // Puis désabonner Pusher
         channel.unbind('pusher:subscription_succeeded', handleSubscriptionSucceeded);
         channel.unbind('pusher:member_added', handleMemberAdded);
         channel.unbind('pusher:member_removed', handleMemberRemoved);
@@ -311,14 +346,10 @@ export default function SessionClient({
         channel.unbind('whiteboard-controller-update');
         
         pusherClient.unsubscribe(channelName);
-        
-        // Nettoyer les connexions peer
-        peersRef.current.forEach((_, userId) => cleanupPeerConnection(userId));
-        peersRef.current.clear();
     };
-  }, [sessionId, currentUserId, createPeer, router, toast, currentUserRole]); // Retirer cleanupPeerConnection
+  }, [sessionId, currentUserId, createPeer, router, toast, currentUserRole, cleanupPeerConnection]);
 
-  // CORRECTION : Timer effect avec gestion propre
+  // ⚠️ CORRECTION : Timer effect avec gestion propre
   useEffect(() => {
     if (isTimerRunning && timerTimeLeft > 0) {
       timerIntervalRef.current = setInterval(() => {
@@ -332,15 +363,38 @@ export default function SessionClient({
       }, 1000);
     } else if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = null;
     }
 
     return () => {
       if (timerIntervalRef.current) {
         clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
       }
     };
   }, [isTimerRunning, timerTimeLeft]);
   
+    const toggleMute = useCallback(() => {
+        if (localStream) {
+            const audioTrack = localStream.getAudioTracks()[0];
+            if (audioTrack) {
+                audioTrack.enabled = !audioTrack.enabled;
+                setIsMuted(!audioTrack.enabled);
+            }
+        }
+    }, [localStream]);
+
+    const toggleVideo = useCallback(() => {
+        if (localStream) {
+            const videoTrack = localStream.getVideoTracks()[0];
+            if (videoTrack) {
+                videoTrack.enabled = !videoTrack.enabled;
+                setIsVideoOff(!videoTrack.enabled);
+            }
+        }
+    }, [localStream]);
+
+  // ⚠️ CORRECTION : Tous les handlers avec useCallback stable
   const onSpotlightParticipant = useCallback(async (participantId: string): Promise<void> => {
     if (currentUserRole !== 'PROFESSEUR') return;
     try {
@@ -374,7 +428,6 @@ export default function SessionClient({
     broadcastTimerEvent(sessionId, 'timer-reset', { duration: newDuration || timerDuration });
   }, [sessionId, timerDuration]);
 
-  // CORRECTION : Utiliser des fonctions stables pour les handlers
   const handleToggleHandRaise = useCallback((isRaised: boolean): void => {
     setRaisedHands(prev => {
       const newSet = new Set(prev);
@@ -424,7 +477,7 @@ export default function SessionClient({
     }
   }, [sessionId, currentUserRole, whiteboardControllerId, initialTeacher.id, toast]);
 
-  // CORRECTION : Utiliser useMemo pour les valeurs dérivées
+  // ⚠️ CORRECTION : Utiliser useMemo pour les valeurs dérivées
   const spotlightedStream = useMemo(() => 
     spotlightedParticipantId === currentUserId 
       ? localStream 
