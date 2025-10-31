@@ -30,7 +30,10 @@ export function StudentCard({
 
     return (
         <div 
-            className="student-card group"
+            className={cn(
+                "student-card group",
+                !isOnline && "filter grayscale cursor-not-allowed opacity-60"
+            )}
             data-effect="zoom"
             onClick={() => onSelect(student.id)}
         >

@@ -26,12 +26,23 @@ export function SessionLauncher({ classroom, teacher, onlineStudents }: SessionL
 
     const handleSelectStudent = useCallback((studentId: string) => {
         if (!studentId) return;
+
+        // Empêcher la sélection si l'élève n'est pas en ligne
+        if (!onlineStudents.includes(studentId)) {
+            toast({
+                variant: 'destructive',
+                title: 'Élève hors ligne',
+                description: 'Vous ne pouvez pas sélectionner un élève qui n\'est pas connecté.',
+            });
+            return;
+        }
+
         setSelectedStudents(prev =>
             prev.includes(studentId)
                 ? prev.filter(id => id !== studentId)
                 : [...prev, studentId]
         );
-    }, []);
+    }, [onlineStudents, toast]);
 
     const handleStartSession = async () => {
         const onlineSelectedStudents = selectedStudents.filter(id => onlineStudents.includes(id));
