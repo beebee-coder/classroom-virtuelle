@@ -14,7 +14,6 @@ export default async function TeacherLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // CORRECTION : Utilisation de getServerSession au lieu de auth()
   const session = await getServerSession(authOptions);
 
   if (!session?.user || session.user.role !== 'PROFESSEUR') {
@@ -62,7 +61,6 @@ export default async function TeacherLayout({
   } catch (error) {
     console.error("❌ [LAYOUT] Erreur dans le layout enseignant:", error);
     
-    // Fallback simple sans dépendances pour éviter les plantages en cascade
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center p-8 border rounded-lg shadow-md max-w-md">

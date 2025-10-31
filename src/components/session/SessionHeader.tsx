@@ -3,7 +3,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, PhoneOff, Square, FileText, Award, Camera, Mic, MicOff, Video, VideoOff, ScreenShare, ScreenShareOff } from "lucide-react";
+import { Loader2, PhoneOff, Square, FileText, Award, Camera, Mic, MicOff, Video, VideoOff, ScreenShare, ScreenShareOff, MessageSquare } from "lucide-react";
 import { useCallback, useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { NavIconButton } from "./NavIconButton";
@@ -59,6 +59,7 @@ export function SessionHeader({
         { id: 'document', name: 'Document', icon: FileText, colors: ['#3b82f6', '#2563eb'] as [string,string] },
         { id: 'quiz', name: 'Quiz', icon: Award, colors: ['#f59e0b', '#d97706'] as [string,string] },
         { id: 'camera', name: 'Caméras', icon: Camera, colors: ['#80FF72', '#7EE8FA'] as [string,string] },
+        { id: 'chat', name: 'Chat', icon: MessageSquare, colors: ['#22d3ee', '#06b6d4'] as [string, string] },
     ];
     
     const mediaControls = [

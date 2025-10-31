@@ -14,7 +14,7 @@ import { Whiteboard } from '../Whiteboard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { ComprehensionLevel } from '@/types';
 import { ClassStudentList } from './ClassStudentList';
-import { Loader2, UploadCloud, File, Trash2, Share2, Award, Users, Grid, Presentation } from 'lucide-react';
+import { Loader2, UploadCloud, File, Trash2, Share2, Award, Users, Grid, Presentation, MessageSquare } from 'lucide-react';
 import { CloudinaryUploadWidget } from '../CloudinaryUploadWidget';
 import { Button } from '../ui/button';
 import { shareDocument } from '@/lib/actions/session.actions';
@@ -24,6 +24,7 @@ import { SessionTimer } from './SessionTimer';
 import { DocumentHistory } from './DocumentHistory';
 import { DocumentViewer } from './DocumentViewer';
 import { cn } from '@/lib/utils';
+import { ChatSheet } from '../ChatSheet';
 
 interface TeacherSessionViewProps {
     sessionId: string;
@@ -217,6 +218,17 @@ onPauseTimer,
                             <Award className="h-10 w-10 mx-auto mb-4" />
                             <h3 className="font-semibold">Fonctionnalité Quiz</h3>
                             <p className="text-sm">Cet outil est en cours de développement.</p>
+                        </CardContent>
+                    </Card>
+                );
+            case 'chat':
+                return (
+                    <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/50 border-dashed ">
+                        <CardContent className="text-center text-muted-foreground p-6">
+                            <MessageSquare className="h-10 w-10 mx-auto mb-4" />
+                            <h3 className="font-semibold">Fonctionnalité Chat</h3>
+                            <p className="text-sm">Le chat est disponible dans le panneau latéral.</p>
+                             {classroom?.id && teacher.id && teacher.role && <ChatSheet classroomId={classroom.id} userId={teacher.id} userRole={teacher.role} />}
                         </CardContent>
                     </Card>
                 );
