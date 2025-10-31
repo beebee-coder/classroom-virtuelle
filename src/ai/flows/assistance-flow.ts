@@ -3,14 +3,21 @@
  */
 'use server';
 
-import { runAIGeneration } from '@/ai/config';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
+// Cette fonction est maintenant autonome et gère directement l'appel à l'API.
 export async function askAssistance(question: string): Promise<{ answer: string }> {
   // Validation de la question
   if (!question?.trim() || question.length < 3) {
     return {
       answer: "❓ **Question trop courte** : Pourriez-vous formuler une question plus précise ?\n\n💡 **Conseil** : Plus votre question est détaillée, mieux je pourrai vous aider !\n\n✨ **Encouragement** : N'hésitez pas à expliquer ce qui vous pose problème."
     };
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    console.error('❌ ERREUR CONFIGURATION: Clé API Gemini manquante.');
+    throw new Error('Configuration API manquante.');
   }
 
   // Prompt optimisé pour Gemini
@@ -39,9 +46,14 @@ Style: Chaleureux, accessible, pédagogique
   try {
     console.log(`📚 Assistance demandée: "${question.substring(0, 50)}..."`);
     
-    const aiResponse = await runAIGeneration(prompt);
+    const genAI = new GoogleGenerativeAI(apiKey);
+    // Utilisation du modèle 'gemini-pro' qui est le plus stable
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
     
-    // Nettoyage de la réponse
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const aiResponse = response.text();
+
     const cleanAnswer = aiResponse.trim();
     
     if (!cleanAnswer) {
