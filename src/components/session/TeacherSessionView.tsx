@@ -5,7 +5,7 @@ import { useState, type ReactNode, useEffect, useMemo, useCallback } from 'react
 import { motion, AnimatePresence } from 'framer-motion';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { User, Role } from '@prisma/client';
-import type { SessionParticipant, ClassroomWithDetails, DocumentInHistory } from '@/types';
+import type { SessionParticipant, ClassroomWithDetails, DocumentInHistory, ExcalidrawScene } from '@/types';
 import { Participant } from '@/components/Participant';
 import { StudentPlaceholder } from '../StudentPlaceholder';
 import { HandRaiseController } from '../HandRaiseController';
@@ -18,13 +18,13 @@ import { Loader2, UploadCloud, File, Trash2, Share2, Award, Users, Grid, Present
 import { CloudinaryUploadWidget } from '../CloudinaryUploadWidget';
 import { Button } from '../ui/button';
 import { shareDocument } from '@/lib/actions/session.actions';
-import { TLStoreSnapshot } from '@tldraw/tldraw';
 import { SessionStatus } from './SessionStatus';
 import { SessionTimer } from './SessionTimer';
 import { DocumentHistory } from './DocumentHistory';
 import { DocumentViewer } from './DocumentViewer';
 import { cn } from '@/lib/utils';
 import { ChatSheet } from '../ChatSheet';
+import { ExcalidrawElement, AppState, BinaryFiles } from '@excalidraw/excalidraw/types/data/types';
 
 interface TeacherSessionViewProps {
     sessionId: string;
@@ -53,8 +53,8 @@ interface TeacherSessionViewProps {
     onStartTimer: () => void;
     onPauseTimer: () => void;
     onResetTimer: (newDuration?: number) => void;
-    onWhiteboardPersist: (snapshot: TLStoreSnapshot) => void;
-    whiteboardSnapshot: TLStoreSnapshot | null;
+    onWhiteboardPersist: (scene: ExcalidrawScene) => void;
+    whiteboardScene: ExcalidrawScene | null;
 }
 
 export function TeacherSessionView({
@@ -85,7 +85,7 @@ export function TeacherSessionView({
 onPauseTimer,
     onResetTimer,
     onWhiteboardPersist,
-    whiteboardSnapshot
+    whiteboardScene
 }: TeacherSessionViewProps) {
     const [teacherView, setTeacherView] = useState<'content' | 'grid'>('content');
     const remoteStreamsMap = new Map(remoteParticipants.map(p => [p.id, p.stream]));
@@ -137,6 +137,14 @@ onPauseTimer,
         onToolChange('camera');
         setTeacherView('content');
     }, [onSpotlightParticipant, onToolChange]);
+    
+    const handleWhiteboardChange = (
+      elements: readonly ExcalidrawElement[],
+      appState: AppState,
+      files: BinaryFiles
+    ) => {
+      onWhiteboardPersist({ elements, appState });
+    };
 
     const renderParticipant = (participant: SessionParticipant, isDuplicate = false) => {
         const stream = participant.id === teacher.id ? localStream : remoteStreamsMap.get(participant.id);
@@ -205,10 +213,10 @@ onPauseTimer,
                 return (
                     <Whiteboard
                         sessionId={sessionId}
-                        onWhiteboardPersist={onWhiteboardPersist}
-                        whiteboardSnapshot={whiteboardSnapshot}
-                        whiteboardControllerId={whiteboardControllerId}
-                        currentUserId={currentUserId}
+                        onWhiteboardChange={handleWhiteboardChange}
+                        initialElements={whiteboardScene?.elements}
+                        initialAppState={whiteboardScene?.appState}
+                        isController={currentUserId === whiteboardControllerId}
                     />
                 );
             case 'quiz':
@@ -267,10 +275,10 @@ onPauseTimer,
                 return (
                     <Whiteboard
                         sessionId={sessionId}
-                        onWhiteboardPersist={onWhiteboardPersist}
-                        whiteboardSnapshot={whiteboardSnapshot}
-                        whiteboardControllerId={whiteboardControllerId}
-                        currentUserId={currentUserId}
+                        onWhiteboardChange={handleWhiteboardChange}
+                        initialElements={whiteboardScene?.elements}
+                        initialAppState={whiteboardScene?.appState}
+                        isController={currentUserId === whiteboardControllerId}
                     />
                 );
         }

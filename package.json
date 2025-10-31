@@ -23,6 +23,7 @@
     "mcp:manager": "tsx scripts/start-mcp.ts"
   },
   "dependencies": {
+    "@excalidraw/excalidraw": "^0.17.6",
     "@hookform/resolvers": "^3.9.0",
     "@modelcontextprotocol/sdk": "^1.20.2",
     "@next-auth/prisma-adapter": "^1.0.7",
@@ -50,7 +51,6 @@
     "@radix-ui/react-toggle": "^1.1.0",
     "@radix-ui/react-toggle-group": "^1.1.0",
     "@radix-ui/react-tooltip": "^1.1.8",
-    "@tldraw/tldraw": "^4.1.2",
     "bcryptjs": "^2.4.3",
     "bullmq": "^5.10.3",
     "class-variance-authority": "^0.7.1",

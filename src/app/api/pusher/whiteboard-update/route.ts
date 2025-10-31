@@ -1,18 +1,21 @@
 // src/app/api/pusher/whiteboard-update/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { pusherServer } from '@/lib/pusher/server';
-import { TLStoreSnapshot } from '@tldraw/tldraw';
+import { ExcalidrawScene } from '@/types';
 
 export async function POST(request: NextRequest) {
   try {
-    const { sessionId, snapshot, senderId } = await request.json();
+    const { sessionId, sceneData, senderId } = await request.json();
 
-    // Diffuser la mise à jour à tous les participants sauf l'émetteur
+    if (!sessionId || !sceneData) {
+      return NextResponse.json({ error: 'Données invalides' }, { status: 400 });
+    }
+
     await pusherServer.trigger(
       `presence-session-${sessionId}`,
       'whiteboard-update',
       {
-        snapshot: snapshot as TLStoreSnapshot,
+        sceneData: sceneData as ExcalidrawScene,
         senderId,
         timestamp: new Date().toISOString()
       }

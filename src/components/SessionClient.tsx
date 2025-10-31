@@ -7,7 +7,7 @@ import type { Instance as PeerInstance, SignalData as PeerSignalData } from 'sim
 import SimplePeer from 'simple-peer';
 import { useToast } from '@/hooks/use-toast';
 import type { User, Role } from '@prisma/client';
-import type { SessionClientProps, IncomingSignalData, SignalPayload, SessionParticipant } from '@/types';
+import type { SessionClientProps, IncomingSignalData, SignalPayload, SessionParticipant, ExcalidrawScene } from '@/types';
 import { getPusherClient } from '@/lib/pusher/client';
 import SessionLoading from './SessionLoading';
 import { TeacherSessionView } from './session/TeacherSessionView';
@@ -16,7 +16,6 @@ import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';
 import { endCoursSession, broadcastTimerEvent, broadcastActiveTool, updateStudentSessionStatus } from '@/lib/actions/session.actions';
 import { ComprehensionLevel } from '@/types';
-import { TLStoreSnapshot } from '@tldraw/tldraw';
 import { useWhiteboardSync } from '@/hooks/useWhiteboardSync';
 import { broadcastWhiteboardUpdate } from '@/lib/actions/whiteboard.actions';
 
@@ -67,14 +66,14 @@ export default function SessionClient({
   const peersRef = useRef<Map<string, PeerInstance>>(new Map());
 
   const {
-      whiteboardSnapshot,
-      persistWhiteboardSnapshot,
+      sceneData: whiteboardScene,
+      persistScene: persistWhiteboardScene,
   } = useWhiteboardSync(sessionId, null);
   const [whiteboardControllerId, setWhiteboardControllerId] = useState<string | null>(initialTeacher.id);
   
-  const handleWhiteboardPersist = useCallback((snapshot: TLStoreSnapshot) => {
-    persistWhiteboardSnapshot(snapshot);
-  }, [persistWhiteboardSnapshot]);
+  const handleWhiteboardPersist = useCallback((scene: ExcalidrawScene) => {
+    persistWhiteboardScene(scene);
+  }, [persistWhiteboardScene]);
 
   useEffect(() => {
     const getMedia = async (): Promise<void> => {
@@ -410,7 +409,7 @@ export default function SessionClient({
             onPauseTimer={() => broadcastTimerEvent(sessionId, 'timer-paused')}
             onResetTimer={handleResetTimer}
             onWhiteboardPersist={handleWhiteboardPersist}
-            whiteboardSnapshot={whiteboardSnapshot}          />
+            whiteboardScene={whiteboardScene}          />
         ) : (
           <StudentSessionView
             sessionId={sessionId}
@@ -425,7 +424,7 @@ export default function SessionClient({
             currentUserId={currentUserId}
             activeTool={activeTool}
             documentUrl={documentUrl}
-            whiteboardSnapshot={whiteboardSnapshot}
+            whiteboardScene={whiteboardScene}
             whiteboardControllerId={whiteboardControllerId}
             timerTimeLeft={timerTimeLeft}
             onWhiteboardPersist={handleWhiteboardPersist}

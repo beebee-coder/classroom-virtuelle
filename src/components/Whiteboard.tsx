@@ -1,147 +1,84 @@
-// src/components/Whiteboard.tsx - VERSION CORRIGÉE AVEC API ACTUELLE
+// src/components/Whiteboard.tsx
 'use client';
-import { Tldraw, useEditor, TLStoreSnapshot, TLRecord, uniqueId } from '@tldraw/tldraw';
-import '@tldraw/tldraw/tldraw.css';
-import { useEffect, useCallback, useState } from 'react';
+import { Excalidraw, THEME, MainMenu } from "@excalidraw/excalidraw";
+import { ExcalidrawElement, ExcalidrawImperativeAPIRef } from '@excalidraw/excalidraw/types/types';
+import { AppState, BinaryFiles } from '@excalidraw/excalidraw/types/data/types';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTheme } from 'next-themes';
 
 interface WhiteboardProps {
   sessionId: string;
-  onWhiteboardPersist: (snapshot: TLStoreSnapshot) => void;
-  whiteboardSnapshot: TLStoreSnapshot | null;
-  whiteboardControllerId: string | null;
-  currentUserId: string;
-}
-
-// Composant interne pour gérer la logique de l'éditeur
-function EditorManager({ 
-  onPersist, 
-  initialSnapshot, 
-  isController 
-}: { 
-  onPersist: (snapshot: TLStoreSnapshot) => void;
-  initialSnapshot: TLStoreSnapshot | null;
+  onWhiteboardChange: (elements: readonly ExcalidrawElement[], appState: AppState, files: BinaryFiles) => void;
+  initialElements?: readonly ExcalidrawElement[];
+  initialAppState?: AppState;
   isController: boolean;
-}) {
-  const editor = useEditor();
-  const [hasLoadedInitial, setHasLoadedInitial] = useState(false);
-
-  // Gestion du mode lecture seule
-  useEffect(() => {
-    editor.updateInstanceState({ isReadonly: !isController });
-  }, [isController, editor]);
-
-  // Charger le snapshot initial UNE SEULE FOIS
-  useEffect(() => {
-    if (initialSnapshot && !hasLoadedInitial && editor && editor.store) {
-      try {
-        console.log('🎨 [WHITEBOARD] Chargement du snapshot initial');
-        
-        // CORRECTION: Utiliser mergeRemoteChanges pour charger le snapshot
-        editor.store.mergeRemoteChanges(() => {
-          // Supprimer tous les records existants
-          const currentRecords = editor.store.allRecords();
-          editor.store.remove(currentRecords.map(record => record.id));
-          
-          // Ajouter les records du snapshot
-          const records = Object.values(initialSnapshot) as TLRecord[];
-          editor.store.put(records);
-        });
-        
-        setHasLoadedInitial(true);
-      } catch (error) {
-        console.error('❌ [WHITEBOARD] Erreur lors du chargement du snapshot:', error);
-        setHasLoadedInitial(true); // Éviter les boucles infinies
-      }
-    }
-  }, [editor, initialSnapshot, hasLoadedInitial]);
-
-  // Écouter les changements et persister
-  useEffect(() => {
-    if (!isController) return;
-
-    const handleChange = () => {
-      try {
-        // CORRECTION: Créer manuellement le snapshot depuis les records actuels
-        const currentRecords = editor.store.allRecords();
-        const snapshot: TLStoreSnapshot = Object.fromEntries(
-          currentRecords.map(record => [record.id, record])
-        ) as unknown as TLStoreSnapshot;
-        
-        onPersist(snapshot);
-      } catch (error) {
-        console.error('❌ [WHITEBOARD] Erreur lors de la création du snapshot:', error);
-      }
-    };
-
-    const debouncedHandleChange = debounce(handleChange, 500);
-
-    const unsubscribe = editor.store.listen(debouncedHandleChange, {
-      scope: 'document',
-    });
-
-    return () => unsubscribe();
-  }, [editor, onPersist, isController]);
-
-  return null;
 }
 
-export function Whiteboard({ 
-    sessionId, 
-    onWhiteboardPersist,
-    whiteboardSnapshot,
-    whiteboardControllerId,
-    currentUserId,
+export function Whiteboard({
+  onWhiteboardChange,
+  initialElements,
+  initialAppState,
+  isController,
 }: WhiteboardProps) {
-  const isController = currentUserId === whiteboardControllerId;
+  const excalidrawApiRef = useRef<ExcalidrawImperativeAPIRef>(null);
+  const { theme } = useTheme();
+  const [currentTheme, setCurrentTheme] = useState(THEME.LIGHT);
 
-  const handlePersist = useCallback((snapshot: TLStoreSnapshot) => {
-    console.log('💾 [WHITEBOARD] Persistance du snapshot');
-    onWhiteboardPersist(snapshot);
-  }, [onWhiteboardPersist]);
+  useEffect(() => {
+    setCurrentTheme(theme === 'dark' ? THEME.DARK : THEME.LIGHT);
+  }, [theme]);
+  
+  // Mettre à jour les données initiales quand elles changent
+  useEffect(() => {
+    if (excalidrawApiRef.current && initialElements) {
+       excalidrawApiRef.current.updateScene({ 
+        elements: initialElements,
+        appState: initialAppState
+      });
+    }
+  }, [initialElements, initialAppState]);
 
+  const handleOnChange = useCallback(
+    (elements: readonly ExcalidrawElement[], appState: AppState, files: BinaryFiles) => {
+      if (isController) {
+        onWhiteboardChange(elements, appState, files);
+      }
+    },
+    [isController, onWhiteboardChange]
+  );
+  
   return (
-    <div className="h-full w-full flex flex-col">
-      {/* En-tête avec statut */}
-      <div className="flex items-center justify-between p-2 bg-gray-50 border-b">
-        <div className="text-sm font-medium">
-          Tableau Blanc {isController ? '🎨 (Contrôleur)' : '👀 (Observateur)'}
-        </div>
-        <div className={`px-2 py-1 rounded text-xs ${
-          isController ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
-        }`}>
-          {isController ? 'Mode Édition' : 'Mode Lecture'}
-        </div>
-      </div>
-
-      <div className="flex-1" key={`whiteboard-${sessionId}-${isController}`}>
-        <Tldraw 
-          persistenceKey={`session_whiteboard_${sessionId}`}
-          forceMobile={false}
-          autoFocus={false}
-          hideUi={!isController}
-          onMount={(editor) => {
-            console.log('🎨 [WHITEBOARD] Éditeur Tldraw monté');
-            editor.updateInstanceState({ isReadonly: !isController });
-          }}
-        >
-          <EditorManager 
-            onPersist={handlePersist}
-            initialSnapshot={whiteboardSnapshot}
-            isController={isController}
-          />
-        </Tldraw>
-      </div>
+    <div className="h-full w-full">
+      <Excalidraw
+        ref={excalidrawApiRef}
+        theme={currentTheme}
+        initialData={{
+          elements: initialElements,
+          appState: initialAppState,
+        }}
+        onChange={handleOnChange}
+        viewModeEnabled={!isController}
+        zenModeEnabled={!isController}
+        UIOptions={{
+          canvasActions: {
+            clearCanvas: isController,
+            export: false,
+            loadScene: isController,
+            saveToActiveFile: false,
+            toggleTheme: false,
+            saveAsImage: true,
+          },
+        }}
+      >
+        {isController && (
+           <MainMenu>
+              <MainMenu.DefaultItems.ClearCanvas />
+              <MainMenu.DefaultItems.SaveAsImage />
+              <MainMenu.DefaultItems.ToggleTheme />
+              <MainMenu.DefaultItems.Help />
+          </MainMenu>
+        )}
+      </Excalidraw>
     </div>
   );
-}
-
-function debounce<T extends (...args: any[]) => void>(
-  func: T, 
-  wait: number
-): (...args: Parameters<T>) => void {
-  let timeout: NodeJS.Timeout | null = null;
-  return (...args: Parameters<T>) => {
-    if (timeout) clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
 }

@@ -4,18 +4,19 @@
 import { useState, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Participant } from '@/components/Participant';
-import { SessionParticipant, DocumentInHistory } from '@/types';
+import { SessionParticipant, DocumentInHistory, ExcalidrawScene } from '@/types';
 import { Card } from '../ui/card';
 import { Loader2, File } from 'lucide-react';
 import { StudentSessionControls, ComprehensionLevel } from '../StudentSessionControls';
 import { updateStudentSessionStatus } from '@/lib/actions/session.actions';
 import { useToast } from '@/hooks/use-toast';
 import { Whiteboard } from '../Whiteboard';
-import { TLStoreSnapshot } from '@tldraw/tldraw';
 import { ScrollArea } from '../ui/scroll-area';
 import { SessionTimer } from './SessionTimer';
 import { CardHeader } from '../ui/card';
 import { DocumentViewer } from './DocumentViewer';
+import { ExcalidrawElement, AppState, BinaryFiles } from '@excalidraw/excalidraw/types/data/types';
+
 
 interface StudentSessionViewProps {
     sessionId: string;
@@ -30,10 +31,10 @@ interface StudentSessionViewProps {
     currentUserId: string;
     activeTool: string;
     documentUrl: string | null;
-    whiteboardSnapshot: TLStoreSnapshot | null;
+    whiteboardScene: ExcalidrawScene | null;
     whiteboardControllerId: string | null;
     timerTimeLeft: number;
-    onWhiteboardPersist: (snapshot: TLStoreSnapshot) => void;
+    onWhiteboardPersist: (scene: ExcalidrawScene) => void;
 }
 
 export function StudentSessionView({
@@ -49,7 +50,7 @@ export function StudentSessionView({
     currentUserId,
     activeTool,
     documentUrl,
-    whiteboardSnapshot,
+    whiteboardScene,
     whiteboardControllerId,
     timerTimeLeft,
     onWhiteboardPersist,
@@ -80,6 +81,14 @@ export function StudentSessionView({
             onUnderstandingChange(currentUnderstanding); // Revert on failure
         }
     };
+    
+    const handleWhiteboardChange = (
+      elements: readonly ExcalidrawElement[],
+      appState: AppState,
+      files: BinaryFiles
+    ) => {
+      onWhiteboardPersist({ elements, appState });
+    };
 
     const renderMainContent = () => {
         switch(activeTool) {
@@ -89,10 +98,10 @@ export function StudentSessionView({
                  return (
                     <Whiteboard
                         sessionId={sessionId}
-                        whiteboardSnapshot={whiteboardSnapshot}
-                        onWhiteboardPersist={onWhiteboardPersist}
-                        whiteboardControllerId={whiteboardControllerId}
-                        currentUserId={currentUserId}
+                        onWhiteboardChange={handleWhiteboardChange}
+                        initialElements={whiteboardScene?.elements}
+                        initialAppState={whiteboardScene?.appState}
+                        isController={currentUserId === whiteboardControllerId}
                     />
                 );
             case 'camera':
@@ -122,10 +131,10 @@ export function StudentSessionView({
                  return (
                     <Whiteboard
                         sessionId={sessionId}
-                        whiteboardSnapshot={whiteboardSnapshot}
-                        onWhiteboardPersist={onWhiteboardPersist}
-                        whiteboardControllerId={whiteboardControllerId}
-                        currentUserId={currentUserId}
+                        onWhiteboardChange={handleWhiteboardChange}
+                        initialElements={whiteboardScene?.elements}
+                        initialAppState={whiteboardScene?.appState}
+                        isController={currentUserId === whiteboardControllerId}
                     />
                 );
         }

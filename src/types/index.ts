@@ -20,7 +20,8 @@ import type {
 } from '@prisma/client';
 
 import type { Instance as PeerInstance, SignalData as PeerSignalData } from 'simple-peer';
-import { TLStoreSnapshot } from "@tldraw/tldraw";
+import { ExcalidrawElement, AppState } from '@excalidraw/excalidraw/types/data/types';
+
 
 // Re-export des types Prisma de base si nécessaire ailleurs, mais il vaut mieux importer directement.
 export * from '@prisma/client';
@@ -32,6 +33,12 @@ export enum ComprehensionLevel {
   LOST = 'lost',
   NONE = 'none',
 }
+
+// Type pour la scène Excalidraw
+export type ExcalidrawScene = {
+  elements: readonly ExcalidrawElement[];
+  appState: AppState;
+};
 
 // Type défini manuellement car il n'est pas un modèle Prisma
 export type DocumentInHistory = {
