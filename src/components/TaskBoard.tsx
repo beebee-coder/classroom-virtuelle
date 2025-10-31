@@ -12,7 +12,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { CloudinaryUploadWidget } from './CloudinaryUploadWidget';
 import { Task, StudentProgress, TaskType, ProgressStatus, TaskCategory } from '@prisma/client';
-import { ExerciseHelper } from './ExerciseHelper'; // Importer le nouveau composant
 
 interface TaskBoardProps {
   tasks: Task[];
@@ -104,7 +103,6 @@ export function TaskBoard({ tasks, studentProgress, studentId }: TaskBoardProps)
 
   const renderTaskCard = (task: Task) => {
     const status = getTaskStatus(task);
-    const isExercise = task.category !== TaskCategory.HOME;
 
     return (
       <Card key={task.id} className="mb-4">
@@ -161,9 +159,6 @@ export function TaskBoard({ tasks, studentProgress, studentId }: TaskBoardProps)
                     </Button>
                 )}
             </div>
-          )}
-           {isExercise && (status === 'todo' || status === 'rejected') && (
-            <ExerciseHelper subject={task.category} exercise={task.description} />
           )}
         </CardContent>
       </Card>

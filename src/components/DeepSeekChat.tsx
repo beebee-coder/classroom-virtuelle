@@ -1,138 +1,42 @@
 'use client';
 import { useState } from 'react';
-import { useAIAssistant } from '@/hooks/useDeepSeek'; // Renommé mais le chemin reste le même pour l'instant
-import type { ChatMessage } from '@/lib/deepseek-service';
+import { Bot } from 'lucide-react';
 
 export function DeepSeekChat() {
-  const [message, setMessage] = useState('');
-  const [conversation, setConversation] = useState<ChatMessage[]>([]);
-  // Utilisation des nouvelles fonctions spécialisées du hook
-  const { explainConcept, isLoading, error, clearError } = useAIAssistant();
-
-  const handleSend = async () => {
-    if (!message.trim() || isLoading) return;
-  
-    const userMessage: ChatMessage = { role: 'user', content: message };
-  
-    // Mise à jour de la conversation en une seule fois
-    setConversation(prevConversation => [...prevConversation, userMessage]);
-    const currentMessage = message;
-    setMessage('');
-    clearError();
-  
-    try {
-      // Pour cet exemple, nous utilisons 'explainConcept'. 
-      // On pourrait ajouter un sélecteur pour choisir entre 'expliquer' et 'aider aux devoirs'.
-      const response = await explainConcept(currentMessage);
-      
-      const assistantMessage: ChatMessage = { 
-        role: 'assistant', 
-        content: response 
-      };
-      
-      // Mettre à jour avec la réponse de l'assistant
-      setConversation(prevConversation => [...prevConversation, assistantMessage]);
-  
-    } catch {
-      // L'erreur est déjà gérée par le hook et affichée dans l'UI.
-      // On peut ajouter une logique pour supprimer le message utilisateur en cas d'échec
-      setConversation(prevConversation => prevConversation.slice(0, -1));
-    }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
-  const clearChat = () => {
-    setConversation([]);
-    clearError();
-  };
 
   return (
     <div className="flex flex-col h-full border rounded-lg bg-white">
       {/* En-tête */}
       <div className="flex items-center justify-between p-4 border-b bg-gray-50">
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+          <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
           <h3 className="font-semibold">Assistant Pédagogique</h3>
         </div>
-        <button
-          onClick={clearChat}
-          className="text-sm text-gray-500 hover:text-gray-700"
-        >
-          Effacer
-        </button>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 p-4 overflow-y-auto space-y-4">
-        {conversation.length === 0 && (
-          <div className="text-center text-gray-500 mt-8">
-            <p>👋 Bonjour ! Je suis ton assistant pédagogique.</p>
-            <p className="text-sm">Demande-moi de t'expliquer un concept !</p>
-          </div>
-        )}
-        
-        {conversation.map((msg, index) => (
-          <div
-            key={index}
-            className={`flex ${
-              msg.role === 'user' ? 'justify-end' : 'justify-start'
-            }`}
-          >
-            <div
-              className={`max-w-[80%] rounded-lg p-3 ${
-                msg.role === 'user'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 text-gray-800'
-              }`}
-            >
-              <div className="whitespace-pre-wrap">{msg.content}</div>
-            </div>
-          </div>
-        ))}
-        
-        {isLoading && (
-          <div className="flex justify-start">
-            <div className="bg-gray-100 rounded-lg p-3">
-              <div className="flex space-x-2">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-              </div>
-            </div>
-          </div>
-        )}
+      {/* Message de maintenance */}
+      <div className="flex-1 p-4 overflow-y-auto space-y-4 flex flex-col items-center justify-center text-center">
+         <Bot className="h-12 w-12 text-gray-400 mb-4" />
+        <h4 className="font-semibold text-lg text-gray-700">Fonctionnalité en maintenance</h4>
+        <p className="text-gray-500 max-w-sm">
+          L'assistant pédagogique est en cours d'amélioration pour vous offrir une expérience encore meilleure. Revenez bientôt !
+        </p>
       </div>
 
-      {/* Zone de saisie */}
+      {/* Zone de saisie désactivée */}
       <div className="p-4 border-t">
-        {error && (
-          <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-            {error}
-          </div>
-        )}
-        
         <div className="flex gap-2">
           <textarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Explique-moi la photosynthèse..."
-            className="flex-1 p-3 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="L'assistant est actuellement indisponible..."
+            className="flex-1 p-3 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-100 cursor-not-allowed"
             rows={2}
-            disabled={isLoading}
+            disabled={true}
           />
           <button
-            onClick={handleSend}
-            disabled={!message.trim() || isLoading}
-            className="self-end px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            disabled={true}
+            className="self-end px-6 py-3 bg-gray-300 text-white rounded-lg cursor-not-allowed"
           >
-            {isLoading ? '...' : 'Envoyer'}
+            Envoyer
           </button>
         </div>
       </div>
