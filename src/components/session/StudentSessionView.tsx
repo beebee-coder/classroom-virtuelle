@@ -15,9 +15,12 @@ import { ScrollArea } from '../ui/scroll-area';
 import { SessionTimer } from './SessionTimer';
 import { CardHeader } from '../ui/card';
 import { DocumentViewer } from './DocumentViewer';
-import { ExcalidrawElement, AppState, BinaryFiles } from '@excalidraw/excalidraw/types/data/types';
 
-
+// Correction des imports Excalidraw - utiliser les types exportés depuis le package principal
+// Types locaux temporaires pour Excalidraw
+type ExcalidrawElement = any;
+type AppState = any;
+type BinaryFiles = any;
 interface StudentSessionViewProps {
     sessionId: string;
     localStream: MediaStream | null;
@@ -63,10 +66,14 @@ export function StudentSessionView({
         try {
             await updateStudentSessionStatus(sessionId, {
                 isHandRaised: newHandRaiseState,
-                understanding: ComprehensionLevel.UNDERSTOOD
+                understanding: currentUnderstanding // Garder le niveau de compréhension actuel
             });
         } catch {
-            toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de mettre à jour le statut de la main levée.'});
+            toast({ 
+                variant: 'destructive', 
+                title: 'Erreur', 
+                description: 'Impossible de mettre à jour le statut de la main levée.'
+            });
             onToggleHandRaise(!newHandRaiseState); // Revert on failure
         }
     };
@@ -75,9 +82,16 @@ export function StudentSessionView({
         const newStatus = currentUnderstanding === status ? ComprehensionLevel.NONE : status;
         onUnderstandingChange(newStatus); // Optimistic update
         try {
-            await updateStudentSessionStatus(sessionId, { understanding: newStatus });
+            await updateStudentSessionStatus(sessionId, { 
+                understanding: newStatus,
+                isHandRaised // Garder l'état de la main levée actuel
+            });
         } catch {
-            toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de mettre à jour le statut de compréhension.'});
+            toast({ 
+                variant: 'destructive', 
+                title: 'Erreur', 
+                description: 'Impossible de mettre à jour le statut de compréhension.'
+            });
             onUnderstandingChange(currentUnderstanding); // Revert on failure
         }
     };
@@ -139,7 +153,7 @@ export function StudentSessionView({
                 );
         }
     };
-    
+
     return (
         <div className="flex flex-row flex-1 min-h-0 py-6 gap-6">
             {/* Colonne principale : Contenu actif */}

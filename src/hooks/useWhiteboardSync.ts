@@ -35,7 +35,7 @@ export const useWhiteboardSync = (
         if (!initialScene) {
              fetchInitialScene();
         }
-    }, [sessionId, initialScene]);
+    }, [sessionId]);
 
     // Effet pour l'abonnement Pusher
     useEffect(() => {

@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useCallback } from 'react';
 import { Whiteboard } from './Whiteboard';
 import { ExcalidrawScene } from '@/types';
 
@@ -20,20 +19,13 @@ export function SynchronizedWhiteboard({
   onPersist
 }: SynchronizedWhiteboardProps) {
 
-  const handleWhiteboardChange = useCallback(
-    (elements: readonly any[], appState: any, files: any) => {
-        onPersist({ elements, appState });
-    },
-    [onPersist]
-  );
-  
   const isController = currentUserId === whiteboardControllerId;
 
   return (
     <div className="h-full w-full relative">
       <Whiteboard
         sessionId={sessionId}
-        onWhiteboardChange={handleWhiteboardChange}
+        onWhiteboardChange={(elements, appState) => onPersist({ elements, appState })}
         initialElements={initialScene?.elements}
         initialAppState={initialScene?.appState}
         isController={isController}
