@@ -1,7 +1,5 @@
-// src/lib/ai-service.ts
-
-// La classe IntelligentTutorService est maintenant directement dans ce fichier
-class IntelligentTutorService {
+// src/lib/intelligent-tutor-service.ts
+export class IntelligentTutorService {
   private educationalPatterns = {
     subjects: ['mathématiques', 'français', 'sciences', 'histoire', 'géographie', 'anglais'],
     levels: ['6ème', '5ème', '4ème', '3ème'],
@@ -112,7 +110,7 @@ ${responseStructure.encouragement}`;
       }
     };
 
-    return structures[intent as keyof typeof structures] || structures.general;
+    return (structures as any)[intent] || structures.general;
   }
 
   private generateEducationalContent(question: string, context: any): { main: string } {
@@ -165,7 +163,7 @@ Chaque découverte scientifique commence par une question !`
     };
 
     const levelKey = level.includes('6') || level.includes('5') ? 'beginner' : 'intermediate';
-    const subjectContent = subjectContents[subject as keyof typeof subjectContents];
+    const subjectContent = (subjectContents as any)[subject];
     
     if (subjectContent) {
       return { main: subjectContent[levelKey] };
@@ -196,27 +194,3 @@ La persévérance est la clé de la réussite scolaire ! 📚`
     return elements[Math.floor(Math.random() * elements.length)];
   }
 }
-
-
-export class AIService {
-  private tutor = new IntelligentTutorService();
-
-  async chat(messages: any[]): Promise<string> {
-    return this.tutor.chat(messages);
-  }
-
-  // Méthodes spécialisées
-  async explainConcept(concept: string, level: string = '6ème'): Promise<string> {
-    return this.chat([
-      { role: 'user', content: `Explique-moi : ${concept}` }
-    ]);
-  }
-
-  async helpWithExercise(subject: string, problem: string): Promise<string> {
-    return this.chat([
-      { role: 'user', content: `J'ai besoin d'aide en ${subject} : ${problem}` }
-    ]);
-  }
-}
-
-export const aiService = new AIService();
