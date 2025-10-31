@@ -2,7 +2,7 @@
 'use client';
 import { useState, useCallback } from 'react';
 
-// Définir le type ici aussi pour plus de sécurité
+// Le type est maintenant la seule chose exportée de ce fichier, en plus du hook
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
@@ -12,6 +12,7 @@ export function useDeepSeek() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // La fonction chat est maintenant asynchrone et appelle notre propre API
   const chat = useCallback(async (messages: ChatMessage[]): Promise<string> => {
     setIsLoading(true);
     setError(null);
@@ -34,18 +35,19 @@ export function useDeepSeek() {
       const data = await response.json();
       
       console.log('✅ [HOOK] - Réponse reçue de /api/mcp.');
-      return data.response;
+      return data.response; // La route API retourne un objet { response: "..." }
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Une erreur est survenue lors de la communication avec l\'assistant.';
       console.error('❌ [HOOK] - Erreur:', errorMessage);
       setError(errorMessage);
-      throw err;
+      throw err; // Propage l'erreur pour que le composant puisse la gérer si nécessaire
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, []); // Aucune dépendance externe
 
+  // Les fonctions suivantes restent inchangées car elles dépendent de `chat`
   const explainConcept = useCallback(async (concept: string, gradeLevel?: string): Promise<string> => {
     return chat([
       {
