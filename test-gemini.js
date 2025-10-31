@@ -10,13 +10,13 @@ console.log('🔑 Clé API:', apiKey ? `${apiKey.substring(0, 10)}...` : 'NON TR
 
 async function testGemini() {
   if (!apiKey) {
-    console.log('❌ ERREUR: GEMINI_API_KEY non trouvée. Assurez-vous qu\'elle est dans un fichier .env.local');
+    console.log('❌ ERREUR: GEMINI_API_KEY non trouvée dans .env.local');
     return;
   }
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     
     console.log('🔄 Test de connexion à Gemini...');
     const result = await model.generateContent('Dis bonjour en français');
