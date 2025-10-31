@@ -11,7 +11,6 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 
 export default function HomePage() {
-  const [scale, setScale] = useState(1);
   const { data: session, status } = useSession();
   const router = useRouter();
 
@@ -23,27 +22,6 @@ export default function HomePage() {
       router.push(targetUrl);
     }
   }, [session, status, router]);
-
-  useEffect(() => {
-    const handleWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      setScale(prevScale => {
-        const newScale = prevScale - e.deltaY * 0.001;
-        return Math.max(1, Math.min(newScale, 1.2));
-      });
-    };
-
-    const container = document.getElementById('home-container');
-    if (container) {
-      container.addEventListener('wheel', handleWheel, { passive: false });
-    }
-
-    return () => {
-      if (container) {
-        container.removeEventListener('wheel', handleWheel);
-      }
-    };
-  }, []);
 
   // Afficher un loader pendant la vérification de l'authentification ou si la redirection est en cours
   if (status === 'loading' || status === 'authenticated') {
@@ -63,8 +41,7 @@ export default function HomePage() {
             alt="Une salle de classe ensoleillée avec des bureaux et des chaises pour enfants"
             fill
             sizes="100vw"
-            className="object-cover transition-transform duration-300 ease-out"
-            style={{ transform: `scale(${scale})` }}
+            className="object-cover"
             priority
           />
        </div>
