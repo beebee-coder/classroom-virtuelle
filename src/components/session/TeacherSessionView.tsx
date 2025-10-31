@@ -105,17 +105,9 @@ export function TeacherSessionView({
     
     const classOnlineIds = allOnlineUserIds;
 
-    const [hasWaitingStudents, setHasWaitingStudents] = useState(false);
-    const [isClassListExpanded, setIsClassListExpanded] = useState(false);
-
-    useEffect(() => {
-        const waitingCount = classOnlineIds.filter(id => !activeParticipantIds.includes(id) && id !== currentUserId).length;
-        if (waitingCount > 0 && !isClassListExpanded) {
-            setHasWaitingStudents(true);
-        } else {
-            setHasWaitingStudents(false);
-        }
-    }, [classOnlineIds, activeParticipantIds, currentUserId, isClassListExpanded]);
+    const waitingCount = useMemo(() => {
+        return classOnlineIds.filter(id => !activeParticipantIds.includes(id) && id !== currentUserId).length;
+    }, [classOnlineIds, activeParticipantIds, currentUserId]);
     
     if (!currentUserId || !teacher) return null;
 
@@ -372,8 +364,7 @@ export function TeacherSessionView({
                                         currentUserId={currentUserId}
                                         activeParticipantIds={activeParticipantIds}
                                         sessionId={sessionId}
-                                        hasWaitingStudents={hasWaitingStudents}
-                                        onAccordionToggle={(isOpen) => setIsClassListExpanded(isOpen)}
+                                        waitingStudentCount={waitingCount}
                                         onSpotlightParticipant={onSpotlightParticipant}
                                         spotlightedParticipantId={spotlightedUser?.id || null}
                                         whiteboardControllerId={whiteboardControllerId}

@@ -1,266 +1,444 @@
-// src/components/session/ClassStudentList.tsx
+// src/components/session/TeacherSessionView.tsx
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Wifi, WifiOff, User, Send, Hourglass, Star, Edit, Undo2 } from 'lucide-react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { User as UserType } from '@prisma/client';
-import type { ClassroomWithDetails } from '@/types';
+import { useState, type ReactNode, useEffect, useMemo, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { User, Role } from '@prisma/client';
+import type { SessionParticipant, ClassroomWithDetails, DocumentInHistory, ExcalidrawScene } from '@/types';
+import { Participant } from '@/components/Participant';
+import { StudentPlaceholder } from '../StudentPlaceholder';
+import { HandRaiseController } from '../HandRaiseController';
+import { UnderstandingTracker } from '../UnderstandingTracker';
+import { Whiteboard } from '../Whiteboard';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { ComprehensionLevel } from '@/types';
+import { ClassStudentList } from './ClassStudentList';
+import { Loader2, UploadCloud, File, Trash2, Share2, Award, Users, Grid, Presentation, MessageSquare } from 'lucide-react';
+import { CloudinaryUploadWidget } from '../CloudinaryUploadWidget';
 import { Button } from '../ui/button';
-import { reinviteStudentToSession } from '@/lib/actions/session.actions';
-import { useToast } from '@/hooks/use-toast';
-import { useTransition } from 'react';
+import { shareDocument } from '@/lib/actions/session.actions';
+import { SessionStatus } from './SessionStatus';
+import { SessionTimer } from './SessionTimer';
+import { DocumentHistory } from './DocumentHistory';
+import { DocumentViewer } from './DocumentViewer';
+import { cn } from '@/lib/utils';
+import { ChatSheet } from '../ChatSheet';
+import { ExcalidrawElement } from '@excalidraw/excalidraw/types/element/types';
+import { AppState, BinaryFiles } from '@excalidraw/excalidraw/types/types';
 
-interface ClassStudentListProps {
-    classroom: ClassroomWithDetails;
-    onlineUserIds: string[];
-    currentUserId: string;
-    activeParticipantIds: string[];
+interface TeacherSessionViewProps {
     sessionId: string;
-    hasWaitingStudents: boolean;
-    onAccordionToggle: (isOpen: boolean) => void;
+    localStream: MediaStream | null;
+    screenStream: MediaStream | null;
+    remoteParticipants: { id: string; stream: MediaStream | undefined }[];
+    spotlightedUser: SessionParticipant | undefined | null;
+    allSessionUsers: SessionParticipant[];
+    onlineUserIds: string[];
     onSpotlightParticipant: (participantId: string) => void;
-    spotlightedParticipantId: string | null;
+    raisedHands: Set<string>;
+    understandingStatus: Map<string, ComprehensionLevel>;
+    currentUserId: string;
+    onScreenShare: () => void;
+    isScreenSharing: boolean;
+    activeTool: string;
+    onToolChange: (tool: string) => void;
+    classroom: ClassroomWithDetails | null;
+    documentUrl: string | null;
+    documentHistory: DocumentInHistory[];
     whiteboardControllerId: string | null;
-    onWhiteboardControllerChange: (participantId: string) => void;
+    onWhiteboardControllerChange: (userId: string) => void;
+    initialDuration: number;
+    timerTimeLeft: number;
+    isTimerRunning: boolean;
+    onStartTimer: () => void;
+    onPauseTimer: () => void;
+    onResetTimer: (newDuration?: number) => void;
+    onWhiteboardPersist: (scene: ExcalidrawScene) => void;
+    whiteboardScene: ExcalidrawScene | null;
 }
 
-export function ClassStudentList({ 
-    classroom, 
-    onlineUserIds, 
-    currentUserId, 
-    activeParticipantIds, 
+export function TeacherSessionView({
     sessionId,
-    hasWaitingStudents,
-    onAccordionToggle,
+    localStream,
+    screenStream,
+    remoteParticipants,
+    spotlightedUser,
+    allSessionUsers,
+    onlineUserIds: allOnlineUserIds, // Renommé pour plus de clarté
     onSpotlightParticipant,
-    spotlightedParticipantId,
+    raisedHands,
+    understandingStatus,
+    currentUserId,
+    onScreenShare,
+    isScreenSharing,
+    activeTool,
+    onToolChange,
+    classroom,
+    documentUrl,
+    documentHistory,
     whiteboardControllerId,
     onWhiteboardControllerChange,
-}: ClassStudentListProps) {
-    const allStudents = classroom.eleves || [];
-    const teacher = allStudents.find(u => u.id === classroom.professeurId);
+    initialDuration,
+    timerTimeLeft,
+    isTimerRunning,
+    onStartTimer,
+    onPauseTimer,
+    onResetTimer,
+    onWhiteboardPersist,
+    whiteboardScene
+}: TeacherSessionViewProps) {
+    const [teacherView, setTeacherView] = useState<'content' | 'grid'>('content');
+    const remoteStreamsMap = new Map(remoteParticipants.map(p => [p.id, p.stream]));
+    
+    const studentsWithRaisedHands = allSessionUsers.filter(u => u.role === 'ELEVE' && raisedHands.has(u.id)) as User[];
+    
+    const students = classroom?.eleves || allSessionUsers.filter(u => u.role === 'ELEVE') as User[];
+    
+    const teacher = allSessionUsers.find(u => u.role === 'PROFESSEUR');
 
-    // Ajout du professeur à la liste pour l'affichage unifié
-    const allUsersToList = teacher ? [teacher, ...allStudents.filter(s => s.id !== teacher.id)] : allStudents;
+    const activeParticipantIds = useMemo(() => {
+        const ids = new Set<string>([currentUserId]);
+        remoteParticipants.forEach(p => ids.add(p.id));
+        return Array.from(ids);
+    }, [currentUserId, remoteParticipants]);
+    
+    const classOnlineIds = allOnlineUserIds;
+
+    const waitingCount = useMemo(() => {
+        return classOnlineIds.filter(id => !activeParticipantIds.includes(id) && id !== currentUserId).length;
+    }, [classOnlineIds, activeParticipantIds, currentUserId]);
+    
+    if (!currentUserId || !teacher) return null;
+
+    const handleDocumentUpload = async (result: any) => {
+        if (result.event === 'success' && result.info) {
+             const newDoc = {
+                name: result.info.original_filename || 'Nouveau document',
+                url: result.info.secure_url,
+            };
+            await shareDocument(sessionId, newDoc);
+        }
+    };
+    
+    const handleDocumentShare = (doc: DocumentInHistory) => {
+        shareDocument(sessionId, { name: doc.name, url: doc.url });
+    }
+
+    const handleSpotlightAndSwitch = useCallback((participantId: string) => {
+        onSpotlightParticipant(participantId);
+        onToolChange('camera');
+        setTeacherView('content');
+    }, [onSpotlightParticipant, onToolChange]);
+    
+    const handleWhiteboardChange = (
+      elements: readonly ExcalidrawElement[],
+      appState: AppState,
+      files: BinaryFiles
+    ) => {
+      onWhiteboardPersist({ elements, appState });
+    };
+
+    const renderParticipant = (participant: SessionParticipant, isDuplicate = false) => {
+        const stream = participant.id === teacher.id ? localStream : remoteStreamsMap.get(participant.id);
+        const key = `${participant.id}-${isDuplicate ? 'duplicate' : 'original'}`;
+
+        if (stream) {
+            return (
+                <Participant
+                    key={key}
+                    stream={stream}
+                    isLocal={participant.id === currentUserId}
+                    isSpotlighted={participant.id === spotlightedUser?.id}
+                    isTeacher={true}
+                    participantUserId={participant.id}
+                    onSpotlightParticipant={handleSpotlightAndSwitch}
+                    displayName={participant.name ?? ''}
+                    isHandRaised={raisedHands.has(participant.id)}
+                    onSetWhiteboardController={onWhiteboardControllerChange}
+                    isWhiteboardController={participant.id === whiteboardControllerId}
+                />
+            );
+        }
+        return (
+             <StudentPlaceholder
+                key={key}
+                student={participant as User}
+                isOnline={classOnlineIds.includes(participant.id)}
+                onSpotlightParticipant={handleSpotlightAndSwitch}
+                isHandRaised={raisedHands.has(participant.id)}
+            />
+        );
+    };
+
+    const renderActiveTool = () => {
+        if (screenStream) {
+             return (
+                <Card className="w-full h-full p-2 bg-black">
+                    <Participant
+                        stream={screenStream}
+                        isLocal={true}
+                        isTeacher={true}
+                        participantUserId={currentUserId}
+                        displayName="Votre partage d'écran"
+                    />
+                </Card>
+            );
+        }
+
+        switch(activeTool) {
+            case 'document':
+                 if (!documentUrl) {
+                    return (
+                        <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/30 border-dashed">
+                             <CardContent className="text-center text-muted-foreground p-6">
+                                <File className="h-10 w-10 mx-auto mb-4" />
+                                <h3 className="font-semibold text-xl">Partage de document</h3>
+                                <p className="text-sm mt-2">
+                                    Téléversez une image ou un PDF pour l'afficher ici et l'annoter.
+                                </p>
+                            </CardContent>
+                        </Card>
+                    );
+                }
+                return <DocumentViewer url={documentUrl} />;
+            case 'whiteboard':
+                return (
+                    <Whiteboard
+                        sessionId={sessionId}
+                        onWhiteboardChange={handleWhiteboardChange}
+                        initialElements={whiteboardScene?.elements}
+                        initialAppState={whiteboardScene?.appState}
+                        isController={currentUserId === whiteboardControllerId}
+                    />
+                );
+            case 'quiz':
+                 return (
+                    <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/50 border-dashed ">
+                        <CardContent className="text-center text-muted-foreground p-6">
+                            <Award className="h-10 w-10 mx-auto mb-4" />
+                            <h3 className="font-semibold">Fonctionnalité Quiz</h3>
+                            <p className="text-sm">Cet outil est en cours de développement.</p>
+                        </CardContent>
+                    </Card>
+                );
+            case 'chat':
+                return (
+                    <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/50 border-dashed ">
+                        <CardContent className="text-center text-muted-foreground p-6">
+                            <MessageSquare className="h-10 w-10 mx-auto mb-4" />
+                            <h3 className="font-semibold">Fonctionnalité Chat</h3>
+                            <p className="text-sm">Le chat est disponible dans le panneau latéral.</p>
+                             {classroom?.id && teacher.id && teacher.role && <ChatSheet classroomId={classroom.id} userId={teacher.id} userRole={teacher.role} />}
+                        </CardContent>
+                    </Card>
+                );
+            case 'camera':
+                 const spotlightedStream = spotlightedUser?.id === currentUserId 
+                    ? localStream
+                    : remoteStreamsMap.get(spotlightedUser?.id ?? '');
+
+                if (!spotlightedUser || !spotlightedStream) {
+                    return (
+                        <Card className="aspect-video w-full h-full flex items-center justify-center bg-muted rounded-lg">
+                            <div className="text-center text-muted-foreground">
+                                <Loader2 className="animate-spin h-8 w-8 mx-auto" />
+                                <p className="mt-2">Recherche du participant en vedette...</p>
+                            </div>
+                        </Card>
+                    );
+                }
+                return (
+                    <Card className="w-full h-full p-2 bg-black">
+                         <Participant
+                            stream={spotlightedStream}
+                            isLocal={spotlightedUser.id === currentUserId}
+                            isSpotlighted={true}
+                            isTeacher={true}
+                            participantUserId={spotlightedUser.id}
+                            onSpotlightParticipant={onSpotlightParticipant}
+                            displayName={spotlightedUser.name ?? ''}
+                            isHandRaised={raisedHands.has(spotlightedUser.id)}
+                            onSetWhiteboardController={onWhiteboardControllerChange}
+                            isWhiteboardController={spotlightedUser.id === whiteboardControllerId}
+                        />
+                    </Card>
+                );
+            default:
+                return (
+                    <Whiteboard
+                        sessionId={sessionId}
+                        onWhiteboardChange={handleWhiteboardChange}
+                        initialElements={whiteboardScene?.elements}
+                        initialAppState={whiteboardScene?.appState}
+                        isController={currentUserId === whiteboardControllerId}
+                    />
+                );
+        }
+    };
+
+    const allParticipants = useMemo(() => [teacher, ...students], [teacher, students]);
 
     return (
-        <Card className="flex flex-col bg-background/80">
-            <Accordion type="single" collapsible defaultValue="classStudents" onValueChange={(value: string) => onAccordionToggle(!!value)}>
-                <AccordionItem value="classStudents" className="border-b-0">
-                    <AccordionTrigger className="p-6">
-                        <CardTitle className="flex items-center gap-2 text-base">
-                            <Users className="h-5 w-5" /> 
-                            Classe {classroom.nom} 
-                            <span className="text-sm font-normal text-muted-foreground ml-2">
-                                ({onlineUserIds.length}/{allUsersToList.length} en ligne)
-                            </span>
-                             {hasWaitingStudents && (
-                                <span className="ml-auto flex h-6 w-6 items-center justify-center rounded-full bg-blue-500 text-white text-xs font-bold animate-pulse">
-                                    {onlineUserIds.filter(id => !activeParticipantIds.includes(id)).length}
-                                </span>
-                            )}
-                        </CardTitle>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                        <CardContent className="space-y-3 overflow-y-auto max-h-80 pr-2 pb-2">
-                            <TooltipProvider>
-                                {allUsersToList.length > 0 ? (
-                                    allUsersToList.map(user => {
-                                        const isOnline = onlineUserIds.includes(user.id);
-                                        const isParticipant = activeParticipantIds.includes(user.id);
-                                        const isWaiting = isOnline && !isParticipant;
-                                        return (
-                                            <StudentListItem 
-                                                key={user.id}
-                                                student={user}
-                                                isOnline={isOnline}
-                                                isParticipant={isParticipant}
-                                                isWaiting={isWaiting}
-                                                isCurrentUser={user.id === currentUserId}
-                                                sessionId={sessionId}
-                                                classroomId={classroom.id}
-                                                onSpotlight={onSpotlightParticipant}
-                                                isSpotlighted={user.id === spotlightedParticipantId}
-                                                isWhiteboardController={user.id === whiteboardControllerId}
-                                                onWhiteboardControllerChange={onWhiteboardControllerChange}
-                                                isTeacher={user.role === 'PROFESSEUR'}
-                                            />
-                                        )
-                                    })
-                                ) : (
-                                    <div className="text-center text-muted-foreground py-4">
-                                        <User className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                        <p className="text-sm">Aucun élève dans cette classe</p>
+        <div className="flex-1 flex min-h-0 min-w-0">
+            <div className="flex-1 flex flex-col min-h-0 min-w-0">
+                <div className="p-4 border-b flex justify-between items-center">
+                    <h2 className="text-lg font-semibold">Vue du Professeur</h2>
+                    <div className="flex items-center gap-2">
+                        <Button variant={teacherView === 'content' ? 'default' : 'outline'} size="sm" onClick={() => setTeacherView('content')}>
+                           <Presentation className="mr-2 h-4 w-4" /> Contenu Principal
+                        </Button>
+                        <Button variant={teacherView === 'grid' ? 'default' : 'outline'} size="sm" onClick={() => setTeacherView('grid')}>
+                            <Grid className="mr-2 h-4 w-4" /> Grille des Participants
+                        </Button>
+                    </div>
+                </div>
+                 <div className="flex-1 min-h-0 relative p-4">
+                     {teacherView === 'content' ? renderActiveTool() : (
+                        <ScrollArea className="h-full">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                {allParticipants.map(p => renderParticipant(p))}
+                            </div>
+                        </ScrollArea>
+                     )}
+                </div>
+                <div className="w-full overflow-hidden relative h-32 flex-shrink-0">
+                    <div className="absolute inset-0 marquee-container flex space-x-4 px-2 hover:[animation-play-state:paused]">
+                        {allParticipants.map(p => (
+                            <div key={p.id} className="w-48 flex-shrink-0">
+                                {renderParticipant(p)}
+                            </div>
+                        ))}
+                        {allParticipants.map(p => (
+                            <div key={`${p.id}-duplicate`} className="w-48 flex-shrink-0" aria-hidden="true">
+                                {renderParticipant(p, true)}
+                            </div>
+                        ))}
+                    </div>
+                    <div className="absolute inset-y-0 bg-gradient-to-r from-background via-transparent to-background pointer-events-none w-full" />
+                </div>
+            </div>
+
+            <div className="w-68 flex-shrink-0 flex flex-col border-l p-3">
+                <motion.div layout className="h-full flex flex-col gap-1 p-2">
+                    <ScrollArea className="flex-1 pr-3 -mr-3">
+                        <div className="space-y-4 ">
+                            {activeTool === 'document' && (
+                                <AnimatedCard title="Partage de Document">
+                                    <div className='p-2 space-y-3'>
+                                        <CloudinaryUploadWidget onUpload={handleDocumentUpload}>
+                                            {({ open }) => (
+                                                <Button onClick={() => open()} className="w-full">
+                                                    <UploadCloud className="mr-2" />
+                                                    Téléverser un fichier
+                                                </Button>
+                                            )}
+                                        </CloudinaryUploadWidget>
+                                        <DocumentHistory documents={documentHistory} onShare={handleDocumentShare} />
                                     </div>
-                                )}
-                            </TooltipProvider>
-                        </CardContent>
-                    </AccordionContent>
-                </AccordionItem>
-            </Accordion>
-        </Card>
+                                </AnimatedCard>
+                            )}
+                             <AnimatedCard title="Gestion de Session">
+                                <SessionTimer
+                                    isTeacher={true}
+                                    sessionId={sessionId}
+                                    initialDuration={initialDuration}
+                                    timeLeft={timerTimeLeft}
+                                    isTimerRunning={isTimerRunning}
+                                    onStart={onStartTimer}
+                                    onPause={onPauseTimer}
+                                    onReset={onResetTimer}
+                                />
+                                <SessionStatus 
+                                    participants={allSessionUsers as User[]}
+                                    onlineIds={activeParticipantIds}
+                                    webrtcConnections={remoteParticipants.length}
+                                    whiteboardControllerId={whiteboardControllerId}
+                                />
+                            </AnimatedCard>
+                             {classroom && (
+                                 <AnimatedCard title={`Classe ${classroom.nom}`}>
+                                    <ClassStudentList 
+                                        classroom={classroom}
+                                        onlineUserIds={classOnlineIds}
+                                        currentUserId={currentUserId}
+                                        activeParticipantIds={activeParticipantIds}
+                                        sessionId={sessionId}
+                                        waitingStudentCount={waitingCount}
+                                        onSpotlightParticipant={onSpotlightParticipant}
+                                        spotlightedParticipantId={spotlightedUser?.id || null}
+                                        whiteboardControllerId={whiteboardControllerId}
+                                        onWhiteboardControllerChange={onWhiteboardControllerChange}
+                                    />
+                                </AnimatedCard>
+                            )}
+                            <AnimatedCard title="Suivi de la Compréhension">
+                                <UnderstandingTracker students={students} understandingStatus={understandingStatus} />
+                            </AnimatedCard>
+                            <AnimatedCard title="Mains Levées">
+                                <HandRaiseController sessionId={sessionId} raisedHands={studentsWithRaisedHands} />
+                            </AnimatedCard>
+                        </div>
+                    </ScrollArea>
+                </motion.div>
+            </div>
+        </div>
     );
 }
 
-// Composant interne pour afficher un élève
-function StudentListItem({ 
-    student, 
-    isOnline,
-    isParticipant,
-    isWaiting,
-    isCurrentUser,
-    sessionId,
-    classroomId,
-    onSpotlight,
-    isSpotlighted,
-    isWhiteboardController,
-    onWhiteboardControllerChange,
-    isTeacher
-}: { 
-    student: UserType; 
-    isOnline: boolean;
-    isParticipant: boolean;
-    isWaiting: boolean;
-    isCurrentUser: boolean;
-    sessionId: string;
-    classroomId: string;
-    onSpotlight: (participantId: string) => void;
-    isSpotlighted: boolean;
-    isWhiteboardController: boolean;
-    onWhiteboardControllerChange: (participantId: string) => void;
-    isTeacher: boolean;
-}) {
-    const displayName = student.name || student.email || 'Participant';
-    const initials = displayName.charAt(0).toUpperCase();
-    const { toast } = useToast();
-    const [isPending, startTransition] = useTransition();
+interface AnimatedCardProps {
+    children: ReactNode;
+    title: string;
+}
 
-    const handleReinvite = () => {
-        if(isTeacher) return;
-        console.log(`✉️ [CLIENT] Clic pour ré-inviter ${student.name} (${student.id})`);
-        startTransition(async () => {
-            try {
-                await reinviteStudentToSession(sessionId, student.id, classroomId);
-                toast({
-                    title: "Invitation envoyée",
-                    description: `${student.name} a été invité(e) à rejoindre la session.`,
-                });
-            } catch {
-                toast({
-                    variant: "destructive",
-                    title: "Erreur",
-                    description: "Impossible d'envoyer l'invitation.",
-                });
-            }
-        });
-    };
-
+const AnimatedCard = ({ children, title }: AnimatedCardProps) => {
+    const [isOpen, setIsOpen] = useState(true);
+    const toggleOpen = () => setIsOpen(!isOpen);
+  
     return (
-        <div className={cn(
-            "flex items-center justify-between gap-3 p-2 rounded-lg transition-colors border",
-            isSpotlighted ? "bg-amber-50 border-amber-300" :
-            isWhiteboardController ? "bg-green-50 border-green-300" :
-            isWaiting ? "bg-blue-50 border-blue-200" : 
-            isParticipant ? "bg-gray-50 border-gray-200" : 
-            "bg-muted/30 border-transparent"
-        )}>
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-                <Avatar className="h-8 w-8">
-                    <AvatarFallback className={cn("text-xs", !isOnline && "bg-muted text-muted-foreground")}>
-                        {initials}
-                    </AvatarFallback>
-                </Avatar>
-                <div className="min-w-0 flex-1">
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <span className={cn(
-                                "text-sm font-medium truncate block",
-                                !isOnline && "text-muted-foreground",
-                                isCurrentUser && "font-bold text-primary"
-                            )}>
-                                {displayName}
-                                {isCurrentUser && ' (Vous)'}
-                            </span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p>{displayName}</p>
-                            {student.points !== undefined && (
-                                <p className="text-xs">{student.points} points</p>
-                            )}
-                        </TooltipContent>
-                    </Tooltip>
-                </div>
-            </div>
-            
-            <div className='flex items-center gap-1'>
-                {isWaiting && !isTeacher && (
-                     <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Button size="icon" variant="ghost" onClick={handleReinvite} disabled={isPending} className="h-7 w-7 text-blue-600">
-                                <Send className="h-4 w-4" />
-                            </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p>Inviter à la session</p>
-                        </TooltipContent>
-                    </Tooltip>
-                )}
+      <motion.div layout initial={{ borderRadius: 10 }} className="bg-card/80 backdrop-blur-sm border border-border/50">
+        <CardHeaderComponent toggleOpen={toggleOpen} title={title} />
+        <AnimatePresence>{isOpen && <CardContentComponent>{children}</CardContentComponent>}</AnimatePresence>
+      </motion.div>
+    );
+};
 
-                 <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button size="icon" variant="ghost" onClick={() => onWhiteboardControllerChange(student.id)} className={cn("h-7 w-7", isWhiteboardController ? "text-green-600" : "text-muted-foreground")}>
-                            {isWhiteboardController && isTeacher ? <Undo2 className="h-4 w-4" /> : <Edit className={cn(isWhiteboardController && "fill-current")} />}
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>{isWhiteboardController ? (isTeacher ? 'Reprendre le contrôle' : 'A le contrôle') : 'Donner le contrôle'}</p>
-                    </TooltipContent>
-                </Tooltip>
-
-                 <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button size="icon" variant="ghost" onClick={() => onSpotlight(student.id)} className={cn("h-7 w-7", isSpotlighted ? "text-amber-500" : "text-muted-foreground")}>
-                            <Star className={cn(isSpotlighted && "fill-current")} />
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>Mettre en vedette</p>
-                    </TooltipContent>
-                </Tooltip>
-
-                {!isOnline ? (
-                     <Tooltip>
-                        <TooltipTrigger>
-                           <WifiOff className="h-4 w-4 text-muted-foreground" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p>Hors ligne</p>
-                        </TooltipContent>
-                    </Tooltip>
-                ) : isParticipant ? (
-                     <Tooltip>
-                        <TooltipTrigger>
-                           <div className="h-2 w-2 rounded-full bg-green-500" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p>Participe</p>
-                        </TooltipContent>
-                    </Tooltip>
-                ) : (
-                     <Tooltip>
-                        <TooltipTrigger>
-                           <Hourglass className="h-4 w-4 text-blue-600" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p>En attente</p>
-                        </TooltipContent>
-                    </Tooltip>
-                )}
-            </div>
-        </div>
+const CardHeaderComponent = ({ toggleOpen, title }: { toggleOpen: () => void, title: string }) => {
+    return (
+      <motion.div
+        onClick={toggleOpen}
+        layout
+        initial={{ borderRadius: 10 }}
+        className="flex items-center p-3 gap-3 cursor-pointer"
+      >
+        <motion.div
+          layout
+          className="rounded-full bg-primary/20 h-6 w-6"
+        ></motion.div>
+        <motion.div
+          layout
+          className="h-6 w-1 rounded-lg bg-primary/20"
+        ></motion.div>
+        <motion.p
+          layout
+          className="flex-grow text-sm font-semibold text-foreground"
+        >
+          {title}
+        </motion.p>
+      </motion.div>
+    );
+};
+  
+function CardContentComponent({ children }: { children: ReactNode }) {
+    return (
+      <motion.div
+        layout
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="w-full p-3 pt-0"
+      >
+        {children}
+      </motion.div>
     );
 }
