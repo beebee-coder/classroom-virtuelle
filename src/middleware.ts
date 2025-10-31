@@ -15,8 +15,7 @@ export function middleware(request: NextRequest) {
 export const config = {
   // Le matcher est ajusté pour ne PAS inclure les routes API par défaut.
   // Appliquez le middleware uniquement aux pages où c'est nécessaire.
-  matcher: [
-    '/session/:path*',
-    // '/api/session/:path*', // Exclu pour éviter les conflits
-  ],
+  // matcher: [
+  //   '/session/:path*',
+  // ],
 };
