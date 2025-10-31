@@ -1,17 +1,12 @@
 // src/hooks/useDeepSeek.ts
 'use client';
 import { useState, useCallback } from 'react';
-import { createClient } from '@modelcontextprotocol/sdk/client';
-import type { ChatMessage } from '@/lib/deepseek-service';
 
-// Créer une instance du client MCP.
-// Il se connectera automatiquement au serveur défini dans mcp.json.
-const mcpClient = createClient({
-  name: 'classroom-app-client',
-});
-
-// Le serveur (tool provider) que nous voulons utiliser
-const deepseekProvider = mcpClient.toolProvider('classroom-deepseek-mcp');
+// Définir le type ici aussi pour plus de sécurité
+export interface ChatMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+}
 
 export function useDeepSeek() {
   const [isLoading, setIsLoading] = useState(false);
@@ -22,23 +17,29 @@ export function useDeepSeek() {
     setError(null);
     
     try {
-      console.log('🤖 Calling MCP tool "chat"...');
-      // Appel standardisé via le protocole MCP
-      const response = await deepseekProvider.chat({
-        messages,
+      console.log('🗣️ [HOOK] - Appel de la route API /api/mcp...');
+      const response = await fetch('/api/mcp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ messages }),
       });
 
-      if (response.content[0].type !== 'text') {
-        throw new Error('Unsupported response format from MCP server');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Erreur HTTP: ${response.status}`);
       }
 
-      console.log('✅ Received response from MCP server');
-      return response.content[0].text;
+      const data = await response.json();
+      
+      console.log('✅ [HOOK] - Réponse reçue de /api/mcp.');
+      return data.response;
 
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An error occurred while calling the MCP tool';
+      const errorMessage = err instanceof Error ? err.message : 'Une erreur est survenue lors de la communication avec l\'assistant.';
+      console.error('❌ [HOOK] - Erreur:', errorMessage);
       setError(errorMessage);
-      console.error('❌ MCP Error:', err);
       throw err;
     } finally {
       setIsLoading(false);
