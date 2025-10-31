@@ -108,3 +108,4 @@ export interface SessionDetails {
     classroom: ClassroomWithDetails | null;
     initialDocumentHistory: DocumentInHistory[];
   }
+
