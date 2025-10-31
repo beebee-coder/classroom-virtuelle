@@ -5,7 +5,7 @@
  */
 'use server';
 
-import { ai } from '@/ai/genkit';
+import { ai } from '@/ai/config';
 import { z } from 'zod';
 
 // Define the schema for the input of the assistance flow.
