@@ -21,7 +21,7 @@
     height: 350px;
     border-radius: 12px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-    cursor: pointer;
+    /* Le curseur pointeur est enlevé car la carte entière n'est plus cliquable */
     transition: all 0.5s ease;
 }
 
@@ -181,7 +181,7 @@
 }
 
 .card__date {
-  justify-self: center;
+  justify-self: flex-start;
   font-size: 0.75rem; /* 12px */
   font-weight: 300;
   text-transform: uppercase;
