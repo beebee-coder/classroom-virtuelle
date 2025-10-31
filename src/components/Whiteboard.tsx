@@ -1,9 +1,18 @@
 'use client';
-import { Excalidraw, THEME, MainMenu } from "@excalidraw/excalidraw";
+import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
 
-// Types simplifiés pour éviter les imports complexes
+// Importer les types seulement, pas le composant
+import type { ExcalidrawProps, MainMenu } from '@excalidraw/excalidraw';
+import { THEME } from '@excalidraw/excalidraw';
+
+// Charger dynamiquement le composant Excalidraw SANS rendu côté serveur (SSR)
+const Excalidraw = dynamic<ExcalidrawProps>(
+  async () => (await import('@excalidraw/excalidraw')).Excalidraw,
+  { ssr: false }
+);
+
 interface WhiteboardProps {
   sessionId: string;
   onWhiteboardChange: (elements: readonly any[], appState: any, files: any) => void;
@@ -71,6 +80,7 @@ export function Whiteboard({
         }}
       >
         {isController && (
+          // Importer MainMenu directement depuis Excalidraw
           <MainMenu>
             <MainMenu.DefaultItems.ClearCanvas />
             <MainMenu.DefaultItems.SaveAsImage />
