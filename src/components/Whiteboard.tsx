@@ -1,7 +1,6 @@
-// src/components/Whiteboard.tsx
 'use client';
 import { Excalidraw, THEME, MainMenu } from "@excalidraw/excalidraw";
-import type { ExcalidrawElement, ExcalidrawImperativeAPI, AppState, BinaryFiles } from '@excalidraw/excalidraw/types/types';
+import type { ExcalidrawElement, ExcalidrawImperativeAPI, AppState, BinaryFiles } from '@excalidraw/excalidraw/types/data/types';
 import { useCallback, useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
 
