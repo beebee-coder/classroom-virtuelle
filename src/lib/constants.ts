@@ -12,6 +12,7 @@ import {
     Shield,
     KeyRound,
     Target,
+    Bot, // Import de l'icône Bot
 } from 'lucide-react';
 import type { Classroom } from '@prisma/client';
 import { CreateAnnouncementForm } from '@/components/CreateAnnouncementForm';
@@ -56,6 +57,17 @@ export const menuItems = [
         ],
     },
     {
+        title: "Outils IA",
+        items: [
+             { 
+                label: "Assistant Pédagogique", 
+                href: "/assistant", 
+                icon: Bot,
+                roles: ['PROFESSEUR', 'ELEVE'],
+            },
+        ]
+    },
+    {
         title: "Actions",
         items: [
             { 
@@ -83,13 +95,6 @@ export const menuItems = [
                 icon: Users,
                 roles: ['ELEVE'],
                 condition: (user: Session['user']) => !!user?.classeId,
-            },
-            {
-                label: "Mon Profil de Compétences",
-                href: (user: Session['user']) => `/student/${user?.id}/skills`,
-                icon: Target,
-                roles: ['ELEVE'],
-                condition: (user: Session['user']) => !!user?.id,
             },
         ],
     },

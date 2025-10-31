@@ -1,16 +1,18 @@
 // src/app/assistant/page.tsx
-import { DeepSeekChat } from '@/components/DeepSeekChat';
+import { AssistantChat } from '@/components/AssistantChat';
 
 export default function AssistantPage() {
   return (
-    <div className="container mx-auto p-4 max-w-4xl">
-      <h1 className="text-3xl font-bold mb-6">Assistant Pédagogique</h1>
-      <p className="text-gray-600 mb-8">
-        Cette fonctionnalité est en cours de refonte pour intégrer des outils plus puissants.
-      </p>
+    <div className="container mx-auto p-4 max-w-4xl h-full flex flex-col">
+      <div className="mb-8 text-center">
+        <h1 className="text-4xl font-bold tracking-tight text-primary">Assistant Pédagogique</h1>
+        <p className="text-lg text-muted-foreground mt-2">
+          Posez vos questions de maths, français ou sciences. Je suis là pour vous aider !
+        </p>
+      </div>
       
-      <div className="h-[600px]">
-        <DeepSeekChat />
+      <div className="flex-1 min-h-0">
+        <AssistantChat />
       </div>
     </div>
   );
