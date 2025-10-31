@@ -1,3 +1,4 @@
+
 // src/hooks/useWhiteboardSync.ts
 'use client';
 
@@ -14,11 +15,12 @@ export const useWhiteboardSync = (
 ) => {
     const [sceneData, setSceneData] = useState<ExcalidrawScene | null>(initialScene);
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const lastSceneJSON = useRef<string | null>(null);
+    const lastSceneJSON = useRef<string | null>(JSON.stringify(initialScene));
 
     // Fonction pour récupérer le snapshot initial
     useEffect(() => {
         const fetchInitialScene = async () => {
+            console.log('🎨 [TB SYNC] 1. useEffect: Tentative de chargement de la scène initiale depuis l\'API...');
             try {
                 const response = await fetch(`/api/session/${sessionId}/sync`);
                 if (response.ok) {
@@ -26,41 +28,55 @@ export const useWhiteboardSync = (
                     if (data) {
                         const sceneJSON = JSON.stringify(data);
                         if (sceneJSON !== lastSceneJSON.current) {
+                            console.log('🎨 [TB SYNC] 2. ✅ Scène initiale chargée et différente. Mise à jour de l\'état.');
                             setSceneData(data);
                             lastSceneJSON.current = sceneJSON;
-                            console.log('🎨 [TB SYNC] - Scène initiale chargée depuis l\'API.');
+                        } else {
+                            console.log('🎨 [TB SYNC] 2. 🤷‍♂️ Scène initiale chargée mais identique. Aucune mise à jour.');
                         }
+                    } else {
+                         console.log('🎨 [TB SYNC] 2. 텅 Scène initiale vide reçue de l\'API.');
                     }
                 }
             } catch (error) {
-                console.error("Erreur lors de la récupération de la scène initiale:", error);
+                console.error("❌ [TB SYNC] Erreur lors de la récupération de la scène initiale:", error);
             }
         };
 
         if (!initialScene) {
              fetchInitialScene();
+        } else {
+            console.log('🎨 [TB SYNC] 1. useEffect: Scène initiale déjà fournie, pas de fetch.');
         }
-    }, [sessionId, initialScene]);
+    }, [sessionId]);
 
     // Effet pour l'abonnement Pusher
     useEffect(() => {
+        console.log('🔌 [TB SYNC] 3. useEffect: Initialisation de l\'abonnement Pusher.');
         const pusherClient = getPusherClient();
         const channelName = `presence-session-${sessionId}`;
         const channel = pusherClient.subscribe(channelName);
 
         const handleUpdate = (data: { sceneData: ExcalidrawScene, senderId: string }) => {
-            if (data.senderId === pusherClient.connection.socket_id) return;
+            if (data.senderId === pusherClient.connection.socket_id) {
+                console.log('➡️ [TB SYNC] 4a. Mise à jour Pusher ignorée (propre émission).');
+                return;
+            };
             
             const newSceneJSON = JSON.stringify(data.sceneData);
             if (newSceneJSON !== lastSceneJSON.current) {
+                console.log('🎨 [TB SYNC] 4b. ✅ Mise à jour Pusher reçue et différente. Mise à jour de l\'état.');
                 setSceneData(data.sceneData);
                 lastSceneJSON.current = newSceneJSON;
+            } else {
+                console.log('🎨 [TB SYNC] 4b. 🤷‍♂️ Mise à jour Pusher reçue mais identique. Aucune mise à jour.');
             }
         };
         
         channel.bind(WHITEBOARD_UPDATE_EVENT, handleUpdate);
 
         return () => {
+            console.log('🔌 [TB SYNC] 8. Nettoyage: Désabonnement du canal Pusher.');
             channel.unbind(WHITEBOARD_UPDATE_EVENT, handleUpdate);
             pusherClient.unsubscribe(channelName);
              if (saveTimeoutRef.current) {
@@ -70,13 +86,17 @@ export const useWhiteboardSync = (
     }, [sessionId]);
 
     const persistScene = useCallback((data: ExcalidrawScene) => {
+        console.log('💾 [TB SYNC] 5. persistScene: Appelée par un changement sur le tableau blanc.');
         const pusherClient = getPusherClient();
         const newSceneJSON = JSON.stringify(data);
 
         // Mise à jour optimiste uniquement si les données changent
         if (newSceneJSON !== lastSceneJSON.current) {
+            console.log('🎨 [TB SYNC] 5a. ✅ Changement local détecté. Mise à jour de l\'état optimiste.');
             setSceneData(data);
             lastSceneJSON.current = newSceneJSON;
+        } else {
+            console.log('🎨 [TB SYNC] 5a. 🤷‍♂️ Changement local non significatif. Pas de mise à jour d\'état.');
         }
 
         if (saveTimeoutRef.current) {
@@ -84,6 +104,7 @@ export const useWhiteboardSync = (
         }
 
         saveTimeoutRef.current = setTimeout(() => {
+            console.log('📡 [TB SYNC] 6. setTimeout: Envoi des données persistées à l\'API après debounce.');
             fetch(`/api/session/${sessionId}/sync`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -92,12 +113,13 @@ export const useWhiteboardSync = (
                     senderSocketId: pusherClient.connection.socket_id,
                 }),
             }).catch(error => {
-                console.error("Erreur lors de la synchronisation du tableau blanc:", error);
+                console.error("❌ [TB SYNC] Erreur lors de la synchronisation du tableau blanc:", error);
             });
         }, DEBOUNCE_SAVE_TIME);
 
     }, [sessionId]);
     
+    console.log('🔄 [TB SYNC] 7. Rendu du hook useWhiteboardSync.');
     return {
         sceneData,
         persistScene,

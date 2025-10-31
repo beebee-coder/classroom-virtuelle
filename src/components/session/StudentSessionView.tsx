@@ -1,3 +1,4 @@
+
 // src/components/session/StudentSessionView.tsx
 'use client';
 
@@ -101,10 +102,12 @@ export function StudentSessionView({
       appState: AppState,
       files: BinaryFiles
     ) => {
+      console.log("🔄 [StudentView] handleWhiteboardChange: Déclenchement de onWhiteboardPersist");
       onWhiteboardPersist({ elements, appState });
     };
 
     const renderMainContent = () => {
+        console.log(`TOOL RENDER (Élève): Outil actif est ${activeTool}`);
         switch(activeTool) {
             case 'document':
                 return <DocumentViewer url={documentUrl} />;
@@ -153,6 +156,8 @@ export function StudentSessionView({
                 );
         }
     };
+    
+    console.log(`🔄 [StudentView] Rendu. Outil actif: ${activeTool}`);
 
     return (
         <div className="flex flex-row flex-1 min-h-0 py-6 gap-6">

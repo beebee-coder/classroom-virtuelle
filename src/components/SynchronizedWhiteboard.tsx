@@ -1,7 +1,9 @@
+
 'use client';
 
 import { Whiteboard } from './Whiteboard';
 import { ExcalidrawScene } from '@/types';
+import { useEffect } from 'react';
 
 interface SynchronizedWhiteboardProps {
   sessionId: string;
@@ -21,11 +23,22 @@ export function SynchronizedWhiteboard({
 
   const isController = currentUserId === whiteboardControllerId;
 
+  console.log(`🔄 [SyncWB] Rendu. estContrôleur: ${isController}. Scène initiale fournie: ${!!initialScene}`);
+  
+  useEffect(() => {
+    console.log('🖼️ [SyncWB] useEffect: La scène initiale a changé.', initialScene ? 'Données présentes' : 'Données absentes');
+  }, [initialScene]);
+
+  const handleWhiteboardChange = (elements: readonly any[], appState: any) => {
+    console.log('✍️ [SyncWB] handleWhiteboardChange: Changement détecté sur le tableau blanc.');
+    onPersist({ elements, appState });
+  }
+
   return (
     <div className="h-full w-full relative">
       <Whiteboard
         sessionId={sessionId}
-        onWhiteboardChange={(elements, appState) => onPersist({ elements, appState })}
+        onWhiteboardChange={handleWhiteboardChange}
         initialElements={initialScene?.elements}
         initialAppState={initialScene?.appState}
         isController={isController}

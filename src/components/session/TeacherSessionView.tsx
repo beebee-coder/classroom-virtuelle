@@ -1,3 +1,4 @@
+
 // src/components/session/TeacherSessionView.tsx
 'use client';
 
@@ -136,6 +137,7 @@ export function TeacherSessionView({
       appState: AppState,
       files: BinaryFiles
     ) => {
+      console.log("🔄 [TeacherView] handleWhiteboardChange: Déclenchement de onWhiteboardPersist");
       onWhiteboardPersist({ elements, appState });
     };
 
@@ -172,6 +174,7 @@ export function TeacherSessionView({
     };
 
     const renderActiveTool = () => {
+        console.log(`TOOL RENDER: Outil actif est ${activeTool}`);
         if (screenStream) {
              return (
                 <Card className="w-full h-full p-2 bg-black">
@@ -278,6 +281,8 @@ export function TeacherSessionView({
     };
 
     const allParticipants = useMemo(() => [teacher, ...students], [teacher, students]);
+    
+    console.log(`🔄 [TeacherView] Rendu. Outil actif: ${activeTool}`);
 
     return (
         <div className="flex-1 flex min-h-0 min-w-0">

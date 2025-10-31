@@ -1,3 +1,4 @@
+
 // src/components/SessionClient.tsx
 'use client';
 
@@ -76,6 +77,7 @@ export default function SessionClient({
   const [whiteboardControllerId, setWhiteboardControllerId] = useState<string | null>(initialTeacher.id);
   
   const handleWhiteboardPersist = useCallback((scene: ExcalidrawScene) => {
+    console.log("🔄 [SessionClient] handleWhiteboardPersist appelé");
     persistWhiteboardScene(scene);
   }, [persistWhiteboardScene]);
 
@@ -443,6 +445,8 @@ export default function SessionClient({
   if (loading) {
     return <SessionLoading />;
   }
+  
+  console.log('🔄 [SessionClient] Rendu du composant principal.');
 
   return (
     <div className="flex flex-col h-screen bg-background">
