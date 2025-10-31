@@ -1,3 +1,4 @@
+
 /**
  * @fileoverview Flow d'assistance pédagogique avec Gemini, utilisant un appel direct à l'API.
  */
@@ -72,14 +73,19 @@ Style: Chaleureux, accessible, pédagogique.
     }
 
     const data = await response.json();
-    const aiResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    
+    // CORRECTION : Gestion plus robuste de la réponse de l'API.
+    const aiResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    if (!aiResponse) {
-      throw new Error('Réponse vide de l\'API Gemini.');
+    if (aiResponse) {
+        console.log('✅ Assistance fournie avec succès');
+        return { answer: aiResponse.trim() };
+    } else {
+        console.warn('⚠️ Réponse de l\'API Gemini vide ou mal formée:', data);
+        return { 
+            answer: "🤖 Oups ! J'ai bien reçu votre question, mais je n'ai pas réussi à formuler une réponse. Pourriez-vous essayer de reformuler ?" 
+        };
     }
-
-    console.log('✅ Assistance fournie avec succès');
-    return { answer: aiResponse };
 
   } catch (error: any) {
     console.error('❌ Erreur dans askAssistance:', error);
