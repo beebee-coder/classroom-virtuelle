@@ -1,9 +1,8 @@
 // src/components/Whiteboard.tsx
 'use client';
 import { Excalidraw, THEME, MainMenu } from "@excalidraw/excalidraw";
-import { ExcalidrawElement, ExcalidrawImperativeAPIRef } from '@excalidraw/excalidraw/types/types';
-import { AppState, BinaryFiles } from '@excalidraw/excalidraw/types/data/types';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import type { ExcalidrawElement, ExcalidrawImperativeAPI, AppState, BinaryFiles } from '@excalidraw/excalidraw/types/types';
+import { useCallback, useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
 
 interface WhiteboardProps {
@@ -20,9 +19,9 @@ export function Whiteboard({
   initialAppState,
   isController,
 }: WhiteboardProps) {
-  const excalidrawApiRef = useRef<ExcalidrawImperativeAPIRef>(null);
+  const [excalidrawApi, setExcalidrawApi] = useState<ExcalidrawImperativeAPI | null>(null);
   const { theme } = useTheme();
-  const [currentTheme, setCurrentTheme] = useState(THEME.LIGHT);
+  const [currentTheme, setCurrentTheme] = useState<"light" | "dark">(THEME.LIGHT);
 
   useEffect(() => {
     setCurrentTheme(theme === 'dark' ? THEME.DARK : THEME.LIGHT);
@@ -30,13 +29,13 @@ export function Whiteboard({
   
   // Mettre à jour les données initiales quand elles changent
   useEffect(() => {
-    if (excalidrawApiRef.current && initialElements) {
-       excalidrawApiRef.current.updateScene({ 
+    if (excalidrawApi && initialElements) {
+       excalidrawApi.updateScene({ 
         elements: initialElements,
         appState: initialAppState
       });
     }
-  }, [initialElements, initialAppState]);
+  }, [initialElements, initialAppState, excalidrawApi]);
 
   const handleOnChange = useCallback(
     (elements: readonly ExcalidrawElement[], appState: AppState, files: BinaryFiles) => {
@@ -50,7 +49,7 @@ export function Whiteboard({
   return (
     <div className="h-full w-full">
       <Excalidraw
-        ref={excalidrawApiRef}
+        excalidrawAPI={(api) => setExcalidrawApi(api)}
         theme={currentTheme}
         initialData={{
           elements: initialElements,
