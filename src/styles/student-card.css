@@ -11,7 +11,6 @@
 
 .student-card {
     position: relative;
-    /* La propriété conflictuelle est supprimée ici */
     align-self: center;
     justify-self: center;
     overflow: hidden;
@@ -21,13 +20,13 @@
     height: 350px;
     border-radius: 12px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-    /* Le curseur pointeur est enlevé car la carte entière n'est plus cliquable */
     transition: all 0.5s ease;
 }
 
 .student-card:hover {
     box-shadow: 0 30px 100px rgba(0, 0, 0, 0.4);
     transform: scale(1.08, 1.08);
+    cursor: pointer;
 }
 
 .student-card__image {

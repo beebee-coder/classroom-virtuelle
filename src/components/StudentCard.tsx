@@ -37,7 +37,7 @@ export function StudentCard({
     
     return (
         <div 
-            className="student-card"
+            className="student-card group" // Ajout de la classe "group"
             data-effect="zoom"
         >
             <figure className="student-card__image">
@@ -97,7 +97,7 @@ export function StudentCard({
                         size="sm" 
                         variant="ghost" 
                         onClick={handleProfileClick}
-                        className="text-white/70 hover:text-white hover:bg-white/10 h-8 px-3"
+                        className="text-white/70 hover:text-white hover:bg-white/10 h-8 px-3 opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                         <UserIcon className="mr-2 h-4 w-4" />
                         Profil
