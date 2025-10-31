@@ -1,7 +1,7 @@
 // src/hooks/useDeepSeek.ts
 'use client';
 import { useState, useCallback } from 'react';
-import { processLocalLLM } from '@/lib/pedagogical-brain';
+import { SmartTutorService } from '@/lib/smart-tutor-service';
 
 // Le type est maintenant la seule chose exportée de ce fichier, en plus du hook
 export interface ChatMessage {
@@ -9,24 +9,23 @@ export interface ChatMessage {
   content: string;
 }
 
+// Instance de notre service local
+const tutorService = new SmartTutorService();
+
 export function useDeepSeek() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // La fonction chat est maintenant asynchrone et appelle notre "cerveau" local
+  // La fonction chat appelle maintenant notre service local
   const chat = useCallback(async (messages: ChatMessage[]): Promise<string> => {
     setIsLoading(true);
     setError(null);
     
     try {
-      // Nous ne prenons que la dernière question de l'utilisateur pour notre logique simple
-      const lastUserMessage = messages.filter(m => m.role === 'user').pop();
-      if (!lastUserMessage) {
-        return "Bonjour ! Comment puis-je vous aider aujourd'hui ?";
-      }
-      
-      console.log('🧠 [HOOK] - Appel du cerveau pédagogique local...');
-      const response = await processLocalLLM(lastUserMessage.content);
+      console.log('🧠 [HOOK] - Appel du service de tuteur intelligent local...');
+      // Simule une petite latence pour une expérience utilisateur réaliste
+      await new Promise(res => setTimeout(res, 300 + Math.random() * 400));
+      const response = await tutorService.chat(messages);
       
       console.log('✅ [HOOK] - Réponse locale générée.');
       return response;
@@ -39,14 +38,13 @@ export function useDeepSeek() {
     } finally {
       setIsLoading(false);
     }
-  }, []); // Aucune dépendance
+  }, []);
 
   const explainConcept = useCallback(async (concept: string): Promise<string> => {
     return chat([{ role: 'user', content: concept }]);
   }, [chat]);
 
   const helpWithHomework = useCallback(async (subject: string, question: string): Promise<string> => {
-     // Concaténer le sujet et la question pour l'analyse par notre cerveau local
     return chat([{ role: 'user', content: `${subject}: ${question}` }]);
   }, [chat]);
 
