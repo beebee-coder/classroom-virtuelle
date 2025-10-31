@@ -1,4 +1,3 @@
-// src/components/DeepSeekChat.tsx
 'use client';
 import { useState } from 'react';
 import { useDeepSeek } from '@/hooks/useDeepSeek';
