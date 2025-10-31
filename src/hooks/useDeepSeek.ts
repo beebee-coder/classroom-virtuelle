@@ -1,32 +1,20 @@
-// src/hooks/useDeepSeek.ts
+// src/hooks/useAIAssistant.ts
 'use client';
 import { useState, useCallback } from 'react';
-import { SmartTutorService } from '@/lib/smart-tutor-service';
+import { aiService } from '@/lib/ai-service';
+import type { ChatMessage } from '@/lib/deepseek-service';
 
-// Le type est maintenant la seule chose exportée de ce fichier, en plus du hook
-export interface ChatMessage {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-}
-
-// Instance de notre service local
-const tutorService = new SmartTutorService();
-
-export function useDeepSeek() {
+export function useAIAssistant() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // La fonction chat appelle maintenant notre service local
   const chat = useCallback(async (messages: ChatMessage[]): Promise<string> => {
     setIsLoading(true);
     setError(null);
     
     try {
-      console.log('🧠 [HOOK] - Appel du service de tuteur intelligent local...');
-      // Simule une petite latence pour une expérience utilisateur réaliste
-      await new Promise(res => setTimeout(res, 300 + Math.random() * 400));
-      const response = await tutorService.chat(messages);
-      
+      console.log('🧠 [HOOK] - Appel du service d\'IA local...');
+      const response = await aiService.chat(messages);
       console.log('✅ [HOOK] - Réponse locale générée.');
       return response;
 

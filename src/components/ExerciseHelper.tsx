@@ -1,12 +1,12 @@
 // src/components/ExerciseHelper.tsx
 'use client';
-import { useDeepSeek } from '@/hooks/useDeepSeek';
+import { useAIAssistant } from '@/hooks/useDeepSeek'; // Renommé mais le chemin reste le même
 import { useState }from 'react';
 
 export function ExerciseHelper({ subject, exercise }: { subject: string; exercise: string }) {
   const [help, setHelp] = useState('');
   const [isVisible, setIsVisible] = useState(false);
-  const { helpWithHomework, isLoading } = useDeepSeek();
+  const { helpWithHomework, isLoading } = useAIAssistant();
 
   const handleGetHelp = async () => {
     // Si l'aide est déjà visible, on la cache

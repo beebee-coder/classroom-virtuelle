@@ -1,37 +1,42 @@
 'use client';
 import { useState } from 'react';
-import { useDeepSeek } from '@/hooks/useDeepSeek';
+import { useAIAssistant } from '@/hooks/useDeepSeek'; // Renommé mais le chemin reste le même pour l'instant
 import type { ChatMessage } from '@/lib/deepseek-service';
 
 export function DeepSeekChat() {
   const [message, setMessage] = useState('');
   const [conversation, setConversation] = useState<ChatMessage[]>([]);
   // Utilisation des nouvelles fonctions spécialisées du hook
-  const { explainConcept, helpWithHomework, isLoading, error, clearError } = useDeepSeek();
+  const { explainConcept, isLoading, error, clearError } = useAIAssistant();
 
   const handleSend = async () => {
     if (!message.trim() || isLoading) return;
-
+  
     const userMessage: ChatMessage = { role: 'user', content: message };
-    const updatedConversation = [...conversation, userMessage];
-    
-    setConversation(updatedConversation);
+  
+    // Mise à jour de la conversation en une seule fois
+    setConversation(prevConversation => [...prevConversation, userMessage]);
+    const currentMessage = message;
     setMessage('');
     clearError();
-
+  
     try {
       // Pour cet exemple, nous utilisons 'explainConcept'. 
       // On pourrait ajouter un sélecteur pour choisir entre 'expliquer' et 'aider aux devoirs'.
-      const response = await explainConcept(message);
+      const response = await explainConcept(currentMessage);
       
       const assistantMessage: ChatMessage = { 
         role: 'assistant', 
         content: response 
       };
       
-      setConversation([...updatedConversation, assistantMessage]);
+      // Mettre à jour avec la réponse de l'assistant
+      setConversation(prevConversation => [...prevConversation, assistantMessage]);
+  
     } catch {
       // L'erreur est déjà gérée par le hook et affichée dans l'UI.
+      // On peut ajouter une logique pour supprimer le message utilisateur en cas d'échec
+      setConversation(prevConversation => prevConversation.slice(0, -1));
     }
   };
 
