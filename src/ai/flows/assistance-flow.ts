@@ -18,7 +18,8 @@ export async function askAssistance(question: string): Promise<{ answer: string 
     throw new Error('Configuration API manquante.');
   }
 
-  const model = 'gemini-1.5-flash-001'; // Modèle stable et confirmé
+  // Utilisation d'un modèle stable et confirmé
+  const model = 'gemini-pro'; 
 
   const prompt = `
 Tu es "Clary", un assistant pédagogique expert pour collégiens français.
@@ -42,9 +43,11 @@ Langue: Français uniquement.
 Style: Chaleureux, accessible, pédagogique.
   `;
   
+  // CORRECTION : Le format du payload doit inclure le rôle 'user'.
   const requestBody = {
     contents: [
       {
+        role: 'user', // Rôle de l'utilisateur
         parts: [{ text: prompt }]
       }
     ]
