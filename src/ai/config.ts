@@ -1,31 +1,36 @@
 /**
- * @fileoverview This file initializes and configures the Genkit AI framework.
- * It sets up the necessary plugins, in this case, the Google AI plugin for Gemini,
- * and exports a singleton `ai` object that can be used throughout the application
- * to define and run AI flows.
+ * @fileoverview This file initializes and configures the Google Generative AI client.
+ * It sets up the generative model and exports a singleton instance that can be
+ * used throughout the application to interact with the Gemini API.
  */
 'use server';
 
-import { genkit, type GenkitErrorCode } from 'genkit';
-import { googleAI } from '@genkit-ai/google-genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Initialize Genkit with the Google AI plugin.
-// This makes Google's AI models, like Gemini, available for use in flows.
-// The plugin is configured using environment variables (e.g., GOOGLE_GENAI_API_KEY).
-export const ai = genkit({
-  plugins: [
-    googleAI(),
-  ],
-  // Log errors to the console for easier debugging.
-  logErrors: true,
-  // Define a custom error handler to manage exceptions gracefully.
-  // This prevents the application from crashing on AI-related errors.
-  errorHandler: (err: { name: string, message: string, stack?: string, code?: GenkitErrorCode, cause?: Error }) => {
-    // Log the full error for debugging purposes on the server.
-    console.error('[Genkit Error]', err);
+// Get the API key from environment variables.
+const apiKey = process.env.GEMINI_API_KEY;
 
-    // Provide a user-friendly error message.
-    // Avoid exposing sensitive details from the original error.
-    throw new Error('An error occurred with the AI service. Please try again later.');
-  },
+if (!apiKey) {
+  throw new Error('GEMINI_API_KEY is not set in environment variables.');
+}
+
+// Initialize the main AI client.
+const genAI = new GoogleGenerativeAI(apiKey);
+
+// Define and export the specific model to be used.
+// This makes it easy to swap out models in the future.
+export const model = genAI.getGenerativeModel({
+  model: 'gemini-1.5-flash-latest',
 });
+
+// A simple wrapper for handling potential errors during API calls.
+export async function runAIGeneration(prompt: string) {
+  try {
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return response.text();
+  } catch (error) {
+    console.error('[AI Generation Error]', error);
+    throw new Error('An error occurred with the AI service. Please try again later.');
+  }
+}
