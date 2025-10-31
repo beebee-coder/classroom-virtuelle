@@ -1,9 +1,9 @@
-// src/lib/actions/whiteboard.actions.ts - CORRECTION
-import { TLStoreSnapshot } from '@tldraw/tldraw';
+// src/lib/actions/whiteboard.actions.ts
+import type { ExcalidrawScene } from '@/types';
 
 export async function broadcastWhiteboardUpdate(
   sessionId: string, 
-  snapshot: TLStoreSnapshot, 
+  sceneData: ExcalidrawScene, 
   senderId: string
 ) {
   try {
@@ -12,7 +12,7 @@ export async function broadcastWhiteboardUpdate(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         sessionId,
-        snapshot,
+        sceneData,
         senderId
       })
     });
