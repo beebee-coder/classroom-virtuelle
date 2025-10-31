@@ -1,43 +1,45 @@
-// src/components/SynchronizedWhiteboard.tsx - VERSION CORRIGÉE
+// src/components/SynchronizedWhiteboard.tsx
 'use client';
 
 import { useState, useCallback } from 'react';
-import { TLStoreSnapshot } from '@tldraw/tldraw';
+import type { ExcalidrawElement, AppState, BinaryFiles, ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types/data/types';
 import { Whiteboard } from './Whiteboard';
-// Supprimez l'import problématique ou corrigez-le
-// import { useRedisWhiteboardSync } from '@/hooks/useRedisWhiteboardSync';
+import { ExcalidrawScene } from '@/types';
+
 
 interface SynchronizedWhiteboardProps {
   sessionId: string;
   whiteboardControllerId: string | null;
   currentUserId: string;
-  initialSnapshot?: TLStoreSnapshot | null;
+  initialScene?: ExcalidrawScene | null;
+  onPersist: (scene: ExcalidrawScene) => void;
 }
 
 export function SynchronizedWhiteboard({
   sessionId,
   whiteboardControllerId,
   currentUserId,
-  initialSnapshot
+  initialScene,
+  onPersist
 }: SynchronizedWhiteboardProps) {
-  const [currentSnapshot, setCurrentSnapshot] = useState<TLStoreSnapshot | null>(
-    initialSnapshot || null
-  );
 
-  const handleWhiteboardPersist = useCallback((snapshot: TLStoreSnapshot) => {
-    setCurrentSnapshot(snapshot);
-    // Ici vous ajouterez la diffusion Redis plus tard
-    console.log('📝 Snapshot à diffuser:', snapshot);
-  }, []);
+  const handleWhiteboardChange = useCallback(
+    (elements: readonly ExcalidrawElement[], appState: AppState, files: BinaryFiles) => {
+        onPersist({ elements, appState });
+    },
+    [onPersist]
+  );
+  
+  const isController = currentUserId === whiteboardControllerId;
 
   return (
     <div className="h-full w-full relative">
       <Whiteboard
         sessionId={sessionId}
-        onWhiteboardPersist={handleWhiteboardPersist}
-        whiteboardSnapshot={currentSnapshot}
-        whiteboardControllerId={whiteboardControllerId}
-        currentUserId={currentUserId}
+        onWhiteboardChange={handleWhiteboardChange}
+        initialElements={initialScene?.elements}
+        initialAppState={initialScene?.appState}
+        isController={isController}
       />
     </div>
   );
