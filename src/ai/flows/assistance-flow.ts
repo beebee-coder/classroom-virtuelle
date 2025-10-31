@@ -1,64 +1,62 @@
 /**
- * @fileoverview Defines a server action for providing educational assistance.
+ * @fileoverview Flow d'assistance pédagogique avec Gemini réel
  */
 'use server';
 
 import { runAIGeneration } from '@/ai/config';
-import { AssistanceOutput } from '@/ai/schemas';
 
-export async function askAssistance(question: string): Promise<AssistanceOutput> {
-  // ✅ VALIDATION DE LA QUESTION
-  if (!question || question.trim().length < 2) {
+export async function askAssistance(question: string): Promise<{ answer: string }> {
+  // Validation de la question
+  if (!question?.trim() || question.length < 3) {
     return {
       answer: "❓ **Question trop courte** : Pourriez-vous formuler une question plus précise ?\n\n💡 **Conseil** : Plus votre question est détaillée, mieux je pourrai vous aider !\n\n✨ **Encouragement** : N'hésitez pas à expliquer ce qui vous pose problème."
     };
   }
 
-  if (question.length > 1000) {
-    return {
-      answer: "📝 **Question trop longue** : Pourriez-vous résumer votre question en quelques phrases ?\n\n💡 **Conseil** : Posez une question précise sur un concept spécifique.\n\n✨ **Encouragement** : C'est excellent de vouloir tout expliquer ! Commençons par un point précis."
-    };
-  }
-
-  // ✅ PROMPT AMÉLIORÉ
+  // Prompt optimisé pour Gemini
   const prompt = `
-Tu es Clary, un assistant pédagogique expert pour collégiens en France.
-Ton rôle est d'aider à comprendre, pas de donner les réponses.
+Tu es "Clary", un assistant pédagogique expert pour collégiens français.
+Ton rôle est d'aider à comprendre, pas de donner les réponses toutes faites.
 
-RÈGLES STRICTES :
-- EXPLIQUE les concepts simplement avec des exemples concrets
-- DONNE des indices et méthodes, JAMAIS la réponse finale
-- UTILISE des métaphores et analogies
-- SOIS encourageant et positif
-- FORMAT en 3 parties claires
+QUESTION DE L'ÉLÈVE: "${question}"
 
-Question de l'élève : "${question}"
+GUIDELINES STRICTES:
+- Explique le concept de manière simple et concrète
+- Utilise des exemples de la vie quotidienne
+- Donne des méthodes et indices, JAMAIS la réponse finale
+- Sois encourageant et positif
+- Structure en 3 parties claires
 
-Structure ta réponse :
-1. **Explication** 🧠 : Valide la question et explique le concept
-2. **Méthode** 💡 : Donne une piste pour trouver la solution
-3. **Motivation** ✨ : Encourage avec une phrase positive
+STRUCTURE DE RÉPONSE:
+1. 🧠 **Explication** : Valide la question et explique le concept clairement
+2. 💡 **Méthode** : Donne une piste pour trouver la solution soi-même
+3. ✨ **Encouragement** : Termine par une phrase motivante
+
+Langue: Français uniquement
+Style: Chaleureux, accessible, pédagogique
   `;
 
   try {
-    console.log('[Assistance] Processing question:', question.substring(0, 100));
-    const generatedText = await runAIGeneration(prompt);
+    console.log(`📚 Assistance demandée: "${question.substring(0, 50)}..."`);
     
-    // ✅ NETTOYAGE DE LA RÉPONSE
-    const cleanAnswer = generatedText.trim();
+    const aiResponse = await runAIGeneration(prompt);
     
-    if (!cleanAnswer || cleanAnswer.length < 10) {
-      throw new Error('Réponse AI vide');
+    // Nettoyage de la réponse
+    const cleanAnswer = aiResponse.trim();
+    
+    if (!cleanAnswer) {
+      throw new Error('Réponse vide de l\'API');
     }
-    
+
+    console.log('✅ Assistance fournie avec succès');
     return { answer: cleanAnswer };
+
+  } catch (error: any) {
+    console.error('❌ Erreur dans askAssistance:', error);
     
-  } catch (error) {
-    console.error('[Assistance Error]', error);
-    
-    // ✅ FALLBACK ROBUSTE
+    // Fallback éducatif intelligent
     return {
-      answer: `🧠 **Explication** : Je suis Clary, votre assistant ! Actuellement, je rencontre un problème technique.\n\n💡 **Conseil** : Pour "${question}", consultez vos ressources de cours ou échangez avec votre professeur.\n\n✨ **Encouragement** : Votre persévérance est la clé de la réussite ! Cette difficulté technique passera.`
+      answer: `🧠 **Explication** : Je rencontre une difficulté technique momentanée.\n\n💡 **Conseil** : Pour "${question}", je vous suggère de :\n• Consulter vos cours et manuels\n• Noter les points précis qui vous bloquent\n• En parler avec votre professeur\n\n✨ **Encouragement** : Les obstacles techniques passent, mais votre curiosité reste ! Continuez !`
     };
   }
 }
