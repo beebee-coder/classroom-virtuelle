@@ -40,7 +40,7 @@ export const usePresenceForTeacher = (
     const channelName = `presence-class-${classroomId}`;
 
     // Éviter les doubles abonnements si le canal n'a pas changé
-    if (channelRef.current?.name === channelName && isConnected) {
+    if (channelRef.current?.name === channelName && channelRef.current.subscribed) {
       console.log('⏭️ [PRESENCE PROF] - Déjà abonné et connecté, ignoré.');
       return;
     }
@@ -115,7 +115,7 @@ export const usePresenceForTeacher = (
       setError('Erreur critique de connexion');
       setIsConnected(false);
     }
-  }, [userId, classroomId, enabled, isConnected]); // isConnected ajouté pour retenter la connexion si elle échoue
+  }, [userId, classroomId, enabled]);
 
   return { 
     onlineUsers, 
