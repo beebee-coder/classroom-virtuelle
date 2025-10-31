@@ -5,29 +5,19 @@
  */
 'use server';
 
-import { runAIGeneration, model } from '@/ai/config';
-import { z } from 'zod';
-
-// Define the schema for the input.
-export const AssistanceInputSchema = z.string();
-
-// Define the schema for the output for structured responses.
-// Note: While we instruct the model to follow a structure, the direct API
-// does not enforce it as strictly as Genkit's output schemas.
-export const AssistanceOutputSchema = z.object({
-  answer: z.string().describe('The clear, pedagogical, and encouraging answer to the student\'s question.'),
-});
+import { runAIGeneration } from '@/ai/config';
+import { AssistanceOutput } from '@/ai/schemas';
 
 /**
  * Asynchronously asks for educational assistance for a given question.
  * This function serves as a clean, callable server action from the client.
  *
  * @param {string} question - The student's question.
- * @returns {Promise<{ answer: string }>} A promise that resolves to the AI's answer.
+ * @returns {Promise<AssistanceOutput>} A promise that resolves to the AI's answer.
  */
 export async function askAssistance(
   question: string
-): Promise<{ answer: string }> {
+): Promise<AssistanceOutput> {
 
   // Construct the prompt with pedagogical instructions for the AI model.
   const prompt = `
