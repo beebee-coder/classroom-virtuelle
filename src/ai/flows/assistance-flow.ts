@@ -3,8 +3,6 @@
  */
 'use server';
 
-import { GoogleAuth } from 'google-auth-library';
-
 export async function askAssistance(question: string): Promise<{ answer: string }> {
   // Validation simple de la question
   if (!question?.trim() || question.length < 3) {
@@ -13,16 +11,14 @@ export async function askAssistance(question: string): Promise<{ answer: string 
     };
   }
 
-  const projectId = process.env.GOOGLE_PROJECT_ID;
   const apiKey = process.env.GEMINI_API_KEY;
 
-  if (!apiKey || !projectId) {
-    console.error('❌ ERREUR CONFIGURATION: Clé API Gemini ou Project ID manquant.');
+  if (!apiKey) {
+    console.error('❌ ERREUR CONFIGURATION: Clé API Gemini manquante.');
     throw new Error('Configuration API manquante.');
   }
 
   const model = 'gemini-1.5-flash-001'; // Modèle stable et confirmé
-  const location = 'us-central1'; // Emplacement standard
 
   const prompt = `
 Tu es "Clary", un assistant pédagogique expert pour collégiens français.
@@ -49,7 +45,6 @@ Style: Chaleureux, accessible, pédagogique.
   const requestBody = {
     contents: [
       {
-        role: 'user',
         parts: [{ text: prompt }]
       }
     ]
@@ -57,13 +52,12 @@ Style: Chaleureux, accessible, pédagogique.
 
   try {
     console.log(`📚 Assistance demandée pour: "${question.substring(0, 50)}..."`);
-    const endpoint = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:generateContent`;
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify(requestBody)
     });
