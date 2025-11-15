@@ -72,7 +72,6 @@ export function useAblyWithSession(): UseAblyWithSessionReturn {
             autoConnect: true,
             disconnectedRetryTimeout: 5000,
             suspendedRetryTimeout: 15000,
-            // CORRECTION: Supprimé la propriété en double 'closeOnUnload'
         };
     }, []);
 
@@ -231,7 +230,6 @@ export function useAblyWithSession(): UseAblyWithSessionReturn {
 
         return () => {
             mountedRef.current = false;
-            hasRegisteredListenerRef.current = false;
             
             console.log(`🧹 [useAblyWithSession] - Cleaning up connection listener for user ${userId} (${componentIdRef.current})`);
             
@@ -241,7 +239,7 @@ export function useAblyWithSession(): UseAblyWithSessionReturn {
                 client.connection.off(connectionListenerRef.current);
                 connectionListenerRef.current = null;
             }
-
+            hasRegisteredListenerRef.current = false;
             // CORRECTION: Décrémenter le compteur
             manageClientRefCount(false);
         };
