@@ -1,5 +1,4 @@
 // src/components/session/TeacherSessionView.tsx
-'use client';
 import { DocumentUploadSection } from './DocumentUploadSection';
 
 import React, { useState, type ReactNode, useEffect, useMemo, useCallback } from 'react';
@@ -56,6 +55,7 @@ interface TeacherSessionViewProps {
     onWhiteboardEvent: (event: WhiteboardOperation[]) => void;
     whiteboardOperations: WhiteboardOperation[];
     flushWhiteboardOperations?: () => void;
+    documentHistory: DocumentInHistory[];
 }
 
 export function TeacherSessionView({
@@ -88,38 +88,32 @@ export function TeacherSessionView({
     onWhiteboardEvent,
     whiteboardOperations,
     flushWhiteboardOperations,
+    documentHistory,
 }: TeacherSessionViewProps) {
     const { toast } = useToast();
     const [teacherView, setTeacherView] = useState<'content' | 'grid'>('content');
-    const [documentHistory, setDocumentHistory] = useState<DocumentInHistory[]>([]);
     
-    useEffect(() => {
-        const fetchDocs = async () => {
-            const docs = await getTeacherDocuments();
-            setDocumentHistory(docs);
-        };
-        fetchDocs();
-    }, [currentUserId]);
-
     const handleDocumentUploadSuccess = async () => {
-        const docs = await getTeacherDocuments();
-        setDocumentHistory(docs);
+        // La logique de re-fetch est maintenant dans le composant parent
+        toast({ title: "Fichier ajouté", description: "Votre bibliothèque a été mise à jour." });
     }
     
     const validatedTimerTimeLeft = useMemo(() => {
-        if (typeof timerTimeLeft !== 'number' || isNaN(timerTimeLeft) || timerTimeLeft < 0) {
-            console.warn('Invalid timerTimeLeft value detected, using default:', timerTimeLeft);
+        const time = timerTimeLeft;
+        if (typeof time !== 'number' || isNaN(time) || time < 0) {
+            console.warn('Invalid timerTimeLeft value detected, using default:', time);
             return 0;
         }
-        return timerTimeLeft;
+        return time;
     }, [timerTimeLeft]);
 
     const validatedInitialDuration = useMemo(() => {
-        if (typeof initialDuration !== 'number' || isNaN(initialDuration) || initialDuration < 0) {
-            console.warn('Invalid initialDuration value detected, using default:', initialDuration);
+        const duration = initialDuration;
+        if (typeof duration !== 'number' || isNaN(duration) || duration < 0) {
+            console.warn('Invalid initialDuration value detected, using default:', duration);
             return 600; // 10 minutes par défaut
         }
-        return initialDuration;
+        return duration;
     }, [initialDuration]);
 
     const remoteStreamsMap = useMemo(() => 

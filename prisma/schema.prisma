@@ -15,23 +15,23 @@ datasource db {
 // =================================
 
 model User {
-  id              String          @id @default(cuid())
-  name            String?
-  email           String?         @unique
-  emailVerified   DateTime?
-  image           String?
-  password        String?
-  parentPassword  String?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  ambition        String?
-  points          Int             @default(0)
+  id             String    @id @default(cuid())
+  name           String?
+  email          String?   @unique
+  emailVerified  DateTime?
+  image          String?
+  password       String?
+  parentPassword String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  ambition       String?
+  points         Int       @default(0)
 
   // Rôle de l'utilisateur
-  role            Role              @default(ELEVE)
-  classe          Classroom?        @relation("StudentsInClass", fields: [classeId], references: [id], onDelete: Cascade)
-  classeId        String?
-  ownedClasses    Classroom[]       @relation("ClassesOwnedByTeacher")
+  role         Role        @default(ELEVE)
+  classe       Classroom?  @relation("StudentsInClass", fields: [classeId], references: [id], onDelete: Cascade)
+  classeId     String?
+  ownedClasses Classroom[] @relation("ClassesOwnedByTeacher")
 
   // Relations
   sentMessages    Message[]         @relation("SentMessages")
@@ -70,14 +70,14 @@ model Classroom {
 // =================================
 
 model CoursSession {
-  id              String           @id @default(cuid())
-  startTime       DateTime         @default(now())
-  endTime         DateTime?
-  professeur      User             @relation("SessionsTaught", fields: [professeurId], references: [id])
-  professeurId    String
-  classe          Classroom        @relation(fields: [classroomId], references: [id])
-  classroomId     String
-  participants    User[]           @relation("SessionsAttended")
+  id           String    @id @default(cuid())
+  startTime    DateTime  @default(now())
+  endTime      DateTime?
+  professeur   User      @relation("SessionsTaught", fields: [professeurId], references: [id])
+  professeurId String
+  classe       Classroom @relation(fields: [classroomId], references: [id])
+  classroomId  String
+  participants User[]    @relation("SessionsAttended")
 }
 
 model SharedDocument {
@@ -85,14 +85,13 @@ model SharedDocument {
   name      String
   url       String
   createdAt DateTime @default(now())
-  
+
   // Relation avec l'utilisateur qui a partagé le document
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
 
   @@index([userId])
 }
-
 
 // =================================
 //        MODÈLES DE CHAT
@@ -111,11 +110,11 @@ model Message {
 }
 
 model Reaction {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   emoji     String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User    @relation(fields: [userId], references: [id])
   userId    String
-  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
   messageId String
 
   @@index([messageId])
@@ -186,7 +185,6 @@ model StudentProgress {
   @@index([studentId])
 }
 
-
 enum ProgressStatus {
   TODO
   IN_PROGRESS
@@ -215,12 +213,12 @@ model Announcement {
 }
 
 model EtatEleve {
-  id          String   @id @default(cuid())
-  eleve       User     @relation(fields: [eleveId], references: [id])
-  eleveId     String   @unique
-  isPunished  Boolean  @default(false)
-  metier      Metier?  @relation(fields: [metierId], references: [id])
-  metierId    String?
+  id         String  @id @default(cuid())
+  eleve      User    @relation(fields: [eleveId], references: [id])
+  eleveId    String  @unique
+  isPunished Boolean @default(false)
+  metier     Metier? @relation(fields: [metierId], references: [id])
+  metierId   String?
 }
 
 model Metier {
