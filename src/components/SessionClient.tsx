@@ -1,4 +1,4 @@
-// src/components/SessionClient.tsx - VERSION CORRIGÉE AVEC useAbly()
+// src/components/SessionClient.tsx - VERSION AVEC LOGS DE DIAGNOSTIC
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -15,7 +15,7 @@ import { ablyTrigger } from '@/lib/ably/triggers';
 import { broadcastTimerEvent, broadcastActiveTool, updateStudentSessionStatus } from '@/lib/actions/ably-session.actions';
 import { endCoursSession } from '@/lib/actions/session.actions';
 import { ComprehensionLevel } from '@/types';
-import { useAbly } from '@/hooks/useAbly'; // CORRECTION: utiliser useAbly au lieu de useAblyWithSession
+import { useAbly } from '@/hooks/useAbly';
 import Ably, { type Types } from 'ably';
 import { getSessionChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
@@ -39,7 +39,7 @@ const signalViaAPI = async (payload: SignalPayload): Promise<void> => {
 
 const validateTimerDuration = (duration: unknown): number => {
     if (typeof duration !== 'number' || isNaN(duration) || duration <= 0) {
-        console.warn('Invalid timer duration detected, using default:', duration);
+        console.warn('⚠️ [TIMER] - Durée invalide détectée, utilisation de la valeur par défaut:', duration);
         return 3600;
     }
     return duration;
@@ -57,11 +57,8 @@ export default function SessionClient({
   const router = useRouter();
   const { toast } = useToast();
   
-  // CORRECTION: Protection Fast Refresh simplifiée et cohérente
-  const mountIdRef = useRef(`session_${Math.random().toString(36).substring(2, 11)}`);
   const isMountedRef = useRef(true);
   
-  // CORRECTION: Utiliser useAbly() au lieu de useAblyWithSession()
   const { client: ablyClient, isConnected: isAblyConnected, connectionState } = useAbly();
   const ablyLoading = connectionState === 'initialized' || connectionState === 'connecting';  
   const [loading, setLoading] = useState<boolean>(false);
@@ -92,12 +89,10 @@ export default function SessionClient({
 
   const [whiteboardOperations, setWhiteboardOperations] = useState<WhiteboardOperation[]>([]);
   
-  // CORRECTION: Gestion améliorée des opérations whiteboard
   const handleIncomingWhiteboardOperations = useCallback((externalOps: WhiteboardOperation[]) => {
     if (!isMountedRef.current) return;
     
     setWhiteboardOperations(prevOps => {
-      // Éviter les doublons
       const existingIds = new Set(prevOps.map(op => op.id));
       const newOps = externalOps.filter(op => !existingIds.has(op.id));
       if (newOps.length > 0) {
@@ -119,7 +114,6 @@ export default function SessionClient({
   const channelRef = useRef<Ably.Types.RealtimeChannelCallbacks | null>(null);
   const mediaCleanupRef = useRef<(() => void) | null>(null);
 
-  // CORRECTION: Mémoriser les données utilisateur pour éviter les changements de référence
   const teacherName = initialTeacher?.name || '';
   const studentNames = useMemo(() => 
     initialStudents.reduce((acc, student) => {
@@ -129,33 +123,40 @@ export default function SessionClient({
     [initialStudents]
   );
 
-  // CORRECTION: Stockage local simplifié
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem(`activeTool_${sessionId}`, activeTool);
     }
   }, [activeTool, sessionId]);
   
-  // CORRECTION: cleanupPeerConnection avec dépendances réduites
   const cleanupPeerConnection = useCallback((userId: string): void => {
     const peer = peersRef.current.get(userId);
     if (peer && !peer.destroyed) {
+        console.log(`🧹 [PEER CLEANUP] - Destroying peer for user: ${userId}`);
         peer.destroy();
     }
     peersRef.current.delete(userId);
     
     setRemoteStreams(prev => {
         const newMap = new Map(prev);
-        const stream = newMap.get(userId);
-        stream?.getTracks().forEach(track => track.stop());
-        newMap.delete(userId);
-        return newMap;
+        if (newMap.has(userId)) {
+            console.log(`📹 [STREAM CLEANUP] - Removing remote stream for user: ${userId}`);
+            const stream = newMap.get(userId);
+            stream?.getTracks().forEach(track => track.stop());
+            newMap.delete(userId);
+            return newMap;
+        }
+        return prev;
     });
   }, []);
 
-  // CORRECTION: createPeer avec dépendances correctes
   const createPeer = useCallback((targetUserId: string, initiator: boolean, stream: MediaStream | null): PeerInstance | undefined => {
-    if (!stream || !isMountedRef.current) return;
+    if (!stream || !isMountedRef.current) {
+        console.warn(`⚠️ [PEER CREATION] - Cannot create peer, no stream available or component unmounted.`);
+        return;
+    }
+
+    console.log(`🤝 [PEER CREATION] - Creating peer for target: ${targetUserId}. Initiator: ${initiator}`);
 
     try {
         const peer = new SimplePeer({
@@ -166,6 +167,7 @@ export default function SessionClient({
 
         peer.on('signal', (signal: PeerSignalData) => {
             if (isMountedRef.current) {
+                console.log(`📡 [PEER SIGNAL] - Sending signal from ${currentUserId} to ${targetUserId}`);
                 signalViaAPI({
                     channelName: getSessionChannelName(sessionId),
                     userId: currentUserId,
@@ -178,46 +180,50 @@ export default function SessionClient({
 
         peer.on('stream', (remoteStream: MediaStream) => {
             if (isMountedRef.current) {
+                console.log(`➡️ [PEER STREAM] - Received stream from ${targetUserId}`);
                 setRemoteStreams(prev => new Map(prev).set(targetUserId, remoteStream));
             }
         });
 
         peer.on('error', (err: Error) => {
-          console.error('❌ [PEER] - Peer error:', err);
+          console.error(`❌ [PEER ERROR] - Peer error with ${targetUserId}:`, err);
           cleanupPeerConnection(targetUserId);
         });
         
-        peer.on('close', () => cleanupPeerConnection(targetUserId));
+        peer.on('close', () => {
+            console.log(`🚪 [PEER CLOSE] - Peer connection closed for ${targetUserId}`);
+            cleanupPeerConnection(targetUserId);
+        });
         
         peersRef.current.set(targetUserId, peer);
         return peer;
     } catch (error) {
-        console.error('❌ [PEER] - Error creating peer:', error);
+        console.error('❌ [PEER CREATION] - Error creating peer:', error);
         return undefined;
     }
   }, [sessionId, currentUserId, cleanupPeerConnection]);
 
-  // CORRECTION: Gestion améliorée du stream média
   useEffect(() => {
     isMountedRef.current = true;
-    
-    console.log(`🎬 [SESSION CLIENT] - Mount for session: ${sessionId}, user: ${currentUserId}`);
+    console.log(`🎬 [LIFECYCLE] - MOUNT SessionClient for session: ${sessionId}, user: ${currentUserId}`);
     
     let stream: MediaStream | null = null;
     
     const getMedia = async () => {
+      console.log('🎥 [MEDIA] - Requesting user media (camera/micro)...');
       try {
         stream = await navigator.mediaDevices.getUserMedia({ 
           video: { width: 1280, height: 720 }, 
           audio: true 
         });
         if (isMountedRef.current) {
+          console.log('✅ [MEDIA] - User media acquired.');
           setLocalStream(stream);
           setIsMuted(false);
           setIsVideoOff(false);
         }
       } catch (error) {
-        console.warn('⚠️ [MEDIA] - Mode observateur activé (pas d\'accès caméra/micro)');
+        console.warn('⚠️ [MEDIA] - User media access denied. Entering observer mode.');
         if (isMountedRef.current) {
           setLocalStream(null);
         }
@@ -225,8 +231,9 @@ export default function SessionClient({
     };
 
     mediaCleanupRef.current = () => {
-      stream?.getTracks().forEach(track => track.stop());
-      screenStream?.getTracks().forEach(track => track.stop());
+        console.log('🛑 [MEDIA CLEANUP] - Stopping all media tracks.');
+        stream?.getTracks().forEach(track => track.stop());
+        screenStream?.getTracks().forEach(track => track.stop());
     };
     
     getMedia();
@@ -234,18 +241,16 @@ export default function SessionClient({
     return () => {
       isMountedRef.current = false;
       mediaCleanupRef.current?.();
-      console.log(`🧹 [SESSION CLIENT] - Unmount for session: ${sessionId}`);
+      console.log(`🧹 [LIFECYCLE] - UNMOUNT SessionClient for session: ${sessionId}`);
     };
-  }, [sessionId, currentUserId, screenStream]); // screenStream ajouté pour le cleanup
+  }, [sessionId, currentUserId, screenStream]);
 
-  // CORRECTION: Gestion séparée du screen stream avec dépendances correctes
   useEffect(() => {
     if (!screenStream) return;
     
     const handleTrackEnded = () => {
       if (isMountedRef.current) {
-        console.log('🔄 [SCREEN SHARE] - Screen share track ended');
-        // CORRECTION: Utiliser la fonction directement plutôt que toggleScreenShare pour éviter les dépendances circulaires
+        console.log('🖥️ [SCREEN SHARE] - Screen share track ended by user.');
         screenStream.getTracks().forEach(track => track.stop());
         setScreenStream(null);
         setIsSharingScreen(false);
@@ -263,34 +268,34 @@ export default function SessionClient({
     };
   }, [screenStream]);
 
-  // CORRECTION: toggleScreenShare avec gestion d'état correcte
   const toggleScreenShare = useCallback(async () => {
     if (isSharingScreen && screenStream) {
-      // Arrêter le partage d'écran
+      console.log('🖥️ [SCREEN SHARE] - Stopping screen share...');
       screenStream.getTracks().forEach(track => track.stop());
       setScreenStream(null);
       setIsSharingScreen(false);
 
-      // Revenir au stream local pour tous les peers
       if (localStream) {
         const videoTrack = localStream.getVideoTracks()[0];
         if (videoTrack) {
           peersRef.current.forEach(peer => {
             if (!peer.destroyed && peer.streams?.[0]) {
               try {
+                console.log(`🔄 [TRACK REPLACE] - Reverting to camera track for peer.`);
                 peer.replaceTrack(
                   peer.streams[0].getVideoTracks()[0] || null, 
                   videoTrack, 
                   peer.streams[0]
                 );
               } catch (error) {
-                console.error('❌ [SCREEN SHARE] - Error replacing track:', error);
+                console.error('❌ [TRACK REPLACE] - Error reverting track:', error);
               }
             }
           });
         }
       }
     } else {
+      console.log('🖥️ [SCREEN SHARE] - Starting screen share...');
       try {
         const stream = await navigator.mediaDevices.getDisplayMedia({ 
           video: true, 
@@ -309,13 +314,14 @@ export default function SessionClient({
         peersRef.current.forEach(peer => {
           if (!peer.destroyed && peer.streams?.[0]) {
             try {
+              console.log(`🔄 [TRACK REPLACE] - Switching to screen share track for peer.`);
               peer.replaceTrack(
                 peer.streams[0].getVideoTracks()[0] || null, 
                 screenTrack, 
                 peer.streams[0]
               );
             } catch (error) {
-              console.error('❌ [SCREEN SHARE] - Error replacing track:', error);
+              console.error('❌ [TRACK REPLACE] - Error switching track:', error);
             }
           }
         });
@@ -330,24 +336,17 @@ export default function SessionClient({
     }
   }, [isSharingScreen, screenStream, localStream, toast]);
 
-  // CORRECTION: Hook principal Ably avec gestion correcte des dépendances
   useEffect(() => {
     if (!sessionId || !currentUserId || !ablyClient || ablyLoading || !isAblyConnected) {
-        console.log(`⏳ [SESSION CLIENT] - Skipping Ably setup:`, {
-            hasSessionId: !!sessionId,
-            hasUserId: !!currentUserId,
-            hasAblyClient: !!ablyClient,
-            ablyLoading,
-            isAblyConnected
-        });
+        console.log(`⏳ [ABLY SETUP] - Skipping setup, Ably not ready.`, { sessionId, currentUserId, ablyLoading, isAblyConnected });
         return;
     }
-
+    
+    console.log(`📡 [ABLY SETUP] - Initializing for session: ${sessionId}, user: ${currentUserId}`);
+  
     const channelName = getSessionChannelName(sessionId);
     const channel = ablyClient.channels.get(channelName);
     channelRef.current = channel;
-  
-    console.log(`📡 [SESSION CLIENT] - Setting up session: ${sessionId} for user: ${currentUserId}, connection state: ${isAblyConnected ? 'connected' : 'connecting'}`);
   
     const handleSignal = (message: Types.Message) => {
         if (!isMountedRef.current) return;
@@ -355,22 +354,25 @@ export default function SessionClient({
         const data = message.data as IncomingSignalData;
         if (data.target !== currentUserId) return;
         
+        console.log(`🔔 [SIGNAL] - Received signal from ${data.userId} for ${data.target}`);
+        
         let peer = peersRef.current.get(data.userId);
         if (!peer) {
-            const shouldHaveInitiated = currentUserId > data.userId;
-            if (shouldHaveInitiated) return;
-            
+            console.log(`⚠️ [SIGNAL] - No peer found for ${data.userId}, creating new peer.`);
             const streamToUse = isSharingScreen ? screenStream : localStream;
             peer = createPeer(data.userId, false, streamToUse);
         }
         
         if (peer && !peer.destroyed) {
           peer.signal(data.signal);
+        } else {
+          console.warn(`⚠️ [SIGNAL] - Peer for ${data.userId} is destroyed, cannot signal.`);
         }
     };
 
     const handleSessionEnded = () => {
         if (!isMountedRef.current) return;
+        console.log('🛑 [SESSION END] - Session ended event received.');
         toast({ 
           title: 'Session terminée', 
           description: 'Le professeur a mis fin à la session.' 
@@ -381,24 +383,25 @@ export default function SessionClient({
     const handlePresenceUpdate = async (member: Types.PresenceMessage) => {
         if (!isMountedRef.current) return;
         
+        console.log(`👥 [PRESENCE] - Presence update: ${member.action} from ${member.clientId}`);
+
         try {
           const members = await channel.presence.get();
           const memberIds = Array.isArray(members) ? members.map((m: Types.PresenceMessage) => m.clientId) : [];                 
           setOnlineUserIds(memberIds);
           
+          console.log(`📊 [PRESENCE] - Online members:`, memberIds);
+          
           const otherUserIds = memberIds.filter((id: string) => id !== currentUserId);
           
-          // CORRECTION: Créer un peer pour chaque autre utilisateur, seulement si on est l'initiateur.
           otherUserIds.forEach((userId: string) => {
-              const shouldInitiate = currentUserId > userId;
-              if (shouldInitiate && !peersRef.current.has(userId)) {
-                  console.log(`[PEER] Initiating connection to ${userId}`);
+              if (!peersRef.current.has(userId)) {
+                  console.log(`🆕 [PEER INIT] - New user ${userId} detected, creating peer.`);
                   const streamToUse = isSharingScreen ? screenStream : localStream;
                   createPeer(userId, true, streamToUse);
               }
           });
 
-          // Cleanup for users who left
           const offlineUserIds = Array.from(peersRef.current.keys()).filter(id => !memberIds.includes(id));
           offlineUserIds.forEach(cleanupPeerConnection);
 
@@ -409,6 +412,7 @@ export default function SessionClient({
 
     const setupPresence = async () => {
         try {
+            console.log('🔗 [PRESENCE] - Subscribing to presence events...');
             await channel.presence.subscribe(['enter', 'leave', 'update'], handlePresenceUpdate);
             
             const currentUserData = {
@@ -416,13 +420,15 @@ export default function SessionClient({
                 role: currentUserRole,
             };
             
+            console.log('✅ [PRESENCE] - Entering presence with data:', currentUserData);
             await channel.presence.enter(currentUserData);
-            const initialMembers = await channel.presence.get();
-            setOnlineUserIds(Array.isArray(initialMembers) ? initialMembers.map((m: Types.PresenceMessage) => m.clientId) : []);
             
-            console.log(`✅ [SESSION CLIENT] - Successfully entered presence for session: ${sessionId}`);
+            const initialMembers = await channel.presence.get();
+            const initialMemberIds = Array.isArray(initialMembers) ? initialMembers.map((m: Types.PresenceMessage) => m.clientId) : [];
+            setOnlineUserIds(initialMemberIds);
+            console.log('✅ [PRESENCE] - Initial presence set:', initialMemberIds);
         } catch (error) { 
-            console.error("❌ [SESSION CLIENT] - Presence setup failed:", error);
+            console.error("❌ [PRESENCE] - Presence setup failed:", error);
         }
     };
 
@@ -435,10 +441,14 @@ export default function SessionClient({
     };
 
     const bindEvents = () => {
+        console.log('🔗 [EVENTS] - Binding Ably channel events...');
         channel.subscribe(AblyEvents.SIGNAL, handleSignal);
         channel.subscribe(AblyEvents.SESSION_ENDED, handleSessionEnded);
         channel.subscribe(AblyEvents.PARTICIPANT_SPOTLIGHTED, (msg) => {
-          if (isMountedRef.current) setSpotlightedParticipantId(msg.data.participantId);
+          if (isMountedRef.current) {
+            console.log(`🌟 [SPOTLIGHT] - Received spotlight for ${msg.data.participantId}`);
+            setSpotlightedParticipantId(msg.data.participantId);
+          }
         });
         channel.subscribe(AblyEvents.HAND_RAISE_UPDATE, (msg) => {
           if (isMountedRef.current) {
@@ -487,49 +497,36 @@ export default function SessionClient({
             setTimerDuration(duration);
           }
         });
+        console.log('✅ [EVENTS] - All Ably events bound.');
     };
 
     setupPresence();
     bindEvents();
 
-    console.log(`✅ [SESSION CLIENT] - Successfully set up Ably subscriptions for session: ${sessionId}`);
-
     return () => {
-      console.log(`🧹 [SESSION CLIENT] - Cleaning up session: ${sessionId}`);
+      console.log(`🧹 [CLEANUP] - Cleaning up SessionClient for session: ${sessionId}`);
       
       Array.from(peersRef.current.keys()).forEach(cleanupPeerConnection);
       peersRef.current.clear();
       
       if (channelRef.current) {
         try {
+          console.log('🚪 [CLEANUP] - Leaving presence and unsubscribing from channel.');
           channelRef.current.presence.leave();
           channelRef.current.unsubscribe();
         } catch (error) {
-          console.warn('⚠️ [CLEANUP] - Error cleaning up Ably channel:', error);
+          console.warn('⚠️ [CLEANUP] - Error during Ably channel cleanup:', error);
         }
         channelRef.current = null;
       }
     };
   }, [
-    sessionId, 
-    currentUserId, 
-    ablyClient, 
-    ablyLoading,
-    isAblyConnected,
-    currentUserRole,
-    teacherName,
-    studentNames,
-    isSharingScreen,
-    screenStream,
-    localStream,
-    createPeer,
-    cleanupPeerConnection,
-    router,
-    toast,
+    sessionId, currentUserId, ablyClient, ablyLoading, isAblyConnected,
+    currentUserRole, teacherName, studentNames, isSharingScreen, screenStream,
+    localStream, createPeer, cleanupPeerConnection, router, toast,
     handleIncomingWhiteboardOperations
 ]);
   
-  // Timer effect
   useEffect(() => {
     let intervalId: NodeJS.Timeout | null = null;
     if (isTimerRunning && timerTimeLeft > 0) {
@@ -546,92 +543,49 @@ export default function SessionClient({
 
   const toggleMute = useCallback(() => { 
     if (!localStream) return;
-    
-    localStream.getAudioTracks().forEach(track => { 
-      track.enabled = !track.enabled; 
-    }); 
+    localStream.getAudioTracks().forEach(track => { track.enabled = !track.enabled; }); 
     setIsMuted(prev => !prev);
   }, [localStream]);
 
   const toggleVideo = useCallback(() => { 
     if (!localStream) return;
-    
-    localStream.getVideoTracks().forEach(track => { 
-      track.enabled = !track.enabled; 
-    }); 
+    localStream.getVideoTracks().forEach(track => { track.enabled = !track.enabled; }); 
     setIsVideoOff(prev => !prev);
   }, [localStream]);
 
-  // Reste des handlers avec useCallback pour éviter les re-renders
   const onSpotlightParticipant = useCallback((participantId: string) => {
     if (currentUserRole !== Role.PROFESSEUR) return;
-    try {
-      ablyTrigger(getSessionChannelName(sessionId), AblyEvents.PARTICIPANT_SPOTLIGHTED, { participantId });
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de mettre le participant en vedette.' });
-    }
-  }, [sessionId, currentUserRole, toast]);
+    ablyTrigger(getSessionChannelName(sessionId), AblyEvents.PARTICIPANT_SPOTLIGHTED, { participantId });
+  }, [sessionId, currentUserRole]);
   
   const handleEndSession = useCallback(async () => {
     if (currentUserRole !== Role.PROFESSEUR) return;
     setIsEndingSession(true);
-    try { 
-      await endCoursSession(sessionId); 
-    } catch (error) { 
-      toast({ variant: 'destructive', title: 'Erreur' }); 
-      setIsEndingSession(false); 
-    }
+    try { await endCoursSession(sessionId); } catch (error) { toast({ variant: 'destructive', title: 'Erreur' }); setIsEndingSession(false); }
   }, [currentUserRole, sessionId, toast]);
 
-  const handleLeaveSession = useCallback(() => { 
-    router.push(currentUserRole === Role.PROFESSEUR ? '/teacher/dashboard' : '/student/dashboard'); 
-  }, [router, currentUserRole]);
+  const handleLeaveSession = useCallback(() => router.push(currentUserRole === Role.PROFESSEUR ? '/teacher/dashboard' : '/student/dashboard'), [router, currentUserRole]);
   
-  const handleStartTimer = useCallback(() => { 
-    setIsTimerRunning(true); 
-    broadcastTimerEvent(sessionId, 'timer-started'); 
-  }, [sessionId]);
-
-  const handlePauseTimer = useCallback(() => { 
-    setIsTimerRunning(false); 
-    broadcastTimerEvent(sessionId, 'timer-paused'); 
-  }, [sessionId]);
-
+  const handleStartTimer = useCallback(() => { setIsTimerRunning(true); broadcastTimerEvent(sessionId, 'timer-started'); }, [sessionId]);
+  const handlePauseTimer = useCallback(() => { setIsTimerRunning(false); broadcastTimerEvent(sessionId, 'timer-paused'); }, [sessionId]);
   const handleResetTimer = useCallback((newDuration?: number) => {
     const duration = validateTimerDuration(newDuration ?? timerDuration);
-    setIsTimerRunning(false);
-    setTimerTimeLeft(duration);
-    setTimerDuration(duration);
+    setIsTimerRunning(false); setTimerTimeLeft(duration); setTimerDuration(duration);
     broadcastTimerEvent(sessionId, 'timer-reset', { duration });
   }, [sessionId, timerDuration]);
   
   const handleToggleHandRaise = useCallback((isRaised: boolean) => {
-    setRaisedHands(prev => { 
-      const newSet = new Set(prev); 
-      isRaised ? newSet.add(currentUserId) : newSet.delete(currentUserId); 
-      return newSet; 
-    });
-    updateStudentSessionStatus(sessionId, { 
-      isHandRaised: isRaised, 
-      understanding: understandingStatus.get(currentUserId) || ComprehensionLevel.NONE 
-    });
+    setRaisedHands(prev => { const newSet = new Set(prev); isRaised ? newSet.add(currentUserId) : newSet.delete(currentUserId); return newSet; });
+    updateStudentSessionStatus(sessionId, { isHandRaised: isRaised, understanding: understandingStatus.get(currentUserId) || ComprehensionLevel.NONE });
   }, [sessionId, currentUserId, understandingStatus]);
   
   const handleUnderstandingChange = useCallback((status: ComprehensionLevel) => {
     const newStatus = understandingStatus.get(currentUserId) === status ? ComprehensionLevel.NONE : status;
     setUnderstandingStatus(prev => new Map(prev).set(currentUserId, newStatus));
-    updateStudentSessionStatus(sessionId, { 
-      understanding: newStatus, 
-      isHandRaised: raisedHands.has(currentUserId) 
-    });
+    updateStudentSessionStatus(sessionId, { understanding: newStatus, isHandRaised: raisedHands.has(currentUserId) });
   }, [sessionId, currentUserId, understandingStatus, raisedHands]);
 
-  const handleToolChange = useCallback((tool: string) => {
-      setActiveTool(tool);
-      if (currentUserRole === Role.PROFESSEUR) {
-        broadcastActiveTool(sessionId, tool);
-      }
-  }, [sessionId, currentUserRole]);
+  const handleToolChange = useCallback((tool: string) => { setActiveTool(tool); if (currentUserRole === Role.PROFESSEUR) broadcastActiveTool(sessionId, tool); }, [sessionId, currentUserRole]);
   
   const handleWhiteboardControllerChange = useCallback((userId: string) => {
     if (currentUserRole === Role.PROFESSEUR) {
@@ -640,30 +594,17 @@ export default function SessionClient({
     }
   }, [sessionId, currentUserRole, whiteboardControllerId, initialTeacher?.id]);
 
-  const handleWhiteboardEvent = useCallback((ops: WhiteboardOperation[]) => {
-      // Directement mis à jour par handleIncomingWhiteboardOperations
-      sendOperation(ops);
-  }, [sendOperation]);
+  const handleWhiteboardEvent = useCallback((ops: WhiteboardOperation[]) => sendOperation(ops), [sendOperation]);
 
-  // CORRECTION: useMemo pour les valeurs dérivées
   const spotlightedStream = useMemo(() => {
     if (!spotlightedParticipantId) return null;
-    return spotlightedParticipantId === currentUserId ? 
-      (isSharingScreen ? screenStream : localStream) : 
-      remoteStreams.get(spotlightedParticipantId) || null;
+    return spotlightedParticipantId === currentUserId ? (isSharingScreen ? screenStream : localStream) : remoteStreams.get(spotlightedParticipantId) || null;
   }, [spotlightedParticipantId, currentUserId, localStream, remoteStreams, isSharingScreen, screenStream]);
     
-  const remoteParticipants = useMemo(() => 
-    Array.from(remoteStreams.entries()).map(([id, stream]) => ({ id, stream })),
-    [remoteStreams]
-  );
+  const remoteParticipants = useMemo(() => Array.from(remoteStreams.entries()).map(([id, stream]) => ({ id, stream })), [remoteStreams]);
     
-  const spotlightedUser = useMemo(() => 
-    [initialTeacher, ...initialStudents].find(u => u?.id === spotlightedParticipantId),
-    [initialTeacher, initialStudents, spotlightedParticipantId]
-  );
+  const spotlightedUser = useMemo(() => [initialTeacher, ...initialStudents].find(u => u?.id === spotlightedParticipantId), [initialTeacher, initialStudents, spotlightedParticipantId]);
 
-  // CORRECTION: État de chargement basé sur des conditions réelles
   const isComponentLoading = loading || ablyLoading || (!isAblyConnected && !!ablyClient);
   
   if (isComponentLoading) {
@@ -673,75 +614,38 @@ export default function SessionClient({
   return (
     <div className="flex flex-col h-full bg-background p-4">
       <SessionHeader 
-        sessionId={sessionId} 
-        isTeacher={currentUserRole === Role.PROFESSEUR}
-        onEndSession={handleEndSession}
-        onLeaveSession={handleLeaveSession}
-        isEndingSession={isEndingSession}
-        isSharingScreen={isSharingScreen}
-        onToggleScreenShare={toggleScreenShare}
-        isMuted={isMuted}
-        onToggleMute={toggleMute}
-        isVideoOff={isVideoOff}
-        onToggleVideo={toggleVideo}
-        activeTool={activeTool}
-        onToolChange={handleToolChange}
+        sessionId={sessionId} isTeacher={currentUserRole === Role.PROFESSEUR}
+        onEndSession={handleEndSession} onLeaveSession={handleLeaveSession}
+        isEndingSession={isEndingSession} isSharingScreen={isSharingScreen}
+        onToggleScreenShare={toggleScreenShare} isMuted={isMuted} onToggleMute={toggleMute}
+        isVideoOff={isVideoOff} onToggleVideo={toggleVideo} activeTool={activeTool} onToolChange={handleToolChange}
       />
      <main className="flex-1 flex flex-col min-h-0 w-full pt-4">
         <PermissionPrompt />
         {currentUserRole === Role.PROFESSEUR ? (
           <TeacherSessionView
-            sessionId={sessionId}
-            localStream={localStream}
-            screenStream={screenStream}
-            remoteParticipants={remoteParticipants}
-            spotlightedUser={spotlightedUser}
+            sessionId={sessionId} localStream={localStream} screenStream={screenStream}
+            remoteParticipants={remoteParticipants} spotlightedUser={spotlightedUser}
             allSessionUsers={[initialTeacher, ...initialStudents].filter(Boolean) as SessionParticipant[]}
-            onlineUserIds={onlineUserIds}
-            onSpotlightParticipant={onSpotlightParticipant}
-            raisedHands={raisedHands}
-            understandingStatus={understandingStatus}
-            currentUserId={currentUserId}
-            onScreenShare={toggleScreenShare}
-            isSharingScreen={isSharingScreen}
-            activeTool={activeTool}
-            onToolChange={handleToolChange}
-            classroom={classroom}
-            documentUrl={documentUrl}
-            documentHistory={documentHistory}
-            whiteboardControllerId={whiteboardControllerId}
-            onWhiteboardControllerChange={handleWhiteboardControllerChange}
-            initialDuration={timerDuration}
-            timerTimeLeft={timerTimeLeft}
-            isTimerRunning={isTimerRunning}
-            onStartTimer={handleStartTimer}
-            onPauseTimer={handlePauseTimer}
-            onResetTimer={handleResetTimer}
-            onWhiteboardEvent={handleWhiteboardEvent}
-            whiteboardOperations={whiteboardOperations}
-            flushWhiteboardOperations={flushOperations}
+            onlineUserIds={onlineUserIds} onSpotlightParticipant={onSpotlightParticipant} raisedHands={raisedHands}
+            understandingStatus={understandingStatus} currentUserId={currentUserId} onScreenShare={toggleScreenShare}
+            isSharingScreen={isSharingScreen} activeTool={activeTool} onToolChange={handleToolChange}
+            classroom={classroom} documentUrl={documentUrl} documentHistory={documentHistory}
+            whiteboardControllerId={whiteboardControllerId} onWhiteboardControllerChange={handleWhiteboardControllerChange}
+            initialDuration={timerDuration} timerTimeLeft={timerTimeLeft} isTimerRunning={isTimerRunning}
+            onStartTimer={handleStartTimer} onPauseTimer={handlePauseTimer} onResetTimer={handleResetTimer}
+            onWhiteboardEvent={handleWhiteboardEvent} whiteboardOperations={whiteboardOperations} flushWhiteboardOperations={flushOperations}
           />
         ) : (
           <StudentSessionView
-            sessionId={sessionId}
-            localStream={localStream}
-            spotlightedStream={spotlightedStream}
-            spotlightedUser={spotlightedUser}
-            isHandRaised={raisedHands.has(currentUserId)}
-            onToggleHandRaise={handleToggleHandRaise}
-            onUnderstandingChange={handleUnderstandingChange}
-            onLeaveSession={handleLeaveSession}
-            currentUnderstanding={understandingStatus.get(currentUserId) || ComprehensionLevel.NONE}
-            currentUserId={currentUserId}
-            activeTool={activeTool}
-            documentUrl={documentUrl}
-            whiteboardControllerId={whiteboardControllerId}
-            timerTimeLeft={timerTimeLeft}
-            onWhiteboardEvent={handleWhiteboardEvent}
-            whiteboardOperations={whiteboardOperations}
-            flushWhiteboardOperations={flushOperations}
-            onlineMembersCount={onlineUserIds.length}
-            isPresenceConnected={isAblyConnected}
+            sessionId={sessionId} localStream={localStream} spotlightedStream={spotlightedStream}
+            spotlightedUser={spotlightedUser} isHandRaised={raisedHands.has(currentUserId)}
+            onToggleHandRaise={handleToggleHandRaise} onUnderstandingChange={handleUnderstandingChange}
+            onLeaveSession={handleLeaveSession} currentUnderstanding={understandingStatus.get(currentUserId) || ComprehensionLevel.NONE}
+            currentUserId={currentUserId} activeTool={activeTool} documentUrl={documentUrl}
+            whiteboardControllerId={whiteboardControllerId} timerTimeLeft={timerTimeLeft}
+            onWhiteboardEvent={handleWhiteboardEvent} whiteboardOperations={whiteboardOperations} flushWhiteboardOperations={flushOperations}
+            onlineMembersCount={onlineUserIds.length} isPresenceConnected={isAblyConnected}
           />
         )}
       </main>
