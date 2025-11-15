@@ -1,7 +1,7 @@
 // src/components/session/ClassStudentList.tsx
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Users, UserPlus, Edit, Star } from 'lucide-react';
@@ -42,9 +42,8 @@ export function ClassStudentList({
     const [accordionValue, setAccordionValue] = useState<string | undefined>('class-list');
     const [isReinviting, setIsReinviting] = useState<string | null>(null);
 
-    // CORRECTION : Gestion optimisée de la réinvitation avec état de chargement
     const handleReinvite = useCallback(async (studentId: string) => {
-        if (isReinviting) return; // Éviter les doubles clics
+        if (isReinviting) return;
         
         setIsReinviting(studentId);
         try {
@@ -65,34 +64,28 @@ export function ClassStudentList({
         }
     }, [sessionId, classroom.id, toast, isReinviting]);
 
-    // CORRECTION : Tri optimisé des étudiants
-    const sortedStudents = useCallback(() => {
+    const sortedStudents = useMemo(() => {
         return [...(classroom.eleves || [])].sort((a, b) => {
             const aOnline = onlineUserIds.includes(a.id);
             const bOnline = onlineUserIds.includes(b.id);
             
-            // Priorité 1: Élèves en ligne
             if (aOnline && !bOnline) return -1;
             if (!aOnline && bOnline) return 1;
             
-            // Priorité 2: Points (décroissant)
             const aPoints = a.points ?? 0;
             const bPoints = b.points ?? 0;
             if (bPoints !== aPoints) return bPoints - aPoints;
             
-            // Priorité 3: Ordre alphabétique
             return (a.name || '').localeCompare(b.name || '');
         });
     }, [classroom.eleves, onlineUserIds]);
 
-    // CORRECTION : Gestion du spotlight avec validation
     const handleSpotlight = useCallback((studentId: string) => {
         if (studentId && typeof onSpotlightParticipant === 'function') {
             onSpotlightParticipant(studentId);
         }
     }, [onSpotlightParticipant]);
 
-    // CORRECTION : Gestion du contrôle du tableau blanc avec validation
     const handleWhiteboardControl = useCallback((studentId: string) => {
         if (studentId && typeof onWhiteboardControllerChange === 'function') {
             onWhiteboardControllerChange(studentId);
@@ -125,7 +118,7 @@ export function ClassStudentList({
                     <AccordionContent className="pt-0">
                         <CardContent className="space-y-2 pt-0 max-h-60 overflow-y-auto pr-4">
                             <TooltipProvider delayDuration={300}>
-                                {sortedStudents().map((student) => {
+                                {sortedStudents.map((student) => {
                                     const isOnline = onlineUserIds.includes(student.id);
                                     const isWaiting = isOnline && !activeParticipantIds.includes(student.id);
                                     const isSpotlighted = student.id === spotlightedParticipantId;

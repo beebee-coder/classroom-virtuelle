@@ -1,4 +1,4 @@
-// src/components/session/TeacherSessionView.tsx - VERSION CORRIGÉE
+// src/components/session/TeacherSessionView.tsx
 'use client';
 import { PDFUploadSection } from './PDFUploadSection';
 
@@ -92,7 +92,6 @@ export function TeacherSessionView({
     const { toast } = useToast();
     const [teacherView, setTeacherView] = useState<'content' | 'grid'>('content');
     
-    // CORRECTION: Logs pour le debugging du whiteboard
     useEffect(() => {
         // console.log(`👨‍🏫 [TEACHER VIEW] - Active tool: ${activeTool}, Whiteboard operations: ${whiteboardOperations.length}`);
         // console.log(`👨‍🏫 [TEACHER VIEW] - Whiteboard controller: ${whiteboardControllerId}, Current user: ${currentUserId}`);
@@ -102,7 +101,6 @@ export function TeacherSessionView({
         }
     }, [activeTool, whiteboardOperations, whiteboardControllerId, currentUserId]);
 
-    // Validation des props temporelles
     const validatedTimerTimeLeft = useMemo(() => {
         if (typeof timerTimeLeft !== 'number' || isNaN(timerTimeLeft) || timerTimeLeft < 0) {
             console.warn('Invalid timerTimeLeft value detected, using default:', timerTimeLeft);
@@ -130,8 +128,8 @@ export function TeacherSessionView({
     );
     
     const students = useMemo(() => 
-        classroom?.eleves || allSessionUsers.filter(u => u.role === 'ELEVE') as User[],
-        [classroom?.eleves, allSessionUsers]
+        allSessionUsers.filter(u => u.role === 'ELEVE') as User[],
+        [allSessionUsers]
     );
 
     const teacher = useMemo(() => 
@@ -160,13 +158,12 @@ export function TeacherSessionView({
 
     const handleDocumentShare = useCallback(async (doc: DocumentInHistory) => {
         try {
-            const formData = new FormData();
-            await shareDocument(sessionId, { name: doc.name, url: doc.url }, formData);
+            await shareDocument(sessionId, { name: doc.name, url: doc.url });
             toast({
                 title: 'Document repartagé',
                 description: `"${doc.name}" est de nouveau visible par tous.`,
             });
-            onToolChange('document'); // S'assurer que la vue est sur le document
+            onToolChange('document');
         } catch (error) {
              toast({
                 variant: 'destructive',
@@ -176,14 +173,11 @@ export function TeacherSessionView({
         }
     }, [sessionId, onToolChange, toast]);
 
-    // CORRECTION: Gestion améliorée des événements whiteboard
     const handleWhiteboardEvent = useCallback((operations: WhiteboardOperation[]) => {
-        // console.log(`📤 [TEACHER VIEW] - Sending ${operations.length} whiteboard operations to sync`);
         onWhiteboardEvent(operations);
     }, [onWhiteboardEvent]);
 
     const handleFlushWhiteboardOperations = useCallback(() => {
-        // console.log(`🚀 [TEACHER VIEW] - Flushing whiteboard operations`);
         if (flushWhiteboardOperations) {
             flushWhiteboardOperations();
         }
@@ -241,6 +235,13 @@ export function TeacherSessionView({
         allSessionUsers
     ]);
 
+    const allParticipants = useMemo(() => {
+        const participantsMap = new Map<string, SessionParticipant>();
+        if (teacher) participantsMap.set(teacher.id, teacher);
+        students.forEach(s => participantsMap.set(s.id, s as SessionParticipant));
+        return Array.from(participantsMap.values());
+    }, [teacher, students]);
+
     const renderActiveTool = useMemo(() => {
         if (isSharingScreen && screenStream) {
             return (
@@ -263,7 +264,6 @@ export function TeacherSessionView({
             case 'whiteboard':
                 return (
                     <div className="h-full w-full relative">
-                        {/* CORRECTION: Indicateur de statut pour le professeur */}
                         <div className="absolute top-2 left-2 z-10 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
                             👨‍🏫 Vous contrôlez le tableau
                         </div>
@@ -391,13 +391,6 @@ export function TeacherSessionView({
         handleWhiteboardEvent,
         handleFlushWhiteboardOperations,
     ]);
-
-    const allParticipants = useMemo(() => {
-        const participantsMap = new Map<string, SessionParticipant>();
-        if (teacher) participantsMap.set(teacher.id, teacher);
-        students.forEach(s => participantsMap.set(s.id, s as SessionParticipant));
-        return Array.from(participantsMap.values());
-    }, [teacher, students]);
     
     if (!currentUserId || !teacher) {
         return (

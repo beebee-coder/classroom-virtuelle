@@ -20,7 +20,6 @@ interface SessionTimerProps {
 }
 
 function formatTime(seconds: number) {
-    // Validation des valeurs temporelles
     if (typeof seconds !== 'number' || isNaN(seconds) || seconds < 0) {
         return "00:00";
     }
@@ -43,7 +42,6 @@ export function SessionTimer({
 }: SessionTimerProps) {
     const [customMinutes, setCustomMinutes] = useState<string>("10");
 
-    // Validation du timeLeft au chargement
     useEffect(() => {
         if (typeof timeLeft !== 'number' || isNaN(timeLeft) || timeLeft < 0) {
             console.error('Invalid timeLeft value:', timeLeft);
@@ -53,8 +51,7 @@ export function SessionTimer({
     const handleSetCustomTime = () => {
         const minutes = Number(customMinutes);
         
-        // Validation robuste de l'input
-        if (isNaN(minutes) || minutes <= 0 || minutes > 1440) { // Max 24 heures
+        if (isNaN(minutes) || minutes <= 0 || minutes > 1440) {
             console.error('Invalid custom minutes:', customMinutes);
             setCustomMinutes("10");
             return;
@@ -72,7 +69,6 @@ export function SessionTimer({
         }
     };
 
-    // Validation du timeLeft pour l'affichage
     const displayTimeLeft = typeof timeLeft === 'number' && !isNaN(timeLeft) && timeLeft >= 0 
         ? timeLeft 
         : 0;
@@ -160,7 +156,6 @@ export function SessionTimer({
                                         value={customMinutes}
                                         onChange={(e) => {
                                             const value = e.target.value;
-                                            // Validation de l'input
                                             if (value === "" || (Number(value) > 0 && Number(value) <= 1440)) {
                                                 setCustomMinutes(value);
                                             }

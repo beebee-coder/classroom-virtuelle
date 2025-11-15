@@ -1,4 +1,4 @@
-// src/components/session/PDFUploadSection.tsx - VERSION CORRIGÉE
+// src/components/session/PDFUploadSection.tsx
 'use client';
 
 import { useState, useRef } from 'react';
@@ -45,7 +45,6 @@ export function PDFUploadSection({ sessionId, onUploadSuccess }: PDFUploadSectio
     try {
       console.log('📤 [PDF UPLOAD] Début de l\'upload du PDF:', file.name);
 
-      // Étape 1: Upload vers Cloudinary
       const formData = new FormData();
       formData.append('file', file);
       formData.append('upload_preset', uploadPreset);
@@ -66,7 +65,6 @@ export function PDFUploadSection({ sessionId, onUploadSuccess }: PDFUploadSectio
       const cloudinaryResult = await cloudinaryResponse.json();
       console.log('✅ [PDF UPLOAD] Upload Cloudinary réussi:', cloudinaryResult);
 
-      // Étape 2: Partager le document dans la session
       const newDoc = {
         name: file.name.replace('.pdf', ''),
         url: cloudinaryResult.secure_url,
@@ -74,9 +72,7 @@ export function PDFUploadSection({ sessionId, onUploadSuccess }: PDFUploadSectio
 
       console.log('📤 [PDF UPLOAD] Appel de shareDocument avec:', newDoc);
       
-      // CORRECTION : Créer un FormData vide pour le 3ème argument
-      const emptyFormData = new FormData();
-      const result = await shareDocument(sessionId, newDoc, emptyFormData);
+      const result = await shareDocument(sessionId, newDoc);
       
       console.log('✅ [PDF UPLOAD] shareDocument réussi:', result);
       

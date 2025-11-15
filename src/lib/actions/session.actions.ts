@@ -1,4 +1,4 @@
-// src/lib/actions/session.actions.ts - VERSION AVEC LOGS CRITIQUES
+// src/lib/actions/session.actions.ts - VERSION CORRIGÉE AVEC updateStudentSessionStatus
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -184,6 +184,36 @@ async function sendIndividualInvitations(sessionId: string, professeurId: string
     }
 }
 
+// CORRECTION: Ajout de la fonction manquante updateStudentSessionStatus
+export async function updateStudentSessionStatus(sessionId: string, status: { isHandRaised?: boolean; understanding?: ComprehensionLevel }) {
+    console.log(`🔄 [ACTION] - updateStudentSessionStatus for session ${sessionId}:`, status);
+    
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) throw new Error('Not authenticated');
+
+    const userId = session.user.id;
+    const channel = getSessionChannelName(sessionId);
+    const promises = [];
+
+    if (status.isHandRaised !== undefined) {
+        console.log(`✋ [ACTION] - Broadcasting hand-raise status for ${userId}: ${status.isHandRaised}`);
+        promises.push(
+            ablyTrigger(channel, AblyEvents.HAND_RAISE_UPDATE, { userId, isRaised: status.isHandRaised })
+        );
+    }
+
+    if (status.understanding !== undefined) {
+        console.log(`🤔 [ACTION] - Broadcasting understanding status for ${userId}: ${status.understanding}`);
+        promises.push(
+            ablyTrigger(channel, AblyEvents.UNDERSTANDING_UPDATE, { userId, status: status.understanding })
+        );
+    }
+
+    await Promise.all(promises);
+    console.log('✅ [ACTION] - Student session status updated successfully');
+    return { success: true };
+}
+
 export async function endCoursSession(sessionId: string) {
     console.log(`🔚 [ACTION] - Ending session ${sessionId}`);
     
@@ -290,6 +320,44 @@ export async function deleteSharedDocument(documentId: string, sessionId: string
         console.error(`❌ [ACTION] Erreur lors de la suppression du document ${documentId}:`, error);
         throw new Error("Impossible de supprimer le document.");
     }
+}
+
+// CORRECTION: Ajout des fonctions timer manquantes
+export async function broadcastTimerEvent(sessionId: string, event: 'timer-started' | 'timer-paused' | 'timer-reset', data?: any) {
+    const session = await getServerSession(authOptions);
+    if (session?.user?.role !== Role.PROFESSEUR) throw new Error('Only teachers can control the timer');
+
+    const channel = getSessionChannelName(sessionId);
+    const payload: TimerEventData = {
+        sessionId,
+        timestamp: new Date().toISOString(),
+    };
+
+    if (data?.duration !== undefined) {
+        payload.duration = validateTimerDuration(data.duration);
+    }
+
+    console.log(`⏱️ [ACTION] - Broadcasting timer event '${event}' on ${channel}`);
+    await ablyTrigger(channel, event as any, payload);
+    
+    return { success: true, event, sessionId };
+}
+
+export async function broadcastActiveTool(sessionId: string, tool: string) {
+    const session = await getServerSession(authOptions);
+    if (session?.user?.role !== Role.PROFESSEUR) throw new Error('Only teachers can change tools');
+
+    const sessionExists = await prisma.coursSession.count({ where: { id: sessionId, professeurId: session.user.id } });
+    if (!sessionExists) throw new Error('Session not found or not owned by user');
+
+    const validatedTool = validateActiveTool(tool);
+    const channel = getSessionChannelName(sessionId);
+    const payload = { tool: validatedTool, sessionId, timestamp: new Date().toISOString() };
+
+    console.log(`🛠️ [ACTION] - Broadcasting tool change to '${validatedTool}' on ${channel}`);
+    await ablyTrigger(channel, AblyEvents.ACTIVE_TOOL_CHANGED, payload);
+
+    return { success: true, tool: validatedTool, sessionId };
 }
 
 export async function reinviteStudentToSession(sessionId: string, studentId: string, classroomId: string) {
