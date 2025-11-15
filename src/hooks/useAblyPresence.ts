@@ -1,4 +1,4 @@
-// src/hooks/useAblyPresence.ts - CORRECTION DES TYPES ABLY
+// src/hooks/useAblyPresence.ts - VERSION CORRIGÉE DES TYPES ABLY
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
