@@ -594,7 +594,7 @@ export default function SessionClient({
     updateStudentSessionStatus(sessionId, { understanding: newStatus, isHandRaised: raisedHands.has(currentUserId) });
   }, [sessionId, currentUserId, understandingStatus, raisedHands]);
 
-  const handleToolChange = useCallback((tool: string) => { setActiveTool(tool); if (currentUserRole === Role.PROFESSEUR) broadcastActiveTool(sessionId, tool); }, [sessionId, currentUserRole]);
+  const onToolChange = useCallback((tool: string) => { setActiveTool(tool); if (currentUserRole === Role.PROFESSEUR) broadcastActiveTool(sessionId, tool); }, [sessionId, currentUserRole]);
   
   const handleWhiteboardControllerChange = useCallback((userId: string) => {
     if (currentUserRole === Role.PROFESSEUR) {
@@ -634,7 +634,7 @@ export default function SessionClient({
         onEndSession={handleEndSession} onLeaveSession={handleLeaveSession}
         isEndingSession={isEndingSession} isSharingScreen={isSharingScreen}
         onToggleScreenShare={toggleScreenShare} isMuted={isMuted} onToggleMute={toggleMute}
-        isVideoOff={isVideoOff} onToggleVideo={toggleVideo} activeTool={activeTool} onToolChange={handleToolChange}
+        isVideoOff={isVideoOff} onToggleVideo={toggleVideo} activeTool={activeTool} onToolChange={onToolChange}
       />
      <main className="flex-1 flex flex-col min-h-0 w-full pt-4">
         <PermissionPrompt />
@@ -645,7 +645,7 @@ export default function SessionClient({
             allSessionUsers={[initialTeacher, ...initialStudents].filter(Boolean) as SessionParticipant[]}
             onlineUserIds={onlineUserIds} onSpotlightParticipant={onSpotlightParticipant} raisedHands={raisedHands}
             understandingStatus={understandingStatus} currentUserId={currentUserId} onScreenShare={toggleScreenShare}
-            isSharingScreen={isSharingScreen} activeTool={activeTool} onToolChange={handleToolChange}
+            isSharingScreen={isSharingScreen} activeTool={activeTool} onToolChange={onToolChange}
             classroom={classroom} documentUrl={documentUrl} documentHistory={documentHistory}
             whiteboardControllerId={whiteboardControllerId} onWhiteboardControllerChange={handleWhiteboardControllerChange}
             initialDuration={timerDuration} timerTimeLeft={timerTimeLeft} isTimerRunning={isTimerRunning}
