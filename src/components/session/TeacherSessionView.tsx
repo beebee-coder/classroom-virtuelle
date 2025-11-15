@@ -79,15 +79,6 @@ export function TeacherSessionView({
     onSelectDocument,
     whiteboardControllerId,
     onWhiteboardControllerChange,
-    initialDuration,
-    timerTimeLeft,
-    isTimerRunning,
-    onStartTimer,
-    onPauseTimer,
-    onResetTimer,
-    onWhiteboardEvent,
-    whiteboardOperations,
-    flushWhiteboardOperations,
 }: TeacherSessionViewProps) {
     const { toast } = useToast();
     const [teacherView, setTeacherView] = useState<'content' | 'grid'>('content');
@@ -435,17 +426,7 @@ export function TeacherSessionView({
     return (
         <div className="flex-1 flex min-h-0 gap-4">
             <div className="flex-1 flex flex-col min-h-0 min-w-0">
-                {teacherView === 'content' ? renderActiveTool : (
-                    <ScrollArea className="h-full">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-1">
-                            {allGridParticipants.map(p => renderParticipant(p))}
-                        </div>
-                    </ScrollArea>
-                )}
-            </div>
-
-            <div className="w-80 flex-shrink-0 flex flex-col">
-                 <div className="flex items-center gap-2 mb-4">
+                <div className="flex items-center gap-2 mb-4">
                     <Button 
                         variant={teacherView === 'content' ? 'default' : 'outline'} 
                         size="sm" 
@@ -463,6 +444,19 @@ export function TeacherSessionView({
                         <Grid className="mr-2 h-4 w-4" /> Grille
                     </Button>
                 </div>
+                <div className="flex-1 min-h-0">
+                  {teacherView === 'content' ? renderActiveTool : (
+                      <ScrollArea className="h-full">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-1">
+                              {allGridParticipants.map(p => renderParticipant(p))}
+                          </div>
+                      </ScrollArea>
+                  )}
+                </div>
+            </div>
+
+            <div className="w-80 flex-shrink-0 flex flex-col">
+                 
                 <ScrollArea className="flex-1 -mr-3 pr-3">
                     <div className="space-y-4">
                         <AnimatedCard title="Partage de Document">
@@ -527,3 +521,6 @@ export function TeacherSessionView({
                     </div>
                 </ScrollArea>
             </div>
+        </div>
+    );
+}
