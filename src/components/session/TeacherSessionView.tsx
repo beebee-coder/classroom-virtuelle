@@ -1,6 +1,6 @@
 // src/components/session/TeacherSessionView.tsx
 'use client';
-import { PDFUploadSection } from './PDFUploadSection';
+import { DocumentUploadSection } from './DocumentUploadSection';
 
 import React, { useState, type ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -255,7 +255,6 @@ export function TeacherSessionView({
         return Array.from(participantMap.values());
     }, [teacher, classroom?.eleves]);
 
-
     const renderActiveTool = useMemo(() => {
         if (isSharingScreen && screenStream) {
             return (
@@ -270,6 +269,10 @@ export function TeacherSessionView({
                 </Card>
             );
         }
+        
+        const spotlightedStream = spotlightedUser?.id === currentUserId 
+            ? (isSharingScreen ? screenStream : localStream)
+            : remoteStreamsMap.get(spotlightedUser?.id ?? '');
 
         switch(activeTool) {
             case 'document':
@@ -320,11 +323,6 @@ export function TeacherSessionView({
                 );
                 
             case 'camera':
-                const spotlightedStream = spotlightedUser?.id === currentUserId 
-                    ? (isSharingScreen ? screenStream : localStream)
-                    : remoteStreamsMap.get(spotlightedUser?.id ?? '');
-
-
                 if (!spotlightedUser) {
                     return (
                         <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/30 border-dashed">
@@ -464,7 +462,7 @@ export function TeacherSessionView({
                     <div className="space-y-4">
                         <AnimatedCard title="Partage de Document">
                             <div className='p-2 space-y-3'>
-                                <PDFUploadSection 
+                                <DocumentUploadSection 
                                     sessionId={sessionId} 
                                     onUploadSuccess={() => {
                                         // console.log('Upload successful, parent component notified.');
