@@ -38,10 +38,9 @@ if (typeof globalThis.activePresenceChannels === 'undefined') {
 
 export const useAblyPresence = (channelId?: string, enabled: boolean = true): UseAblyPresenceReturn => {
   // CHANGEMENT: Utiliser useAbly() au lieu de useAblyWithSession()
-  const { client, connectionError, isConnected: ablyConnected } = useAbly();
+  const { client, connectionError, isConnected: ablyConnected, connectionState } = useAbly();
   const [onlineMembers, setOnlineMembers] = useState<AblyPresenceMember[]>([]);
   const [isConnected, setIsConnected] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<AblyErrorInfo | null>(null);
 
   // CORRECTION: Références simplifiées et stabilisées
@@ -50,6 +49,8 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
   const mountedRef = useRef(true);
   const currentChannelNameRef = useRef<string | null>(null);
   const componentIdRef = useRef(`presence_${Math.random().toString(36).substring(2, 8)}`);
+
+  const isLoading = connectionState === 'initialized' || connectionState === 'connecting';
 
   // CORRECTION: Mise à jour des membres depuis la source globale
   const updateOnlineMembers = useCallback(() => {
@@ -61,7 +62,7 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
     const channelInfo = globalThis.activePresenceChannels.get(channelName);
     if (channelInfo) {
       const membersArray = Array.from(channelInfo.members.values());
-      console.log(`📊 [useAblyPresence] - ${membersArray.length} members after update (${componentIdRef.current})`);
+      // console.log(`📊 [useAblyPresence] - ${membersArray.length} members after update (${componentIdRef.current})`);
       setOnlineMembers(membersArray);
     } else {
       setOnlineMembers([]);
@@ -82,11 +83,11 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
         console.warn(`⚠️ [useAblyPresence] - Channel ${channelName} not found in global cache during increment`);
         return;
       }
-      console.log(`📈 [useAblyPresence] - Ref count for channel ${channelName} increased to: ${channelInfo.refCount} (${componentIdRef.current})`);
+      // console.log(`📈 [useAblyPresence] - Ref count for channel ${channelName} increased to: ${channelInfo.refCount} (${componentIdRef.current})`);
     } else {
       if (channelInfo) {
         channelInfo.refCount = Math.max(0, channelInfo.refCount - 1);
-        console.log(`📉 [useAblyPresence] - Ref count for channel ${channelName} decreased to: ${channelInfo.refCount} (${componentIdRef.current})`);
+        // console.log(`📉 [useAblyPresence] - Ref count for channel ${channelName} decreased to: ${channelInfo.refCount} (${componentIdRef.current})`);
         
         // CORRECTION: Ne détacher le canal que si plus aucun composant ne l'utilise
         if (channelInfo.refCount === 0) {
@@ -97,7 +98,7 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
               console.log(`🚪 [useAblyPresence] - Detaching channel ${channelName}`);
               currentChannelInfo.channel.detach();
               globalThis.activePresenceChannels.delete(channelName);
-              console.log(`✅ [useAblyPresence] - Removed channel ${channelName}. Total channels: ${globalThis.activePresenceChannels.size}`);
+              // console.log(`✅ [useAblyPresence] - Removed channel ${channelName}. Total channels: ${globalThis.activePresenceChannels.size}`);
             }
           }, 3000); // Délai de sécurité augmenté
         }
@@ -119,13 +120,12 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
     const stateHandler = (stateChange: AblyChannelStateChange) => {
       if (!mountedRef.current) return;
       
-      console.log(`🔌 [useAblyPresence] - Channel state: ${stateChange.previous} → ${stateChange.current} for ${channelName} (${componentIdRef.current})`);
+      // console.log(`🔌 [useAblyPresence] - Channel state: ${stateChange.previous} → ${stateChange.current} for ${channelName} (${componentIdRef.current})`);
       
       if (stateChange.current === 'attached') {
-        console.log(`✅ [useAblyPresence] - Attached to channel: ${channelName}`);
+        // console.log(`✅ [useAblyPresence] - Attached to channel: ${channelName}`);
         setIsConnected(true);
         setError(null);
-        setIsLoading(false);
       } else if (stateChange.current === 'detached') {
         console.warn(`⚠️ [useAblyPresence] - Detached from channel: ${channelName}`);
         setIsConnected(false);
@@ -135,7 +135,6 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
           setError(stateChange.reason);
         }
         setIsConnected(false);
-        setIsLoading(false);
       } else if (stateChange.current === 'suspended') {
         console.warn(`⏸️ [useAblyPresence] - Channel suspended: ${channelName}`);
         setIsConnected(false);
@@ -146,11 +145,11 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
     const onPresenceUpdate = (message: AblyPresenceMessage) => {
       if (!mountedRef.current) return;
 
-      console.log(`🔄 [useAblyPresence] - Presence update on ${channelName}`, {
+      /* console.log(`🔄 [useAblyPresence] - Presence update on ${channelName}`, {
         action: message.action,
         clientId: message.clientId,
         data: message.data
-      });
+      }); */
 
       const currentMembers = channelInfo.members;
 
@@ -205,7 +204,7 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
         }
         
         if (members) {
-          console.log(`🔍 [useAblyPresence] - Retrieved ${members.length} current presence members`);
+          // console.log(`🔍 [useAblyPresence] - Retrieved ${members.length} current presence members`);
           channelInfo.members.clear();
           
           members.forEach((member: AblyPresenceMessage) => {
@@ -235,29 +234,25 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
 
     // Conditions de sortie précoces
     if (!enabled || !channelId || !client) {
-      if (mountedRef.current) {
-        setIsLoading(!enabled || !channelId || !client);
-      }
       return;
     }
 
     const channelName = getClassChannelName(channelId);
     currentChannelNameRef.current = channelName;
 
-    console.log(`🎯 [useAblyPresence] - Initializing presence for channel: ${channelName} (${componentIdRef.current})`);
+    // console.log(`🎯 [useAblyPresence] - Initializing presence for channel: ${channelName} (${componentIdRef.current})`);
 
     const initializePresence = async () => {
       if (!mountedRef.current) return;
 
       try {
-        setIsLoading(true);
         setError(null);
 
         let channelInfo = globalThis.activePresenceChannels.get(channelName);
         
         // CORRECTION: Créer ou réutiliser le canal global
         if (!channelInfo) {
-          console.log(`🆕 [useAblyPresence] - Creating new global channel: ${channelName}`);
+          // console.log(`🆕 [useAblyPresence] - Creating new global channel: ${channelName}`);
           
           const channel = client.channels.get(channelName);
           channelRef.current = channel;
@@ -278,7 +273,7 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
             await channel.attach();
           }
         } else {
-          console.log(`🔁 [useAblyPresence] - Reusing existing global channel: ${channelName}`);
+          // console.log(`🔁 [useAblyPresence] - Reusing existing global channel: ${channelName}`);
           channelRef.current = channelInfo.channel;
         }
 
@@ -288,14 +283,12 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
         // Mettre à jour l'état de connexion
         if (channelRef.current.state === 'attached') {
           setIsConnected(true);
-          setIsLoading(false);
         }
 
       } catch (err) {
         if (mountedRef.current) {
           console.error(`❌ [useAblyPresence] - Failed to initialize presence for ${channelName}:`, err);
           setError(err as AblyErrorInfo);
-          setIsLoading(false);
           setIsConnected(false);
         }
       }
@@ -309,7 +302,7 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
       
       const channelNameToCleanup = currentChannelNameRef.current;
       if (channelNameToCleanup) {
-        console.log(`🧹 [useAblyPresence] - Cleaning up presence for channel: ${channelNameToCleanup} (${componentIdRef.current})`);
+        // console.log(`🧹 [useAblyPresence] - Cleaning up presence for channel: ${channelNameToCleanup} (${componentIdRef.current})`);
         
         // CORRECTION: Décrémenter le compteur de références seulement
         manageChannelRefCount(channelNameToCleanup, false);
@@ -321,7 +314,6 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
       
       if (mountedRef.current) {
         setIsConnected(false);
-        setIsLoading(false);
       }
     };
   }, [channelId, enabled, client, manageChannelRefCount, setupPresenceHandlers]);
@@ -340,9 +332,9 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
     
     isEnteringRef.current = true;
     try {
-      console.log(`🎯 [useAblyPresence] - Entering presence for user: ${client?.auth.clientId}`, userData);
+      // console.log(`🎯 [useAblyPresence] - Entering presence for user: ${client?.auth.clientId}`, userData);
       await channel.presence.enter(userData);
-      console.log(`✅ [useAblyPresence] - Successfully entered presence`);
+      // console.log(`✅ [useAblyPresence] - Successfully entered presence`);
     } catch (err) {
       console.error('❌ [useAblyPresence] - Error entering presence:', err);
       setError(err as AblyErrorInfo);
@@ -359,9 +351,9 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
     }
     
     try {
-      console.log(`🚪 [useAblyPresence] - Leaving presence for user: ${client?.auth.clientId}`);
+      // console.log(`🚪 [useAblyPresence] - Leaving presence for user: ${client?.auth.clientId}`);
       await channel.presence.leave();
-      console.log(`✅ [useAblyPresence] - Successfully left presence`);
+      // console.log(`✅ [useAblyPresence] - Successfully left presence`);
     } catch (err) {
       console.error('❌ [useAblyPresence] - Error leaving presence:', err);
     }
@@ -375,9 +367,9 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
     }
     
     try {
-      console.log(`📝 [useAblyPresence] - Updating presence for user: ${client?.auth.clientId}`, userData);
+      // console.log(`📝 [useAblyPresence] - Updating presence for user: ${client?.auth.clientId}`, userData);
       await channel.presence.update(userData);
-      console.log(`✅ [useAblyPresence] - Successfully updated presence`);
+      // console.log(`✅ [useAblyPresence] - Successfully updated presence`);
     } catch (err) {
       console.error('❌ [useAblyPresence] - Error updating presence:', err);
       setError(err as AblyErrorInfo);
@@ -389,13 +381,15 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
     if (connectionError) {
       setError(connectionError);
       setIsConnected(false);
+    } else {
+        setError(null);
     }
   }, [connectionError]);
 
   // CORRECTION : Synchroniser l'état de connexion Ably global
   useEffect(() => {
     if (!ablyConnected && isConnected) {
-      console.log(`🔌 [useAblyPresence] - Ably connection lost, updating presence state`);
+      // console.log(`🔌 [useAblyPresence] - Ably connection lost, updating presence state`);
       setIsConnected(false);
     }
   }, [ablyConnected, isConnected]);
@@ -404,7 +398,7 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
     onlineMembers, 
     isConnected, 
     error, 
-    isLoading: isLoading || !client,
+    isLoading,
     enterPresence, 
     leavePresence, 
     updatePresence 
