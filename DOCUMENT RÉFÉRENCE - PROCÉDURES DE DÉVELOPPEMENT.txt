@@ -258,6 +258,30 @@ generator client {
   provider = "prisma-client-js"
 }
 
+ARTICLE 10 : PRINCIPES FONDAMENTAUX DE L'ARCHITECTURE TEMPS RÉEL (STABLE)
+
+10.1 Objectif
+Cet article sanctuarise l'architecture temps réel qui a atteint un état stable et fonctionnel. Toute extension future DOIT se conformer à ces principes pour maintenir l'intégrité, la performance et la stabilité du système.
+
+10.2 Point d'Entrée Unique pour la Connexion Temps Réel
+- **Hook Imposé** : Toute fonctionnalité temps réel dans un composant client DOIT utiliser le hook `useAblyWithSession()` (`src/hooks/useAblyWithSession.ts`) pour obtenir une instance client Ably authentifiée et stable.
+- **Interdiction** : Il est formellement interdit de créer ou d'initialiser une nouvelle instance du client Ably manuellement dans les composants. `useAblyWithSession` gère le cycle de vie et le partage de la connexion pour l'ensemble de l'application.
+
+10.3 Structure des Événements et Canaux
+- **Fichiers de Définition** : Toute communication temps réel DOIT utiliser les constantes définies dans `src/lib/ably/events.ts` pour les noms d'événements et les fonctions de `src/lib/ably/channels.ts` pour générer les noms de canaux.
+- **Ajout d'un Nouvel Événement** : Pour ajouter une nouvelle interaction, la procédure est la suivante :
+  1. Ajouter une nouvelle constante dans `AblyEvents` (`events.ts`).
+  2. Créer ou modifier une `server action` (`src/lib/actions/*.ts`) qui appelle `ablyTrigger`.
+  3. Dans `SessionClient.tsx`, ajouter un nouvel abonnement (`channel.subscribe(...)`) à cet événement pour mettre à jour l'état.
+
+10.4 Orchestration Centrale des Données de Session
+- **Composant Maître** : `SessionClient.tsx` est l'orchestrateur central de l'état d'une session en temps réel. C'est le SEUL endroit où les abonnements aux événements Ably doivent être gérés.
+- **Flux de Données** : Les données reçues via les abonnements dans `SessionClient.tsx` sont stockées dans son état (ex: `whiteboardOperations`, `raisedHands`) puis passées en `props` aux composants enfants (`TeacherSessionView`, `StudentSessionView`). Les composants enfants sont "stupides" et se contentent d'afficher les données reçues.
+
+10.5 Séparation Stricte des Vues
+- **Vues Spécifiques au Rôle** : Toute fonctionnalité doit respecter la séparation entre `TeacherSessionView.tsx` (interface et contrôles du professeur) et `StudentSessionView.tsx` (interface de l'élève).
+- **Logique d'Affichage** : La logique conditionnelle (ex: `isTeacher ? <A /> : <B />`) doit être contenue dans ces vues ou dans `SessionClient.tsx`, et non dispersée dans des composants de bas niveau.
+
 PROTOCOLE D'APPLICATION
 Tout développement DOIT suivre cette procédure :
 
