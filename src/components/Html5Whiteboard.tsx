@@ -1,0 +1,350 @@
+// src/components/Html5Whiteboard.tsx - VERSION CORRIGÉE
+'use client';
+
+import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { Pen, Eraser, Trash2, Download } from 'lucide-react';
+import { Button } from './ui/button';
+import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
+import { Separator } from './ui/separator';
+import type { WhiteboardOperation } from '@/types';
+import { v4 as uuidv4 } from 'uuid';
+
+interface WhiteboardProps {
+  sessionId: string;
+  userId: string;
+  isController: boolean;
+  operations: WhiteboardOperation[];
+  onEvent: (op: WhiteboardOperation[]) => void;
+  flushOperations?: () => void;
+}
+
+type Tool = 'pen' | 'eraser';
+
+export const Html5Whiteboard: React.FC<WhiteboardProps> = React.memo(function Whiteboard({
+  sessionId,
+  userId,
+  isController,
+  operations = [],
+  onEvent,
+  flushOperations,
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [tool, setTool] = useState<Tool>('pen');
+  const [color, setColor] = useState('#000000');
+  const [brushSize, setBrushSize] = useState(5);
+  const lastPointRef = useRef<{ x: number, y: number } | null>(null);
+  const currentPathId = useRef<string | null>(null);
+  
+  // Références pour éviter les redessinages inutiles
+  const lastOperationsLengthRef = useRef(0);
+  const pathsCacheRef = useRef<Map<string, { points: {x: number, y: number}[], color: string, brushSize: number }>>(new Map());
+
+  // CORRECTION: Redessiner uniquement quand nécessaire
+  const redrawCanvas = useCallback((forceRedraw: boolean = false) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Éviter les redessinages inutiles si rien n'a changé
+    if (!forceRedraw && operations.length === lastOperationsLengthRef.current) {
+      return;
+    }
+    
+    lastOperationsLengthRef.current = operations.length;
+
+    // CORRECTION: Toujours effacer complètement d'abord
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Réinitialiser le cache si nécessaire
+    if (forceRedraw) {
+      pathsCacheRef.current.clear();
+    }
+
+    // Regrouper les points par ID de trait
+    const paths = new Map<string, { points: {x: number, y: number}[], color: string, brushSize: number }>();
+    let hasClearOperation = false;
+
+    // CORRECTION: Traiter les opérations dans l'ordre chronologique
+    const sortedOperations = [...operations].sort((a, b) => a.timestamp - b.timestamp);
+
+    sortedOperations.forEach(op => {
+      if (op.type === 'CLEAR') {
+        paths.clear();
+        pathsCacheRef.current.clear();
+        hasClearOperation = true;
+      }
+      
+      if (op.type === 'DRAW') {
+        // CORRECTION: Utiliser le cache pour les tracés existants
+        if (pathsCacheRef.current.has(op.pathId)) {
+          const cachedPath = pathsCacheRef.current.get(op.pathId)!;
+          if (!paths.has(op.pathId)) {
+            paths.set(op.pathId, { ...cachedPath });
+          }
+        } else if (!paths.has(op.pathId)) {
+          paths.set(op.pathId, {
+            points: [op.payload.from],
+            color: op.payload.color,
+            brushSize: op.payload.brushSize,
+          });
+        }
+        
+        // Ajouter le nouveau point au tracé
+        const path = paths.get(op.pathId)!;
+        path.points.push(op.payload.to);
+      }
+    });
+
+    // CORRECTION: Mettre à jour le cache
+    paths.forEach((path, pathId) => {
+      pathsCacheRef.current.set(pathId, { ...path });
+    });
+
+    // CORRECTION: Effacer si nécessaire avant de dessiner
+    if (hasClearOperation) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    
+    // Dessiner chaque trait
+    paths.forEach(path => {
+      if (path.points.length < 2) return;
+      
+      ctx.beginPath();
+      ctx.moveTo(path.points[0].x, path.points[0].y);
+      
+      for (let i = 1; i < path.points.length; i++) {
+        ctx.lineTo(path.points[i].x, path.points[i].y);
+      }
+      
+      ctx.strokeStyle = path.color;
+      ctx.lineWidth = path.brushSize;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+    });
+
+    console.log(`🎨 [WHITEBOARD] - Redrawn ${paths.size} paths with ${operations.length} operations`);
+
+  }, [operations]);
+
+  // CORRECTION: Utiliser un effet dédié pour le redessinage
+  useEffect(() => {
+    redrawCanvas();
+  }, [operations, redrawCanvas]);
+
+  // CORRECTION: Redessiner aussi quand le canvas change de taille
+  useEffect(() => {
+    const handleResize = () => {
+      redrawCanvas(true);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [redrawCanvas]);
+
+  const getCanvasPoint = useCallback((clientX: number, clientY: number): { x: number, y: number } | null => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY
+    };
+  }, []);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (!isController) return;
+    const point = getCanvasPoint(e.clientX, e.clientY);
+    if (!point) return;
+
+    setIsDrawing(true);
+    lastPointRef.current = point;
+    currentPathId.current = uuidv4();
+    
+    console.log(`✏️ [WHITEBOARD] - Started drawing with path: ${currentPathId.current}`);
+  }, [isController, getCanvasPoint]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isDrawing || !isController || !lastPointRef.current || !currentPathId.current) return;
+    
+    const currentPoint = getCanvasPoint(e.clientX, e.clientY);
+    if (!currentPoint) return;
+    
+    const event: WhiteboardOperation = {
+        id: uuidv4(),
+        pathId: currentPathId.current,
+        userId,
+        sessionId,
+        timestamp: Date.now(),
+        type: 'DRAW',
+        payload: {
+            from: lastPointRef.current,
+            to: currentPoint,
+            tool: tool,
+            color: tool === 'eraser' ? '#FFFFFF' : color,
+            brushSize: tool === 'eraser' ? 20 : brushSize,
+        },
+    };
+
+    onEvent([event]);
+    lastPointRef.current = currentPoint;
+
+  }, [isDrawing, isController, getCanvasPoint, tool, color, brushSize, onEvent, sessionId, userId]);
+
+  const handleMouseUp = useCallback(() => {
+    if (!isDrawing) return;
+    
+    console.log(`🛑 [WHITEBOARD] - Stopped drawing path: ${currentPathId.current}`);
+    
+    setIsDrawing(false);
+    lastPointRef.current = null;
+    currentPathId.current = null;
+    
+    if (flushOperations) {
+      flushOperations();
+    }
+  }, [isDrawing, flushOperations]);
+
+  const handleClearCanvas = useCallback(() => {
+    if (!isController) return;
+    
+    const event: WhiteboardOperation = {
+        id: uuidv4(),
+        pathId: uuidv4(),
+        userId,
+        sessionId,
+        timestamp: Date.now(),
+        type: 'CLEAR'
+    };
+    
+    console.log(`🧹 [WHITEBOARD] - Clearing canvas`);
+    onEvent([event]);
+    
+    if (flushOperations) {
+      flushOperations();
+    }
+  }, [isController, onEvent, sessionId, userId, flushOperations]);
+
+  const downloadCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const link = document.createElement('a');
+    link.download = `whiteboard-${sessionId}-${new Date().toISOString().split('T')[0]}.png`;
+    link.href = canvas.toDataURL();
+    link.click();
+  }, [sessionId]);
+
+  // CORRECTION: Prévenir les événements tactiles indésirables
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (!isController) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const point = getCanvasPoint(touch.clientX, touch.clientY);
+    if (!point) return;
+
+    setIsDrawing(true);
+    lastPointRef.current = point;
+    currentPathId.current = uuidv4();
+  }, [isController, getCanvasPoint]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isDrawing || !isController) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const currentPoint = getCanvasPoint(touch.clientX, touch.clientY);
+    if (!currentPoint || !lastPointRef.current || !currentPathId.current) return;
+
+    const event: WhiteboardOperation = {
+        id: uuidv4(),
+        pathId: currentPathId.current,
+        userId,
+        sessionId,
+        timestamp: Date.now(),
+        type: 'DRAW',
+        payload: {
+            from: lastPointRef.current,
+            to: currentPoint,
+            tool: tool,
+            color: tool === 'eraser' ? '#FFFFFF' : color,
+            brushSize: tool === 'eraser' ? 20 : brushSize,
+        },
+    };
+
+    onEvent([event]);
+    lastPointRef.current = currentPoint;
+  }, [isDrawing, isController, getCanvasPoint, tool, color, brushSize, onEvent, sessionId, userId]);
+
+  const handleTouchEnd = useCallback(() => {
+    handleMouseUp();
+  }, [handleMouseUp]);
+
+  return (
+    <div className="h-full w-full bg-white border rounded-lg flex flex-col">
+      {isController && (
+        <div className="p-2 bg-muted border-b flex gap-2 items-center flex-wrap justify-center">
+           <ToggleGroup type="single" value={tool} onValueChange={(value: Tool) => value && setTool(value)} size="sm">
+            <ToggleGroupItem value="pen" aria-label="Crayon">
+              <Pen className="h-4 w-4" />
+            </ToggleGroupItem>
+            <ToggleGroupItem value="eraser" aria-label="Gomme">
+              <Eraser className="h-4 w-4" />
+            </ToggleGroupItem>
+          </ToggleGroup>
+          <Separator orientation="vertical" className="h-8" />
+          <input 
+            type="color" 
+            value={color} 
+            onChange={(e) => setColor(e.target.value)}
+            className="w-8 h-8 cursor-pointer border rounded"
+            disabled={tool === 'eraser'}
+            aria-label="Couleur"
+          />
+          <Separator orientation="vertical" className="h-8" />
+          <div className="flex items-center gap-2">
+            <input 
+              type="range" 
+              min="1" 
+              max="50" 
+              value={brushSize} 
+              onChange={(e) => setBrushSize(parseInt(e.target.value))}
+              className="w-24"
+              aria-label="Taille du pinceau"
+            />
+            <span className="text-sm w-6 text-center">{brushSize}</span>
+          </div>
+          <Separator orientation="vertical" className="h-8" />
+          <Button onClick={handleClearCanvas} variant="destructive" size="sm">
+            <Trash2 className="h-4 w-4 mr-2"/>
+            Effacer
+          </Button>
+          <Button onClick={downloadCanvas} variant="outline" size="sm">
+            <Download className="h-4 w-4 mr-2"/>
+            Télécharger
+          </Button>
+        </div>
+      )}
+      <div className="flex-1 relative bg-white overflow-hidden">
+        <canvas
+          ref={canvasRef}
+          width={1200}
+          height={800}
+          className={`w-full h-full ${isController ? 'cursor-crosshair touch-none' : 'cursor-default'}`}
+          onMouseDown={isController ? handleMouseDown : undefined}
+          onMouseMove={isController ? handleMouseMove : undefined}
+          onMouseUp={isController ? handleMouseUp : undefined}
+          onMouseLeave={isController ? handleMouseUp : undefined}
+          onTouchStart={isController ? handleTouchStart : undefined}
+          onTouchMove={isController ? handleTouchMove : undefined}
+          onTouchEnd={isController ? handleTouchEnd : undefined}
+          onContextMenu={(e) => e.preventDefault()} // Empêcher le menu contextuel
+        />
+      </div>
+    </div>
+  );
+});
+
+Html5Whiteboard.displayName = 'Html5Whiteboard';

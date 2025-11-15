@@ -1,0 +1,55 @@
+//src/app/student/class/[id]/page.tsx
+
+import { notFound, redirect } from 'next/navigation';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
+import { Header } from '@/components/Header';
+import { StudentClassView } from '@/components/StudentClassView';
+import type { User, Classroom, EtatEleve } from '@prisma/client';
+import prisma from '@/lib/prisma';
+
+export type ClassroomWithStudents = Classroom & {
+    eleves: (User & {
+        etat: EtatEleve | null;
+    })[];
+};
+
+export default async function StudentClassPage({ params }: { params: { id: string } }) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) {
+    redirect('/login');
+  }
+
+  const classroomId = params.id;
+  
+  const classroom = await prisma.classroom.findUnique({
+    where: { id: classroomId },
+    include: {
+        eleves: {
+            include: {
+                etat: true,
+            },
+            orderBy: {
+                points: 'desc'
+            }
+        }
+    }
+  });
+
+
+  if (!classroom) {
+    notFound();
+  }
+
+  // Security check: ensure the logged-in student is part of this class
+  if (session.user.role === 'ELEVE' && session.user.classeId !== classroom.id) {
+    notFound();
+  }
+
+  return (
+    <>
+      <Header user={session.user} />
+      <StudentClassView classroom={classroom as ClassroomWithStudents} />
+    </>
+  );
+}

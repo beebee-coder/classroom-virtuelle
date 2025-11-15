@@ -1,0 +1,160 @@
+// Importer les types depuis notre source de vérité unique
+import type { 
+  User as PrismaUser,
+  Classroom as PrismaClassroom,
+  Metier as PrismaMetier,
+  CoursSession as PrismaCoursSession,
+  Task as PrismaTask,
+  StudentProgress as PrismaStudentProgress,
+  Reaction as PrismaReaction,
+  Message as PrismaMessage,
+  Announcement as PrismaAnnouncement,
+  EtatEleve as PrismaEtatEleve,
+  Role as PrismaRole,
+  TaskType as PrismaTaskType,
+  TaskCategory as PrismaTaskCategory,
+  TaskDifficulty as PrismaTaskDifficulty,
+  ValidationType as PrismaValidationType,
+  ProgressStatus as PrismaProgressStatus
+} from '@prisma/client';
+
+import type { Instance as PeerInstance, SignalData as PeerSignalData } from 'simple-peer';
+
+// Re-export des types Prisma de base si nécessaire ailleurs, mais il vaut mieux importer directement.
+export * from '@prisma/client';
+
+// Types pour le nouveau système de tableau blanc avec Redis
+export type OperationType = 'DRAW' | 'CLEAR' | 'UNDO' | 'REDO';
+
+export interface CanvasElement {
+  id: string;
+  type: 'path' | 'rectangle' | 'circle' | 'text' | 'image';
+  points: number[][]; // Pour les 'path'
+  x?: number; y?: number; width?: number; height?: number; // Pour les autres formes
+  color: string;
+  strokeWidth: number;
+  opacity: number;
+  createdAt: number;
+  createdBy: string; // userId
+}
+
+// CORRECTION: Un seul type unifié pour toutes les opérations
+export type WhiteboardOperation = {
+  id: string; // uuidv4 pour chaque segment
+  pathId: string; // uuidv4 pour le trait complet
+  userId: string;
+  sessionId: string;
+  timestamp: number;
+} & (
+  | {
+      type: 'DRAW';
+      payload: {
+        from: { x: number; y: number };
+        to: { x: number; y: number };
+        tool: 'pen' | 'eraser';
+        color: string;
+        brushSize: number;
+      };
+    }
+  | {
+      type: 'CLEAR';
+      payload?: null; // Pas de payload pour clear
+    }
+);
+
+export interface WhiteboardSceneObject {
+  elements: CanvasElement[];
+}
+
+export type Html5CanvasScene = WhiteboardSceneObject | null;
+
+// Enum pour les niveaux de compréhension
+export enum ComprehensionLevel {
+  UNDERSTOOD = 'understood',
+  CONFUSED = 'confused',
+  LOST = 'lost',
+  NONE = 'none',
+}
+
+// Type défini manuellement car il n'est pas un modèle Prisma
+export type DocumentInHistory = {
+  id: string;
+  name: string;
+  url: string;
+  createdAt: string; // CORRECTION: Doit être une chaîne pour la sérialisation
+  coursSessionId: string;
+  sharedBy: string;
+};
+
+// CORRECTION: Utiliser directement le type PrismaRole pour la cohérence
+export type User = Omit<PrismaUser, 'role'> & {
+  role: PrismaRole;
+  ambition?: string | null;
+  points?: number | null;
+};
+
+// Types composites et spécifiques à l'application
+export type ClassroomWithDetails = PrismaClassroom & { 
+  eleves: (User & { 
+    etat: (PrismaEtatEleve & { metier: PrismaMetier | null }) | null 
+  })[] 
+};
+
+export type SessionParticipant = Pick<User, 'id' | 'name' | 'role'>;
+
+// Définition pour les détails d'une session, utilisée par la route API et la page
+export interface SessionDetails {
+  id: string;
+  teacher: User;
+  students: User[];
+  participants: User[];
+  documentHistory: DocumentInHistory[];
+  classroom: ClassroomWithDetails | null;
+  startTime: string;
+  endTime: string | null;
+}
+
+// Types pour Pusher
+export interface PusherMember {
+  id: string;
+  info?: any;
+}
+
+export interface PusherSubscriptionSucceededEvent {
+  members: Record<string, PusherMember>;
+  count: number;
+}
+
+export interface PusherMemberEvent {
+  id: string;
+  info?: any;
+}
+
+// Types pour les signaux WebRTC
+export interface SignalPayload {
+  channelName: string;
+  userId: string;
+  target: string;
+  signal: PeerSignalData;
+  isReturnSignal: boolean;
+}
+
+export interface IncomingSignalData {
+  userId: string;
+  signal: PeerSignalData;
+  target: string;
+  isReturnSignal?: boolean;
+}
+
+export interface SessionClientProps {
+  sessionId: string;
+  initialStudents: User[];
+  initialTeacher: User;
+  currentUserRole: PrismaRole;
+  currentUserId: string;
+  classroom: ClassroomWithDetails | null;
+  initialDocumentHistory: DocumentInHistory[];
+}
+
+// CORRECTION: Types pour la compatibilité avec les composants
+export type { PeerInstance, PeerSignalData };

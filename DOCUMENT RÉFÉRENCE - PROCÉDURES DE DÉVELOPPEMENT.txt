@@ -1,0 +1,270 @@
+📋 DOCUMENT RÉFÉRENCE - PROCÉDURES DE DÉVELOPPEMENT
+
+ARTICLE 1 : CADRE GÉNÉRAL
+
+1.1 Stack Technique Imposable
+
+{
+  "metadata": {
+    "document_version": "2.1",
+    "enforcement_level": "STRICTE",
+    "compliance_required": true
+  },
+  "technical_stack": {
+    "framework": {
+      "name": "Next.js",
+      "version": "14.2.0",
+      "stability_index": 98,
+      "lts_until": "2025-08-01"
+    },
+    "database": {
+      "name": "PostgreSQL",
+      "version": "15.6",
+      "orm": "Prisma",
+      "orm_version": "5.10.2",
+      "migration_strategy": "safe-ddl"
+    },
+    "authentication": {
+      "name": "Auth.js",
+      "version": "4.24.5",
+      "adapter": "@auth/prisma-adapter@1.0.7"
+    },
+    "styling": {
+      "name": "TailwindCSS",
+      "version": "3.4.1",
+      "config": "tailwind.config.js"
+    },
+    "typescript": {
+      "version": "5.4.5",
+      "strict": true,
+      "config": "tsconfig.json"
+    }
+  }
+}
+
+ARTICLE 2 : PROCÉDURES DE DÉVELOPPEMENT AUTOMATIQUES
+
+2.1 Avant Tout Développement - Phase d'Analyse
+Prompt Automatique :
+
+SYSTEM: Référencez l'article 2.1 du document procédural.
+USER: [Description de la fonctionnalité]
+ASSISTANT: 
+1. ANALYSE_COMPATIBILITÉ_STACK() → Vérifier conformité avec stack imposée
+2. IDENTIFIER_DEPENDENCES() → Lister packages nécessaires
+3. VALIDER_VERSION() → Confirmer versions autorisées
+4. PROPOSER_ARCHITECTURE() → Structure selon standards
+2.2 Pendant le Développement - Contrôles Automatiques
+Checklists Intégrées :
+
+// VÉRIFICATIONS AUTOMATIQUES
+const validations = {
+  security: [
+    "✅ Validation des inputs",
+    "✅ Gestion des erreurs sécurisée", 
+    "✅ Protection CSRF/XSS",
+    "✅ Sanitization des données"
+  ],
+  performance: [
+    "✅ Composants optimisés",
+    "✅ Chargement lazy implémenté",
+    "✅ Images optimisées",
+    "✅ Code splitting vérifié"
+  ],
+  quality: [
+    "✅ Typage TypeScript strict",
+    "✅ Tests unitaires couvrants",
+    "✅ Documentation code complète",
+    "✅ Accessibilité respectée"
+  ]
+}
+
+2.3 Après Développement - Revue de Code Automatisée
+Template de Revue :
+
+## 📋 REVUE TECHNIQUE AUTOMATISÉE
+
+### CONFORMITÉ STACK
+- [ ] Next.js 14.2.0 ✅
+- [ ] Prisma 5.10.2 ✅  
+- [ ] TypeScript 5.4.5 ✅
+- [ ] Tailwind 3.4.1 ✅
+
+### QUALITÉ CODE
+- [ ] Aucun warning TypeScript
+- [ ] Tests passants à 100%
+- [ ] Couverture > 80%
+- [ ] Performance Core Web Vitals
+
+### SÉCURITÉ
+- [ ] Aucune vulnérabilité npm audit
+- [ ] Validation données implémentée
+- [ ] Secrets non exposés
+
+
+ARTICLE 3 : TEMPLATES DE CODE IMPOSÉS
+3.1 Template de Composant React
+
+// templates/component.strict.tsx
+import { ReactNode } from 'react';
+
+interface StrictComponentProps {
+  children?: ReactNode;
+  // Props typées strictement
+}
+
+/**
+ * @description Composant conforme article 3.1
+ * @version 2.1
+ * @compliance STRICTE
+ */
+export default function StrictComponent({ 
+  children 
+}: StrictComponentProps) {
+  // Implémentation selon standards
+  return (
+    <div className="container mx-auto p-4">
+      {children}
+    </div>
+  );
+}
+
+3.2 Template d'API Route
+
+// templates/api.strict.ts
+import { NextApiRequest, NextApiResponse } from 'next';
+import { z } from 'zod';
+
+const requestSchema = z.object({
+  // Schema de validation strict
+});
+
+/**
+ * @description API route conforme article 3.2
+ * @compliance SECURITY_LEVEL_HIGH
+ */
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  try {
+    // Validation automatique des inputs
+    const validatedData = requestSchema.parse(req.body);
+    
+    // Logique métier
+    
+    res.status(200).json({ success: true });
+  } catch (error) {
+    // Gestion d'erreur standardisée
+    res.status(400).json({ error: 'Invalid request' });
+  }
+}
+
+ARTICLE 4 : VALIDATIONS ET TESTS AUTOMATISÉS
+4.1 Scripts de Validation Imposés
+
+{
+  "scripts": {
+    "validate:stack": "node scripts/validate-stack.js",
+    "validate:security": "npm audit --audit-level high",
+    "validate:types": "tsc --noEmit --strict",
+    "validate:build": "next build --no-lint",
+    "test:full": "jest --coverage --watchAll=false"
+  }
+}
+
+4.2 Configuration de Test Automatique
+
+// jest.config.strict.js
+module.exports = {
+  preset: 'ts-jest',
+  testEnvironment: 'jsdom',
+  coverageThreshold: {
+    global: {
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 80
+    }
+  }
+};
+
+ARTICLE 5 : GESTION DES ERREURS ET MONITORING
+5.1 Procédure de Gestion d'Erreurs
+
+// lib/error-handling.strict.ts
+export class AppError extends Error {
+  constructor(
+    public code: string,
+    public userMessage: string,
+    public severity: 'low' | 'medium' | 'high'
+  ) {
+    super(userMessage);
+  }
+}
+
+// Template de gestion d'erreur imposé
+export function handleError(error: unknown) {
+  // Logging standardisé
+  // Monitoring automatique
+  // Retour utilisateur sécurisé
+}
+
+ARTICLE 6 : DOCUMENTATION ET MAINTENANCE
+6.1 Template de Documentation
+
+# DOCUMENTATION TECHNIQUE - [COMPOSANT/FONCTIONNALITÉ]
+
+## CONFORMITÉ
+- ✅ Stack: Next.js 14.2.0 + Prisma 5.10.2
+- ✅ Sécurité: Niveau HIGH
+- ✅ Performance: Core Web Vitals optimisés
+
+## DEPENDENCES
+- Packages: [liste versions exactes]
+- Compatibilité: [vérification effectuée]
+
+## TESTS
+- Couverture: > 80%
+- Scénarios: [liste]
+- Performance: [résultats]
+
+## MAINTENANCE
+- Dernière review: [date]
+- Prochaine vérification: [date + 30j]
+
+ARTICLE 7 : GESTION DES SECRETS ET VARIABLES D'ENVIRONNEMENT
+
+7.1 Interdiction de Modification du Fichier .env
+L'assistant IA ne doit JAMAIS modifier le contenu du fichier `.env`. Ce fichier est sous le contrôle exclusif de l'utilisateur. En cas de nécessité (ex: ajout d'une `DATABASE_URL`), l'assistant doit guider l'utilisateur sur la procédure à suivre, mais ne doit en aucun cas générer de modification pour ce fichier.
+
+ARTICLE 8 : INTÉGRITÉ DE LA STRUCTURE DU PROJET
+
+8.1 Prohibition de Duplication
+Il est formellement interdit d'ajouter un fichier ou un dossier qui est une copie exacte ou quasi-exacte d'un élément existant. Si un fichier doit être modifié, il doit être modifié sur place. La création de doublons (ex: `file-copy.tsx`, `dossier_v2/`) est une violation de cette procédure.
+
+ARTICLE 9 : INTÉGRITÉ DE L'EN-TÊTE DU SCHÉMA PRISMA
+
+9.1 Interdiction de Modification de l'En-tête de `schema.prisma`
+L'assistant IA ne doit JAMAIS modifier les blocs `datasource` et `generator` situés en en-tête du fichier `prisma/schema.prisma`. Ces blocs sont considérés comme des configurations critiques sous le contrôle de l'utilisateur.
+
+// BLOC PROTÉGÉ - NE PAS MODIFIER
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+PROTOCOLE D'APPLICATION
+Tout développement DOIT suivre cette procédure :
+
+1. Référencer l'article applicable avant codage
+2. Utiliser les templates imposés
+3. Exécuter les validations automatiques
+4. Documenter selon le format standard
+5. Archiver la conformité technique
+
+Ce document est exécutoire pour toute assistance au développement. Non-conformité = rejet automatique.

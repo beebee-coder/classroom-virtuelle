@@ -1,19 +1,17 @@
-# **App Name**: Aura Landing
+# **App Name**: HomeCanvas
 
 ## Core Features:
 
-- Home Page Display: Display a visually appealing landing page built with Shadcn UI and Tailwind CSS.
-- GitHub Integration: Set up GitHub Actions for linting (ESLint), type checking (TypeScript), and automated deployment to Vercel on code updates. GitHub acts as a tool that determines when a CI/CD event should be fired.
-- Vercel Deployment: Configure seamless deployment to Vercel for continuous integration and delivery.
-- Database Setup: Configure PostgreSQL database with Prisma ORM for data management.
-- Documentation Integration: Integrate a script to download the specified external documentation, storing it as a local file for easy reference.
+- Homepage Display: Display a visually appealing homepage using Shadcn UI and Tailwind CSS.
+- GitHub Update Script: Implement a script to automatically update the application based on changes in the GitHub repository.
+- Vercel Deployment: Configure the application for seamless deployment and hosting on Vercel.
+- Documentation Integration: Integrate the provided documentation as a reference guide within the application structure for easy access and compliance.
 
 ## Style Guidelines:
 
-- Primary color: Deep indigo (#3F51B5) to convey trust and reliability.
-- Background color: Very light gray (#F5F5F5), nearly white, for a clean and modern feel.
-- Accent color: Soft purple (#9575CD) to highlight interactive elements.
-- Font pairing: 'Space Grotesk' (sans-serif) for headlines and 'Inter' (sans-serif) for body text.
-- Use a set of minimalist, consistent icons sourced from a library like Lucide or Font Awesome.
-- Clean, spacious layout using Tailwind CSS grid and flexbox utilities.
-- Subtle transitions and hover effects using Tailwind CSS transition utilities for enhanced user feedback.
+- Primary color: Deep indigo (#4F46E5) to convey professionalism and stability.
+- Background color: Very light lavender (#F5F3FF), a desaturated version of the primary color, for a clean backdrop.
+- Accent color: Vivid violet (#7C3AED) to highlight interactive elements and calls to action.
+- Font: 'Inter', a grotesque-style sans-serif, for both headlines and body text. 
+- Clean and modern layout using Tailwind CSS grid and flexbox to ensure responsiveness.
+- Use simple, geometric icons from a library like 'lucide-react' to maintain a consistent and professional visual language.
