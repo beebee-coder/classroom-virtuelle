@@ -14,7 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import { ClassStudentList } from './ClassStudentList';
 import { Loader2, UploadCloud, File, Trash2, Share2, Award, Users, Grid, Presentation, MessageSquare } from 'lucide-react';
 import { Button } from '../ui/button';
-import { shareDocument } from '@/lib/actions/session.actions';
+import { getTeacherDocuments, shareDocument } from '@/lib/actions/session.actions';
 import { SessionStatus } from './SessionStatus';
 import { SessionTimer } from './SessionTimer';
 import { DocumentHistory } from './DocumentHistory';
@@ -44,7 +44,6 @@ interface TeacherSessionViewProps {
     onToolChange: (tool: string) => void;
     classroom: ClassroomWithDetails | null;
     documentUrl: string | null;
-    documentHistory: DocumentInHistory[];
     onSelectDocument: (doc: DocumentInHistory) => void;
     whiteboardControllerId: string | null;
     onWhiteboardControllerChange: (userId: string) => void;
@@ -77,7 +76,6 @@ export function TeacherSessionView({
     onToolChange,
     classroom,
     documentUrl,
-    documentHistory,
     onSelectDocument,
     whiteboardControllerId,
     onWhiteboardControllerChange,
@@ -93,16 +91,21 @@ export function TeacherSessionView({
 }: TeacherSessionViewProps) {
     const { toast } = useToast();
     const [teacherView, setTeacherView] = useState<'content' | 'grid'>('content');
+    const [documentHistory, setDocumentHistory] = useState<DocumentInHistory[]>([]);
     
     useEffect(() => {
-        // console.log(`👨‍🏫 [TEACHER VIEW] - Active tool: ${activeTool}, Whiteboard operations: ${whiteboardOperations.length}`);
-        // console.log(`👨‍🏫 [TEACHER VIEW] - Whiteboard controller: ${whiteboardControllerId}, Current user: ${currentUserId}`);
-        
-        if (activeTool === 'whiteboard' && whiteboardOperations.length > 0) {
-            // console.log(`👨‍🏫 [TEACHER VIEW] - Last operation:`, whiteboardOperations[whiteboardOperations.length - 1]);
-        }
-    }, [activeTool, whiteboardOperations, whiteboardControllerId, currentUserId]);
+        const fetchDocs = async () => {
+            const docs = await getTeacherDocuments();
+            setDocumentHistory(docs);
+        };
+        fetchDocs();
+    }, [currentUserId]);
 
+    const handleDocumentUploadSuccess = async () => {
+        const docs = await getTeacherDocuments();
+        setDocumentHistory(docs);
+    }
+    
     const validatedTimerTimeLeft = useMemo(() => {
         if (typeof timerTimeLeft !== 'number' || isNaN(timerTimeLeft) || timerTimeLeft < 0) {
             console.warn('Invalid timerTimeLeft value detected, using default:', timerTimeLeft);
@@ -466,9 +469,7 @@ export function TeacherSessionView({
                             <div className='p-2 space-y-3'>
                                 <DocumentUploadSection 
                                     sessionId={sessionId} 
-                                    onUploadSuccess={() => {
-                                        // console.log('Upload successful, parent component notified.');
-                                    }} 
+                                    onUploadSuccess={handleDocumentUploadSuccess} 
                                 />
                                 <DocumentHistory 
                                     documents={documentHistory} 
@@ -526,6 +527,3 @@ export function TeacherSessionView({
                     </div>
                 </ScrollArea>
             </div>
-        </div>
-    );
-}

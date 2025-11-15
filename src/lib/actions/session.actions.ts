@@ -251,7 +251,8 @@ export async function spotlightParticipant(sessionId: string, participantId: str
 
 export async function shareDocument(sessionId: string, newDoc: { name: string; url: string }, formData?: FormData) {
     const session = await getServerSession(authOptions);
-    if (!session?.user) throw new Error("Not authenticated");
+    if (!session?.user?.id) throw new Error("Not authenticated");
+    const teacherId = session.user.id;
 
     console.log('📄 [SHARE DOCUMENT] - Sharing document:', { sessionId, newDoc });
 
@@ -260,8 +261,7 @@ export async function shareDocument(sessionId: string, newDoc: { name: string; u
             data: {
                 name: newDoc.name,
                 url: newDoc.url,
-                coursSessionId: sessionId,
-                sharedBy: session.user.name ?? 'Professeur',
+                professeurId: teacherId,
             },
         });
 
@@ -273,7 +273,7 @@ export async function shareDocument(sessionId: string, newDoc: { name: string; u
             name: newDocument.name,
             url: newDocument.url,
             createdAt: newDocument.createdAt.toISOString(),
-            sharedBy: newDocument.sharedBy,
+            sharedBy: session.user.name ?? 'Professeur',
         };
 
         console.log('📡 [SHARE DOCUMENT] - Broadcasting to channel:', channel);
@@ -290,29 +290,29 @@ export async function shareDocument(sessionId: string, newDoc: { name: string; u
     }
 }
 
-export async function deleteSharedDocument(documentId: string, sessionId: string) {
-    console.log(`🗑️ [ACTION] deleteSharedDocument: ${documentId} de la session ${sessionId}`);
+export async function deleteSharedDocument(documentId: string) {
+    console.log(`🗑️ [ACTION] deleteSharedDocument: ${documentId}`);
     const session = await getServerSession(authOptions);
     const userId = session?.user?.id;
     
     if (!userId) throw new Error("Non authentifié");
 
-    const coursSession = await prisma.coursSession.findFirst({
-        where: { id: sessionId, professeurId: userId },
-        select: { id: true }
+    const docToDelete = await prisma.sharedDocument.findUnique({
+        where: { id: documentId },
+        select: { professeurId: true }
     });
 
-    if (!coursSession) {
+    if (!docToDelete || docToDelete.professeurId !== userId) {
         console.error(`❌ [ACTION] Tentative de suppression non autorisée par l'utilisateur ${userId}`);
         throw new Error("Action non autorisée");
     }
 
     try {
         await prisma.sharedDocument.delete({
-            where: { id: documentId, coursSessionId: sessionId }
+            where: { id: documentId }
         });
         
-        revalidatePath(`/session/${sessionId}`);
+        revalidatePath('/session', 'layout'); // Revalide toutes les pages de session
         console.log(`✅ [ACTION] Document ${documentId} supprimé avec succès.`);
         return { success: true };
 
@@ -321,6 +321,27 @@ export async function deleteSharedDocument(documentId: string, sessionId: string
         throw new Error("Impossible de supprimer le document.");
     }
 }
+
+export async function getTeacherDocuments(): Promise<DocumentInHistory[]> {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) return [];
+
+    const documents = await prisma.sharedDocument.findMany({
+        where: { professeurId: session.user.id },
+        orderBy: { createdAt: 'desc' }
+    });
+
+    // Transformer le retour pour correspondre au type DocumentInHistory
+    return documents.map(doc => ({
+        id: doc.id,
+        name: doc.name,
+        url: doc.url,
+        createdAt: doc.createdAt.toISOString(),
+        sharedBy: session.user?.name ?? 'Professeur',
+        coursSessionId: '' // Ce champ n'est plus pertinent mais conservé pour la compatibilité du type
+    }));
+}
+
 
 // CORRECTION: Ajout des fonctions timer manquantes
 export async function broadcastTimerEvent(sessionId: string, event: 'timer-started' | 'timer-paused' | 'timer-reset', data?: any) {
@@ -392,22 +413,20 @@ export async function cleanupExpiredSessions() {
 
 // Getters (do not need migration)
 export async function getSessionDetails(sessionId: string): Promise<SessionDetails | null> {
-    const session = await prisma.coursSession.findUnique({
+    const sessionData = await prisma.coursSession.findUnique({
         where: { id: sessionId },
         include: { 
             professeur: true, 
             participants: true,
-            sharedDocuments: { orderBy: { createdAt: 'asc' } }
         }
     });
 
-    if (!session) return null;
+    if (!sessionData) return null;
+
+    const documents = await getTeacherDocuments();
 
     return {
-        id: session.id,
-        teacher: session.professeur,
-        students: session.participants.filter(p => p.role === Role.ELEVE),
-        participants: session.participants,
-        documentHistory: session.sharedDocuments,
-    };
-}
+        id: sessionData.id,
+        teacher: sessionData.professeur,
+        students: sessionData.participants.filter(p => p.role === Role.ELEVE),
+        participants: sessionData.participants
