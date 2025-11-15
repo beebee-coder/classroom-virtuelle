@@ -20,6 +20,23 @@ interface WhiteboardProps {
 
 type Tool = 'pen' | 'eraser';
 
+const drawPath = (ctx: CanvasRenderingContext2D, path: { points: {x: number, y: number}[], color: string, brushSize: number }) => {
+    if (path.points.length < 2) return;
+      
+    ctx.beginPath();
+    ctx.moveTo(path.points[0].x, path.points[0].y);
+    
+    for (let i = 1; i < path.points.length; i++) {
+      ctx.lineTo(path.points[i].x, path.points[i].y);
+    }
+    
+    ctx.strokeStyle = path.color;
+    ctx.lineWidth = path.brushSize;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+};
+
 export const Html5Whiteboard: React.FC<WhiteboardProps> = React.memo(function Whiteboard({
   sessionId,
   userId,
@@ -36,110 +53,42 @@ export const Html5Whiteboard: React.FC<WhiteboardProps> = React.memo(function Wh
   const lastPointRef = useRef<{ x: number, y: number } | null>(null);
   const currentPathId = useRef<string | null>(null);
   
-  // Références pour éviter les redessinages inutiles
-  const lastOperationsLengthRef = useRef(0);
-  const pathsCacheRef = useRef<Map<string, { points: {x: number, y: number}[], color: string, brushSize: number }>>(new Map());
-
-  // CORRECTION: Redessiner uniquement quand nécessaire
-  const redrawCanvas = useCallback((forceRedraw: boolean = false) => {
+  const redrawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Éviter les redessinages inutiles si rien n'a changé
-    if (!forceRedraw && operations.length === lastOperationsLengthRef.current) {
-      return;
-    }
-    
-    lastOperationsLengthRef.current = operations.length;
-
-    // CORRECTION: Toujours effacer complètement d'abord
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Réinitialiser le cache si nécessaire
-    if (forceRedraw) {
-      pathsCacheRef.current.clear();
-    }
-
-    // Regrouper les points par ID de trait
     const paths = new Map<string, { points: {x: number, y: number}[], color: string, brushSize: number }>();
-    let hasClearOperation = false;
-
-    // CORRECTION: Traiter les opérations dans l'ordre chronologique
     const sortedOperations = [...operations].sort((a, b) => a.timestamp - b.timestamp);
 
-    sortedOperations.forEach(op => {
+    for (const op of sortedOperations) {
       if (op.type === 'CLEAR') {
         paths.clear();
-        pathsCacheRef.current.clear();
-        hasClearOperation = true;
-      }
-      
-      if (op.type === 'DRAW') {
-        // CORRECTION: Utiliser le cache pour les tracés existants
-        if (pathsCacheRef.current.has(op.pathId)) {
-          const cachedPath = pathsCacheRef.current.get(op.pathId)!;
-          if (!paths.has(op.pathId)) {
-            paths.set(op.pathId, { ...cachedPath });
-          }
-        } else if (!paths.has(op.pathId)) {
+      } else if (op.type === 'DRAW') {
+        if (!paths.has(op.pathId)) {
           paths.set(op.pathId, {
             points: [op.payload.from],
             color: op.payload.color,
             brushSize: op.payload.brushSize,
           });
         }
-        
-        // Ajouter le nouveau point au tracé
-        const path = paths.get(op.pathId)!;
-        path.points.push(op.payload.to);
+        paths.get(op.pathId)!.points.push(op.payload.to);
       }
-    });
-
-    // CORRECTION: Mettre à jour le cache
-    paths.forEach((path, pathId) => {
-      pathsCacheRef.current.set(pathId, { ...path });
-    });
-
-    // CORRECTION: Effacer si nécessaire avant de dessiner
-    if (hasClearOperation) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
     
-    // Dessiner chaque trait
-    paths.forEach(path => {
-      if (path.points.length < 2) return;
-      
-      ctx.beginPath();
-      ctx.moveTo(path.points[0].x, path.points[0].y);
-      
-      for (let i = 1; i < path.points.length; i++) {
-        ctx.lineTo(path.points[i].x, path.points[i].y);
-      }
-      
-      ctx.strokeStyle = path.color;
-      ctx.lineWidth = path.brushSize;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.stroke();
-    });
-
+    paths.forEach(drawPath.bind(null, ctx));
     console.log(`🎨 [WHITEBOARD] - Redrawn ${paths.size} paths with ${operations.length} operations`);
-
   }, [operations]);
 
-  // CORRECTION: Utiliser un effet dédié pour le redessinage
   useEffect(() => {
     redrawCanvas();
   }, [operations, redrawCanvas]);
 
-  // CORRECTION: Redessiner aussi quand le canvas change de taille
   useEffect(() => {
-    const handleResize = () => {
-      redrawCanvas(true);
-    };
-
+    const handleResize = () => redrawCanvas();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [redrawCanvas]);
@@ -164,7 +113,6 @@ export const Html5Whiteboard: React.FC<WhiteboardProps> = React.memo(function Wh
     setIsDrawing(true);
     lastPointRef.current = point;
     currentPathId.current = uuidv4();
-    
     console.log(`✏️ [WHITEBOARD] - Started drawing with path: ${currentPathId.current}`);
   }, [isController, getCanvasPoint]);
 
@@ -189,8 +137,8 @@ export const Html5Whiteboard: React.FC<WhiteboardProps> = React.memo(function Wh
             brushSize: tool === 'eraser' ? 20 : brushSize,
         },
     };
-
-    onEvent([event]);
+    
+    onEvent([event]); // CORRECTION: `onEvent` déclenche maintenant aussi le redessinage local via `SessionClient`
     lastPointRef.current = currentPoint;
 
   }, [isDrawing, isController, getCanvasPoint, tool, color, brushSize, onEvent, sessionId, userId]);
@@ -202,7 +150,7 @@ export const Html5Whiteboard: React.FC<WhiteboardProps> = React.memo(function Wh
     
     setIsDrawing(false);
     lastPointRef.current = null;
-    currentPathId.current = null;
+    currentPathId.current = null; // Important de ne pas le réinitialiser avant la fin
     
     if (flushOperations) {
       flushOperations();
@@ -214,7 +162,7 @@ export const Html5Whiteboard: React.FC<WhiteboardProps> = React.memo(function Wh
     
     const event: WhiteboardOperation = {
         id: uuidv4(),
-        pathId: uuidv4(),
+        pathId: uuidv4(), // pathId non pertinent mais requis
         userId,
         sessionId,
         timestamp: Date.now(),
@@ -238,7 +186,6 @@ export const Html5Whiteboard: React.FC<WhiteboardProps> = React.memo(function Wh
     link.click();
   }, [sessionId]);
 
-  // CORRECTION: Prévenir les événements tactiles indésirables
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (!isController) return;
     e.preventDefault();
@@ -340,7 +287,7 @@ export const Html5Whiteboard: React.FC<WhiteboardProps> = React.memo(function Wh
           onTouchStart={isController ? handleTouchStart : undefined}
           onTouchMove={isController ? handleTouchMove : undefined}
           onTouchEnd={isController ? handleTouchEnd : undefined}
-          onContextMenu={(e) => e.preventDefault()} // Empêcher le menu contextuel
+          onContextMenu={(e) => e.preventDefault()}
         />
       </div>
     </div>
