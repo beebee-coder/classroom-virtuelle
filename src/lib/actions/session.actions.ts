@@ -1,4 +1,4 @@
-// src/lib/actions/session.actions.ts
+// src/lib/actions/session.actions.ts - VERSION AVEC LOGS CRITIQUES
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -74,81 +74,115 @@ const validateActiveTool = (tool: string): string => {
 // --- Core Session Actions ---
 
 export async function createCoursSession(professeurId: string, classroomId: string, studentIds: string[]): Promise<SessionData> {
-    console.log('🚀 [ACTION] - Creating course session...');
+    console.log('🚀 [ACTION CRITIQUE] - DEBUT createCoursSession', { professeurId, classroomId, studentIds });
     
-    validateSessionParameters(professeurId, classroomId, studentIds);
-    
-    const classroomExists = await prisma.classroom.findUnique({
-        where: { id: classroomId },
-        select: { id: true, nom: true }
-    });
-    
-    if (!classroomExists) {
-        throw new Error('Classroom not found');
-    }
-
-    const participantIds = [professeurId, ...studentIds];
-
-    const session = await prisma.$transaction(async (tx) => {
-        return await tx.coursSession.create({
-            data: {
-                professeurId,
-                classroomId,
-                participants: { connect: participantIds.map(id => ({ id })) }
-            },
-            include: { participants: true }
+    try {
+        validateSessionParameters(professeurId, classroomId, studentIds);
+        console.log('✅ [ACTION CRITIQUE] - Paramètres validés');
+        
+        const classroomExists = await prisma.classroom.findUnique({
+            where: { id: classroomId },
+            select: { id: true, nom: true }
         });
-    });
+        
+        if (!classroomExists) {
+            console.error('❌ [ACTION CRITIQUE] - Classroom not found');
+            throw new Error('Classroom not found');
+        }
 
-    const invitationResults = await sendIndividualInvitations(session.id, professeurId, classroomId, studentIds);
+        console.log('✅ [ACTION CRITIQUE] - Classroom trouvée, création session...');
+        const participantIds = [professeurId, ...studentIds];
 
-    studentIds.forEach(id => {
-        revalidatePath(`/student/dashboard`);
-        revalidatePath(`/student/${id}`);
-    });
-    
-    console.log('✅ [ACTION] - Session created successfully.');
-    return { ...session, invitationResults, success: true };
+        const session = await prisma.$transaction(async (tx) => {
+            const newSession = await tx.coursSession.create({
+                data: {
+                    professeurId,
+                    classroomId,
+                    participants: { connect: participantIds.map(id => ({ id })) }
+                },
+                include: { participants: true }
+            });
+            console.log('✅ [ACTION CRITIQUE] - Session créée en base:', newSession.id);
+            return newSession;
+        });
+
+        console.log('📨 [ACTION CRITIQUE] - APPEL sendIndividualInvitations...');
+        const invitationResults = await sendIndividualInvitations(session.id, professeurId, classroomId, studentIds);
+        console.log('📊 [ACTION CRITIQUE] - Résultats invitations:', invitationResults);
+
+        studentIds.forEach(id => {
+            revalidatePath(`/student/dashboard`);
+            revalidatePath(`/student/${id}`);
+        });
+        
+        console.log('🎉 [ACTION CRITIQUE] - createCoursSession TERMINÉ avec succès');
+        return { ...session, invitationResults, success: true };
+        
+    } catch (error) {
+        console.error('💥 [ACTION CRITIQUE] - ERREUR dans createCoursSession:', error);
+        throw error;
+    }
 }
 
-
+// MODIFIER sendIndividualInvitations avec logs critiques
 async function sendIndividualInvitations(sessionId: string, professeurId: string, classroomId: string, studentIds: string[]) {
-    console.log(`📨 [INVITATIONS] - Sending invitations for session ${sessionId}`);
+    console.log(`📨 [INVITATIONS CRITIQUE] - DEBUT sendIndividualInvitations pour session ${sessionId}`, studentIds);
     
-    const results = { successful: [] as string[], failed: [] as string[] };
+    try {
+        const results = { successful: [] as string[], failed: [] as string[] };
 
-    const [classroom, teacher] = await Promise.all([
-        prisma.classroom.findUnique({ where: { id: classroomId } }),
-        prisma.user.findUnique({ where: { id: professeurId } })
-    ]);
+        const [classroom, teacher] = await Promise.all([
+            prisma.classroom.findUnique({ where: { id: classroomId } }),
+            prisma.user.findUnique({ where: { id: professeurId } })
+        ]);
 
-    if (!classroom || !teacher) throw new Error('Classroom or teacher not found');
-
-    const invitationPayload: InvitationPayload = {
-        sessionId,
-        teacherId: professeurId,
-        classroomId,
-        classroomName: classroom.nom || 'Classe',
-        teacherName: teacher.name || 'Professeur',
-        timestamp: new Date().toISOString(),
-        type: 'session-invitation'
-    };
-    
-    const invitationPromises = studentIds.map(async (studentId) => {
-        const channelName = getUserChannelName(studentId);
-        try {
-            await ablyTrigger(channelName, AblyEvents.SESSION_INVITATION, invitationPayload);
-            results.successful.push(studentId);
-        } catch (error) {
-            console.error(`❌ [INVITATIONS] - Failed to send to ${studentId}:`, error);
-            results.failed.push(studentId);
+        if (!classroom || !teacher) {
+            console.error('❌ [INVITATIONS CRITIQUE] - Classroom ou teacher non trouvé');
+            throw new Error('Classroom or teacher not found');
         }
-    });
 
-    await Promise.all(invitationPromises);
+        const invitationPayload: InvitationPayload = {
+            sessionId,
+            teacherId: professeurId,
+            classroomId,
+            classroomName: classroom.nom || 'Classe',
+            teacherName: teacher.name || 'Professeur',
+            timestamp: new Date().toISOString(),
+            type: 'session-invitation'
+        };
+        
+        console.log('📤 [INVITATIONS CRITIQUE] - Payload invitation créé:', invitationPayload);
+        
+        const invitationPromises = studentIds.map(async (studentId) => {
+            const channelName = getUserChannelName(studentId);
+            console.log(`📤 [INVITATIONS CRITIQUE] - Envoi à ${studentId} via canal ${channelName}`);
+            try {
+                console.log(`🎯 [INVITATIONS CRITIQUE] - Appel ablyTrigger pour ${studentId}...`);
+                const success = await ablyTrigger(channelName, AblyEvents.SESSION_INVITATION, invitationPayload);
+                
+                if (success) {
+                    console.log(`✅ [INVITATIONS CRITIQUE] - SUCCÈS envoi à ${studentId}`);
+                    results.successful.push(studentId);
+                } else {
+                    console.error(`❌ [INVITATIONS CRITIQUE] - ÉCHEC ablyTrigger pour ${studentId}`);
+                    results.failed.push(studentId);
+                }
+            } catch (error) {
+                console.error(`💥 [INVITATIONS CRITIQUE] - ERREUR ablyTrigger pour ${studentId}:`, error);
+                results.failed.push(studentId);
+            }
+        });
 
-    console.log(`📊 [INVITATIONS] - Summary: ${results.successful.length} success, ${results.failed.length} failures.`);
-    return results;
+        console.log('⏳ [INVITATIONS CRITIQUE] - Attente résultats envois...');
+        await Promise.allSettled(invitationPromises);
+
+        console.log(`📊 [INVITATIONS CRITIQUE] - RÉSUMÉ FINAL: ${results.successful.length} succès, ${results.failed.length} échecs`);
+        return results;
+        
+    } catch (error) {
+        console.error('💥 [INVITATIONS CRITIQUE] - ERREUR dans sendIndividualInvitations:', error);
+        throw error;
+    }
 }
 
 export async function endCoursSession(sessionId: string) {
@@ -232,6 +266,7 @@ export async function broadcastActiveTool(sessionId: string, tool: string) {
 
     return { success: true, tool: validatedTool, sessionId };
 }
+
 export async function shareDocument(sessionId: string, newDoc: { name: string; url: string }, formData?: FormData) {
     const session = await getServerSession(authOptions);
     if (!session?.user) throw new Error("Not authenticated");
@@ -314,7 +349,6 @@ export async function deleteSharedDocument(documentId: string, sessionId: string
         throw new Error("Impossible de supprimer le document.");
     }
 }
-
 
 // --- Timer Actions ---
 
