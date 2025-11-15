@@ -60,23 +60,25 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
         const pendingSessions = await response.json();
         console.log(`📥 [INVITE LISTENER] - Found ${pendingSessions.length} pending sessions`);
         
-        // Prendre la session la plus récente
-        const latestSession = pendingSessions.sort((a: any, b: any) => 
-          new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
-        )[0];
-        
-        if (latestSession && !processedInvitationsRef.current.has(latestSession.id)) {
-          const invitation: SessionInvitation = {
-            sessionId: latestSession.id,
-            teacherId: latestSession.teacherId,
-            classroomId: latestSession.classroomId,
-            classroomName: latestSession.classroomName || 'Classe',
-            teacherName: latestSession.teacherName || 'Professeur',
-            timestamp: latestSession.startTime,
-            type: 'session-invitation'
-          };
-          
-          handleInvitation(invitation);
+        if (pendingSessions.length > 0) {
+            // CORRECTION: Utiliser le bon champ pour trier et construire l'invitation
+            const latestSession = pendingSessions.sort((a: any, b: any) => 
+              new Date(b.data.timestamp).getTime() - new Date(a.data.timestamp).getTime()
+            )[0];
+            
+            if (latestSession && !processedInvitationsRef.current.has(latestSession.id)) {
+              const invitation: SessionInvitation = {
+                sessionId: latestSession.data.sessionId,
+                teacherId: latestSession.data.teacherId,
+                classroomId: latestSession.data.classroomId,
+                classroomName: latestSession.data.classroomName || 'Classe',
+                teacherName: latestSession.data.teacherName || 'Professeur',
+                timestamp: latestSession.data.timestamp,
+                type: 'session-invitation'
+              };
+              
+              handleInvitation(invitation);
+            }
         }
       } else {
         console.error(`❌ [INVITE LISTENER] - Failed to fetch pending invitations: ${response.status}`);
@@ -90,7 +92,7 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
         setIsCheckingPending(false);
       }
     }
-  }, [studentId]);
+  }, [studentId, handleInvitation]);
 
   // CORRECTION: Gestion améliorée de l'acceptation d'invitation
   const handleAcceptInvitation = useCallback(async (invitation: SessionInvitation) => {
