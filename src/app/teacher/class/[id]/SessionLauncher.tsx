@@ -55,16 +55,20 @@ export function SessionLauncher({ classroom, teacher, onlineStudents }: SessionL
             });
             return;
         }
-
+        console.log('🎯 [SESSION LAUNCHER] - Starting session with students:', onlineSelectedStudents);
         setIsStartingSession(true);
         try {
             // Appel de l'action serveur qui gère tout: création + invitations
+            console.log('📤 [SESSION LAUNCHER] - Calling createCoursSession action...');
             const session = await createCoursSession(teacher.id, classroom.id, onlineSelectedStudents);
             
+            console.log('✅ [SESSION LAUNCHER] - Session created:', session);
+            
             if (!session?.id) throw new Error('Réponse de session invalide');
-
+    
             if (session.invitationResults) {
                 const { successful, failed } = session.invitationResults;
+                console.log(`📨 [SESSION LAUNCHER] - Invitations sent: ${successful.length} success, ${failed.length} failed`);
                 toast({
                     title: 'Session créée et invitations envoyées !',
                     description: `Session vidéo lancée avec ${successful.length} élève(s). ${failed.length > 0 ? `${failed.length} échec(s).` : ''}`,
@@ -72,8 +76,9 @@ export function SessionLauncher({ classroom, teacher, onlineStudents }: SessionL
             }
             // Redirection vers la page de session
             router.push(`/session/${session.id}`);
-
+    
         } catch (error: unknown) {
+            console.error('❌ [SESSION LAUNCHER] - Error creating session:', error);
             toast({
                 variant: 'destructive',
                 title: 'Erreur de création de session',

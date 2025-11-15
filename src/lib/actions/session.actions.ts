@@ -145,7 +145,7 @@ async function sendIndividualInvitations(sessionId: string, professeurId: string
         }
     });
 
-    await Promise.allSettled(invitationPromises);
+    await Promise.all(invitationPromises);
 
     console.log(`📊 [INVITATIONS] - Summary: ${results.successful.length} success, ${results.failed.length} failures.`);
     return results;

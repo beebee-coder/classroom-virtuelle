@@ -63,7 +63,34 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
         }
     }, [isConnected, classroom?.id, teacher, enterPresence, isLoading, hasEnteredPresence]);
 
-    const onlineStudentIds = useMemo(() => onlineMembers.map(m => m.id), [onlineMembers]);
+    // CORRECTION: Mapper les clientId Ably vers les userId de la base de données
+    const onlineStudentIds = useMemo(() => {
+        console.log('🔍 [CLASSE] - Online members from Ably:', onlineMembers);
+        
+        // CORRECTION: Créer un mapping basé sur les noms/emails pour lier les clientId aux userId
+        const onlineIds: string[] = [];
+        
+        onlineMembers.forEach(member => {
+            // Si c'est un élève (pas le professeur)
+            if (member.role === Role.ELEVE) {
+                // CORRECTION: Trouver l'élève correspondant dans la classe par nom/email
+                const matchingStudent = classroom.eleves?.find(student => 
+                    student.name === member.name || 
+                    student.email?.includes(member.name?.toLowerCase() || '')
+                );
+                
+                if (matchingStudent) {
+                    console.log(`✅ [CLASSE] - Mapped Ably client ${member.id} to student ${matchingStudent.id} (${matchingStudent.name})`);
+                    onlineIds.push(matchingStudent.id);
+                } else {
+                    console.warn(`⚠️ [CLASSE] - No matching student found for Ably member:`, member);
+                }
+            }
+        });
+        
+        console.log(`📊 [CLASSE] - Online student IDs:`, onlineIds);
+        return onlineIds;
+    }, [onlineMembers, classroom.eleves]);
 
     if (presenceError) {
         console.error('❌ [CLIENT CLASSE] - Erreur de connexion temps réel Ably:', presenceError);
@@ -82,7 +109,7 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                             Gérez vos élèves, annonces et sessions pour cette classe.
                             {isConnected ? (
                                 <span className="ml-2 text-green-600">
-                                    ● En ligne ({onlineMembers.length} membres)
+                                    ● En ligne ({onlineMembers.length} membres, {onlineStudentIds.length} élèves)
                                 </span>
                             ) : (
                                 <span className="ml-2 text-yellow-600">

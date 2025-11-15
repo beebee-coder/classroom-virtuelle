@@ -22,13 +22,8 @@ async function publishWithTimeout<T>(
   data: T,
   timeoutMs: number = 5000
 ): Promise<boolean> {
-  const ablyServer = getServerAblyClient();
-  if (!ablyServer) {
-    console.error('❌ [ABLY PUBLISH] - Ably server client not available');
-    return false;
-  }
-
   try {
+    const ablyServer = getServerAblyClient();
     const channel = ablyServer.channels.get(channelName);
     
     const publishPromise = channel.publish(eventName, data);
@@ -74,18 +69,21 @@ export async function ablyTrigger<T>(
     return false;
   }
 
-  // CORRECTION: Utilisation sécurisée du client serveur
-  const ablyServer = getServerAblyClient();
+  // CORRECTION: Gestion robuste des erreurs d'initialisation
+  let ablyServer;
+  try {
+    ablyServer = getServerAblyClient();
+  } catch (error) {
+    console.error('❌ [ABLY TRIGGER] - Ably server client not available:', error);
+    return false;
+  }
+
   if (!ablyServer) {
-    console.error('❌ [ABLY TRIGGER] - Ably server client not available');
+    console.error('❌ [ABLY TRIGGER] - Ably server client not initialized');
     return false;
   }
 
   try {
-    // Ably's publish method doesn't directly support excluding a socket_id in the same way Pusher did.
-    // The exclusion happens on the client-side by default (echoMessages: false).
-    // If specific server-side exclusion is needed, it must be handled differently,
-    // but for this migration, client-side echo prevention is sufficient.
     const channels = Array.isArray(channel) ? channel : [channel];
     
     // CORRECTION: Utilisation de la fonction avec timeout pour chaque canal
@@ -127,9 +125,17 @@ export async function ablyTriggerBatch<T>(
     return false;
   }
 
-  const ablyServer = getServerAblyClient();
+  // CORRECTION: Gestion robuste des erreurs d'initialisation
+  let ablyServer;
+  try {
+    ablyServer = getServerAblyClient();
+  } catch (error) {
+    console.error('❌ [ABLY TRIGGER BATCH] - Ably server client not available:', error);
+    return false;
+  }
+
   if (!ablyServer) {
-    console.error('❌ [ABLY TRIGGER BATCH] - Ably server client not available');
+    console.error('❌ [ABLY TRIGGER BATCH] - Ably server client not initialized');
     return false;
   }
 
@@ -171,14 +177,8 @@ export async function ablyTriggerBatch<T>(
 
 // CORRECTION: Fonction pour vérifier la disponibilité d'Ably
 export async function checkAblyConnection(): Promise<boolean> {
-  const ablyServer = getServerAblyClient();
-  
-  if (!ablyServer) {
-    console.error('❌ [ABLY CONNECTION CHECK] - Ably server client not available');
-    return false;
-  }
-
   try {
+    const ablyServer = getServerAblyClient();
     // Test de connexion simple
     await ablyServer.time();
     console.log('✅ [ABLY CONNECTION CHECK] - Ably connection is healthy');
