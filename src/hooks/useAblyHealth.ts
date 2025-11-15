@@ -1,9 +1,9 @@
-// src/hooks/useAblyHealth.ts - VERSION CORRIGÉE
+// src/hooks/useAblyHealth.ts - VERSION CORRIGÉE AVEC useAbly()
 'use client';
 
 import { useState, useEffect } from 'react';
 import Ably from 'ably';
-import { useAblyWithSession } from './useAblyWithSession'; // CHANGEMENT ICI
+import { useAbly } from './useAbly'; // CORRECTION: utiliser useAbly au lieu de useAblyWithSession
 import { getFriendlyErrorMessage } from '@/lib/ably/error-handling';
 
 export type AblyConnectionStatus = 'initialized' | 'connecting' | 'connected' | 'disconnected' | 'suspended' | 'closing' | 'closed' | 'failed';
@@ -16,23 +16,24 @@ interface AblyHealthState {
 
 /**
  * A hook to monitor the health and status of the Ably connection.
- * Uses the authenticated session client for consistency.
+ * Uses the shared Ably client instance for consistency.
  * @returns The current connection status and a user-friendly error message if any.
  */
 export function useAblyHealth(): AblyHealthState {
-    const { client, isLoading } = useAblyWithSession(); // CHANGEMENT ICI
+    const { client, connectionState, connectionError } = useAbly(); // CORRECTION: utiliser useAbly()
     const [status, setStatus] = useState<AblyConnectionStatus>('initialized');
     const [error, setError] = useState<string | null>(null);
+    const isLoading = connectionState === 'initialized' || connectionState === 'connecting';
 
     useEffect(() => {
-        if (!client || isLoading) {
-            console.log(`[useAblyHealth] - No client available or still loading`);
+        if (!client) {
+            console.log(`[useAblyHealth] - No client available`);
             setStatus('initialized');
             setError(null);
             return;
         }
 
-        console.log(`[useAblyHealth] - Setting up health monitoring for authenticated client`);
+        console.log(`[useAblyHealth] - Setting up health monitoring for shared Ably client`);
 
         const handleStateChange = (stateChange: Ably.Types.ConnectionStateChange) => {
             console.log(`[useAblyHealth] - Ably connection state: ${stateChange.current}`);
@@ -55,7 +56,14 @@ export function useAblyHealth(): AblyHealthState {
             console.log(`[useAblyHealth] - Cleaning up health monitoring`);
             client.connection.off(handleStateChange);
         };
-    }, [client, isLoading]);
+    }, [client]);
+
+    // CORRECTION: Gérer les erreurs de connexion depuis le hook useAbly
+    useEffect(() => {
+        if (connectionError) {
+            setError(getFriendlyErrorMessage(connectionError));
+        }
+    }, [connectionError]);
 
     return { 
         status: isLoading ? 'initialized' : status, 

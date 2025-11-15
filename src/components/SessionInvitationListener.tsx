@@ -1,10 +1,10 @@
-// src/components/SessionInvitationListener.tsx - CORRECTION DES TYPES ABLY
+// src/components/SessionInvitationListener.tsx - VERSION CORRIGÉE AVEC useAbly()
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { useAblyWithSession } from '@/hooks/useAblyWithSession';
+import { useAbly } from '@/hooks/useAbly'; // CORRECTION: utiliser useAbly au lieu de useAblyWithSession
 import { getUserChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
 import type { Types as AblyTypes } from 'ably';
@@ -33,7 +33,10 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
   const [isCheckingPending, setIsCheckingPending] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
-  const { client: ablyClient, isConnected: ablyConnected, isLoading: ablyLoading } = useAblyWithSession();
+  
+  // CORRECTION: Utiliser useAbly() au lieu de useAblyWithSession()
+  const { client: ablyClient, isConnected: ablyConnected, connectionState } = useAbly();
+  const ablyLoading = connectionState === 'initialized' || connectionState === 'connecting';
   
   // CORRECTION: Types Ably corrects
   const processedInvitationsRef = useRef<Set<string>>(new Set());

@@ -1,4 +1,4 @@
-// src/components/ChatSheet.tsx - VERSION CORRIGÉE
+// src/components/ChatSheet.tsx - VERSION CORRIGÉE AVEC useAbly()
 'use client';
 
 import { useState, useEffect, useRef, useTransition, useCallback } from 'react';
@@ -16,7 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import type { Message, Reaction, User, Role } from '@prisma/client';
-import { useAblyWithSession } from '@/hooks/useAblyWithSession';
+import { useAbly } from '@/hooks/useAbly'; // CORRECTION: utiliser useAbly au lieu de useAblyWithSession
 import { getClassChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
 import Ably from 'ably';
@@ -51,7 +51,9 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
   const historyListenerRef = useRef<((message: Ably.Types.Message) => void) | null>(null);
   const isMountedRef = useRef(true);
 
-  const { client: ablyClient, isConnected: ablyConnected, isLoading: ablyLoading } = useAblyWithSession();
+  // CORRECTION: Utiliser useAbly() au lieu de useAblyWithSession()
+  const { client: ablyClient, isConnected: ablyConnected, connectionState } = useAbly();
+  const ablyLoading = connectionState === 'initialized' || connectionState === 'connecting';
 
   // CORRECTION: Fonction de récupération des messages avec useCallback
   const fetchMessages = useCallback(async () => {

@@ -1,9 +1,9 @@
-// src/hooks/useAblyWhiteboardSync.ts - VERSION FINALE CORRIGÉE
+// src/hooks/useAblyWhiteboardSync.ts - VERSION CORRIGÉE AVEC useAbly()
 'use client';
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import type { WhiteboardOperation } from '@/types';
-import { useAblyWithSession } from './useAblyWithSession';
+import { useAbly } from './useAbly'; // CORRECTION: utiliser useAbly au lieu de useAblyWithSession
 import { getSessionChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
 import Ably from 'ably';
@@ -16,7 +16,10 @@ export const useAblyWhiteboardSync = (
     userId: string,
     onIncomingOperations: (operations: WhiteboardOperation[]) => void
 ) => {
-    const { client, isConnected, isLoading } = useAblyWithSession();
+    // CORRECTION: Utiliser useAbly() au lieu de useAblyWithSession()
+    const { client, isConnected, connectionState } = useAbly();
+    const isLoading = connectionState === 'initialized' || connectionState === 'connecting';
+    
     const [isSyncing, setIsSyncing] = useState(false);
     const [isInitialized, setIsInitialized] = useState(false);
     

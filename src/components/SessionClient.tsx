@@ -1,4 +1,4 @@
-// src/components/SessionClient.tsx - VERSION CORRIGÉE
+// src/components/SessionClient.tsx - VERSION CORRIGÉE AVEC useAbly()
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -15,7 +15,7 @@ import { ablyTrigger } from '@/lib/ably/triggers';
 import { broadcastTimerEvent, broadcastActiveTool, updateStudentSessionStatus } from '@/lib/actions/ably-session.actions';
 import { endCoursSession } from '@/lib/actions/session.actions';
 import { ComprehensionLevel } from '@/types';
-import { useAblyWithSession } from '@/hooks/useAblyWithSession';
+import { useAbly } from '@/hooks/useAbly'; // CORRECTION: utiliser useAbly au lieu de useAblyWithSession
 import Ably, { type Types } from 'ably';
 import { getSessionChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
@@ -23,8 +23,7 @@ import { AblyEvents } from '@/lib/ably/events';
 // Importation statique car SessionClient est lui-même chargé dynamiquement
 import { TeacherSessionView } from './session/TeacherSessionView';
 import { StudentSessionView } from './session/StudentSessionView';
-import { useAblyWhiteboardSync } from '@/hooks/useAblyWhiteboardSync'; // CORRECTION: Import manquant
-
+import { useAblyWhiteboardSync } from '@/hooks/useAblyWhiteboardSync';
 
 const signalViaAPI = async (payload: SignalPayload): Promise<void> => {
     try {
@@ -62,8 +61,9 @@ export default function SessionClient({
   const mountIdRef = useRef(`session_${Math.random().toString(36).substring(2, 11)}`);
   const isMountedRef = useRef(true);
   
-  const { client: ablyClient, isConnected: isAblyConnected, isLoading: ablyLoading } = useAblyWithSession();
-  
+  // CORRECTION: Utiliser useAbly() au lieu de useAblyWithSession()
+  const { client: ablyClient, isConnected: isAblyConnected, connectionState } = useAbly();
+  const ablyLoading = connectionState === 'initialized' || connectionState === 'connecting';  
   const [loading, setLoading] = useState<boolean>(false);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [screenStream, setScreenStream] = useState<MediaStream | null>(null);

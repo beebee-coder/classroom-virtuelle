@@ -1,8 +1,8 @@
-// src/hooks/useAblyPresence.ts - VERSION CORRIGÉE DES TYPES ABLY
+// src/hooks/useAblyPresence.ts - VERSION CORRIGÉE AVEC useAbly()
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useAblyWithSession } from './useAblyWithSession';
+import { useAbly } from './useAbly'; // CHANGEMENT: utiliser useAbly au lieu de useAblyWithSession
 import type { AblyPresenceMember } from '@/lib/ably/types';
 import { getClassChannelName } from '@/lib/ably/channels';
 import Ably from 'ably';
@@ -37,7 +37,8 @@ if (typeof globalThis.activePresenceChannels === 'undefined') {
 }
 
 export const useAblyPresence = (channelId?: string, enabled: boolean = true): UseAblyPresenceReturn => {
-  const { client, connectionError, isLoading: ablyLoading } = useAblyWithSession();
+  // CHANGEMENT: Utiliser useAbly() au lieu de useAblyWithSession()
+  const { client, connectionError, isConnected: ablyConnected } = useAbly();
   const [onlineMembers, setOnlineMembers] = useState<AblyPresenceMember[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -233,9 +234,9 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
     mountedRef.current = true;
 
     // Conditions de sortie précoces
-    if (ablyLoading || !enabled || !channelId || !client) {
+    if (!enabled || !channelId || !client) {
       if (mountedRef.current) {
-        setIsLoading(ablyLoading || !enabled);
+        setIsLoading(!enabled || !channelId || !client);
       }
       return;
     }
@@ -323,7 +324,7 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
         setIsLoading(false);
       }
     };
-  }, [channelId, enabled, client, ablyLoading, manageChannelRefCount, setupPresenceHandlers]);
+  }, [channelId, enabled, client, manageChannelRefCount, setupPresenceHandlers]);
 
   // CORRECTION: Fonctions de présence avec gestion d'état améliorée
   const enterPresence = useCallback(async (userData: Omit<AblyPresenceMember, 'id'>) => {
@@ -391,11 +392,19 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
     }
   }, [connectionError]);
 
+  // CORRECTION : Synchroniser l'état de connexion Ably global
+  useEffect(() => {
+    if (!ablyConnected && isConnected) {
+      console.log(`🔌 [useAblyPresence] - Ably connection lost, updating presence state`);
+      setIsConnected(false);
+    }
+  }, [ablyConnected, isConnected]);
+
   return { 
     onlineMembers, 
     isConnected, 
     error, 
-    isLoading: isLoading || ablyLoading,
+    isLoading: isLoading || !client,
     enterPresence, 
     leavePresence, 
     updatePresence 
