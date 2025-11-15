@@ -183,7 +183,7 @@ export function TeacherSessionView({
         }
     }, [flushWhiteboardOperations]);
 
-    const renderParticipant = useCallback((participant: SessionParticipant | undefined) => {
+    const renderParticipant = useCallback((participant: SessionParticipant) => {
         if (!participant) return null;
         
         const stream = participant.id === teacher?.id ? (isSharingScreen ? screenStream : localStream) : remoteStreamsMap.get(participant.id);
@@ -234,13 +234,27 @@ export function TeacherSessionView({
         screenStream,
         allSessionUsers
     ]);
+    
+    const allGridParticipants = useMemo(() => {
+        const participantMap = new Map<string, SessionParticipant>();
 
-    const allParticipants = useMemo(() => {
-        const participantsMap = new Map<string, SessionParticipant>();
-        if (teacher) participantsMap.set(teacher.id, teacher);
-        students.forEach(s => participantsMap.set(s.id, s as SessionParticipant));
-        return Array.from(participantsMap.values());
-    }, [teacher, students]);
+        // Add teacher
+        if (teacher) {
+            participantMap.set(teacher.id, teacher);
+        }
+
+        // Add all students from the classroom
+        if (classroom?.eleves) {
+            classroom.eleves.forEach(student => {
+                if (!participantMap.has(student.id)) {
+                    participantMap.set(student.id, student as SessionParticipant);
+                }
+            });
+        }
+        
+        return Array.from(participantMap.values());
+    }, [teacher, classroom?.eleves]);
+
 
     const renderActiveTool = useMemo(() => {
         if (isSharingScreen && screenStream) {
@@ -409,7 +423,7 @@ export function TeacherSessionView({
                 {teacherView === 'content' ? renderActiveTool : (
                     <ScrollArea className="h-full">
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-1">
-                            {allParticipants.map(p => renderParticipant(p))}
+                            {allGridParticipants.map(p => renderParticipant(p))}
                         </div>
                     </ScrollArea>
                 )}
