@@ -27,7 +27,7 @@ export interface SessionDetails {
     participants: User[];
     teacher: User;
     students: User[];
-    documentHistory: SharedDocument[];
+    documentHistory: DocumentInHistory[];
 }
 
 interface InvitationPayload {
@@ -252,7 +252,7 @@ export async function spotlightParticipant(sessionId: string, participantId: str
 export async function shareDocument(sessionId: string, newDoc: { name: string; url: string }, formData?: FormData) {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) throw new Error("Not authenticated");
-    const teacherId = session.user.id;
+    const userId = session.user.id;
 
     console.log('📄 [SHARE DOCUMENT] - Sharing document:', { sessionId, newDoc });
 
@@ -261,7 +261,7 @@ export async function shareDocument(sessionId: string, newDoc: { name: string; u
             data: {
                 name: newDoc.name,
                 url: newDoc.url,
-                professeurId: teacherId,
+                userId: userId,
             },
         });
 
@@ -299,10 +299,10 @@ export async function deleteSharedDocument(documentId: string) {
 
     const docToDelete = await prisma.sharedDocument.findUnique({
         where: { id: documentId },
-        select: { professeurId: true }
+        select: { userId: true }
     });
 
-    if (!docToDelete || docToDelete.professeurId !== userId) {
+    if (!docToDelete || docToDelete.userId !== userId) {
         console.error(`❌ [ACTION] Tentative de suppression non autorisée par l'utilisateur ${userId}`);
         throw new Error("Action non autorisée");
     }
@@ -327,7 +327,7 @@ export async function getTeacherDocuments(): Promise<DocumentInHistory[]> {
     if (!session?.user?.id) return [];
 
     const documents = await prisma.sharedDocument.findMany({
-        where: { professeurId: session.user.id },
+        where: { userId: session.user.id },
         orderBy: { createdAt: 'desc' }
     });
 
@@ -429,4 +429,7 @@ export async function getSessionDetails(sessionId: string): Promise<SessionDetai
         id: sessionData.id,
         teacher: sessionData.professeur,
         students: sessionData.participants.filter(p => p.role === Role.ELEVE),
-        participants: sessionData.participants
+        participants: sessionData.participants,
+        documentHistory: documents,
+    };
+}
