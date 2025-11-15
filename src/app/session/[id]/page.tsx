@@ -74,22 +74,26 @@ async function fetchSessionData(sessionId: string): Promise<{ data: SessionData 
                         }
                     }
                 },
-                sharedDocuments: {
-                    orderBy: {
-                        createdAt: 'asc'
-                    }
-                }
             },
         });
 
         if (!session) {
             return { data: null, error: 'Session non trouvée' };
         }
+        
+        // CORRECTION: Récupérer les documents du professeur séparément
+        const teacherDocuments = await prisma.sharedDocument.findMany({
+            where: { userId: session.professeurId },
+            orderBy: { createdAt: 'desc' },
+        });
 
-        const serializableDocumentHistory = session.sharedDocuments.map(doc => ({
+        const serializableDocumentHistory: DocumentInHistory[] = teacherDocuments.map(doc => ({
             ...doc,
             createdAt: doc.createdAt.toISOString(),
+            sharedBy: session.professeur.name || 'Professeur',
+            coursSessionId: session.id, // Garder une référence pour le contexte, même si non stocké
         }));
+
 
         const responsePayload: SessionData = {
             id: session.id,
