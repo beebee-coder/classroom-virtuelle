@@ -19,21 +19,28 @@ export async function POST(
       return new NextResponse('Unauthorized', { status: 403 });
     }
 
-    const operations: WhiteboardOperation[] = await request.json();
+    // CORRECTION : Lire le corps de la requête de manière sécurisée
+    let operations: WhiteboardOperation[];
+    try {
+        operations = await request.json();
+    } catch (e) {
+        console.error(`[API SYNC] Invalid JSON body for session ${sessionId}`);
+        return NextResponse.json({ error: "Corps de la requête invalide" }, { status: 400 });
+    }
 
-    if (!operations || !Array.isArray(operations) || operations.length === 0) {
+    if (!operations || !Array.isArray(operations)) {
         return NextResponse.json({ error: "Aucune opération fournie." }, { status: 400 });
     }
     
-    console.log(`[API SYNC] Received ${operations.length} operations for session ${sessionId} from user ${session.user.id}. Persisting to DB.`);
+    // CORRECTION : Renvoyer une réponse de succès même sans persistance pour ne pas bloquer le client
+    console.log(`[API SYNC] Received ${operations.length} operations for session ${sessionId} from user ${session.user.id}. Skipping persistence for now.`);
     
-    // NOTE : La logique de sauvegarde en base de données pourrait être ajoutée ici.
-    // Pour l'instant, nous confirmons simplement la réception.
-    // Exemple : await prisma.whiteboardOperation.createMany({ data: operations });
+    // NOTE : La logique de sauvegarde en base de données (ex: prisma.whiteboardOperation.createMany)
+    // pourrait être ajoutée ici dans une version future. Pour l'instant, on se contente de confirmer.
 
     return NextResponse.json({ 
         success: true, 
-        message: "Operations received for persistence.",
+        message: "Operations received but not persisted.",
         processed: operations.length
     });
 

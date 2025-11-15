@@ -295,6 +295,9 @@ export const useAblyWhiteboardSync = (
         
         const opsArray = Array.isArray(operations) ? operations : [operations];
         
+        // CORRECTION : Appliquer les opérations localement immédiatement pour une meilleure réactivité
+        onIncomingOperationsRef.current(opsArray);
+        
         opsArray.forEach(op => {
             processedOperationIds.current.add(op.id);
         });
