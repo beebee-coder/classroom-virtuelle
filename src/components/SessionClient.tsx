@@ -440,6 +440,22 @@ export default function SessionClient({
         }
     };
 
+    const handleDocumentShared = (message: Types.Message) => {
+        if (!isMountedRef.current) return;
+        setDocumentUrl(message.data.url);
+        // Ensure new documents are added to history, avoiding duplicates
+        setDocumentHistory(prev => {
+            if (prev.some(doc => doc.id === message.data.id)) {
+                return prev;
+            }
+            return [...prev, message.data];
+        });
+        if (currentUserRole === Role.ELEVE) {
+            setActiveTool('document');
+            toast({ title: 'Document partagé', description: 'Le professeur a partagé un nouveau document.' });
+        }
+    };
+
     const bindEvents = () => {
         console.log('🔗 [EVENTS] - Binding Ably channel events...');
         channel.subscribe(AblyEvents.SIGNAL, handleSignal);
@@ -471,14 +487,7 @@ export default function SessionClient({
             setActiveTool(validatedTool);
           }
         });
-        channel.subscribe(AblyEvents.DOCUMENT_SHARED, (msg) => {
-          if (isMountedRef.current) {
-            setDocumentUrl(msg.data.url);
-            setDocumentHistory(prev => [...prev, msg.data]);
-            setActiveTool('document');
-            toast({ title: 'Document partagé', description: 'Le professeur a partagé un nouveau document.' });
-          }
-        });
+        channel.subscribe(AblyEvents.DOCUMENT_SHARED, handleDocumentShared);
         channel.subscribe(AblyEvents.WHITEBOARD_CONTROLLER_UPDATE, (msg) => {
           if (isMountedRef.current) setWhiteboardControllerId(msg.data.controllerId);
         });
@@ -607,6 +616,13 @@ export default function SessionClient({
 
   const isComponentLoading = loading || ablyLoading || (!isAblyConnected && !!ablyClient);
   
+  const handleSelectDocument = useCallback((doc: DocumentInHistory) => {
+    setDocumentUrl(doc.url);
+    if (currentUserRole === Role.PROFESSEUR) {
+        onToolChange('document');
+    }
+  }, [currentUserRole, onToolChange]);
+
   if (isComponentLoading) {
     return <SessionLoading />;
   }
@@ -635,6 +651,7 @@ export default function SessionClient({
             initialDuration={timerDuration} timerTimeLeft={timerTimeLeft} isTimerRunning={isTimerRunning}
             onStartTimer={handleStartTimer} onPauseTimer={handlePauseTimer} onResetTimer={handleResetTimer}
             onWhiteboardEvent={handleWhiteboardEvent} whiteboardOperations={whiteboardOperations} flushWhiteboardOperations={flushOperations}
+            onSelectDocument={handleSelectDocument}
           />
         ) : (
           <StudentSessionView

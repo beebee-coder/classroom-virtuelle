@@ -45,6 +45,7 @@ interface TeacherSessionViewProps {
     classroom: ClassroomWithDetails | null;
     documentUrl: string | null;
     documentHistory: DocumentInHistory[];
+    onSelectDocument: (doc: DocumentInHistory) => void;
     whiteboardControllerId: string | null;
     onWhiteboardControllerChange: (userId: string) => void;
     initialDuration: number;
@@ -77,6 +78,7 @@ export function TeacherSessionView({
     classroom,
     documentUrl,
     documentHistory,
+    onSelectDocument,
     whiteboardControllerId,
     onWhiteboardControllerChange,
     initialDuration,
@@ -156,14 +158,14 @@ export function TeacherSessionView({
         setTeacherView('content');
     }, [onSpotlightParticipant, onToolChange]);
 
-    const handleDocumentShare = useCallback(async (doc: DocumentInHistory) => {
+    const handleDocumentReshare = useCallback(async (doc: DocumentInHistory) => {
         try {
             await shareDocument(sessionId, { name: doc.name, url: doc.url });
             toast({
                 title: 'Document repartagé',
                 description: `"${doc.name}" est de nouveau visible par tous.`,
             });
-            onToolChange('document');
+            onSelectDocument(doc);
         } catch (error) {
              toast({
                 variant: 'destructive',
@@ -171,7 +173,7 @@ export function TeacherSessionView({
                 description: "Impossible de repartager le document.",
             });
         }
-    }, [sessionId, onToolChange, toast]);
+    }, [sessionId, onSelectDocument, toast]);
 
     const handleWhiteboardEvent = useCallback((operations: WhiteboardOperation[]) => {
         onWhiteboardEvent(operations);
@@ -470,7 +472,8 @@ export function TeacherSessionView({
                                 />
                                 <DocumentHistory 
                                     documents={documentHistory} 
-                                    onShare={handleDocumentShare}
+                                    onSelectDocument={onSelectDocument}
+                                    onReshare={handleDocumentReshare}
                                     sessionId={sessionId}
                                 />
                             </div>

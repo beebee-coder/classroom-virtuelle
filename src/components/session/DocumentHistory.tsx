@@ -4,7 +4,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
-import { FileText, Share2, History, Trash2, Loader2 } from 'lucide-react';
+import { FileText, Share2, History, Trash2, Loader2, Eye } from 'lucide-react';
 import { ScrollArea } from '../ui/scroll-area';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -26,7 +26,8 @@ import {
 
 interface DocumentHistoryProps {
     documents: DocumentInHistory[];
-    onShare: (doc: DocumentInHistory) => void;
+    onSelectDocument: (doc: DocumentInHistory) => void;
+    onReshare: (doc: DocumentInHistory) => void;
     sessionId: string;
 }
 
@@ -50,7 +51,7 @@ function FormattedDate({ dateString }: { dateString: string }) {
 }
 
 
-export function DocumentHistory({ documents, onShare, sessionId }: DocumentHistoryProps) {
+export function DocumentHistory({ documents, onSelectDocument, onReshare, sessionId }: DocumentHistoryProps) {
     const { toast } = useToast();
     const [isDeleting, startDeleteTransition] = useTransition();
 
@@ -96,7 +97,10 @@ export function DocumentHistory({ documents, onShare, sessionId }: DocumentHisto
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center">
-                                                    <Button size="icon" variant="ghost" onClick={() => onShare(doc)} aria-label="Repartager">
+                                                    <Button size="icon" variant="ghost" onClick={() => onSelectDocument(doc)} aria-label="Afficher">
+                                                        <Eye className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button size="icon" variant="ghost" onClick={() => onReshare(doc)} aria-label="Repartager">
                                                         <Share2 className="h-4 w-4" />
                                                     </Button>
                                                     <AlertDialog>
