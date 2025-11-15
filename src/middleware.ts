@@ -1,20 +1,20 @@
-// src/middleware.ts - VERSION DÉSACTIVÉE POUR ABLY
+
+// src/middleware.ts - VERSION CORRIGÉE
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-    // NE PAS intercepter les requêtes Ably - laisser NextAuth gérer l'authentification
-    if (request.nextUrl.pathname.startsWith('/api/ably')) {
-        console.log('🔄 [MIDDLEWARE] - Bypassing middleware for Ably auth');
-        return NextResponse.next();
-    }
-    
+    // La logique du middleware peut être étendue ici si nécessaire,
+    // mais pour l'instant, nous laissons passer toutes les requêtes
+    // non interceptées par le `matcher` ci-dessous.
     return NextResponse.next();
 }
 
 export const config = {
-    // Ne pas matcher les routes API Ably
+    // 🔥 CORRECTION : Le matcher est mis à jour pour ignorer TOUTES les routes API,
+    // ainsi que les fichiers statiques, les images, et le favicon.
+    // Cela empêche le middleware d'interférer avec les routes de NextAuth.js, Ably, etc.
     matcher: [
-        '/((?!api/ably|_next/static|_next/image|favicon.ico).*)',
+        '/((?!api|_next/static|_next/image|favicon.ico).*)',
     ],
 };
