@@ -101,7 +101,7 @@ export default function SessionClient({
       const existingIds = new Set(prevOps.map(op => op.id));
       const newOps = externalOps.filter(op => !existingIds.has(op.id));
       if (newOps.length > 0) {
-        console.log(`[SessionClient] Applying ${newOps.length} new whiteboard operations.`);
+        // console.log(`[SessionClient] Applying ${newOps.length} new whiteboard operations.`);
       }
       return [...prevOps, ...newOps];
     });
@@ -387,9 +387,12 @@ export default function SessionClient({
           setOnlineUserIds(memberIds);
           
           const otherUserIds = memberIds.filter((id: string) => id !== currentUserId);
+          
+          // CORRECTION: Créer un peer pour chaque autre utilisateur, seulement si on est l'initiateur.
           otherUserIds.forEach((userId: string) => {
               const shouldInitiate = currentUserId > userId;
-              if (!peersRef.current.has(userId) && shouldInitiate) {
+              if (shouldInitiate && !peersRef.current.has(userId)) {
+                  console.log(`[PEER] Initiating connection to ${userId}`);
                   const streamToUse = isSharingScreen ? screenStream : localStream;
                   createPeer(userId, true, streamToUse);
               }
