@@ -1,4 +1,4 @@
-// src/components/Html5Whiteboard.tsx - VERSION CORRIGÉE
+// src/components/Html5Whiteboard.tsx - VERSION CORRIGÉE ET STABILISÉE
 'use client';
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
@@ -20,14 +20,15 @@ interface WhiteboardProps {
 
 type Tool = 'pen' | 'eraser';
 
+// Fonction de dessin optimisée
 const drawPath = (ctx: CanvasRenderingContext2D, path: { points: {x: number, y: number}[], color: string, brushSize: number }) => {
     if (path.points.length < 2) return;
-      
+    
     ctx.beginPath();
     ctx.moveTo(path.points[0].x, path.points[0].y);
     
     for (let i = 1; i < path.points.length; i++) {
-      ctx.lineTo(path.points[i].x, path.points[i].y);
+        ctx.lineTo(path.points[i].x, path.points[i].y);
     }
     
     ctx.strokeStyle = path.color;
@@ -50,9 +51,11 @@ export const Html5Whiteboard: React.FC<WhiteboardProps> = React.memo(function Wh
   const [tool, setTool] = useState<Tool>('pen');
   const [color, setColor] = useState('#000000');
   const [brushSize, setBrushSize] = useState(5);
+  
+  // CORRECTION: Les refs pour le dessin doivent persister entre les re-rendus
   const lastPointRef = useRef<{ x: number, y: number } | null>(null);
   const currentPathId = useRef<string | null>(null);
-  
+
   const redrawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -65,24 +68,27 @@ export const Html5Whiteboard: React.FC<WhiteboardProps> = React.memo(function Wh
     const sortedOperations = [...operations].sort((a, b) => a.timestamp - b.timestamp);
 
     for (const op of sortedOperations) {
-      if (op.type === 'CLEAR') {
-        paths.clear();
-      } else if (op.type === 'DRAW') {
-        if (!paths.has(op.pathId)) {
-          paths.set(op.pathId, {
-            points: [op.payload.from],
-            color: op.payload.color,
-            brushSize: op.payload.brushSize,
-          });
+        if (op.type === 'CLEAR') {
+            paths.clear();
+        } else if (op.type === 'DRAW') {
+            // CORRECTION: Assurer la reconstruction correcte des chemins
+            let path = paths.get(op.pathId);
+            if (!path) {
+                path = {
+                    points: [op.payload.from],
+                    color: op.payload.color,
+                    brushSize: op.payload.brushSize,
+                };
+                paths.set(op.pathId, path);
+            }
+            path.points.push(op.payload.to);
         }
-        paths.get(op.pathId)!.points.push(op.payload.to);
-      }
     }
     
-    paths.forEach(drawPath.bind(null, ctx));
-    console.log(`🎨 [WHITEBOARD] - Redrawn ${paths.size} paths with ${operations.length} operations`);
+    paths.forEach(p => drawPath(ctx, p));
+    // console.log(`🎨 [WHITEBOARD] - Redrawn ${paths.size} paths with ${operations.length} operations`);
   }, [operations]);
-
+  
   useEffect(() => {
     redrawCanvas();
   }, [operations, redrawCanvas]);
@@ -104,7 +110,8 @@ export const Html5Whiteboard: React.FC<WhiteboardProps> = React.memo(function Wh
       y: (clientY - rect.top) * scaleY
     };
   }, []);
-
+  
+  // CORRECTION: Mettre le `pathId` dans le `handleMouseDown` pour garantir son unicité par trait
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (!isController) return;
     const point = getCanvasPoint(e.clientX, e.clientY);
@@ -112,8 +119,8 @@ export const Html5Whiteboard: React.FC<WhiteboardProps> = React.memo(function Wh
 
     setIsDrawing(true);
     lastPointRef.current = point;
-    currentPathId.current = uuidv4();
-    console.log(`✏️ [WHITEBOARD] - Started drawing with path: ${currentPathId.current}`);
+    currentPathId.current = uuidv4(); // Un nouvel ID est créé à chaque début de trait
+    // console.log(`✏️ [WHITEBOARD] - Started drawing with path: ${currentPathId.current}`);
   }, [isController, getCanvasPoint]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
@@ -124,7 +131,7 @@ export const Html5Whiteboard: React.FC<WhiteboardProps> = React.memo(function Wh
     
     const event: WhiteboardOperation = {
         id: uuidv4(),
-        pathId: currentPathId.current,
+        pathId: currentPathId.current, // CORRECTION: Utiliser l'ID constant du trait en cours
         userId,
         sessionId,
         timestamp: Date.now(),
@@ -138,7 +145,8 @@ export const Html5Whiteboard: React.FC<WhiteboardProps> = React.memo(function Wh
         },
     };
     
-    onEvent([event]); // CORRECTION: `onEvent` déclenche maintenant aussi le redessinage local via `SessionClient`
+    // CORRECTION: Envoyer l'événement pour la synchro ET pour le dessin local immédiat
+    onEvent([event]); 
     lastPointRef.current = currentPoint;
 
   }, [isDrawing, isController, getCanvasPoint, tool, color, brushSize, onEvent, sessionId, userId]);
@@ -146,11 +154,11 @@ export const Html5Whiteboard: React.FC<WhiteboardProps> = React.memo(function Wh
   const handleMouseUp = useCallback(() => {
     if (!isDrawing) return;
     
-    console.log(`🛑 [WHITEBOARD] - Stopped drawing path: ${currentPathId.current}`);
+    // console.log(`🛑 [WHITEBOARD] - Stopped drawing path: ${currentPathId.current}`);
     
     setIsDrawing(false);
     lastPointRef.current = null;
-    currentPathId.current = null; // Important de ne pas le réinitialiser avant la fin
+    currentPathId.current = null;
     
     if (flushOperations) {
       flushOperations();
@@ -162,14 +170,14 @@ export const Html5Whiteboard: React.FC<WhiteboardProps> = React.memo(function Wh
     
     const event: WhiteboardOperation = {
         id: uuidv4(),
-        pathId: uuidv4(), // pathId non pertinent mais requis
+        pathId: uuidv4(),
         userId,
         sessionId,
         timestamp: Date.now(),
         type: 'CLEAR'
     };
     
-    console.log(`🧹 [WHITEBOARD] - Clearing canvas`);
+    // console.log(`🧹 [WHITEBOARD] - Clearing canvas`);
     onEvent([event]);
     
     if (flushOperations) {
