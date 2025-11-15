@@ -422,7 +422,7 @@ export function TeacherSessionView({
                 )}
             </div>
 
-            <div className="w-80 flex-shrink-0 flex flex-col gap-4">
+            <div className="w-100 flex-shrink-0 bg-gray-200 flex flex-col px-2 mx-2 gap-4">
                  <div className="flex items-center gap-2">
                     <Button 
                         variant={teacherView === 'content' ? 'default' : 'outline'} 
@@ -441,7 +441,7 @@ export function TeacherSessionView({
                         <Grid className="mr-2 h-4 w-4" /> Grille
                     </Button>
                 </div>
-                <ScrollArea className="flex-1 p-1">
+                <ScrollArea className="flex-1 p-3">
                     <div className="space-y-4">
                         <AnimatedCard title="Partage de Document">
                             <div className='p-2 space-y-3'>

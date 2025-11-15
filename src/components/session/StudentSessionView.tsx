@@ -211,7 +211,7 @@ export function StudentSessionView({
                 }
 
                 return (
-                    <div className="w-full h-full">
+                    <div className="w-full h-full ">
                         <Participant 
                             stream={spotlightedStream}
                             isLocal={false} 
@@ -243,17 +243,17 @@ export function StudentSessionView({
     const mainContent = useMemo(() => renderMainContent(), [renderMainContent]);
     
     return (
-        <div className="flex flex-row flex-1 min-h-0 gap-4">
+        <div className="flex flex-row  flex-1 min-h-0 gap-4">
             <div className="flex-1 flex flex-col min-w-0">
                 <div className="w-full h-full relative rounded-lg overflow-hidden border">
                     {mainContent}
                 </div>
             </div>
 
-            <div className="w-80 flex-shrink-0 flex flex-col">
+            <div className="w-60  flex-shrink-0 flex flex-col">
                 <motion.div layout className="h-full flex flex-col gap-1">
-                    <ScrollArea className="flex-1 pr-3 -mr-3">
-                         <div className="space-y-4">
+                    <ScrollArea className="flex-1 pr-3 -mr-3 ">
+                         <div className="space-y-4 ">
                              {activeTool !== 'camera' && spotlightedUser && spotlightedStream && (
                                 <AnimatedCard title={spotlightedUser.name || "Professeur"}>
                                     <div className="p-2">
