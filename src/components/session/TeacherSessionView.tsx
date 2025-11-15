@@ -94,11 +94,11 @@ export function TeacherSessionView({
     
     // CORRECTION: Logs pour le debugging du whiteboard
     useEffect(() => {
-        console.log(`👨‍🏫 [TEACHER VIEW] - Active tool: ${activeTool}, Whiteboard operations: ${whiteboardOperations.length}`);
-        console.log(`👨‍🏫 [TEACHER VIEW] - Whiteboard controller: ${whiteboardControllerId}, Current user: ${currentUserId}`);
+        // console.log(`👨‍🏫 [TEACHER VIEW] - Active tool: ${activeTool}, Whiteboard operations: ${whiteboardOperations.length}`);
+        // console.log(`👨‍🏫 [TEACHER VIEW] - Whiteboard controller: ${whiteboardControllerId}, Current user: ${currentUserId}`);
         
         if (activeTool === 'whiteboard' && whiteboardOperations.length > 0) {
-            console.log(`👨‍🏫 [TEACHER VIEW] - Last operation:`, whiteboardOperations[whiteboardOperations.length - 1]);
+            // console.log(`👨‍🏫 [TEACHER VIEW] - Last operation:`, whiteboardOperations[whiteboardOperations.length - 1]);
         }
     }, [activeTool, whiteboardOperations, whiteboardControllerId, currentUserId]);
 
@@ -178,12 +178,12 @@ export function TeacherSessionView({
 
     // CORRECTION: Gestion améliorée des événements whiteboard
     const handleWhiteboardEvent = useCallback((operations: WhiteboardOperation[]) => {
-        console.log(`📤 [TEACHER VIEW] - Sending ${operations.length} whiteboard operations to sync`);
+        // console.log(`📤 [TEACHER VIEW] - Sending ${operations.length} whiteboard operations to sync`);
         onWhiteboardEvent(operations);
     }, [onWhiteboardEvent]);
 
     const handleFlushWhiteboardOperations = useCallback(() => {
-        console.log(`🚀 [TEACHER VIEW] - Flushing whiteboard operations`);
+        // console.log(`🚀 [TEACHER VIEW] - Flushing whiteboard operations`);
         if (flushWhiteboardOperations) {
             flushWhiteboardOperations();
         }
@@ -393,10 +393,10 @@ export function TeacherSessionView({
     ]);
 
     const allParticipants = useMemo(() => {
-        const participants = [teacher, ...students].filter((p): p is SessionParticipant => 
-            p !== undefined && p !== null
-        );
-        return participants;
+        const participantsMap = new Map<string, SessionParticipant>();
+        if (teacher) participantsMap.set(teacher.id, teacher);
+        students.forEach(s => participantsMap.set(s.id, s as SessionParticipant));
+        return Array.from(participantsMap.values());
     }, [teacher, students]);
     
     if (!currentUserId || !teacher) {
@@ -422,8 +422,8 @@ export function TeacherSessionView({
                 )}
             </div>
 
-            <div className="w-100 flex-shrink-0 bg-gray-200 flex flex-col px-2 mx-2 gap-4">
-                 <div className="flex items-center gap-2">
+            <div className="w-80 flex-shrink-0 flex flex-col">
+                 <div className="flex items-center gap-2 mb-4">
                     <Button 
                         variant={teacherView === 'content' ? 'default' : 'outline'} 
                         size="sm" 
@@ -441,14 +441,14 @@ export function TeacherSessionView({
                         <Grid className="mr-2 h-4 w-4" /> Grille
                     </Button>
                 </div>
-                <ScrollArea className="flex-1 p-3">
+                <ScrollArea className="flex-1 -mr-3 pr-3">
                     <div className="space-y-4">
                         <AnimatedCard title="Partage de Document">
                             <div className='p-2 space-y-3'>
                                 <PDFUploadSection 
                                     sessionId={sessionId} 
                                     onUploadSuccess={() => {
-                                        console.log('Upload successful, parent component notified.');
+                                        // console.log('Upload successful, parent component notified.');
                                     }} 
                                 />
                                 <DocumentHistory 
@@ -459,22 +459,24 @@ export function TeacherSessionView({
                             </div>
                         </AnimatedCard>
                         <AnimatedCard title="Gestion de Session">
-                            <SessionTimer
-                                isTeacher={true}
-                                sessionId={sessionId}
-                                initialDuration={validatedInitialDuration}
-                                timeLeft={validatedTimerTimeLeft}
-                                isTimerRunning={isTimerRunning}
-                                onStart={onStartTimer}
-                                onPause={onPauseTimer}
-                                onReset={onResetTimer}
-                            />
-                            <SessionStatus 
-                                participants={allSessionUsers as User[]}
-                                onlineIds={activeParticipantIds}
-                                webrtcConnections={remoteParticipants.length}
-                                whiteboardControllerId={whiteboardControllerId}
-                            />
+                             <div className="space-y-2 p-2">
+                                <SessionTimer
+                                    isTeacher={true}
+                                    sessionId={sessionId}
+                                    initialDuration={validatedInitialDuration}
+                                    timeLeft={validatedTimerTimeLeft}
+                                    isTimerRunning={isTimerRunning}
+                                    onStart={onStartTimer}
+                                    onPause={onPauseTimer}
+                                    onReset={onResetTimer}
+                                />
+                                <SessionStatus 
+                                    participants={allSessionUsers as User[]}
+                                    onlineIds={activeParticipantIds}
+                                    webrtcConnections={remoteParticipants.length}
+                                    whiteboardControllerId={whiteboardControllerId}
+                                />
+                             </div>
                         </AnimatedCard>
                         
                         {classroom && (
