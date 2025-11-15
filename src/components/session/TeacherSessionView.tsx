@@ -321,10 +321,11 @@ export function TeacherSessionView({
                 
             case 'camera':
                 const spotlightedStream = spotlightedUser?.id === currentUserId 
-                    ? localStream
+                    ? (isSharingScreen ? screenStream : localStream)
                     : remoteStreamsMap.get(spotlightedUser?.id ?? '');
 
-                if (!spotlightedUser || !spotlightedStream) {
+
+                if (!spotlightedUser) {
                     return (
                         <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/30 border-dashed">
                             <CardContent className="text-center text-muted-foreground p-6">
@@ -343,6 +344,17 @@ export function TeacherSessionView({
                             </CardContent>
                         </Card>
                     );
+                }
+                
+                if (!spotlightedStream) {
+                  return (
+                    <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/30 border-dashed">
+                        <CardContent className="text-center text-muted-foreground p-6">
+                            <Loader2 className="h-10 w-10 mx-auto mb-4 animate-spin" />
+                            <h3 className="font-semibold text-xl">Connexion à {spotlightedUser.name}...</h3>
+                        </CardContent>
+                    </Card>
+                  );
                 }
                 
                 return (
