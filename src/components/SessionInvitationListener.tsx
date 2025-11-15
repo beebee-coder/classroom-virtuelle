@@ -45,6 +45,27 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
   const mountedRef = useRef(true);
   const setupAttemptedRef = useRef(false);
 
+  // CORRECTION: Gestion robuste des nouvelles invitations
+  const handleInvitation = useCallback((data: SessionInvitation) => {
+    if (!mountedRef.current || processedInvitationsRef.current.has(data.sessionId)) {
+      console.log(`🔄 [INVITE LISTENER] - Invitation ${data.sessionId} already processed or component unmounted`);
+      return;
+    }
+    
+    console.log(`✅ [INVITE LISTENER] - New invitation received: ${data.sessionId}`);
+    processedInvitationsRef.current.add(data.sessionId);
+    
+    if (mountedRef.current) {
+      setSessionInvitation(data);
+      
+      toast({
+        title: '🎯 Invitation de session reçue !',
+        description: `${data.teacherName} vous invite à une session vidéo`,
+        duration: 10000,
+      });
+    }
+  }, [toast]);
+
   // CORRECTION: Fonction pour vérifier les invitations en attente avec gestion d'erreur améliorée
   const checkPendingInvitations = useCallback(async () => {
     if (!studentId || !mountedRef.current) return;
@@ -172,26 +193,6 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
     }
   }, []);
   
-  // CORRECTION: Gestion robuste des nouvelles invitations
-  const handleInvitation = useCallback((data: SessionInvitation) => {
-    if (!mountedRef.current || processedInvitationsRef.current.has(data.sessionId)) {
-      console.log(`🔄 [INVITE LISTENER] - Invitation ${data.sessionId} already processed or component unmounted`);
-      return;
-    }
-    
-    console.log(`✅ [INVITE LISTENER] - New invitation received: ${data.sessionId}`);
-    processedInvitationsRef.current.add(data.sessionId);
-    
-    if (mountedRef.current) {
-      setSessionInvitation(data);
-      
-      toast({
-        title: '🎯 Invitation de session reçue !',
-        description: `${data.teacherName} vous invite à une session vidéo`,
-        duration: 10000,
-      });
-    }
-  }, [toast]);
 
   // CORRECTION: Setup Ably avec gestion robuste des états
   const setupAblySubscription = useCallback(async () => {
