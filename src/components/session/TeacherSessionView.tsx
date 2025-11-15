@@ -79,6 +79,15 @@ export function TeacherSessionView({
     onSelectDocument,
     whiteboardControllerId,
     onWhiteboardControllerChange,
+    initialDuration,
+    timerTimeLeft,
+    isTimerRunning,
+    onStartTimer,
+    onPauseTimer,
+    onResetTimer,
+    onWhiteboardEvent,
+    whiteboardOperations,
+    flushWhiteboardOperations,
 }: TeacherSessionViewProps) {
     const { toast } = useToast();
     const [teacherView, setTeacherView] = useState<'content' | 'grid'>('content');

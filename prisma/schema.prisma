@@ -11,26 +11,27 @@ datasource db {
 }
 
 model User {
-  id              String         @id @default(cuid())
+  id              String            @id @default(cuid())
   name            String?
-  email           String?        @unique
+  email           String?           @unique
   emailVerified   DateTime?
   image           String?
-  role            Role           @default(ELEVE)
-  points          Int            @default(0)
+  role            Role              @default(ELEVE)
+  points          Int               @default(0)
   ambition        String?
   password        String?
   parentPassword  String?
-  classe          Classroom?     @relation(fields: [classeId], references: [id])
+  classe          Classroom?        @relation(fields: [classeId], references: [id])
   classeId        String?
-  sessions        CoursSession[] @relation("participants")
+  sessions        CoursSession[]    @relation("participants")
   announcements   Announcement[]
   messages        Message[]
   studentProgress StudentProgress[]
   reactions       Reaction[]
   etat            EtatEleve?
-  createdClasses  Classroom[]    @relation("professeur")
-  sharedDocuments SharedDocument[] @relation("professeur")
+  createdClasses  Classroom[]       @relation("professeur")
+  sharedDocuments SharedDocument[]  @relation("professeur")
+  CoursSession    CoursSession[]
 }
 
 model Classroom {
@@ -41,42 +42,43 @@ model Classroom {
   eleves       User[]
   sessions     CoursSession[]
   annonces     Announcement[]
+  Message      Message[]
 }
 
 model CoursSession {
-  id              String      @id @default(cuid())
-  professeur      User        @relation(fields: [professeurId], references: [id])
+  id              String           @id @default(cuid())
+  professeur      User             @relation(fields: [professeurId], references: [id])
   professeurId    String
-  classe          Classroom   @relation(fields: [classroomId], references: [id])
+  classe          Classroom        @relation(fields: [classroomId], references: [id])
   classroomId     String
-  participants    User[]      @relation("participants")
-  startTime       DateTime    @default(now())
+  participants    User[]           @relation("participants")
+  startTime       DateTime         @default(now())
   endTime         DateTime?
   sharedDocuments SharedDocument[]
 }
 
 model SharedDocument {
-  id           String        @id @default(cuid())
-  name         String
-  url          String
-  createdAt    DateTime      @default(now())
-  coursSession CoursSession? @relation(fields: [coursSessionId], references: [id])
+  id             String        @id @default(cuid())
+  name           String
+  url            String
+  createdAt      DateTime      @default(now())
+  coursSession   CoursSession? @relation(fields: [coursSessionId], references: [id])
   coursSessionId String?
   professeur     User?         @relation("professeur", fields: [professeurId], references: [id])
   professeurId   String?
 }
 
 model Announcement {
-  id          String     @id @default(cuid())
-  title       String
-  content     String
+  id            String     @id @default(cuid())
+  title         String
+  content       String
   attachmentUrl String?
-  author      User       @relation(fields: [authorId], references: [id])
-  authorId    String
-  classe      Classroom? @relation(fields: [classeId], references: [id])
-  classeId    String?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  author        User       @relation(fields: [authorId], references: [id])
+  authorId      String
+  classe        Classroom? @relation(fields: [classeId], references: [id])
+  classeId      String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 }
 
 model Metier {
@@ -98,18 +100,18 @@ model EtatEleve {
 }
 
 model Task {
-  id             String            @id @default(cuid())
-  title          String
-  description    String
-  points         Int
-  type           TaskType
-  category       TaskCategory
-  difficulty     TaskDifficulty
-  validationType ValidationType
-  requiresProof  Boolean           @default(false)
-  isActive       Boolean           @default(true)
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  id              String            @id @default(cuid())
+  title           String
+  description     String
+  points          Int
+  type            TaskType
+  category        TaskCategory
+  difficulty      TaskDifficulty
+  validationType  ValidationType
+  requiresProof   Boolean           @default(false)
+  isActive        Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
   studentProgress StudentProgress[]
 }
 
