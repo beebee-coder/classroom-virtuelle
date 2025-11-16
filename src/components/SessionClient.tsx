@@ -309,11 +309,6 @@ export default function SessionClient({
                 });
                 clearTimeout(connectionTimeout);
                 
-                // CORRECTION : COMMENTÉ - Toast intempestif désactivé
-                // toast({
-                //     title: 'Connexion établie',
-                //     description: `Connexion vidéo avec ${targetUserId === initialTeacher?.id ? teacherName : studentNames[targetUserId] || targetUserId}`
-                // });
             }
         });
 
@@ -405,7 +400,7 @@ export default function SessionClient({
         });
         return undefined;
     }
-  }, [sessionId, currentUserId, teacherName, studentNames, initialTeacher?.id, toast, cleanupPeerConnection]);
+  }, [sessionId, currentUserId, teacherName, studentNames, initialTeacher?.id, cleanupPeerConnection]);
 
   // CORRECTION : Gestion des médias optimisée
   useEffect(() => {
@@ -729,7 +724,12 @@ export default function SessionClient({
     const handleDocumentShared = (message: Types.Message) => {
       if (!isMountedRef.current) return;
 
-      // CORRECTION : Vérification d'existence avant ajout pour éviter la duplication
+      // CORRECTION : Ignorer l'événement si l'utilisateur est celui qui l'a envoyé
+      if (message.data?.sharedByUserId === currentUserId) {
+        console.log("📄 [DOCUMENT] - Ignored own document share event.");
+        return;
+      }
+      
       setDocumentHistory(prev => {
         const newDocument = message.data;
         if (prev.some(doc => doc.id === newDocument.id)) {

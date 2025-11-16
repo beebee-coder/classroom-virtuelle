@@ -286,7 +286,7 @@ export async function shareDocument(
     };
 
     console.log('📡 [SHARE DOCUMENT] - Broadcasting to channel:', channel);
-    await ablyTrigger(channel, AblyEvents.DOCUMENT_SHARED, payload);
+    await ablyTrigger(channel, AblyEvents.DOCUMENT_SHARED, { ...payload, sharedByUserId: userId });
 
     revalidatePath(`/session/${sessionId}`);
     console.log('✅ [SHARE DOCUMENT] - Document shared successfully');
