@@ -1,4 +1,4 @@
-// src/lib/actions/session.actions.ts - VERSION CORRIGÉE AVEC updateStudentSessionStatus
+// src/lib/actions/session.actions.ts - VERSION CORRIGÉE
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -12,8 +12,6 @@ import type { CoursSession, User, SharedDocument } from '@prisma/client';
 import { Role } from '@prisma/client';
 import { ComprehensionLevel, type DocumentInHistory, type ClassroomWithDetails } from '@/types';
 
-// --- Interfaces and Type Definitions ---
-
 export interface SessionData extends CoursSession {
     invitationResults?: {
         successful: string[];
@@ -23,14 +21,14 @@ export interface SessionData extends CoursSession {
 }
 
 export interface SessionDetails {
-    id: string;
-    teacher: User;
-    students: User[];
-    participants: User[];
-    documentHistory: DocumentInHistory[];
-    classroom: ClassroomWithDetails | null;
-    startTime: string;
-    endTime: string | null;
+  id: string;
+  teacher: User;
+  students: User[];
+  participants: User[];
+  documentHistory: DocumentInHistory[];
+  classroom: ClassroomWithDetails | null;
+  startTime: string;
+  endTime: string | null;
 }
 
 interface InvitationPayload {
@@ -75,6 +73,61 @@ const validateActiveTool = (tool: string): string => {
 };
 
 // --- Core Session Actions ---
+
+// ✅ NOUVELLE FONCTION : Sauvegarde et partage
+export async function saveAndShareDocument(
+    sessionId: string,
+    newDoc: { name: string; url: string }
+): Promise<{ success: true; document: DocumentInHistory }> {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+        console.error('❌ [SAVE & SHARE] - Not authenticated');
+        throw new Error('Not authenticated');
+    }
+    const userId = session.user.id;
+
+    console.log('💾📤 [SAVE & SHARE] - Saving and sharing document:', { sessionId, newDoc });
+
+    try {
+        const newDocument = await prisma.sharedDocument.create({
+            data: {
+                name: newDoc.name,
+                url: newDoc.url,
+                userId: userId,
+            },
+        });
+
+        console.log('✅ [SAVE & SHARE] - Document saved to database:', newDocument);
+
+        if (!newDocument.id) {
+            throw new Error('Failed to create document: ID is undefined');
+        }
+
+        const payload: DocumentInHistory = {
+            id: newDocument.id,
+            name: newDocument.name,
+            url: newDocument.url,
+            createdAt: newDocument.createdAt.toISOString(),
+            sharedBy: session.user.name ?? 'Professeur',
+            coursSessionId: sessionId,
+        };
+
+        const channel = getSessionChannelName(sessionId);
+        await ablyTrigger(channel, AblyEvents.DOCUMENT_SHARED, {
+            ...payload,
+            sharedByUserId: userId
+        });
+        
+        console.log('📡 [SAVE & SHARE] - Broadcasted DOCUMENT_SHARED event.');
+
+        revalidatePath(`/session/${sessionId}`);
+        return { success: true, document: payload };
+
+    } catch (error) {
+        console.error('❌ [SAVE & SHARE] - Error:', error);
+        throw new Error('Failed to save and share document: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    }
+}
 
 export async function createCoursSession(professeurId: string, classroomId: string, studentIds: string[]): Promise<SessionData> {
     console.log('🚀 [ACTION CRITIQUE] - DEBUT createCoursSession', { professeurId, classroomId, studentIds });
@@ -251,110 +304,78 @@ export async function spotlightParticipant(sessionId: string, participantId: str
     return { success: true, participantId, sessionId };
 }
 
-// Dans session.actions.ts - CORRECTION de la fonction shareDocument
+export async function shareDocumentToStudents(
+    sessionId: string,
+    document: DocumentInHistory
+): Promise<{ success: boolean }> {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+        console.error('❌ [SHARE TO STUDENTS] - Not authenticated');
+        throw new Error('Not authenticated');
+    }
+
+    console.log('📤 [SHARE TO STUDENTS] - Sharing document to students:', { sessionId, document });
+
+    try {
+        const channel = getSessionChannelName(sessionId);
+        
+        console.log('📡 [SHARE TO STUDENTS] - Broadcasting to channel:', channel, 'with document:', document);
+        
+        await ablyTrigger(channel, AblyEvents.DOCUMENT_SHARED, {
+            ...document,
+            sharedByUserId: session.user.id,
+            timestamp: new Date().toISOString()
+        });
+
+        console.log('✅ [SHARE TO STUDENTS] - Document shared to students successfully');
+        
+        return { success: true };
+
+    } catch (error) {
+        console.error('❌ [SHARE TO STUDENTS] - Error sharing document to students:', error);
+        throw new Error('Failed to share document to students: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    }
+}
+
+
 export async function shareDocument(
     sessionId: string,
     newDoc: { name: string; url: string }
   ): Promise<{ success: true; document: DocumentInHistory }> {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      console.error('❌ [SHARE DOCUMENT] - Not authenticated');
-      throw new Error('Not authenticated');
-    }
-    const userId = session.user.id;
-  
-    console.log('📄 [SHARE DOCUMENT] - Sharing document:', { sessionId, newDoc });
-  
-    try {
-      const newDocument = await prisma.sharedDocument.create({
-        data: {
-          name: newDoc.name,
-          url: newDoc.url,
-          userId: userId,
-        },
-      });
-  
-      console.log('✅ [SHARE DOCUMENT] - Document saved to database:', newDocument);
-  
-      if (!newDocument.id) {
-        console.error('❌ [SHARE DOCUMENT] - Document ID is undefined after creation');
-        throw new Error('Failed to create document: ID is undefined');
-      }
-  
-      const channel = getSessionChannelName(sessionId);
-      
-      // ✅ CORRECTION : Créer le payload sans sharedByUserId qui n'existe pas dans DocumentInHistory
-      const payload: DocumentInHistory = {
-        id: newDocument.id,
-        name: newDocument.name,
-        url: newDocument.url,
-        createdAt: newDocument.createdAt.toISOString(),
-        sharedBy: session.user.name ?? 'Professeur',
-        coursSessionId: sessionId,
-      };
-  
-      console.log('📡 [SHARE DOCUMENT] - Broadcasting to channel:', channel, 'with payload:', payload);
-      
-      // ✅ CORRECTION : Envoyer sharedByUserId séparément dans l'événement Ably
-      await ablyTrigger(channel, AblyEvents.DOCUMENT_SHARED, {
-        ...payload,
-        sharedByUserId: userId // ✅ Envoyer dans l'événement mais pas dans le type DocumentInHistory
-      });
-  
-      revalidatePath(`/session/${sessionId}`);
-      console.log('✅ [SHARE DOCUMENT] - Document shared successfully');
-      
-      return { success: true, document: payload };
-  
-    } catch (error) {
-      console.error('❌ [SHARE DOCUMENT] - Error sharing document:', error);
-      throw new Error('Failed to share document: ' + (error instanceof Error ? error.message : 'Unknown error'));
-    }
+    console.warn('⚠️ [SHARE DOCUMENT] - Using deprecated shareDocument function, use saveAndShareDocument instead');
+    return saveAndShareDocument(sessionId, newDoc);
   }
-export async function deleteSharedDocument(documentId: string, sessionId: string) {
+
+
+
+export async function deleteSharedDocument(documentId: string, sessionId: string, currentUserId: string) {
     console.log(`🗑️ [ACTION] deleteSharedDocument: ${documentId} from session ${sessionId}`);
     
     try {
-        // ✅ CORRECTION : Récupération correcte de la session
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        if (!currentUserId) {
             console.error('❌ [DOCUMENT DELETE] - User not authenticated');
             throw new Error('Non authentifié');
         }
 
-        const currentUserId = session.user.id;
-
-        // ✅ CORRECTION : Vérification que l'utilisateur est le propriétaire du document
         const documentToDelete = await prisma.sharedDocument.findUnique({
             where: { id: documentId },
-            include: {
-                user: true
-            }
+            include: { user: true }
         });
 
         if (!documentToDelete) {
-            console.error(`❌ [DOCUMENT DELETE] - Document ${documentId} not found`);
             throw new Error('Document non trouvé');
         }
 
-        // Vérifier que l'utilisateur est le propriétaire du document
         if (documentToDelete.userId !== currentUserId) {
-            console.error(`❌ [DOCUMENT DELETE] - User ${currentUserId} is not owner of document ${documentId} (owner: ${documentToDelete.userId})`);
             throw new Error('Action non autorisée - Vous ne pouvez supprimer que vos propres documents');
         }
 
-        console.log(`✅ [DOCUMENT DELETE] - User ${currentUserId} authorized to delete document ${documentId}`);
-
-        // ✅ CORRECTION : Suppression du document
         await prisma.sharedDocument.delete({
             where: { id: documentId }
         });
 
-        // ✅ CORRECTION : Broadcast de la suppression via Ably
         try {
             const channelName = getSessionChannelName(sessionId);
-            console.log(`📡 [DOCUMENT DELETE] - Broadcasting deletion event on channel: ${channelName}`);
-            
             await ablyTrigger(channelName, AblyEvents.DOCUMENT_DELETED, {
                 documentId,
                 deletedBy: currentUserId,
@@ -363,14 +384,11 @@ export async function deleteSharedDocument(documentId: string, sessionId: string
             });
         } catch (broadcastError) {
             console.warn('⚠️ [DOCUMENT DELETE] - Broadcast failed, but document was deleted:', broadcastError);
-            // Ne pas bloquer la suppression si le broadcast échoue
         }
 
-        // ✅ CORRECTION : Revalidation des chemins
         revalidatePath(`/session/${sessionId}`);
         revalidatePath('/teacher/dashboard');
         
-        console.log(`✅ [DOCUMENT DELETE] - Document ${documentId} successfully deleted from session ${sessionId}`);
         return { success: true, documentId };
 
     } catch (error) {
@@ -388,19 +406,17 @@ export async function getTeacherDocuments(): Promise<DocumentInHistory[]> {
         orderBy: { createdAt: 'desc' }
     });
 
-    // Transformer le retour pour correspondre au type DocumentInHistory
     return documents.map(doc => ({
         id: doc.id,
         name: doc.name,
         url: doc.url,
         createdAt: doc.createdAt.toISOString(),
         sharedBy: session.user?.name ?? 'Professeur',
-        coursSessionId: '' // Ce champ n'est plus pertinent mais conservé pour la compatibilité du type
+        coursSessionId: '' 
     }));
 }
 
 
-// CORRECTION: Ajout des fonctions timer manquantes
 export async function broadcastTimerEvent(sessionId: string, event: 'timer-started' | 'timer-paused' | 'timer-reset', data?: any) {
     const session = await getServerSession(authOptions);
     if (session?.user?.role !== Role.PROFESSEUR) throw new Error('Only teachers can control the timer');
@@ -468,7 +484,6 @@ export async function cleanupExpiredSessions() {
     return { cleaned: count };
 }
 
-// Getters (do not need migration)
 export async function getSessionDetails(sessionId: string): Promise<SessionDetails | null> {
     const sessionData = await prisma.coursSession.findUnique({
         where: { id: sessionId },

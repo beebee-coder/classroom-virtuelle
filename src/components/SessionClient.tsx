@@ -13,7 +13,7 @@ import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';
 import { ablyTrigger } from '@/lib/ably/triggers';
 import { broadcastTimerEvent, broadcastActiveTool, updateStudentSessionStatus } from '@/lib/actions/ably-session.actions';
-import { endCoursSession, shareDocument } from '@/lib/actions/session.actions';
+import { endCoursSession, shareDocumentToStudents, saveAndShareDocument } from '@/lib/actions/session.actions';
 import { ComprehensionLevel } from '@/types';
 import { useAbly } from '@/hooks/useAbly';
 import Ably, { type Types } from 'ably';
@@ -373,10 +373,6 @@ export default function SessionClient({
         });
 
         peer.on('connect', () => {
-            console.log(`🔗 ✅ [PEER CONNECT] - Peer connection fully established with ${targetUserId} after ${localSignalCount} signals`);
-            isConnectionEstablished = true;
-            shouldStopSignaling = true;
-            
             peerStatesRef.current.set(targetUserId, { 
                 isConnected: true, 
                 isConnecting: false,
@@ -486,7 +482,7 @@ export default function SessionClient({
         });
         return undefined;
     }
-}, [sessionId, currentUserId, teacherName, studentNames, initialTeacher?.id, cleanupPeerConnection, toast, isSharingScreen, screenStream, localStream]);
+}, [sessionId, currentUserId, teacherName, studentNames, initialTeacher?.id, cleanupPeerConnection, isSharingScreen, screenStream, localStream]);
 
 useEffect(() => {
     if (setupCompletedRef.current) return;
@@ -618,6 +614,7 @@ useEffect(() => {
       }
     }
   }, [isSharingScreen, screenStream, toast]);
+
 // ✅ CORRECTION FINALE : Logique d'initiation renforcée
 useEffect(() => {
   handlePresenceUpdateRef.current = (member: Types.PresenceMessage) => {
@@ -653,7 +650,6 @@ useEffect(() => {
         
         // ✅ LOGIQUE D'INITIATION RENFORCÉE
         otherUserIds.forEach((userId: string) => {
-            const existingPeer = peersRef.current.get(userId);
             const existingState = peerStatesRef.current.get(userId);
             
             // ✅ EMPÊCHER TOUTE CRÉATION SI DÉJÀ CONNECTÉ
@@ -678,7 +674,6 @@ useEffect(() => {
             
             // ✅ VÉRIFICATIONS FINALES AVANT CRÉATION
             if (isMediaReady && !peersRef.current.has(userId)) {
-                const existingState = peerStatesRef.current.get(userId);
                 const now = Date.now();
                 const MIN_RETRY_DELAY = 15000; // 15 secondes
                 
@@ -740,6 +735,7 @@ useEffect(() => {
         }
     });
 }, [isMediaReady, onlineUserIds, currentUserId, isSharingScreen, screenStream, localStream, createPeer, currentUserRole]);
+
   // CORRECTION : Gestion des signaux avec prévention des conflits d'état WebRTC
   useEffect(() => {
     handleSignalRef.current = (message: Types.Message) => {
@@ -860,16 +856,11 @@ useEffect(() => {
             handleIncomingWhiteboardOperationsRef.current?.(data.operations);
         }
     };
+    
     const handleDocumentShared = (message: Types.Message) => {
       if (!isMountedRef.current) return;
-    
       const data = message.data;
-      
-      // ✅ CORRECTION : Ignorer l'événement si l'utilisateur est celui qui l'a envoyé
-      if (data.sharedByUserId === currentUserId) {
-        console.log("📄 [DOCUMENT] - Ignored own document share event.");
-        return;
-      }
+      if (data.sharedByUserId === currentUserId) return;
       
       setDocumentHistory(prev => {
         const newDocument: DocumentInHistory = {
@@ -880,26 +871,23 @@ useEffect(() => {
           sharedBy: data.sharedBy,
           coursSessionId: data.coursSessionId,
         };
-    
-        // ✅ CORRECTION : Vérification d'existence avec ID valide
-        if (prev.some(doc => doc.id === newDocument.id && doc.id !== 'undefined')) {
-          console.log(`📄 [DOCUMENT] - Document ${newDocument.id} already exists, skipping duplication`);
-          return prev;
-        }
-        
-        console.log(`📄 [DOCUMENT] - Adding new document to history: ${newDocument.id} - "${newDocument.name}"`);
+        if (prev.some(doc => doc.id === newDocument.id)) return prev;
         return [...prev, newDocument];
       });
-    
       setDocumentUrl(data.url);
-      
       if (currentUserRole === Role.ELEVE) {
         setActiveTool('document');
-        toast({ 
-          title: 'Document partagé', 
-          description: `${data.sharedBy} a partagé un nouveau document.` 
-        });
+        toast({ title: 'Document partagé', description: `${data.sharedBy} a partagé un nouveau document.` });
       }
+    };
+    
+    const handleDocumentDeleted = (message: Types.Message) => {
+        if (!isMountedRef.current) return;
+        const { documentId, deletedBy } = message.data;
+        setDocumentHistory(prev => prev.filter(doc => doc.id !== documentId));
+        if (deletedBy !== currentUserId) {
+            toast({ title: 'Document supprimé' });
+        }
     };
 
     const bindEvents = () => {
@@ -934,6 +922,7 @@ useEffect(() => {
           }
         });
         channel.subscribe(AblyEvents.DOCUMENT_SHARED, handleDocumentShared);
+        channel.subscribe(AblyEvents.DOCUMENT_DELETED, handleDocumentDeleted);
         channel.subscribe(AblyEvents.WHITEBOARD_CONTROLLER_UPDATE, (msg) => {
           if (isMountedRef.current) setWhiteboardControllerId(msg.data.controllerId);
         });
@@ -1092,85 +1081,18 @@ useEffect(() => {
     }
   }, [currentUserRole, onToolChange]);
 
-  // Dans SessionClient.tsx - CORRECTION de la gestion des documents
-const onDocumentShared = (doc: DocumentInHistory) => {
-  // ✅ CORRECTION : Vérification robuste de l'ID
-  if (!doc.id || doc.id === 'undefined') {
-    console.error('❌ [DOCUMENT SHARED] - Received document with invalid ID:', doc);
-    return;
-  }
-
-  setDocumentHistory(prev => {
-    // ✅ CORRECTION : Vérification d'existence améliorée
-    const existingDoc = prev.find(d => d.id === doc.id);
-    if (existingDoc) {
-      console.log(`📄 [DOCUMENT] - Document ${doc.id} already exists in history, skipping duplication`);
-      return prev;
+  const handleUploadSuccess = useCallback(async (uploadedDoc: { name: string; url: string }) => {
+    if (!uploadedDoc.name || !uploadedDoc.url) {
+      toast({ variant: 'destructive', title: 'Erreur', description: 'Données du document invalides' });
+      return;
     }
-    
-    console.log(`📄 [DOCUMENT] - Adding new document to history: ${doc.id} - ${doc.name}`);
-    return [...prev, doc];
-  });
-  
-  setDocumentUrl(doc.url);
-  onToolChange('document');
-};
-
-
-// ✅ CORRECTION : Fonction handleUploadSuccess corrigée
-const handleUploadSuccess = useCallback((uploadedDoc: { name: string; url: string }) => {
-  console.log('📤 [UPLOAD SUCCESS] - Handling upload success:', uploadedDoc);
-  
-  if (!uploadedDoc.name || !uploadedDoc.url) {
-    console.error('❌ [UPLOAD SUCCESS] - Invalid document data:', uploadedDoc);
-    toast({
-      variant: 'destructive',
-      title: 'Erreur',
-      description: 'Données du document invalides'
-    });
-    return;
-  }
-
-  // ✅ CORRECTION : Utiliser shareDocument (qui est importé)
-  const shareDocumentToSession = async () => {
     try {
-      console.log('📤 [SHARE DOCUMENT] - Sharing uploaded document:', uploadedDoc.name);
-      
-      // ✅ CORRECTION : Appeler shareDocument directement
-      const result = await shareDocument(sessionId, uploadedDoc);
-      
-      if (result.success) {
-        console.log('✅ [SHARE DOCUMENT] - Document shared successfully:', result.document);
-        
-        // ✅ CORRECTION : Ajouter le document à l'historique local
-        setDocumentHistory(prev => {
-          const existingDoc = prev.find(doc => doc.id === result.document.id);
-          if (existingDoc) {
-            console.log(`📄 [DOCUMENT] - Document ${result.document.id} already in local history`);
-            return prev;
-          }
-          console.log(`📄 [DOCUMENT] - Adding document to local history: ${result.document.id} - "${result.document.name}"`);
-          return [...prev, result.document];
-        });
-        
-        toast({
-          title: 'Document partagé',
-          description: 'Le document a été partagé avec les participants',
-          variant: 'default'
-        });
-      }
+      const { document } = await saveAndShareDocument(sessionId, uploadedDoc);
+      toast({ title: 'Document partagé !', description: 'Le document a été partagé avec tous les participants.' });
     } catch (error) {
-      console.error('❌ [SHARE DOCUMENT] - Error sharing document:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Erreur',
-        description: 'Impossible de partager le document'
-      });
+      toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de partager le document' });
     }
-  };
-
-  shareDocumentToSession();
-}, [sessionId, toast]);
+  }, [sessionId, toast]);
 
   if (isComponentLoading) {
     return <SessionLoading />;
@@ -1227,7 +1149,7 @@ const handleUploadSuccess = useCallback((uploadedDoc: { name: string; url: strin
             whiteboardOperations={whiteboardOperations} 
             flushWhiteboardOperations={flushOperations}
             documentHistory={documentHistory}
-            onDocumentShared={onDocumentShared}
+            onDocumentShared={handleUploadSuccess}
           />
         ) : (
           <StudentSessionView

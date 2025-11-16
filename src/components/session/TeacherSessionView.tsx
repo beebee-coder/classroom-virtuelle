@@ -11,7 +11,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import { ClassStudentList } from './ClassStudentList';
 import { Loader2, UploadCloud, File, Trash2, Share2, Award, Users, Grid, Presentation, MessageSquare } from 'lucide-react';
 import { Button } from '../ui/button';
-import { getTeacherDocuments, shareDocument } from '@/lib/actions/session.actions';
 import { SessionStatus } from './SessionStatus';
 import { SessionTimer } from './SessionTimer';
 import { DocumentHistory } from './DocumentHistory';
@@ -22,7 +21,6 @@ import { Html5Whiteboard } from '@/components/Html5Whiteboard';
 import { AnimatedCard } from './AnimatedCard';
 import { useToast } from '@/hooks/use-toast';
 import { DocumentUploadSection } from './DocumentUploadSection';
-
 
 interface TeacherSessionViewProps {
     sessionId: string;
@@ -55,7 +53,7 @@ interface TeacherSessionViewProps {
     whiteboardOperations: WhiteboardOperation[];
     flushWhiteboardOperations?: () => void;
     documentHistory: DocumentInHistory[];
-    onDocumentShared: (doc: DocumentInHistory) => void;
+    onDocumentShared: (doc: { name: string; url: string }) => void;
 }
 
 export function TeacherSessionView({
@@ -93,20 +91,6 @@ export function TeacherSessionView({
 }: TeacherSessionViewProps) {
     const { toast } = useToast();
     const [teacherView, setTeacherView] = useState<'content' | 'grid'>('content');
-    
-    const handleDocumentUploadSuccess = async (doc: { name: string; url: string }) => {
-        try {
-            const result = await shareDocument(sessionId, doc);
-            if (result.success) {
-                // Instead of calling onDocumentShared, let the Ably event handle it.
-                // This keeps the data flow consistent.
-                toast({ title: "Fichier partagé !", description: `"${doc.name}" est maintenant visible par les élèves.` });
-            }
-        } catch (error) {
-            console.error("❌ [UPLOAD SUCCESS] - Erreur lors de l'appel de shareDocument:", error);
-            toast({ variant: 'destructive', title: "Erreur de partage", description: "Le fichier a été téléversé mais n'a pas pu être partagé en temps réel." });
-        }
-    };
     
     const validatedTimerTimeLeft = useMemo(() => {
         const time = timerTimeLeft;
@@ -167,14 +151,19 @@ export function TeacherSessionView({
 
     const handleDocumentReshare = useCallback(async (doc: DocumentInHistory) => {
         try {
-            await shareDocument(sessionId, { name: doc.name, url: doc.url });
-            // The toast is now handled by the Ably event, making this more optimistic
+            console.log('📤 [TEACHER VIEW] - Partage du document aux élèves:', doc.name);
+            await shareDocumentToStudents(sessionId, doc);
             onSelectDocument(doc);
+            toast({
+                title: 'Document partagé !',
+                description: `"${doc.name}" est maintenant affiché et partagé aux élèves.`,
+            });
         } catch (error) {
-             toast({
+            console.error('❌ [TEACHER VIEW] - Erreur lors du partage du document:', error);
+            toast({
                 variant: 'destructive',
                 title: 'Erreur de partage',
-                description: "Impossible de repartager le document.",
+                description: "Impossible de partager le document aux élèves.",
             });
         }
     }, [sessionId, onSelectDocument, toast]);
@@ -482,7 +471,7 @@ export function TeacherSessionView({
                 <div className='p-4 space-y-3'>
                   <DocumentUploadSection
                     sessionId={sessionId}
-                    onUploadSuccess={(doc) => onDocumentShared(doc as any)}
+                    onUploadSuccess={onDocumentShared}
                   />
                   <DocumentHistory
                     documents={documentHistory}

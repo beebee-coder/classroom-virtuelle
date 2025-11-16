@@ -22,7 +22,7 @@ export const AblyEvents = {
 
     // Document events
     DOCUMENT_SHARED: 'document-shared',
-    DOCUMENT_DELETED: 'document-deleted', // ✅ AJOUTÉ ICI
+    DOCUMENT_DELETED: 'document-deleted',
 
     // Whiteboard events
     WHITEBOARD_OPERATION_BATCH: 'whiteboard-operation-batch',
