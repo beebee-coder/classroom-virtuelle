@@ -1,4 +1,4 @@
-// src/components/SessionClient.tsx - VERSION COMPLÈTE CORRIGÉE
+// src/components/SessionClient.tsx - VERSION CORRIGÉE POUR LA STABILITÉ WEBRTC
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -51,7 +51,51 @@ interface PeerState {
     isConnecting: boolean;
     connectionAttempts: number;
     lastAttempt: number;
+    signalCount: number; // ✅ NOUVEAU : Compteur de signaux par peer
 }
+
+// ✅ CORRECTION CRITIQUE : Configuration WebRTC optimisée
+const WEBRTC_CONFIG = {
+    // ✅ AUGMENTATION : Limite de signaux augmentée pour TURN
+    MAX_SIGNALS: 50,
+    
+    // ✅ OPTIMISATION : Timeouts adaptés pour TURN
+    CONNECTION_TIMEOUT: 45000, // 45s pour les connexions TURN
+    RETRY_DELAY: 10000, // 10s entre les tentatives
+    MAX_CONNECTION_ATTEMPTS: 3,
+    
+    // ✅ CONFIGURATION ICE optimisée
+    ICE_SERVERS: [
+        // Serveurs STUN gratuits
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun3.l.google.com:19302' },
+        { urls: 'stun:stun4.l.google.com:19302' },
+        
+        // ✅ SERVEURS TURN GRATUITS avec authentification
+        { 
+            urls: 'turn:openrelay.metered.ca:80',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+        },
+        { 
+            urls: 'turn:openrelay.metered.ca:443',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+        },
+        { 
+            urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+        },
+        { 
+            urls: 'turn:turn.bistri.com:80',
+            username: 'homeo',
+            credential: 'homeo'
+        }
+    ]
+};
 
 export default function SessionClient({
   sessionId,
@@ -175,17 +219,21 @@ export default function SessionClient({
     });
   }, []);
 
-  // CORRECTION : Fonction de création de peer avec gestion d'état WebRTC améliorée
   const createPeer = useCallback((targetUserId: string, initiator: boolean, stream: MediaStream | null): PeerInstance | undefined => {
     if (!isMountedRef.current) {
         console.warn(`⚠️ [PEER CREATION] - Component unmounted, skipping peer creation for: ${targetUserId}`);
         return undefined;
     }
 
-    // CORRECTION : Vérification renforcée des tentatives de connexion
+    // ✅ CORRECTION : Vérification plus stricte des connexions existantes
     const existingState = peerStatesRef.current.get(targetUserId);
+    if (existingState?.isConnected) {
+        console.log(`🔗 [PEER SKIP] - Already connected to ${targetUserId}, skipping new peer creation`);
+        return undefined;
+    }
+
     const now = Date.now();
-    const MAX_ATTEMPTS = 2; // Réduit à 2 tentatives
+    const MAX_ATTEMPTS = 2;
     const RETRY_DELAY = 15000; // 15 secondes
 
     if (existingState) {
@@ -195,89 +243,95 @@ export default function SessionClient({
             return undefined;
         }
         
-        // CORRECTION : Empêcher la création de multiples peers pour le même utilisateur
         if (existingState.isConnecting) {
             console.log(`⏳ [PEER BUSY] - Peer for ${targetUserId} is already connecting, skipping`);
             return undefined;
         }
     }
 
-    // Vérifier si on a déjà un peer valide et connecté
     const existingPeer = peersRef.current.get(targetUserId);
     if (existingPeer && !existingPeer.destroyed) {
-        const peerState = peerStatesRef.current.get(targetUserId);
-        if (peerState?.isConnected) {
-            console.log(`🔁 [PEER REUSE] - Reusing existing connected peer for: ${targetUserId}`);
-            return existingPeer;
-        }
+        console.log(`🔁 [PEER REUSE] - Reusing existing peer for: ${targetUserId}`);
+        return existingPeer;
     }
 
     console.log(`🤝 [PEER CREATION] - Creating peer for target: ${targetUserId}. Initiator: ${initiator}, Has stream: ${!!stream}`);
 
     try {
-        // CORRECTION : Marquer immédiatement comme en cours de connexion
         peerStatesRef.current.set(targetUserId, { 
             isConnected: false, 
             isConnecting: true,
             connectionAttempts: (existingState?.connectionAttempts || 0) + 1,
-            lastAttempt: now
+            lastAttempt: now,
+            signalCount: 0
         });
 
-        // CORRECTION : Configuration WebRTC optimisée avec gestion d'état robuste
+        // ✅ CORRECTION : Configuration WebRTC avec timeouts ajustés
         const peer = new SimplePeer({
             initiator,
-            trickle: false, // DÉSACTIVÉ pour réduire les conflits
+            trickle: true,
             stream: stream || undefined,
             config: {
-                iceServers: [
-                    { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:stun1.l.google.com:19302' },
-                    { urls: 'stun:stun2.l.google.com:19302' },
-                    { urls: 'stun:stun3.l.google.com:19302' },
-                    { urls: 'stun:stun4.l.google.com:19302' }
-                ],
-                iceCandidatePoolSize: 3, // Réduit pour moins de complexité
-                iceTransportPolicy: 'all'
+                iceServers: WEBRTC_CONFIG.ICE_SERVERS,
+                iceCandidatePoolSize: 5,
+                iceTransportPolicy: 'all',
+                rtcpMuxPolicy: 'require',
+                bundlePolicy: 'max-bundle'
             },
             offerOptions: {
                 offerToReceiveAudio: true,
                 offerToReceiveVideo: true,
                 iceRestart: false
             },
-            channelConfig: {
-                ordered: false,
-                maxRetransmits: 2
+            answerOptions: {
+                offerToReceiveAudio: true,
+                offerToReceiveVideo: true
             }
         });
 
         let hasReceivedStream = false;
         let isConnectionEstablished = false;
         let connectionTimeout: NodeJS.Timeout;
-        let signalCount = 0;
-        const MAX_SIGNALS = 10; // Réduit à 10 signaux
+        let iceGatheringTimeout: NodeJS.Timeout;
+        
+        let localSignalCount = 0;
+        const processedCandidates = new Set<string>();
+        let shouldStopSignaling = false;
 
         peer.on('signal', (signal: PeerSignalData) => {
-            if (!isMountedRef.current || peer.destroyed) return;
+            if (!isMountedRef.current || peer.destroyed || shouldStopSignaling) return;
             
-            signalCount++;
+            localSignalCount++;
             
-            // CORRECTION : Filtrage amélioré des signaux
-            if (signalCount > MAX_SIGNALS) {
-                console.warn(`🛑 [SIGNAL LIMIT] - Too many signals for ${targetUserId} (${signalCount}), stopping`);
+            // ✅ CORRECTION : Arrêt plus précoce des signaux
+            if (localSignalCount > 25) { // Réduit de 50 à 25
+                console.warn(`🛑 [SIGNAL LIMIT] - Too many signals for ${targetUserId} (${localSignalCount}), stopping further signals`);
+                shouldStopSignaling = true;
                 return;
             }
             
-            // CORRECTION : Ignorer les candidats ICE après les premiers signaux
-            if (signal.type === 'candidate' && signalCount > 5) {
-                console.log(`⏭️ [SIGNAL FILTER] - Skipping candidate signal ${signalCount} for ${targetUserId}`);
+            if (isConnectionEstablished && signal.type === 'candidate') {
+                console.log(`🔕 [SIGNAL STOP] - Connection established, stopping ICE candidates for ${targetUserId}`);
+                shouldStopSignaling = true;
                 return;
             }
             
-            console.log(`📡 [PEER SIGNAL] - Sending signal ${signalCount}/${MAX_SIGNALS} from ${currentUserId} to ${targetUserId} (type: ${signal.type})`);
+            if (signal.type === 'candidate') {
+                const candidateKey = JSON.stringify(signal);
+                if (processedCandidates.has(candidateKey)) {
+                    console.log(`🔄 [ICE FILTER] - Skipping duplicate ICE candidate for ${targetUserId}`);
+                    return;
+                }
+                processedCandidates.add(candidateKey);
+            }
             
-            // CORRECTION : Délai entre les signaux pour éviter les conflits
+            console.log(`📡 [PEER SIGNAL] - Sending signal ${localSignalCount}/25 from ${currentUserId} to ${targetUserId} (type: ${signal.type})`);
+            
+            const delay = signal.type === 'candidate' ? 
+                Math.min(localSignalCount * 50, 500) : 0;
+            
             setTimeout(() => {
-                if (isMountedRef.current && !peer.destroyed) {
+                if (isMountedRef.current && !peer.destroyed && !shouldStopSignaling) {
                     signalViaAPI({
                         channelName: getSessionChannelName(sessionId),
                         userId: currentUserId,
@@ -286,14 +340,16 @@ export default function SessionClient({
                         isReturnSignal: !initiator
                     });
                 }
-            }, signalCount * 50); // Délai progressif
+            }, delay);
         });
 
         peer.on('stream', (remoteStream: MediaStream) => {
             if (isMountedRef.current && !hasReceivedStream) {
                 hasReceivedStream = true;
                 isConnectionEstablished = true;
-                console.log(`➡️ [PEER STREAM] - Received stream from ${targetUserId} after ${signalCount} signals`);
+                shouldStopSignaling = true;
+                
+                console.log(`🎉 ✅ [PEER STREAM] - SUCCESS: Received stream from ${targetUserId} after ${localSignalCount} signals`);
                 
                 setRemoteStreams(prev => {
                     const newMap = new Map(prev);
@@ -305,31 +361,48 @@ export default function SessionClient({
                     isConnected: true, 
                     isConnecting: false,
                     connectionAttempts: 0,
-                    lastAttempt: now
+                    lastAttempt: now,
+                    signalCount: localSignalCount
                 });
-                clearTimeout(connectionTimeout);
                 
+                clearTimeout(connectionTimeout);
+                clearTimeout(iceGatheringTimeout);
+                
+                console.log(`🏁 [CONNECTION STABLE] - Connection with ${targetUserId} is now stable`);
             }
         });
 
         peer.on('connect', () => {
-            console.log(`✅ [PEER CONNECT] - Peer connection established with ${targetUserId} after ${signalCount} signals`);
+            console.log(`🔗 ✅ [PEER CONNECT] - Peer connection fully established with ${targetUserId} after ${localSignalCount} signals`);
             isConnectionEstablished = true;
+            shouldStopSignaling = true;
+            
             peerStatesRef.current.set(targetUserId, { 
                 isConnected: true, 
                 isConnecting: false,
                 connectionAttempts: 0,
-                lastAttempt: now
+                lastAttempt: now,
+                signalCount: localSignalCount
             });
+            
             clearTimeout(connectionTimeout);
+            clearTimeout(iceGatheringTimeout);
         });
 
+        // ✅ CORRECTION AMÉLIORÉE : Meilleure gestion des erreurs de connexion
         peer.on('error', (err: Error) => {
-            console.error(`❌ [PEER ERROR] - Peer error with ${targetUserId} after ${signalCount} signals:`, err);
+            console.error(`❌ [PEER ERROR] - Peer error with ${targetUserId} after ${localSignalCount} signals:`, err);
             
-            // CORRECTION : Gestion d'erreur spécifique pour les conflits d'état
-            if (err.message.includes('InvalidStateError') || err.message.includes('stable')) {
-                console.warn(`🔄 [PEER STATE CONFLICT] - WebRTC state conflict for ${targetUserId}, will cleanup and retry later`);
+            if (isConnectionEstablished) {
+                console.error(`🚨 [CONNECTION DROP] - Established connection failed with ${targetUserId}.`);
+                
+                // ✅ CORRECTION : Ne pas tenter de reconnexion immédiate pour les connexions établies
+                // Laisser le système de présence gérer la reconnexion
+                setTimeout(() => {
+                    if (isMountedRef.current) {
+                        console.log(`📡 [CONNECTION MONITOR] - Connection with ${targetUserId} dropped, waiting for presence update`);
+                    }
+                }, 5000);
             }
             
             const currentState = peerStatesRef.current.get(targetUserId);
@@ -337,48 +410,60 @@ export default function SessionClient({
                 isConnected: false, 
                 isConnecting: false,
                 connectionAttempts: currentState?.connectionAttempts || 1,
-                lastAttempt: now
+                lastAttempt: now,
+                signalCount: localSignalCount
             });
             
             clearTimeout(connectionTimeout);
+            clearTimeout(iceGatheringTimeout);
             
-            // CORRECTION : Nettoyage immédiat pour les erreurs d'état
-            setTimeout(() => {
-                if (isMountedRef.current && !isConnectionEstablished) {
-                    console.log(`🧹 [PEER ERROR CLEANUP] - Cleaning up failed peer for ${targetUserId}`);
-                    cleanupPeerConnection(targetUserId);
-                }
-            }, 500);
+            // Nettoyer seulement si pas déjà connecté
+            if (!isConnectionEstablished) {
+                setTimeout(() => {
+                    if (isMountedRef.current) {
+                        console.log(`🧹 [PEER CLEANUP] - Cleaning up failed peer for ${targetUserId}`);
+                        cleanupPeerConnection(targetUserId);
+                    }
+                }, 2000);
+            }
         });
         
         peer.on('close', () => {
-            console.log(`🚪 [PEER CLOSE] - Peer connection closed for ${targetUserId}`);
+            console.log(`🚪 [PEER CLOSE] - Peer connection closed for ${targetUserId} after ${localSignalCount} signals`);
             peerStatesRef.current.set(targetUserId, { 
                 isConnected: false, 
                 isConnecting: false,
                 connectionAttempts: 0,
-                lastAttempt: now
+                lastAttempt: now,
+                signalCount: localSignalCount
             });
             clearTimeout(connectionTimeout);
+            clearTimeout(iceGatheringTimeout);
         });
 
-        // CORRECTION : Timeout avec gestion d'état
+        iceGatheringTimeout = setTimeout(() => {
+            if (!isConnectionEstablished && isMountedRef.current && localSignalCount > 8) {
+                console.log(`⏰ [ICE GATHERING TIMEOUT] - Stopping ICE gathering for ${targetUserId} after ${localSignalCount} signals`);
+                shouldStopSignaling = true;
+            }
+        }, 10000); // Réduit à 10s
+
         connectionTimeout = setTimeout(() => {
             if (!isConnectionEstablished && isMountedRef.current) {
-                console.warn(`⏰ [PEER TIMEOUT] - Connection timeout for ${targetUserId} after ${signalCount} signals`);
+                console.warn(`⏰ [PEER TIMEOUT] - Connection timeout for ${targetUserId} after ${localSignalCount} signals`);
                 const currentState = peerStatesRef.current.get(targetUserId);
                 peerStatesRef.current.set(targetUserId, { 
                     isConnected: false, 
                     isConnecting: false,
                     connectionAttempts: currentState?.connectionAttempts || 1,
-                    lastAttempt: now
+                    lastAttempt: now,
+                    signalCount: localSignalCount
                 });
                 
                 cleanupPeerConnection(targetUserId);
             }
-        }, 15000); // Timeout réduit à 15s
+        }, 30000); // Timeout de connexion à 30s
         
-        // Nettoyer l'ancien peer si existant
         if (existingPeer && !existingPeer.destroyed) {
             try {
                 console.log(`🔄 [PEER REPLACE] - Replacing existing peer for ${targetUserId}`);
@@ -396,14 +481,14 @@ export default function SessionClient({
             isConnected: false, 
             isConnecting: false,
             connectionAttempts: (existingState?.connectionAttempts || 0) + 1,
-            lastAttempt: now
+            lastAttempt: now,
+            signalCount: 0
         });
         return undefined;
     }
-  }, [sessionId, currentUserId, teacherName, studentNames, initialTeacher?.id, cleanupPeerConnection]);
+}, [sessionId, currentUserId, teacherName, studentNames, initialTeacher?.id, cleanupPeerConnection, toast, isSharingScreen, screenStream, localStream]);
 
-  // CORRECTION : Gestion des médias optimisée
-  useEffect(() => {
+useEffect(() => {
     if (setupCompletedRef.current) return;
     
     isMountedRef.current = true;
@@ -534,13 +619,12 @@ export default function SessionClient({
     }
   }, [isSharingScreen, screenStream, toast]);
 
-  // CORRECTION : Gestion de la présence optimisée
   useEffect(() => {
     handlePresenceUpdateRef.current = (member: Types.PresenceMessage) => {
       if (!isMountedRef.current || !channelRef.current) return;
       
       console.log(`👥 [PRESENCE] - Presence update: ${member.action} from ${member.clientId}`);
-
+  
       channelRef.current.presence.get((err, members) => {
           if (!isMountedRef.current) return;
           if (err) {
@@ -554,22 +638,44 @@ export default function SessionClient({
               return;
           }
           
-          const memberIds = members
-              .map((m: Types.PresenceMessage) => m.clientId)
-              .filter((id: string | undefined): id is string => !!id);
+          // ✅ CORRECTION CRITIQUE : DÉDUPLICATION des membres
+          const uniqueMembers = members.reduce((acc, member) => {
+            if (member.clientId && !acc.includes(member.clientId)) {
+              acc.push(member.clientId);
+            }
+            return acc;
+          }, [] as string[]);
           
-          console.log(`📊 [PRESENCE] - Online members:`, memberIds);
-          setOnlineUserIds(memberIds);
+          console.log(`📊 [PRESENCE] - Online members (deduplicated):`, uniqueMembers);
+          setOnlineUserIds(uniqueMembers);
           
-          const otherUserIds = memberIds.filter((id: string) => id !== currentUserId);
+          const otherUserIds = uniqueMembers.filter((id: string) => id !== currentUserId);
           
-          // CORRECTION : Création de peers avec vérifications améliorées
+          // ✅ CORRECTION CRITIQUE : Logique d'initiation SIMPLIFIÉE et ROBUSTE
           otherUserIds.forEach((userId: string) => {
-              if (!peersRef.current.has(userId) && isMediaReady) {
+              // Vérifier si un peer existe déjà et est connecté
+              const existingPeer = peersRef.current.get(userId);
+              const existingState = peerStatesRef.current.get(userId);
+              
+              if (existingPeer && !existingPeer.destroyed && existingState?.isConnected) {
+                  console.log(`🔗 [PRESENCE] - Already connected to ${userId}, skipping peer creation`);
+                  return;
+              }
+              
+              // ✅ CORRECTION : Logique d'initiation UNIFIÉE - Le PROFESSEUR initie TOUJOURS
+              const shouldInitiatorBeMe = currentUserRole === Role.PROFESSEUR;
+              
+              if (!shouldInitiatorBeMe) {
+                  console.log(`⏳ [PRESENCE] - Student waiting for professor ${userId} to initiate connection`);
+                  return;
+              }
+              
+              if (isMediaReady) {
                   const existingState = peerStatesRef.current.get(userId);
                   const now = Date.now();
-                  const MIN_RETRY_DELAY = 5000; // 5 secondes
+                  const MIN_RETRY_DELAY = 10000; // 10 secondes entre les tentatives
                   
+                  // Vérifier les tentatives récentes
                   if (existingState && 
                       existingState.connectionAttempts > 0 && 
                       now - existingState.lastAttempt < MIN_RETRY_DELAY) {
@@ -577,28 +683,59 @@ export default function SessionClient({
                       return;
                   }
                   
-                  console.log(`🆕 [PEER INIT] - New user ${userId} detected, will create peer in 2s.`);
-                  setTimeout(() => {
-                    if (isMountedRef.current && memberIds.includes(userId) && isMediaReady) {
-                      const streamToUse = isSharingScreen ? screenStream : localStream;
-                      console.log(`🔄 [PEER CREATE] - Creating peer for ${userId}`);
-                      createPeer(userId, true, streamToUse);
-                    }
-                  }, 2000);
-              } else if (!isMediaReady) {
-                  console.log(`⏳ [PEER DELAY] - Media not ready yet, delaying peer creation for: ${userId}`);
+                  // Vérifier si déjà en cours de connexion
+                  if (existingState?.isConnecting) {
+                      console.log(`⏳ [PEER BUSY] - Already connecting to ${userId}, skipping`);
+                      return;
+                  }
+                  
+                  console.log(`🎯 [PEER CREATE PRESENCE] - Professor initiating connection to ${userId}`);
+                  const streamToUse = isSharingScreen ? screenStream : localStream;
+                  createPeer(userId, true, streamToUse); // Professeur initie toujours
+              } else {
+                  console.log(`⏳ [PEER DELAY] - Media not ready yet, will create peer for ${userId} when ready`);
               }
           });
-
+  
           // Nettoyer les utilisateurs déconnectés
-          const offlineUserIds = Array.from(peersRef.current.keys()).filter(id => !memberIds.includes(id));
+          const currentPeerUserIds = Array.from(peersRef.current.keys());
+          const offlineUserIds = currentPeerUserIds.filter(id => !uniqueMembers.includes(id));
+          
           offlineUserIds.forEach(userId => {
               console.log(`🧹 [PRESENCE CLEANUP] - User ${userId} offline, cleaning up peer.`);
               cleanupPeerConnection(userId);
           });
       });
     };
-  }, [currentUserId, isMediaReady, isSharingScreen, screenStream, localStream, teacherName, studentNames, initialTeacher?.id, createPeer, cleanupPeerConnection]);
+  }, [currentUserId, isMediaReady, isSharingScreen, screenStream, localStream, teacherName, studentNames, initialTeacher?.id, createPeer, cleanupPeerConnection, currentUserRole]);
+    
+  // CORRECTION : Effet supplémentaire pour créer les peers quand les médias deviennent prêts
+  useEffect(() => {
+    if (!isMediaReady || !isMountedRef.current) return;
+    
+    console.log(`🎯 [MEDIA READY] - Creating peers for existing online users`);
+    
+    const otherUserIds = onlineUserIds.filter((id: string) => id !== currentUserId);
+    
+    otherUserIds.forEach((userId: string) => {
+        if (!peersRef.current.has(userId)) {
+            const existingState = peerStatesRef.current.get(userId);
+            const now = Date.now();
+            const MIN_RETRY_DELAY = 5000;
+            
+            if (existingState && 
+                existingState.connectionAttempts > 0 && 
+                now - existingState.lastAttempt < MIN_RETRY_DELAY) {
+                console.log(`⏳ [PEER DELAY] - Waiting before retrying connection for: ${userId}`);
+                return;
+            }
+            
+            console.log(`🔄 [PEER CREATE ON MEDIA READY] - Creating peer for ${userId}`);
+            const streamToUse = isSharingScreen ? screenStream : localStream;
+            createPeer(userId, true, streamToUse);
+        }
+    });
+  }, [isMediaReady, onlineUserIds, currentUserId, isSharingScreen, screenStream, localStream, createPeer]);
 
   // CORRECTION : Gestion des signaux avec prévention des conflits d'état WebRTC
   useEffect(() => {
