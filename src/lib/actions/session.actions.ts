@@ -24,9 +24,9 @@ export interface SessionData extends CoursSession {
 
 export interface SessionDetails {
     id: string;
-    participants: User[];
     teacher: User;
     students: User[];
+    participants: User[];
     documentHistory: DocumentInHistory[];
     classroom: ClassroomWithDetails | null;
     startTime: string;
@@ -187,7 +187,6 @@ async function sendIndividualInvitations(sessionId: string, professeurId: string
     }
 }
 
-// CORRECTION: Ajout de la fonction manquante updateStudentSessionStatus
 export async function updateStudentSessionStatus(sessionId: string, status: { isHandRaised?: boolean; understanding?: ComprehensionLevel }) {
     console.log(`🔄 [ACTION] - updateStudentSessionStatus for session ${sessionId}:`, status);
     
@@ -300,20 +299,18 @@ export async function shareDocument(
   }
 }
 
-export async function deleteSharedDocument(documentId: string) {
-    console.log(`🗑️ [ACTION] deleteSharedDocument: ${documentId}`);
-    const session = await getServerSession(authOptions);
-    const userId = session?.user?.id;
+export async function deleteSharedDocument(documentId: string, currentUserId: string) {
+    console.log(`🗑️ [ACTION] deleteSharedDocument: ${documentId} by user ${currentUserId}`);
     
-    if (!userId) throw new Error("Non authentifié");
+    if (!currentUserId) throw new Error("Non authentifié");
 
     const docToDelete = await prisma.sharedDocument.findUnique({
         where: { id: documentId },
         select: { userId: true }
     });
 
-    if (!docToDelete || docToDelete.userId !== userId) {
-        console.error(`❌ [ACTION] Tentative de suppression non autorisée par l'utilisateur ${userId}`);
+    if (!docToDelete || docToDelete.userId !== currentUserId) {
+        console.error(`❌ [ACTION] Tentative de suppression non autorisée par l'utilisateur ${currentUserId}`);
         throw new Error("Action non autorisée");
     }
 

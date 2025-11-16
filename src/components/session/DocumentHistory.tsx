@@ -29,6 +29,7 @@ interface DocumentHistoryProps {
     onSelectDocument: (doc: DocumentInHistory) => void;
     onReshare: (doc: DocumentInHistory) => void;
     sessionId: string;
+    currentUserId: string;
 }
 
 function FormattedDate({ dateString }: { dateString: string }) {
@@ -56,7 +57,7 @@ function FormattedDate({ dateString }: { dateString: string }) {
 }
 
 
-export function DocumentHistory({ documents, onSelectDocument, onReshare, sessionId }: DocumentHistoryProps) {
+export function DocumentHistory({ documents, onSelectDocument, onReshare, sessionId, currentUserId }: DocumentHistoryProps) {
     const { toast } = useToast();
     const [isDeleting, startDeleteTransition] = useTransition();
 
@@ -74,8 +75,8 @@ export function DocumentHistory({ documents, onSelectDocument, onReshare, sessio
 
         startDeleteTransition(async () => {
             try {
-                // CORRECTION : Appel correct avec un seul argument
-                await deleteSharedDocument(docId);
+                // CORRECTION : Appel correct avec les deux arguments
+                await deleteSharedDocument(docId, currentUserId);
                 toast({ 
                     title: "Document supprimé", 
                     description: "Le document a été retiré de l'historique." 

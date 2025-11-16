@@ -489,6 +489,7 @@ export function TeacherSessionView({
                     onSelectDocument={onSelectDocument}
                     onReshare={handleDocumentReshare}
                     sessionId={sessionId}
+                    currentUserId={currentUserId}
                   />
                 </div>
               </AnimatedCard>
