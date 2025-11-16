@@ -24,7 +24,6 @@ import { Html5Whiteboard } from '@/components/Html5Whiteboard';
 import { AnimatedCard } from './AnimatedCard';
 import { useToast } from '@/hooks/use-toast';
 
-
 interface TeacherSessionViewProps {
     sessionId: string;
     localStream: MediaStream | null;
@@ -56,6 +55,7 @@ interface TeacherSessionViewProps {
     whiteboardOperations: WhiteboardOperation[];
     flushWhiteboardOperations?: () => void;
     documentHistory: DocumentInHistory[];
+    onDocumentShared: (doc: DocumentInHistory) => void;
 }
 
 export function TeacherSessionView({
@@ -89,14 +89,23 @@ export function TeacherSessionView({
     whiteboardOperations,
     flushWhiteboardOperations,
     documentHistory,
+    onDocumentShared,
 }: TeacherSessionViewProps) {
     const { toast } = useToast();
     const [teacherView, setTeacherView] = useState<'content' | 'grid'>('content');
     
-    const handleDocumentUploadSuccess = async () => {
-        // La logique de re-fetch est maintenant dans le composant parent
-        toast({ title: "Fichier ajouté", description: "Votre bibliothèque a été mise à jour." });
-    }
+    const handleDocumentUploadSuccess = async (doc: { name: string; url: string }) => {
+        try {
+            const result = await shareDocument(sessionId, doc);
+            if (result.success) {
+                onDocumentShared(result.document);
+                toast({ title: "Fichier partagé !", description: `"${doc.name}" est maintenant visible par les élèves.` });
+            }
+        } catch (error) {
+            console.error("❌ [UPLOAD SUCCESS] - Erreur lors de l'appel de shareDocument:", error);
+            toast({ variant: 'destructive', title: "Erreur de partage", description: "Le fichier a été téléversé mais n'a pas pu être partagé en temps réel." });
+        }
+    };
     
     const validatedTimerTimeLeft = useMemo(() => {
         const time = timerTimeLeft;
@@ -257,7 +266,7 @@ export function TeacherSessionView({
     const renderActiveTool = useMemo(() => {
         if (isSharingScreen && screenStream) {
             return (
-                <Card className="w-full h-full p-2 bg-black">
+                <div className="w-full h-full bg-black rounded-lg overflow-hidden">
                     <Participant
                         stream={screenStream}
                         isLocal={true}
@@ -265,7 +274,7 @@ export function TeacherSessionView({
                         participantUserId={currentUserId}
                         displayName="Votre partage d'écran"
                     />
-                </Card>
+                </div>
             );
         }
         
@@ -275,11 +284,15 @@ export function TeacherSessionView({
 
         switch(activeTool) {
             case 'document':
-                return <DocumentViewer url={documentUrl} />;
+                return (
+                    <div className="h-full w-full rounded-lg overflow-hidden">
+                        <DocumentViewer url={documentUrl} />
+                    </div>
+                );
                 
             case 'whiteboard':
                 return (
-                    <div className="h-full w-full relative">
+                    <div className="h-full w-full relative rounded-lg overflow-hidden">
                         <div className="absolute top-2 left-2 z-10 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
                             👨‍🏫 Vous contrôlez le tableau
                         </div>
@@ -297,7 +310,7 @@ export function TeacherSessionView({
                 
             case 'quiz':
                 return (
-                    <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/50 border-dashed">
+                    <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/50 border-dashed rounded-lg">
                         <CardContent className="text-center text-muted-foreground p-6">
                             <Award className="h-10 w-10 mx-auto mb-4" />
                             <h3 className="font-semibold">Fonctionnalité Quiz</h3>
@@ -308,23 +321,21 @@ export function TeacherSessionView({
                 
             case 'chat':
                 return (
-                    <Card className="h-full w-full flex flex-col">
-                        <CardContent className="flex-1 p-4">
-                            {classroom?.id && teacher?.id && teacher.role && (
-                                <ChatSheet 
-                                    classroomId={classroom.id} 
-                                    userId={teacher.id} 
-                                    userRole={teacher.role} 
-                                />
-                            )}
-                        </CardContent>
-                    </Card>
+                    <div className="h-full w-full rounded-lg overflow-hidden">
+                        {classroom?.id && teacher?.id && teacher.role && (
+                            <ChatSheet 
+                                classroomId={classroom.id} 
+                                userId={teacher.id} 
+                                userRole={teacher.role} 
+                            />
+                        )}
+                    </div>
                 );
                 
             case 'camera':
                 if (!spotlightedUser) {
                     return (
-                        <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/30 border-dashed">
+                        <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/30 border-dashed rounded-lg">
                             <CardContent className="text-center text-muted-foreground p-6">
                                 <Users className="h-10 w-10 mx-auto mb-4" />
                                 <h3 className="font-semibold text-xl">Aucun participant en vedette</h3>
@@ -345,7 +356,7 @@ export function TeacherSessionView({
                 
                 if (!spotlightedStream) {
                   return (
-                    <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/30 border-dashed">
+                    <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/30 border-dashed rounded-lg">
                         <CardContent className="text-center text-muted-foreground p-6">
                             <Loader2 className="h-10 w-10 mx-auto mb-4 animate-spin" />
                             <h3 className="font-semibold text-xl">Connexion à {spotlightedUser.name}...</h3>
@@ -355,7 +366,7 @@ export function TeacherSessionView({
                 }
                 
                 return (
-                    <Card className="w-full h-full p-2 bg-black">
+                    <div className="w-full h-full bg-black rounded-lg overflow-hidden">
                         <Participant
                             stream={spotlightedStream}
                             isLocal={spotlightedUser.id === currentUserId}
@@ -368,12 +379,12 @@ export function TeacherSessionView({
                             onSetWhiteboardController={onWhiteboardControllerChange}
                             isWhiteboardController={spotlightedUser.id === whiteboardControllerId}
                         />
-                    </Card>
+                    </div>
                 );
                 
             default:
                 return (
-                    <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/30 border-dashed">
+                    <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/30 border-dashed rounded-lg">
                         <CardContent className="text-center text-muted-foreground p-6">
                             <File className="h-10 w-10 mx-auto mb-4" />
                             <h3 className="font-semibold text-xl">Outils d'enseignement</h3>
@@ -427,8 +438,10 @@ export function TeacherSessionView({
     }
 
     return (
-        <div className="flex-1 flex min-h-0 gap-4">
+        <div className="flex-1 flex min-h-0 gap-4 p-4">
+            {/* Zone principale de contenu */}
             <div className="flex-1 flex flex-col min-h-0 min-w-0">
+                {/* Sélecteur de vue */}
                 <div className="flex items-center gap-2 mb-4">
                     <Button 
                         variant={teacherView === 'content' ? 'default' : 'outline'} 
@@ -447,26 +460,33 @@ export function TeacherSessionView({
                         <Grid className="mr-2 h-4 w-4" /> Grille
                     </Button>
                 </div>
-                <div className="flex-1 min-h-0">
-                  {teacherView === 'content' ? renderActiveTool : (
-                      <ScrollArea className="h-full">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-1">
-                              {allGridParticipants.map(p => renderParticipant(p))}
-                          </div>
-                      </ScrollArea>
-                  )}
+
+                {/* Contenu principal */}
+                <div className="flex-1 min-h-0 rounded-lg border bg-card">
+                    {teacherView === 'content' ? (
+                        <div className="h-full w-full p-4">
+                            {renderActiveTool}
+                        </div>
+                    ) : (
+                        <ScrollArea className="h-full">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4">
+                                {allGridParticipants.map(p => renderParticipant(p))}
+                            </div>
+                        </ScrollArea>
+                    )}
                 </div>
             </div>
 
-            <div className="w-80 flex-shrink-0 flex flex-col">
-                 
+            {/* Panneau latéral */}
+            <div className="w-100 flex-shrink-0 flex flex-col">
                 <ScrollArea className="flex-1 -mr-3 pr-3">
                     <div className="space-y-4">
+                        {/* Partage de Document */}
                         <AnimatedCard title="Partage de Document">
-                            <div className='p-2 space-y-3'>
+                            <div className='p-4 space-y-3'>
                                 <DocumentUploadSection 
                                     sessionId={sessionId} 
-                                    onUploadSuccess={handleDocumentUploadSuccess} 
+                                    onUploadSuccess={(doc) => onDocumentShared(doc as any)} 
                                 />
                                 <DocumentHistory 
                                     documents={documentHistory} 
@@ -476,8 +496,10 @@ export function TeacherSessionView({
                                 />
                             </div>
                         </AnimatedCard>
+
+                        {/* Gestion de Session */}
                         <AnimatedCard title="Gestion de Session">
-                             <div className="space-y-2 p-2">
+                             <div className="space-y-3 p-4">
                                 <SessionTimer
                                     isTeacher={true}
                                     sessionId={sessionId}
@@ -497,6 +519,7 @@ export function TeacherSessionView({
                              </div>
                         </AnimatedCard>
                         
+                        {/* Liste des étudiants */}
                         {classroom && (
                             <AnimatedCard title={`Classe ${classroom.nom}`}>
                                 <ClassStudentList 
@@ -514,10 +537,12 @@ export function TeacherSessionView({
                             </AnimatedCard>
                         )}
                         
+                        {/* Suivi de la Compréhension */}
                         <AnimatedCard title="Suivi de la Compréhension">
                             <UnderstandingTracker students={students} understandingStatus={understandingStatus} />
                         </AnimatedCard>
                         
+                        {/* Mains Levées */}
                         <AnimatedCard title="Mains Levées">
                             <HandRaiseController sessionId={sessionId} raisedHands={studentsWithRaisedHands} />
                         </AnimatedCard>

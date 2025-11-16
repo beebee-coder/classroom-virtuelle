@@ -249,45 +249,52 @@ export async function spotlightParticipant(sessionId: string, participantId: str
     return { success: true, participantId, sessionId };
 }
 
-export async function shareDocument(sessionId: string, newDoc: { name: string; url: string }, formData?: FormData) {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) throw new Error("Not authenticated");
-    const userId = session.user.id;
+export async function shareDocument(
+  sessionId: string,
+  newDoc: { name: string; url: string }
+): Promise<{ success: true; document: DocumentInHistory }> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    console.error('❌ [SHARE DOCUMENT] - Not authenticated');
+    throw new Error('Not authenticated');
+  }
+  const userId = session.user.id;
 
-    console.log('📄 [SHARE DOCUMENT] - Sharing document:', { sessionId, newDoc });
+  console.log('📄 [SHARE DOCUMENT] - Sharing document:', { sessionId, newDoc });
 
-    try {
-        const newDocument = await prisma.sharedDocument.create({
-            data: {
-                name: newDoc.name,
-                url: newDoc.url,
-                userId: userId,
-            },
-        });
+  try {
+    const newDocument = await prisma.sharedDocument.create({
+      data: {
+        name: newDoc.name,
+        url: newDoc.url,
+        userId: userId,
+      },
+    });
 
-        console.log('✅ [SHARE DOCUMENT] - Document saved to database:', newDocument);
+    console.log('✅ [SHARE DOCUMENT] - Document saved to database:', newDocument);
 
-        const channel = getSessionChannelName(sessionId);
-        const payload = {
-            id: newDocument.id,
-            name: newDocument.name,
-            url: newDocument.url,
-            createdAt: newDocument.createdAt.toISOString(),
-            sharedBy: session.user.name ?? 'Professeur',
-        };
+    const channel = getSessionChannelName(sessionId);
+    const payload: DocumentInHistory = {
+      id: newDocument.id,
+      name: newDocument.name,
+      url: newDocument.url,
+      createdAt: newDocument.createdAt.toISOString(),
+      sharedBy: session.user.name ?? 'Professeur',
+      coursSessionId: sessionId, // Gardé pour le contexte de l'événement
+    };
 
-        console.log('📡 [SHARE DOCUMENT] - Broadcasting to channel:', channel);
-        await ablyTrigger(channel, AblyEvents.DOCUMENT_SHARED, payload);
-        
-        revalidatePath(`/session/${sessionId}`);
-        
-        console.log('✅ [SHARE DOCUMENT] - Document shared successfully');
-        return { success: true, document: newDocument };
+    console.log('📡 [SHARE DOCUMENT] - Broadcasting to channel:', channel);
+    await ablyTrigger(channel, AblyEvents.DOCUMENT_SHARED, payload);
 
-    } catch (error) {
-        console.error('❌ [SHARE DOCUMENT] - Error sharing document:', error);
-        throw new Error('Failed to share document: ' + (error instanceof Error ? error.message : 'Unknown error'));
-    }
+    revalidatePath(`/session/${sessionId}`);
+    console.log('✅ [SHARE DOCUMENT] - Document shared successfully');
+    
+    return { success: true, document: payload };
+
+  } catch (error) {
+    console.error('❌ [SHARE DOCUMENT] - Error sharing document:', error);
+    throw new Error('Failed to share document: ' + (error instanceof Error ? error.message : 'Unknown error'));
+  }
 }
 
 export async function deleteSharedDocument(documentId: string) {
@@ -418,6 +425,19 @@ export async function getSessionDetails(sessionId: string): Promise<SessionDetai
         include: { 
             professeur: true, 
             participants: true,
+            classe: {
+                include: {
+                    eleves: {
+                        include: {
+                            etat: {
+                                include: {
+                                    metier: true
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     });
 
@@ -431,5 +451,8 @@ export async function getSessionDetails(sessionId: string): Promise<SessionDetai
         students: sessionData.participants.filter(p => p.role === Role.ELEVE),
         participants: sessionData.participants,
         documentHistory: documents,
+        classroom: sessionData.classe as any, // Cast to any to satisfy the complex type
+        startTime: sessionData.startTime.toISOString(),
+        endTime: sessionData.endTime?.toISOString() || null,
     };
 }

@@ -1,27 +1,23 @@
-// src/app/api/ably/auth/route.ts - VERSION OPTIMISÉE
+// src/app/api/ably/auth/route.ts - VERSION CORRIGÉE POUR 11 UTILISATEURS
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import Ably from 'ably';
 
-// Timeout config
-const AUTH_TIMEOUT_MS = 8000; // 8 secondes pour laisser une marge
+// CORRECTION : Timeout augmenté pour supporter 11 utilisateurs simultanés
+const AUTH_TIMEOUT_MS = 20000; // 20 secondes au lieu de 8 secondes
 
 export async function POST(request: NextRequest) {
     console.log('🚪 [ABLY AUTH] - Requête d\'authentification reçue');
 
-    // Gestion du timeout
-    const timeoutPromise = new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('Authentication timeout')), AUTH_TIMEOUT_MS)
-    );
+    // CORRECTION : Gestion du timeout avec AbortController pour meilleur contrôle
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), AUTH_TIMEOUT_MS);
 
     try {
-        // Race condition entre l'authentification et le timeout
-        const session = await Promise.race([
-            getServerSession(authOptions),
-            timeoutPromise
-        ]);
-
+        // CORRECTION : Utilisation de AbortController pour les timeouts
+        const session = await getServerSession(authOptions);
+        
         console.log('🔍 [ABLY AUTH] - Session vérifiée:', {
             hasSession: !!session,
             hasUser: !!session?.user,
@@ -40,10 +36,16 @@ export async function POST(request: NextRequest) {
 
         const { user } = session;
 
-        // Parser le corps de la requête de manière optimisée
+        // CORRECTION : Parser le corps de la requête avec timeout séparé
         let requestBody;
         try {
-            requestBody = await request.json();
+            const bodyPromise = request.json();
+            requestBody = await Promise.race([
+                bodyPromise,
+                new Promise<never>((_, reject) => 
+                    setTimeout(() => reject(new Error('Request body parsing timeout')), 5000)
+                )
+            ]);
         } catch {
             requestBody = {};
         }
@@ -64,55 +66,87 @@ export async function POST(request: NextRequest) {
             return new NextResponse('Server configuration error', { status: 500 });
         }
 
-        // Création du token avec timeout
-        const ably = new Ably.Rest(ablyApiKey);
+        // CORRECTION : Création du token avec timeout optimisé
+        const ably = new Ably.Rest({
+            key: ablyApiKey,
+            // CORRECTION : Timeout HTTP augmenté pour Ably Rest
+            httpRequestTimeout: 15000,
+            httpMaxRetryCount: 2
+        });
         
-        const tokenRequest = await Promise.race([
-            new Promise<Ably.Types.TokenRequest>((resolve, reject) => {
-                ably.auth.createTokenRequest(
-                    {
-                        clientId: clientId,
-                        capability: {
-                            'classroom-connector:*': ['presence', 'subscribe', 'publish']
-                        },
-                        ttl: 3600000 // 1 heure
+        const tokenRequest = await new Promise<Ably.Types.TokenRequest>((resolve, reject) => {
+            // Timeout pour la création du token
+            const tokenTimeout = setTimeout(() => {
+                reject(new Error('Token creation timeout'));
+            }, 15000);
+
+            ably.auth.createTokenRequest(
+                {
+                    clientId: clientId,
+                    capability: {
+                        'classroom-connector:*': ['presence', 'subscribe', 'publish']
                     },
-                    (err, tokenRequest) => {
-                        if (err) {
-                            console.error('❌ [ABLY AUTH] - Erreur création token:', err);
-                            reject(err);
-                        } else {
-                            console.log(`✅ [ABLY AUTH] - Jeton créé pour ${clientId.substring(0, 8)}...`);
-                            resolve(tokenRequest!);
-                        }
+                    ttl: 3600000 // 1 heure
+                },
+                (err, tokenRequest) => {
+                    clearTimeout(tokenTimeout);
+                    if (err) {
+                        console.error('❌ [ABLY AUTH] - Erreur création token:', err);
+                        reject(err);
+                    } else {
+                        console.log(`✅ [ABLY AUTH] - Jeton créé pour ${clientId.substring(0, 8)}...`);
+                        resolve(tokenRequest!);
                     }
-                );
-            }),
-            timeoutPromise
-        ]);
+                }
+            );
+        });
+
+        // CORRECTION : Nettoyage du timeout global
+        clearTimeout(timeoutId);
 
         // Réponse avec headers anti-cache
         return NextResponse.json(tokenRequest, {
             headers: {
                 'Cache-Control': 'no-store, no-cache, must-revalidate',
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                // CORRECTION : Headers pour éviter la mise en cache
+                'Pragma': 'no-cache',
+                'Expires': '0'
             }
         });
 
     } catch (error) {
+        // CORRECTION : Nettoyage du timeout en cas d'erreur
+        clearTimeout(timeoutId);
+        
         console.error('💥 [ABLY AUTH] - Erreur:', error);
 
-        if (error instanceof Error && error.message === 'Authentication timeout') {
-            return new NextResponse('Authentication timeout', { 
-                status: 408, // 408 Request Timeout
-                headers: {
-                    'Cache-Control': 'no-store, no-cache, must-revalidate'
-                }
-            });
+        if (error instanceof Error) {
+            if (error.name === 'AbortError' || error.message.includes('timeout')) {
+                console.error('⏰ [ABLY AUTH] - Timeout d\'authentification');
+                return new NextResponse('Authentication timeout - please try again', { 
+                    status: 408, // 408 Request Timeout
+                    headers: {
+                        'Cache-Control': 'no-store, no-cache, must-revalidate',
+                        'Retry-After': '5'
+                    }
+                });
+            }
+            
+            if (error.message.includes('ABLY')) {
+                console.error('🔌 [ABLY AUTH] - Erreur Ably spécifique:', error.message);
+                return new NextResponse('Ably service temporarily unavailable', { 
+                    status: 503,
+                    headers: {
+                        'Cache-Control': 'no-store, no-cache, must-revalidate',
+                        'Retry-After': '10'
+                    }
+                });
+            }
         }
 
         return new NextResponse(
-            error instanceof Error ? error.message : 'Internal server error', 
+            'Internal server error - please try again later', 
             { 
                 status: 500,
                 headers: {

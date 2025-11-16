@@ -3,11 +3,11 @@
 
 import { useState, useRef } from 'react';
 import { UploadCloud, FileText, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
-import { shareDocument } from '@/lib/actions/session.actions';
+import type { DocumentInHistory } from '@/types';
 
 interface DocumentUploadSectionProps {
   sessionId: string;
-  onUploadSuccess: () => void;
+  onUploadSuccess: (doc: { name: string; url: string }) => void;
 }
 
 export function DocumentUploadSection({ sessionId, onUploadSuccess }: DocumentUploadSectionProps) {
@@ -65,14 +65,10 @@ export function DocumentUploadSection({ sessionId, onUploadSuccess }: DocumentUp
         url: cloudinaryResult.secure_url,
       };
 
-      console.log('📤 [DOC UPLOAD] Appel de shareDocument avec:', newDoc);
-      
-      const result = await shareDocument(sessionId, newDoc);
-      
-      console.log('✅ [DOC UPLOAD] shareDocument réussi:', result);
+      console.log('📤 [DOC UPLOAD] Appel de onUploadSuccess avec:', newDoc);
+      onUploadSuccess(newDoc);
       
       setUploadSuccess(true);
-      onUploadSuccess();
 
       console.log('✅ [DOC UPLOAD] Processus complet réussi');
 
