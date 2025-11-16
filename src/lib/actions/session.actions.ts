@@ -251,81 +251,131 @@ export async function spotlightParticipant(sessionId: string, participantId: str
     return { success: true, participantId, sessionId };
 }
 
+// Dans session.actions.ts - CORRECTION de la fonction shareDocument
 export async function shareDocument(
-  sessionId: string,
-  newDoc: { name: string; url: string }
-): Promise<{ success: true; document: DocumentInHistory }> {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    console.error('❌ [SHARE DOCUMENT] - Not authenticated');
-    throw new Error('Not authenticated');
-  }
-  const userId = session.user.id;
-
-  console.log('📄 [SHARE DOCUMENT] - Sharing document:', { sessionId, newDoc });
-
-  try {
-    const newDocument = await prisma.sharedDocument.create({
-      data: {
-        name: newDoc.name,
-        url: newDoc.url,
-        userId: userId,
-      },
-    });
-
-    console.log('✅ [SHARE DOCUMENT] - Document saved to database:', newDocument);
-
-    const channel = getSessionChannelName(sessionId);
-    const payload: DocumentInHistory = {
-      id: newDocument.id,
-      name: newDocument.name,
-      url: newDocument.url,
-      createdAt: newDocument.createdAt.toISOString(),
-      sharedBy: session.user.name ?? 'Professeur',
-      coursSessionId: sessionId, // Gardé pour le contexte de l'événement
-    };
-
-    console.log('📡 [SHARE DOCUMENT] - Broadcasting to channel:', channel);
-    await ablyTrigger(channel, AblyEvents.DOCUMENT_SHARED, { ...payload, sharedByUserId: userId });
-
-    revalidatePath(`/session/${sessionId}`);
-    console.log('✅ [SHARE DOCUMENT] - Document shared successfully');
-    
-    return { success: true, document: payload };
-
-  } catch (error) {
-    console.error('❌ [SHARE DOCUMENT] - Error sharing document:', error);
-    throw new Error('Failed to share document: ' + (error instanceof Error ? error.message : 'Unknown error'));
-  }
-}
-
-export async function deleteSharedDocument(documentId: string, currentUserId: string) {
-    console.log(`🗑️ [ACTION] deleteSharedDocument: ${documentId} by user ${currentUserId}`);
-    
-    if (!currentUserId) throw new Error("Non authentifié");
-
-    const docToDelete = await prisma.sharedDocument.findUnique({
-        where: { id: documentId },
-        select: { userId: true }
-    });
-
-    if (!docToDelete || docToDelete.userId !== currentUserId) {
-        console.error(`❌ [ACTION] Tentative de suppression non autorisée par l'utilisateur ${currentUserId}`);
-        throw new Error("Action non autorisée");
+    sessionId: string,
+    newDoc: { name: string; url: string }
+  ): Promise<{ success: true; document: DocumentInHistory }> {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      console.error('❌ [SHARE DOCUMENT] - Not authenticated');
+      throw new Error('Not authenticated');
     }
-
+    const userId = session.user.id;
+  
+    console.log('📄 [SHARE DOCUMENT] - Sharing document:', { sessionId, newDoc });
+  
     try {
+      const newDocument = await prisma.sharedDocument.create({
+        data: {
+          name: newDoc.name,
+          url: newDoc.url,
+          userId: userId,
+        },
+      });
+  
+      console.log('✅ [SHARE DOCUMENT] - Document saved to database:', newDocument);
+  
+      if (!newDocument.id) {
+        console.error('❌ [SHARE DOCUMENT] - Document ID is undefined after creation');
+        throw new Error('Failed to create document: ID is undefined');
+      }
+  
+      const channel = getSessionChannelName(sessionId);
+      
+      // ✅ CORRECTION : Créer le payload sans sharedByUserId qui n'existe pas dans DocumentInHistory
+      const payload: DocumentInHistory = {
+        id: newDocument.id,
+        name: newDocument.name,
+        url: newDocument.url,
+        createdAt: newDocument.createdAt.toISOString(),
+        sharedBy: session.user.name ?? 'Professeur',
+        coursSessionId: sessionId,
+      };
+  
+      console.log('📡 [SHARE DOCUMENT] - Broadcasting to channel:', channel, 'with payload:', payload);
+      
+      // ✅ CORRECTION : Envoyer sharedByUserId séparément dans l'événement Ably
+      await ablyTrigger(channel, AblyEvents.DOCUMENT_SHARED, {
+        ...payload,
+        sharedByUserId: userId // ✅ Envoyer dans l'événement mais pas dans le type DocumentInHistory
+      });
+  
+      revalidatePath(`/session/${sessionId}`);
+      console.log('✅ [SHARE DOCUMENT] - Document shared successfully');
+      
+      return { success: true, document: payload };
+  
+    } catch (error) {
+      console.error('❌ [SHARE DOCUMENT] - Error sharing document:', error);
+      throw new Error('Failed to share document: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    }
+  }
+export async function deleteSharedDocument(documentId: string, sessionId: string) {
+    console.log(`🗑️ [ACTION] deleteSharedDocument: ${documentId} from session ${sessionId}`);
+    
+    try {
+        // ✅ CORRECTION : Récupération correcte de la session
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.id) {
+            console.error('❌ [DOCUMENT DELETE] - User not authenticated');
+            throw new Error('Non authentifié');
+        }
+
+        const currentUserId = session.user.id;
+
+        // ✅ CORRECTION : Vérification que l'utilisateur est le propriétaire du document
+        const documentToDelete = await prisma.sharedDocument.findUnique({
+            where: { id: documentId },
+            include: {
+                user: true
+            }
+        });
+
+        if (!documentToDelete) {
+            console.error(`❌ [DOCUMENT DELETE] - Document ${documentId} not found`);
+            throw new Error('Document non trouvé');
+        }
+
+        // Vérifier que l'utilisateur est le propriétaire du document
+        if (documentToDelete.userId !== currentUserId) {
+            console.error(`❌ [DOCUMENT DELETE] - User ${currentUserId} is not owner of document ${documentId} (owner: ${documentToDelete.userId})`);
+            throw new Error('Action non autorisée - Vous ne pouvez supprimer que vos propres documents');
+        }
+
+        console.log(`✅ [DOCUMENT DELETE] - User ${currentUserId} authorized to delete document ${documentId}`);
+
+        // ✅ CORRECTION : Suppression du document
         await prisma.sharedDocument.delete({
             where: { id: documentId }
         });
+
+        // ✅ CORRECTION : Broadcast de la suppression via Ably
+        try {
+            const channelName = getSessionChannelName(sessionId);
+            console.log(`📡 [DOCUMENT DELETE] - Broadcasting deletion event on channel: ${channelName}`);
+            
+            await ablyTrigger(channelName, AblyEvents.DOCUMENT_DELETED, {
+                documentId,
+                deletedBy: currentUserId,
+                sessionId,
+                timestamp: new Date().toISOString()
+            });
+        } catch (broadcastError) {
+            console.warn('⚠️ [DOCUMENT DELETE] - Broadcast failed, but document was deleted:', broadcastError);
+            // Ne pas bloquer la suppression si le broadcast échoue
+        }
+
+        // ✅ CORRECTION : Revalidation des chemins
+        revalidatePath(`/session/${sessionId}`);
+        revalidatePath('/teacher/dashboard');
         
-        revalidatePath('/session', 'layout'); // Revalide toutes les pages de session
-        console.log(`✅ [ACTION] Document ${documentId} supprimé avec succès.`);
-        return { success: true };
+        console.log(`✅ [DOCUMENT DELETE] - Document ${documentId} successfully deleted from session ${sessionId}`);
+        return { success: true, documentId };
 
     } catch (error) {
-        console.error(`❌ [ACTION] Erreur lors de la suppression du document ${documentId}:`, error);
-        throw new Error("Impossible de supprimer le document.");
+        console.error(`❌ [DOCUMENT DELETE] - Error deleting document ${documentId}:`, error);
+        throw new Error(error instanceof Error ? error.message : 'Erreur lors de la suppression du document');
     }
 }
 

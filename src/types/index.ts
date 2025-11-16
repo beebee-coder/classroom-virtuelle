@@ -77,15 +77,17 @@ export enum ComprehensionLevel {
 }
 
 // Type défini manuellement car il n'est pas un modèle Prisma
-export type DocumentInHistory = {
+
+// Dans src/types/index.ts - Ajouter au type DocumentInHistory
+export interface DocumentInHistory {
   id: string;
   name: string;
   url: string;
-  createdAt: string; // CORRECTION: Doit être une chaîne pour la sérialisation
-  coursSessionId: string;
+  createdAt: string;
   sharedBy: string;
-};
-
+  coursSessionId: string;
+  sharedByUserId?: string; // ✅ Optionnel pour éviter les breaking changes
+}
 // CORRECTION: Utiliser directement le type PrismaRole pour la cohérence
 export type User = Omit<PrismaUser, 'role'> & {
   role: PrismaRole;

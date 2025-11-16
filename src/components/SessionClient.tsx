@@ -13,7 +13,7 @@ import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';
 import { ablyTrigger } from '@/lib/ably/triggers';
 import { broadcastTimerEvent, broadcastActiveTool, updateStudentSessionStatus } from '@/lib/actions/ably-session.actions';
-import { endCoursSession } from '@/lib/actions/session.actions';
+import { endCoursSession, shareDocument } from '@/lib/actions/session.actions';
 import { ComprehensionLevel } from '@/types';
 import { useAbly } from '@/hooks/useAbly';
 import Ably, { type Types } from 'ably';
@@ -618,102 +618,106 @@ useEffect(() => {
       }
     }
   }, [isSharingScreen, screenStream, toast]);
-
-  useEffect(() => {
-    handlePresenceUpdateRef.current = (member: Types.PresenceMessage) => {
-      if (!isMountedRef.current || !channelRef.current) return;
-      
-      console.log(`👥 [PRESENCE] - Presence update: ${member.action} from ${member.clientId}`);
-  
-      channelRef.current.presence.get((err, members) => {
-          if (!isMountedRef.current) return;
-          if (err) {
-              console.error('❌ [PRESENCE] - Error getting presence:', err);
-              return;
-          }
-          
-          if (!members || !Array.isArray(members)) {
-              console.warn('⚠️ [PRESENCE] - Members data is invalid:', members);
-              setOnlineUserIds([]);
-              return;
-          }
-          
-          // ✅ CORRECTION CRITIQUE : DÉDUPLICATION des membres
-          const uniqueMembers = members.reduce((acc, member) => {
-            if (member.clientId && !acc.includes(member.clientId)) {
-              acc.push(member.clientId);
-            }
-            return acc;
-          }, [] as string[]);
-          
-          console.log(`📊 [PRESENCE] - Online members (deduplicated):`, uniqueMembers);
-          setOnlineUserIds(uniqueMembers);
-          
-          const otherUserIds = uniqueMembers.filter((id: string) => id !== currentUserId);
-          
-          // ✅ CORRECTION CRITIQUE : Logique d'initiation SIMPLIFIÉE et ROBUSTE
-          otherUserIds.forEach((userId: string) => {
-              // Vérifier si un peer existe déjà et est connecté
-              const existingPeer = peersRef.current.get(userId);
-              const existingState = peerStatesRef.current.get(userId);
-              
-              if (existingPeer && !existingPeer.destroyed && existingState?.isConnected) {
-                  console.log(`🔗 [PRESENCE] - Already connected to ${userId}, skipping peer creation`);
-                  return;
-              }
-              
-              // ✅ CORRECTION : Logique d'initiation UNIFIÉE - Le PROFESSEUR initie TOUJOURS
-              const shouldInitiatorBeMe = currentUserRole === Role.PROFESSEUR;
-              
-              if (!shouldInitiatorBeMe) {
-                  console.log(`⏳ [PRESENCE] - Student waiting for professor ${userId} to initiate connection`);
-                  return;
-              }
-              
-              if (isMediaReady) {
-                  const existingState = peerStatesRef.current.get(userId);
-                  const now = Date.now();
-                  const MIN_RETRY_DELAY = 10000; // 10 secondes entre les tentatives
-                  
-                  // Vérifier les tentatives récentes
-                  if (existingState && 
-                      existingState.connectionAttempts > 0 && 
-                      now - existingState.lastAttempt < MIN_RETRY_DELAY) {
-                      console.log(`⏳ [PEER DELAY] - Waiting before retrying connection for: ${userId}`);
-                      return;
-                  }
-                  
-                  // Vérifier si déjà en cours de connexion
-                  if (existingState?.isConnecting) {
-                      console.log(`⏳ [PEER BUSY] - Already connecting to ${userId}, skipping`);
-                      return;
-                  }
-                  
-                  console.log(`🎯 [PEER CREATE PRESENCE] - Professor initiating connection to ${userId}`);
-                  const streamToUse = isSharingScreen ? screenStream : localStream;
-                  createPeer(userId, true, streamToUse); // Professeur initie toujours
-              } else {
-                  console.log(`⏳ [PEER DELAY] - Media not ready yet, will create peer for ${userId} when ready`);
-              }
-          });
-  
-          // Nettoyer les utilisateurs déconnectés
-          const currentPeerUserIds = Array.from(peersRef.current.keys());
-          const offlineUserIds = currentPeerUserIds.filter(id => !uniqueMembers.includes(id));
-          
-          offlineUserIds.forEach(userId => {
-              console.log(`🧹 [PRESENCE CLEANUP] - User ${userId} offline, cleaning up peer.`);
-              cleanupPeerConnection(userId);
-          });
-      });
-    };
-  }, [currentUserId, isMediaReady, isSharingScreen, screenStream, localStream, teacherName, studentNames, initialTeacher?.id, createPeer, cleanupPeerConnection, currentUserRole]);
+// ✅ CORRECTION FINALE : Logique d'initiation renforcée
+useEffect(() => {
+  handlePresenceUpdateRef.current = (member: Types.PresenceMessage) => {
+    if (!isMountedRef.current || !channelRef.current) return;
     
-  // CORRECTION : Effet supplémentaire pour créer les peers quand les médias deviennent prêts
-  useEffect(() => {
+    console.log(`👥 [PRESENCE] - Presence update: ${member.action} from ${member.clientId}`);
+
+    channelRef.current.presence.get((err, members) => {
+        if (!isMountedRef.current) return;
+        if (err) {
+            console.error('❌ [PRESENCE] - Error getting presence:', err);
+            return;
+        }
+        
+        if (!members || !Array.isArray(members)) {
+            console.warn('⚠️ [PRESENCE] - Members data is invalid:', members);
+            setOnlineUserIds([]);
+            return;
+        }
+        
+        // ✅ DÉDOUBLONNAGE
+        const uniqueMembers = members.reduce((acc, member) => {
+          if (member.clientId && !acc.includes(member.clientId)) {
+            acc.push(member.clientId);
+          }
+          return acc;
+        }, [] as string[]);
+        
+        console.log(`📊 [PRESENCE] - Online members (deduplicated):`, uniqueMembers);
+        setOnlineUserIds(uniqueMembers);
+        
+        const otherUserIds = uniqueMembers.filter((id: string) => id !== currentUserId);
+        
+        // ✅ LOGIQUE D'INITIATION RENFORCÉE
+        otherUserIds.forEach((userId: string) => {
+            const existingPeer = peersRef.current.get(userId);
+            const existingState = peerStatesRef.current.get(userId);
+            
+            // ✅ EMPÊCHER TOUTE CRÉATION SI DÉJÀ CONNECTÉ
+            if (existingState?.isConnected) {
+                console.log(`🔗 [PRESENCE] - Already connected to ${userId}, skipping peer creation`);
+                return;
+            }
+            
+            // ✅ EMPÊCHER TOUTE CRÉATION SI DÉJÀ EN COURS
+            if (existingState?.isConnecting) {
+                console.log(`⏳ [PRESENCE] - Already connecting to ${userId}, skipping`);
+                return;
+            }
+            
+            // ✅ LOGIQUE D'INITIATION STRICTE : SEUL LE PROFESSEUR INITIE
+            const shouldInitiatorBeMe = currentUserRole === Role.PROFESSEUR;
+            
+            if (!shouldInitiatorBeMe) {
+                console.log(`⏳ [PRESENCE] - Student ${currentUserId} waiting for professor ${userId} to initiate`);
+                return;
+            }
+            
+            // ✅ VÉRIFICATIONS FINALES AVANT CRÉATION
+            if (isMediaReady && !peersRef.current.has(userId)) {
+                const existingState = peerStatesRef.current.get(userId);
+                const now = Date.now();
+                const MIN_RETRY_DELAY = 15000; // 15 secondes
+                
+                if (existingState && 
+                    existingState.connectionAttempts > 0 && 
+                    now - existingState.lastAttempt < MIN_RETRY_DELAY) {
+                    console.log(`⏳ [PEER DELAY] - Waiting before retrying connection for: ${userId}`);
+                    return;
+                }
+                
+                console.log(`🎯 [PEER CREATE PRESENCE] - Professor ${currentUserId} initiating connection to ${userId}`);
+                const streamToUse = isSharingScreen ? screenStream : localStream;
+                createPeer(userId, true, streamToUse);
+            }
+        });
+
+        // Nettoyer les utilisateurs déconnectés
+        const currentPeerUserIds = Array.from(peersRef.current.keys());
+        const offlineUserIds = currentPeerUserIds.filter(id => !uniqueMembers.includes(id));
+        
+        offlineUserIds.forEach(userId => {
+            console.log(`🧹 [PRESENCE CLEANUP] - User ${userId} offline, cleaning up peer.`);
+            cleanupPeerConnection(userId);
+        });
+    });
+  };
+}, [currentUserId, isMediaReady, isSharingScreen, screenStream, localStream, createPeer, cleanupPeerConnection, currentUserRole]);
+
+// ✅ CORRECTION : Empêcher la création de peer par les élèves dans useEffect MEDIA_READY
+useEffect(() => {
     if (!isMediaReady || !isMountedRef.current) return;
     
-    console.log(`🎯 [MEDIA READY] - Creating peers for existing online users`);
+    console.log(`🎯 [MEDIA READY] - Checking for peer creation (Role: ${currentUserRole})`);
+    
+    // ✅ SEUL LE PROFESSEUR CRÉE DES PEERS QUAND LES MÉDIAS SONT PRÊTS
+    if (currentUserRole !== Role.PROFESSEUR) {
+        console.log(`⏳ [MEDIA READY] - Student waiting for professor to initiate connections`);
+        return;
+    }
     
     const otherUserIds = onlineUserIds.filter((id: string) => id !== currentUserId);
     
@@ -721,7 +725,7 @@ useEffect(() => {
         if (!peersRef.current.has(userId)) {
             const existingState = peerStatesRef.current.get(userId);
             const now = Date.now();
-            const MIN_RETRY_DELAY = 5000;
+            const MIN_RETRY_DELAY = 15000;
             
             if (existingState && 
                 existingState.connectionAttempts > 0 && 
@@ -730,13 +734,12 @@ useEffect(() => {
                 return;
             }
             
-            console.log(`🔄 [PEER CREATE ON MEDIA READY] - Creating peer for ${userId}`);
+            console.log(`🔄 [PEER CREATE ON MEDIA READY] - Professor creating peer for ${userId}`);
             const streamToUse = isSharingScreen ? screenStream : localStream;
             createPeer(userId, true, streamToUse);
         }
     });
-  }, [isMediaReady, onlineUserIds, currentUserId, isSharingScreen, screenStream, localStream, createPeer]);
-
+}, [isMediaReady, onlineUserIds, currentUserId, isSharingScreen, screenStream, localStream, createPeer, currentUserRole]);
   // CORRECTION : Gestion des signaux avec prévention des conflits d'état WebRTC
   useEffect(() => {
     handleSignalRef.current = (message: Types.Message) => {
@@ -857,31 +860,45 @@ useEffect(() => {
             handleIncomingWhiteboardOperationsRef.current?.(data.operations);
         }
     };
-
     const handleDocumentShared = (message: Types.Message) => {
       if (!isMountedRef.current) return;
-
-      // CORRECTION : Ignorer l'événement si l'utilisateur est celui qui l'a envoyé
-      if (message.data?.sharedByUserId === currentUserId) {
+    
+      const data = message.data;
+      
+      // ✅ CORRECTION : Ignorer l'événement si l'utilisateur est celui qui l'a envoyé
+      if (data.sharedByUserId === currentUserId) {
         console.log("📄 [DOCUMENT] - Ignored own document share event.");
         return;
       }
       
       setDocumentHistory(prev => {
-        const newDocument = message.data;
-        if (prev.some(doc => doc.id === newDocument.id)) {
+        const newDocument: DocumentInHistory = {
+          id: data.id,
+          name: data.name,
+          url: data.url,
+          createdAt: data.createdAt,
+          sharedBy: data.sharedBy,
+          coursSessionId: data.coursSessionId,
+        };
+    
+        // ✅ CORRECTION : Vérification d'existence avec ID valide
+        if (prev.some(doc => doc.id === newDocument.id && doc.id !== 'undefined')) {
           console.log(`📄 [DOCUMENT] - Document ${newDocument.id} already exists, skipping duplication`);
           return prev;
         }
-        console.log(`📄 [DOCUMENT] - Adding new document to history: ${newDocument.id}`);
+        
+        console.log(`📄 [DOCUMENT] - Adding new document to history: ${newDocument.id} - "${newDocument.name}"`);
         return [...prev, newDocument];
       });
-
-      setDocumentUrl(message.data.url);
+    
+      setDocumentUrl(data.url);
       
       if (currentUserRole === Role.ELEVE) {
-          setActiveTool('document');
-          toast({ title: 'Document partagé', description: 'Le professeur a partagé un nouveau document.' });
+        setActiveTool('document');
+        toast({ 
+          title: 'Document partagé', 
+          description: `${data.sharedBy} a partagé un nouveau document.` 
+        });
       }
     };
 
@@ -1075,19 +1092,85 @@ useEffect(() => {
     }
   }, [currentUserRole, onToolChange]);
 
-  const onDocumentShared = (doc: DocumentInHistory) => {
-    // CORRECTION : Vérification d'existence avant ajout pour éviter la duplication
-    setDocumentHistory(prev => {
-      if (prev.some(d => d.id === doc.id)) {
-        console.log(`📄 [DOCUMENT] - Document ${doc.id} already exists in history, skipping duplication`);
-        return prev;
-      }
-      console.log(`📄 [DOCUMENT] - Adding shared document to history: ${doc.id}`);
-      return [...prev, doc];
+  // Dans SessionClient.tsx - CORRECTION de la gestion des documents
+const onDocumentShared = (doc: DocumentInHistory) => {
+  // ✅ CORRECTION : Vérification robuste de l'ID
+  if (!doc.id || doc.id === 'undefined') {
+    console.error('❌ [DOCUMENT SHARED] - Received document with invalid ID:', doc);
+    return;
+  }
+
+  setDocumentHistory(prev => {
+    // ✅ CORRECTION : Vérification d'existence améliorée
+    const existingDoc = prev.find(d => d.id === doc.id);
+    if (existingDoc) {
+      console.log(`📄 [DOCUMENT] - Document ${doc.id} already exists in history, skipping duplication`);
+      return prev;
+    }
+    
+    console.log(`📄 [DOCUMENT] - Adding new document to history: ${doc.id} - ${doc.name}`);
+    return [...prev, doc];
+  });
+  
+  setDocumentUrl(doc.url);
+  onToolChange('document');
+};
+
+
+// ✅ CORRECTION : Fonction handleUploadSuccess corrigée
+const handleUploadSuccess = useCallback((uploadedDoc: { name: string; url: string }) => {
+  console.log('📤 [UPLOAD SUCCESS] - Handling upload success:', uploadedDoc);
+  
+  if (!uploadedDoc.name || !uploadedDoc.url) {
+    console.error('❌ [UPLOAD SUCCESS] - Invalid document data:', uploadedDoc);
+    toast({
+      variant: 'destructive',
+      title: 'Erreur',
+      description: 'Données du document invalides'
     });
-    setDocumentUrl(doc.url);
-    onToolChange('document');
+    return;
+  }
+
+  // ✅ CORRECTION : Utiliser shareDocument (qui est importé)
+  const shareDocumentToSession = async () => {
+    try {
+      console.log('📤 [SHARE DOCUMENT] - Sharing uploaded document:', uploadedDoc.name);
+      
+      // ✅ CORRECTION : Appeler shareDocument directement
+      const result = await shareDocument(sessionId, uploadedDoc);
+      
+      if (result.success) {
+        console.log('✅ [SHARE DOCUMENT] - Document shared successfully:', result.document);
+        
+        // ✅ CORRECTION : Ajouter le document à l'historique local
+        setDocumentHistory(prev => {
+          const existingDoc = prev.find(doc => doc.id === result.document.id);
+          if (existingDoc) {
+            console.log(`📄 [DOCUMENT] - Document ${result.document.id} already in local history`);
+            return prev;
+          }
+          console.log(`📄 [DOCUMENT] - Adding document to local history: ${result.document.id} - "${result.document.name}"`);
+          return [...prev, result.document];
+        });
+        
+        toast({
+          title: 'Document partagé',
+          description: 'Le document a été partagé avec les participants',
+          variant: 'default'
+        });
+      }
+    } catch (error) {
+      console.error('❌ [SHARE DOCUMENT] - Error sharing document:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Erreur',
+        description: 'Impossible de partager le document'
+      });
+    }
   };
+
+  shareDocumentToSession();
+}, [sessionId, toast]);
 
   if (isComponentLoading) {
     return <SessionLoading />;

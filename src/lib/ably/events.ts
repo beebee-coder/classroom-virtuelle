@@ -1,4 +1,4 @@
-// src/lib/ably/events.ts
+// src/lib/ably/events.ts - VERSION CORRIGÉE SANS DOUBLONS
 
 /**
  * @fileoverview Defines constants for Ably event names.
@@ -17,11 +17,17 @@ export const AblyEvents = {
 
     // Tool-related events
     ACTIVE_TOOL_CHANGED: 'active-tool-changed',
+    SCREEN_SHARE_STARTED: 'screen-share-started',
+    SCREEN_SHARE_ENDED: 'screen-share-ended',
+
+    // Document events
     DOCUMENT_SHARED: 'document-shared',
+    DOCUMENT_DELETED: 'document-deleted', // ✅ AJOUTÉ ICI
 
     // Whiteboard events
     WHITEBOARD_OPERATION_BATCH: 'whiteboard-operation-batch',
     WHITEBOARD_CONTROLLER_UPDATE: 'whiteboard-controller-update',
+    WHITEBOARD_CLEARED: 'whiteboard-cleared',
     
     // Timer events
     TIMER_STARTED: 'timer-started',
