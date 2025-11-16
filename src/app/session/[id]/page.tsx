@@ -1,5 +1,4 @@
 // src/app/session/[id]/page.tsx - VERSION CORRIGÉE
-
 import { Suspense } from 'react';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
@@ -9,13 +8,16 @@ import { type User, type ClassroomWithDetails, Role, type DocumentInHistory } fr
 import prisma from '@/lib/prisma';
 import dynamic from 'next/dynamic';
 
-// CORRECTION: Import dynamique AVEC Suspense intégré pour éviter les re-rendus multiples
+// CORRECTION: Import dynamique AVEC gestion d'erreur améliorée
 const SessionClient = dynamic(() => import('@/components/SessionClient'), {
     ssr: false,
-    loading: () => <SessionLoading />, // CORRECTION: Le loading est géré par dynamic()
+    loading: () => (
+        <div className="h-screen flex flex-col">
+            <SessionLoading />
+        </div>
+    ),
 });
 
-// Le type pour les données de session, en utilisant DocumentInHistory du fichier de types central
 interface SessionData {
   id: string;
   teacher: User;
@@ -27,7 +29,7 @@ interface SessionData {
   endTime: string | null;
 }
 
-// Composant de fallback simple
+// CORRECTION: Composant de fallback avec gestion de reconnexion améliorée
 function SessionErrorFallback({ sessionId, error }: { sessionId: string; error: string }) {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4">
@@ -41,22 +43,36 @@ function SessionErrorFallback({ sessionId, error }: { sessionId: string; error: 
         <p className="text-sm text-muted-foreground mb-4">
           {error}
         </p>
-        <button 
-          onClick={() => window.location.reload()}
-          className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-        >
-          Réessayer
-        </button>
+        <div className="flex gap-2 justify-center">
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+          >
+            Réessayer
+          </button>
+          <button 
+            onClick={() => redirect('/dashboard')}
+            className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90"
+          >
+            Retour au tableau de bord
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-// Fonction de récupération des données avec la structure correcte du schéma
+// CORRECTION: Fonction de récupération des données avec timeout et meilleure gestion d'erreur
 async function fetchSessionData(sessionId: string): Promise<{ data: SessionData | null; error: string | null }> {
     console.log(`[SESSION PAGE] Démarrage fetchSessionData pour la session: ${sessionId}`);
+    
+    // CORRECTION: Timeout pour éviter les blocages
+    const timeoutPromise = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout lors de la récupération des données')), 10000)
+    );
+
     try {
-        const session = await prisma.coursSession.findUnique({
+        const sessionPromise = prisma.coursSession.findUnique({
             where: { id: sessionId },
             include: {
                 professeur: true,
@@ -77,11 +93,30 @@ async function fetchSessionData(sessionId: string): Promise<{ data: SessionData 
             },
         });
 
+        const session = await Promise.race([sessionPromise, timeoutPromise]);
+
         if (!session) {
+            console.warn(`[SESSION PAGE] Session ${sessionId} non trouvée`);
             return { data: null, error: 'Session non trouvée' };
         }
         
-        // CORRECTION: Récupérer les documents du professeur séparément
+        // CORRECTION: Vérifier si l'utilisateur a accès à cette session
+        const userSession = await getServerSession(authOptions);
+        const currentUserId = userSession?.user?.id;
+        
+        if (!currentUserId) {
+            return { data: null, error: 'Utilisateur non authentifié' };
+        }
+
+        const isParticipant = session.participants.some(p => p.id === currentUserId) || 
+                            session.professeurId === currentUserId;
+        
+        if (!isParticipant) {
+            console.warn(`[SESSION PAGE] Accès refusé pour l'utilisateur ${currentUserId} à la session ${sessionId}`);
+            return { data: null, error: 'Accès non autorisé à cette session' };
+        }
+        
+        // Récupérer les documents du professeur
         const teacherDocuments = await prisma.sharedDocument.findMany({
             where: { userId: session.professeurId },
             orderBy: { createdAt: 'desc' },
@@ -91,9 +126,8 @@ async function fetchSessionData(sessionId: string): Promise<{ data: SessionData 
             ...doc,
             createdAt: doc.createdAt.toISOString(),
             sharedBy: session.professeur.name || 'Professeur',
-            coursSessionId: session.id, // Garder une référence pour le contexte, même si non stocké
+            coursSessionId: session.id,
         }));
-
 
         const responsePayload: SessionData = {
             id: session.id,
@@ -114,14 +148,51 @@ async function fetchSessionData(sessionId: string): Promise<{ data: SessionData 
         return { data: responsePayload, error: null };
     } catch (e: any) {
         console.error("❌ [SESSION PAGE] Erreur critique dans fetchSessionData:", e);
-        return { data: null, error: e.message || 'Échec de la récupération des données' };
+        
+        // CORRECTION: Messages d'erreur plus spécifiques
+        let errorMessage = 'Échec de la récupération des données';
+        if (e.message.includes('Timeout')) {
+            errorMessage = 'La récupération des données a pris trop de temps';
+        } else if (e.message.includes('prisma') || e.message.includes('database')) {
+            errorMessage = 'Erreur de base de données';
+        }
+        
+        return { data: null, error: errorMessage };
     }
+}
+
+// CORRECTION: Composant séparé pour la logique de session
+async function SessionContent({ sessionId }: { sessionId: string }) {
+    const { data: sessionData, error } = await fetchSessionData(sessionId);
+
+    if (error || !sessionData) {
+        throw new Error(error || "Données de session non trouvées");
+    }
+
+    const userSession = await getServerSession(authOptions);
+    
+    if (!userSession?.user) {
+        redirect(`/login?callbackUrl=/session/${sessionId}`);
+    }
+
+    return (
+        <SessionClient
+            sessionId={sessionData.id}
+            initialStudents={sessionData.students}
+            initialTeacher={sessionData.teacher}
+            currentUserId={userSession.user.id}
+            currentUserRole={userSession.user.role as Role}
+            classroom={sessionData.classroom}
+            initialDocumentHistory={sessionData.documentHistory}
+        />
+    );
 }
 
 export default async function SessionPage({ params }: { params: { id: string } }) {
   console.log(`[SESSION PAGE] Chargement de la page pour la session: ${params.id}`);
   
   try {
+    // CORRECTION: Vérification d'authentification en premier
     const userSession = await getServerSession(authOptions);
 
     if (!userSession?.user) {
@@ -134,33 +205,50 @@ export default async function SessionPage({ params }: { params: { id: string } }
       return <SessionErrorFallback sessionId="invalid" error="ID de session invalide" />;
     }
 
-    const { data: sessionData, error } = await fetchSessionData(params.id);
-
-    if (error || !sessionData) {
-      console.error(`[SESSION PAGE] Affichage du Fallback pour la session ${params.id}. Raison: ${error || "Données de session non trouvées"}`);
-      return <SessionErrorFallback sessionId={params.id} error={error || "Données de session non trouvées"} />;
-    }
-
-    console.log(`[SESSION PAGE] Données prêtes. Rendu de SessionClient pour l'utilisateur ${userSession.user.id} (${userSession.user.role}).`);
-    
-    const currentUserRole = userSession.user.role as Role;
-    
+    // CORRECTION: Utilisation de Suspense pour une meilleure gestion du chargement
     return (
         <div className="h-screen flex flex-col">
-            {/* CORRECTION: Retirer le Suspense externe car il est déjà géré par dynamic() */}
-            <SessionClient
-              sessionId={sessionData.id}
-              initialStudents={sessionData.students}
-              initialTeacher={sessionData.teacher}
-              currentUserId={userSession.user.id}
-              currentUserRole={currentUserRole}
-              classroom={sessionData.classroom}
-              initialDocumentHistory={sessionData.documentHistory}
-            />
+            <Suspense fallback={
+                <div className="h-screen flex flex-col">
+                    <SessionLoading />
+                </div>
+            }>
+                {/* CORRECTION: Composant séparé pour isoler les erreurs */}
+                <SessionContent sessionId={params.id} />
+            </Suspense>
         </div>
     );
+
   } catch (error: any) {
     console.error(`[SESSION PAGE] Erreur générale dans SessionPage:`, error);
     return <SessionErrorFallback sessionId={params.id} error={error.message || "Erreur inattendue"} />;
+  }
+}
+
+// CORRECTION: Génération des métadonnées pour une meilleure SEO
+export async function generateMetadata({ params }: { params: { id: string } }) {
+  try {
+    const session = await prisma.coursSession.findUnique({
+      where: { id: params.id },
+      include: {
+        professeur: true,
+        classe: true,
+      },
+    });
+
+    if (!session) {
+      return {
+        title: 'Session non trouvée',
+      };
+    }
+
+    return {
+      title: `Session ${session.classe?.nom || 'Classe'} - ${session.professeur.name}`,
+      description: `Session de cours avec ${session.professeur.name}`,
+    };
+  } catch (error) {
+    return {
+      title: 'Session de cours',
+    };
   }
 }

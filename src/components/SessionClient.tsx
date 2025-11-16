@@ -1,4 +1,4 @@
-// src/components/SessionClient.tsx - VERSION AVEC LOGS DE DIAGNOSTIC
+// src/components/SessionClient.tsx - VERSION CORRIGÉE
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -96,7 +96,7 @@ export default function SessionClient({
       const existingIds = new Set(prevOps.map(op => op.id));
       const newOps = externalOps.filter(op => !existingIds.has(op.id));
       if (newOps.length > 0) {
-        // console.log(`[SessionClient] Applying ${newOps.length} new whiteboard operations.`);
+        console.log(`[SessionClient] Applying ${newOps.length} new whiteboard operations.`);
       }
       return [...prevOps, ...newOps];
     });
@@ -336,6 +336,44 @@ export default function SessionClient({
     }
   }, [isSharingScreen, screenStream, localStream, toast]);
 
+// CORRECTION dans SessionClient.tsx - Fonction handlePresenceUpdate
+const handlePresenceUpdate = useCallback(async (member: Types.PresenceMessage) => {
+  if (!isMountedRef.current || !channelRef.current) return;
+  
+  console.log(`👥 [PRESENCE] - Presence update: ${member.action} from ${member.clientId}`);
+
+  try {
+      // CORRECTION: channel.presence.get() retourne une Promise
+      const members = await channelRef.current.presence.get();
+      console.log(`🔍 [PRESENCE] - Raw members data:`, members);
+      
+      // CORRECTION: Extraction correcte des clientId depuis le tableau de membres
+      const memberIds = Array.isArray(members) 
+          ? members.map((m: Types.PresenceMessage) => m.clientId).filter(Boolean)
+          : [];
+      
+      console.log(`📊 [PRESENCE] - Online members:`, memberIds);
+      setOnlineUserIds(memberIds);
+      
+      const otherUserIds = memberIds.filter((id: string) => id !== currentUserId);
+      
+      // Gestion des connexions peer
+      otherUserIds.forEach((userId: string) => {
+          if (!peersRef.current.has(userId)) {
+              console.log(`🆕 [PEER INIT] - New user ${userId} detected, creating peer.`);
+              const streamToUse = isSharingScreen ? screenStream : localStream;
+              createPeer(userId, true, streamToUse);
+          }
+      });
+
+      // Nettoyage des connexions pour les utilisateurs déconnectés
+      const offlineUserIds = Array.from(peersRef.current.keys()).filter(id => !memberIds.includes(id));
+      offlineUserIds.forEach(cleanupPeerConnection);
+
+  } catch (error) {
+      console.error('❌ [PRESENCE] - Error updating presence:', error);
+  }
+}, [currentUserId, isSharingScreen, screenStream, localStream, createPeer, cleanupPeerConnection]);
   useEffect(() => {
     if (!sessionId || !currentUserId || !ablyClient || ablyLoading || !isAblyConnected) {
         console.log(`⏳ [ABLY SETUP] - Skipping setup, Ably not ready.`, { sessionId, currentUserId, ablyLoading, isAblyConnected });
@@ -380,36 +418,6 @@ export default function SessionClient({
         router.push(currentUserRole === Role.PROFESSEUR ? '/teacher/dashboard' : '/student/dashboard');
     };
 
-    const handlePresenceUpdate = async (member: Types.PresenceMessage) => {
-        if (!isMountedRef.current) return;
-        
-        console.log(`👥 [PRESENCE] - Presence update: ${member.action} from ${member.clientId}`);
-
-        try {
-          const members = await channel.presence.get();
-          const memberIds = Array.isArray(members) ? members.map((m: Types.PresenceMessage) => m.clientId) : [];                 
-          setOnlineUserIds(memberIds);
-          
-          console.log(`📊 [PRESENCE] - Online members:`, memberIds);
-          
-          const otherUserIds = memberIds.filter((id: string) => id !== currentUserId);
-          
-          otherUserIds.forEach((userId: string) => {
-              if (!peersRef.current.has(userId)) {
-                  console.log(`🆕 [PEER INIT] - New user ${userId} detected, creating peer.`);
-                  const streamToUse = isSharingScreen ? screenStream : localStream;
-                  createPeer(userId, true, streamToUse);
-              }
-          });
-
-          const offlineUserIds = Array.from(peersRef.current.keys()).filter(id => !memberIds.includes(id));
-          offlineUserIds.forEach(cleanupPeerConnection);
-
-        } catch (error) {
-          console.error('❌ [PRESENCE] - Error updating presence:', error);
-        }
-    };
-
     const setupPresence = async () => {
         try {
             console.log('🔗 [PRESENCE] - Subscribing to presence events...');
@@ -423,10 +431,14 @@ export default function SessionClient({
             console.log('✅ [PRESENCE] - Entering presence with data:', currentUserData);
             await channel.presence.enter(currentUserData);
             
+            // CORRECTION : Initial presence avec extraction correcte
             const initialMembers = await channel.presence.get();
-            const initialMemberIds = Array.isArray(initialMembers) ? initialMembers.map((m: Types.PresenceMessage) => m.clientId) : [];
-            setOnlineUserIds(initialMemberIds);
+            const initialMemberIds = Array.isArray(initialMembers) 
+              ? initialMembers.map((m: Types.PresenceMessage) => m.clientId).filter(Boolean)
+              : [];
+            
             console.log('✅ [PRESENCE] - Initial presence set:', initialMemberIds);
+            setOnlineUserIds(initialMemberIds);
         } catch (error) { 
             console.error("❌ [PRESENCE] - Presence setup failed:", error);
         }
@@ -533,7 +545,7 @@ export default function SessionClient({
     sessionId, currentUserId, ablyClient, ablyLoading, isAblyConnected,
     currentUserRole, teacherName, studentNames, isSharingScreen, screenStream,
     localStream, createPeer, cleanupPeerConnection, router, toast,
-    handleIncomingWhiteboardOperations
+    handleIncomingWhiteboardOperations, handlePresenceUpdate // CORRECTION: handlePresenceUpdate ajouté aux dépendances
 ]);
   
   useEffect(() => {

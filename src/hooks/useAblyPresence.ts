@@ -1,4 +1,4 @@
-// src/hooks/useAblyPresence.ts - VERSION AVEC LOGS DE DIAGNOSTIC
+// src/hooks/useAblyPresence.ts - VERSION CORRIGÉE
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
@@ -142,27 +142,42 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
     channel.on(stateHandler);
     channel.presence.subscribe(onPresenceUpdate);
 
-    try {
-      channel.presence.get((err, members) => {
-        if (!mountedRef.current) return;
-        if (err) {
-          console.error('❌ [PRESENCE HOOK] - Erreur récupération de la présence:', err);
-          return;
+    // CORRECTION: Utiliser la méthode avec callback comme dans la documentation Ably
+    const initializePresence = () => {
+      try {
+        channel.presence.get((err, members) => {
+          if (!mountedRef.current) return;
+          if (err) {
+            console.error('❌ [PRESENCE HOOK] - Erreur récupération de la présence:', err);
+            return;
+          }
+          // CORRECTION: Vérifier que members existe et est un tableau
+          if (members && Array.isArray(members)) {
+            console.log(`🔍 [PRESENCE HOOK] - Récupération de ${members.length} membres présents`);
+            channelInfo!.members.clear();
+            members.forEach((member: AblyPresenceMessage) => {
+              if (member.clientId && member.data) {
+                channelInfo!.members.set(member.clientId, { 
+                  id: member.clientId, 
+                  ...(member.data as Omit<AblyPresenceMember, 'id'>) 
+                });
+              }
+            });
+            updateOnlineMembers();
+          } else {
+            console.warn('⚠️ [PRESENCE HOOK] - Aucun membre trouvé ou format invalide');
+            channelInfo!.members.clear();
+            updateOnlineMembers();
+          }
+        });
+      } catch (err) {
+        if (mountedRef.current) {
+          console.error('❌ [PRESENCE HOOK] - Erreur getPresence:', err);
         }
-        if (members) {
-          console.log(`🔍 [PRESENCE HOOK] - Récupération de ${members.length} membres présents`);
-          channelInfo.members.clear();
-          members.forEach((member: AblyPresenceMessage) => {
-            if (member.clientId && member.data) {
-              channelInfo.members.set(member.clientId, { id: member.clientId, ...(member.data as Omit<AblyPresenceMember, 'id'>) });
-            }
-          });
-          updateOnlineMembers();
-        }
-      });
-    } catch (err) {
-      if (mountedRef.current) console.error('❌ [PRESENCE HOOK] - Erreur getPresence:', err);
-    }
+      }
+    };
+
+    initializePresence();
 
     return { stateHandler, onPresenceUpdate };
   }, [updateOnlineMembers]);
@@ -204,7 +219,7 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
 
         if (channelRef.current.state === 'attached') {
           setIsConnected(true);
-          updateOnlineMembers(); // Mettre à jour avec les membres existants
+          updateOnlineMembers();
         }
 
       } catch (err) {
