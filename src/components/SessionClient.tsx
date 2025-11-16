@@ -309,6 +309,7 @@ export default function SessionClient({
                 });
                 clearTimeout(connectionTimeout);
                 
+                // CORRECTION : COMMENTÉ - Toast intempestif désactivé
                 // toast({
                 //     title: 'Connexion établie',
                 //     description: `Connexion vidéo avec ${targetUserId === initialTeacher?.id ? teacherName : studentNames[targetUserId] || targetUserId}`
@@ -728,12 +729,15 @@ export default function SessionClient({
     const handleDocumentShared = (message: Types.Message) => {
       if (!isMountedRef.current) return;
 
-      // FIX: Check for document existence before adding
+      // CORRECTION : Vérification d'existence avant ajout pour éviter la duplication
       setDocumentHistory(prev => {
-        if (prev.some(doc => doc.id === message.data.id)) {
+        const newDocument = message.data;
+        if (prev.some(doc => doc.id === newDocument.id)) {
+          console.log(`📄 [DOCUMENT] - Document ${newDocument.id} already exists, skipping duplication`);
           return prev;
         }
-        return [...prev, message.data];
+        console.log(`📄 [DOCUMENT] - Adding new document to history: ${newDocument.id}`);
+        return [...prev, newDocument];
       });
 
       setDocumentUrl(message.data.url);
@@ -935,11 +939,13 @@ export default function SessionClient({
   }, [currentUserRole, onToolChange]);
 
   const onDocumentShared = (doc: DocumentInHistory) => {
+    // CORRECTION : Vérification d'existence avant ajout pour éviter la duplication
     setDocumentHistory(prev => {
-      // FIX: Check for document existence before adding
       if (prev.some(d => d.id === doc.id)) {
+        console.log(`📄 [DOCUMENT] - Document ${doc.id} already exists in history, skipping duplication`);
         return prev;
       }
+      console.log(`📄 [DOCUMENT] - Adding shared document to history: ${doc.id}`);
       return [...prev, doc];
     });
     setDocumentUrl(doc.url);

@@ -1,3 +1,4 @@
+
 // src/lib/actions/session.actions.ts - VERSION CORRIGÉE AVEC updateStudentSessionStatus
 'use server';
 
@@ -10,7 +11,7 @@ import { authOptions } from "@/lib/auth-options";
 import prisma from '../prisma';
 import type { CoursSession, User, SharedDocument } from '@prisma/client';
 import { Role } from '@prisma/client';
-import { ComprehensionLevel, type DocumentInHistory } from '@/types';
+import { ComprehensionLevel, type DocumentInHistory, type ClassroomWithDetails } from '@/types';
 
 // --- Interfaces and Type Definitions ---
 
@@ -28,6 +29,7 @@ export interface SessionDetails {
     teacher: User;
     students: User[];
     documentHistory: DocumentInHistory[];
+    classroom: ClassroomWithDetails | null;
 }
 
 interface InvitationPayload {

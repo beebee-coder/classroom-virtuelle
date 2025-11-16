@@ -474,7 +474,7 @@ export function TeacherSessionView({
         </div>
 
         {/* Panneau latéral */}
-        <div className="w-80 flex-shrink-0 flex flex-col">
+        <div className="w-100 flex-shrink-0 flex flex-col">
           <ScrollArea className="flex-1 -mr-3 pr-3">
             <div className="space-y-4">
               {/* Partage de Document */}
