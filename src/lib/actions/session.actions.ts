@@ -1,4 +1,3 @@
-
 // src/lib/actions/session.actions.ts - VERSION CORRIGÉE AVEC updateStudentSessionStatus
 'use server';
 
@@ -6,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { ablyTrigger } from '../ably/triggers';
 import { AblyEvents } from '../ably/events';
 import { getSessionChannelName, getUserChannelName, getClassChannelName } from '../ably/channels';
-import { getServerSession } from "next-auth/server";
+import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import prisma from '../prisma';
 import type { CoursSession, User, SharedDocument } from '@prisma/client';
