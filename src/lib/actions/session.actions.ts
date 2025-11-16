@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { ablyTrigger } from '../ably/triggers';
 import { AblyEvents } from '../ably/events';
 import { getSessionChannelName, getUserChannelName, getClassChannelName } from '../ably/channels';
-import { getServerSession } from "next-auth";
+import { getServerSession } from "next-auth/server";
 import { authOptions } from "@/lib/auth-options";
 import prisma from '../prisma';
 import type { CoursSession, User, SharedDocument } from '@prisma/client';
@@ -30,6 +30,8 @@ export interface SessionDetails {
     students: User[];
     documentHistory: DocumentInHistory[];
     classroom: ClassroomWithDetails | null;
+    startTime: string;
+    endTime: string | null;
 }
 
 interface InvitationPayload {
@@ -453,7 +455,7 @@ export async function getSessionDetails(sessionId: string): Promise<SessionDetai
         students: sessionData.participants.filter(p => p.role === Role.ELEVE),
         participants: sessionData.participants,
         documentHistory: documents,
-        classroom: sessionData.classe as any, // Cast to any to satisfy the complex type
+        classroom: sessionData.classe as any,
         startTime: sessionData.startTime.toISOString(),
         endTime: sessionData.endTime?.toISOString() || null,
     };
