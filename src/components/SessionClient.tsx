@@ -309,10 +309,10 @@ export default function SessionClient({
                 });
                 clearTimeout(connectionTimeout);
                 
-                toast({
-                    title: 'Connexion établie',
-                    description: `Connexion vidéo avec ${targetUserId === initialTeacher?.id ? teacherName : studentNames[targetUserId] || targetUserId}`
-                });
+                // toast({
+                //     title: 'Connexion établie',
+                //     description: `Connexion vidéo avec ${targetUserId === initialTeacher?.id ? teacherName : studentNames[targetUserId] || targetUserId}`
+                // });
             }
         });
 
@@ -726,18 +726,22 @@ export default function SessionClient({
     };
 
     const handleDocumentShared = (message: Types.Message) => {
-        if (!isMountedRef.current) return;
-        setDocumentUrl(message.data.url);
-        setDocumentHistory(prev => {
-            if (prev.some(doc => doc.id === message.data.id)) {
-                return prev;
-            }
-            return [...prev, message.data];
-        });
-        if (currentUserRole === Role.ELEVE) {
-            setActiveTool('document');
-            toast({ title: 'Document partagé', description: 'Le professeur a partagé un nouveau document.' });
+      if (!isMountedRef.current) return;
+
+      // FIX: Check for document existence before adding
+      setDocumentHistory(prev => {
+        if (prev.some(doc => doc.id === message.data.id)) {
+          return prev;
         }
+        return [...prev, message.data];
+      });
+
+      setDocumentUrl(message.data.url);
+      
+      if (currentUserRole === Role.ELEVE) {
+          setActiveTool('document');
+          toast({ title: 'Document partagé', description: 'Le professeur a partagé un nouveau document.' });
+      }
     };
 
     const bindEvents = () => {
@@ -930,6 +934,18 @@ export default function SessionClient({
     }
   }, [currentUserRole, onToolChange]);
 
+  const onDocumentShared = (doc: DocumentInHistory) => {
+    setDocumentHistory(prev => {
+      // FIX: Check for document existence before adding
+      if (prev.some(d => d.id === doc.id)) {
+        return prev;
+      }
+      return [...prev, doc];
+    });
+    setDocumentUrl(doc.url);
+    onToolChange('document');
+  };
+
   if (isComponentLoading) {
     return <SessionLoading />;
   }
@@ -972,7 +988,7 @@ export default function SessionClient({
             onToolChange={onToolChange}
             classroom={classroom} 
             documentUrl={documentUrl} 
-            documentHistory={documentHistory}
+            onSelectDocument={handleSelectDocument}
             whiteboardControllerId={whiteboardControllerId} 
             onWhiteboardControllerChange={handleWhiteboardControllerChange}
             initialDuration={timerDuration} 
@@ -984,7 +1000,8 @@ export default function SessionClient({
             onWhiteboardEvent={handleWhiteboardEvent} 
             whiteboardOperations={whiteboardOperations} 
             flushWhiteboardOperations={flushOperations}
-            onSelectDocument={handleSelectDocument}
+            documentHistory={documentHistory}
+            onDocumentShared={onDocumentShared}
           />
         ) : (
           <StudentSessionView

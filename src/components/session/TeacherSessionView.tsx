@@ -1,6 +1,4 @@
 // src/components/session/TeacherSessionView.tsx
-import { DocumentUploadSection } from './DocumentUploadSection';
-
 import React, { useState, type ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { User, Role } from '@prisma/client';
@@ -23,6 +21,8 @@ import { ChatSheet } from '../ChatSheet';
 import { Html5Whiteboard } from '@/components/Html5Whiteboard';
 import { AnimatedCard } from './AnimatedCard';
 import { useToast } from '@/hooks/use-toast';
+import { DocumentUploadSection } from './DocumentUploadSection';
+
 
 interface TeacherSessionViewProps {
     sessionId: string;
@@ -98,7 +98,8 @@ export function TeacherSessionView({
         try {
             const result = await shareDocument(sessionId, doc);
             if (result.success) {
-                onDocumentShared(result.document);
+                // Instead of calling onDocumentShared, let the Ably event handle it.
+                // This keeps the data flow consistent.
                 toast({ title: "Fichier partagé !", description: `"${doc.name}" est maintenant visible par les élèves.` });
             }
         } catch (error) {
@@ -167,10 +168,7 @@ export function TeacherSessionView({
     const handleDocumentReshare = useCallback(async (doc: DocumentInHistory) => {
         try {
             await shareDocument(sessionId, { name: doc.name, url: doc.url });
-            toast({
-                title: 'Document repartagé',
-                description: `"${doc.name}" est de nouveau visible par tous.`,
-            });
+            // The toast is now handled by the Ably event, making this more optimistic
             onSelectDocument(doc);
         } catch (error) {
              toast({
@@ -438,117 +436,115 @@ export function TeacherSessionView({
     }
 
     return (
-        <div className="flex-1 flex min-h-0 gap-4 p-4">
-            {/* Zone principale de contenu */}
-            <div className="flex-1 flex flex-col min-h-0 min-w-0">
-                {/* Sélecteur de vue */}
-                <div className="flex items-center gap-2 mb-4">
-                    <Button 
-                        variant={teacherView === 'content' ? 'default' : 'outline'} 
-                        size="sm" 
-                        onClick={() => setTeacherView('content')}
-                        className="flex-1"
-                    >
-                       <Presentation className="mr-2 h-4 w-4" /> Contenu
-                    </Button>
-                    <Button 
-                        variant={teacherView === 'grid' ? 'default' : 'outline'} 
-                        size="sm" 
-                        onClick={() => setTeacherView('grid')}
-                        className="flex-1"
-                    >
-                        <Grid className="mr-2 h-4 w-4" /> Grille
-                    </Button>
+      <div className="flex-1 flex min-h-0 gap-4 p-4">
+        {/* Zone principale de contenu */}
+        <div className="flex-1 flex flex-col min-h-0 min-w-0">
+          {/* Sélecteur de vue */}
+          <div className="flex items-center gap-2 mb-4">
+            <Button
+              variant={teacherView === 'content' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setTeacherView('content')}
+              className="flex-1"
+            >
+              <Presentation className="mr-2 h-4 w-4" /> Contenu
+            </Button>
+            <Button
+              variant={teacherView === 'grid' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setTeacherView('grid')}
+              className="flex-1"
+            >
+              <Grid className="mr-2 h-4 w-4" /> Grille
+            </Button>
+          </div>
+
+          {/* Contenu principal */}
+          <div className="flex-1 min-h-0 rounded-lg border bg-card">
+            {teacherView === 'content' ? (
+              <div className="h-full w-full p-4">{renderActiveTool}</div>
+            ) : (
+              <ScrollArea className="h-full">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4">
+                  {allGridParticipants.map(p => renderParticipant(p))}
                 </div>
-
-                {/* Contenu principal */}
-                <div className="flex-1 min-h-0 rounded-lg border bg-card">
-                    {teacherView === 'content' ? (
-                        <div className="h-full w-full p-4">
-                            {renderActiveTool}
-                        </div>
-                    ) : (
-                        <ScrollArea className="h-full">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4">
-                                {allGridParticipants.map(p => renderParticipant(p))}
-                            </div>
-                        </ScrollArea>
-                    )}
-                </div>
-            </div>
-
-            {/* Panneau latéral */}
-            <div className="w-100 flex-shrink-0 flex flex-col">
-                <ScrollArea className="flex-1 -mr-3 pr-3">
-                    <div className="space-y-4">
-                        {/* Partage de Document */}
-                        <AnimatedCard title="Partage de Document">
-                            <div className='p-4 space-y-3'>
-                                <DocumentUploadSection 
-                                    sessionId={sessionId} 
-                                    onUploadSuccess={(doc) => onDocumentShared(doc as any)} 
-                                />
-                                <DocumentHistory 
-                                    documents={documentHistory} 
-                                    onSelectDocument={onSelectDocument}
-                                    onReshare={handleDocumentReshare}
-                                    sessionId={sessionId}
-                                />
-                            </div>
-                        </AnimatedCard>
-
-                        {/* Gestion de Session */}
-                        <AnimatedCard title="Gestion de Session">
-                             <div className="space-y-3 p-4">
-                                <SessionTimer
-                                    isTeacher={true}
-                                    sessionId={sessionId}
-                                    initialDuration={validatedInitialDuration}
-                                    timeLeft={validatedTimerTimeLeft}
-                                    isTimerRunning={isTimerRunning}
-                                    onStart={onStartTimer}
-                                    onPause={onPauseTimer}
-                                    onReset={onResetTimer}
-                                />
-                                <SessionStatus 
-                                    participants={allSessionUsers as User[]}
-                                    onlineIds={activeParticipantIds}
-                                    webrtcConnections={remoteParticipants.length}
-                                    whiteboardControllerId={whiteboardControllerId}
-                                />
-                             </div>
-                        </AnimatedCard>
-                        
-                        {/* Liste des étudiants */}
-                        {classroom && (
-                            <AnimatedCard title={`Classe ${classroom.nom}`}>
-                                <ClassStudentList 
-                                    classroom={classroom}
-                                    onlineUserIds={classOnlineIds}
-                                    currentUserId={currentUserId}
-                                    activeParticipantIds={activeParticipantIds}
-                                    sessionId={sessionId}
-                                    waitingStudentCount={waitingCount}
-                                    onSpotlightParticipant={onSpotlightParticipant}
-                                    spotlightedParticipantId={spotlightedUser?.id || null}
-                                    whiteboardControllerId={whiteboardControllerId}
-                                    onWhiteboardControllerChange={onWhiteboardControllerChange}
-                                />
-                            </AnimatedCard>
-                        )}
-                        
-                        {/* Suivi de la Compréhension */}
-                        <AnimatedCard title="Suivi de la Compréhension">
-                            <UnderstandingTracker students={students} understandingStatus={understandingStatus} />
-                        </AnimatedCard>
-                        
-                        {/* Mains Levées */}
-                        <AnimatedCard title="Mains Levées">
-                            <HandRaiseController sessionId={sessionId} raisedHands={studentsWithRaisedHands} />
-                        </AnimatedCard>
-                    </div>
-                </ScrollArea>
-            </div>
+              </ScrollArea>
+            )}
+          </div>
         </div>
+
+        {/* Panneau latéral */}
+        <div className="w-80 flex-shrink-0 flex flex-col">
+          <ScrollArea className="flex-1 -mr-3 pr-3">
+            <div className="space-y-4">
+              {/* Partage de Document */}
+              <AnimatedCard title="Partage de Document">
+                <div className='p-4 space-y-3'>
+                  <DocumentUploadSection
+                    sessionId={sessionId}
+                    onUploadSuccess={(doc) => onDocumentShared(doc as any)}
+                  />
+                  <DocumentHistory
+                    documents={documentHistory}
+                    onSelectDocument={onSelectDocument}
+                    onReshare={handleDocumentReshare}
+                    sessionId={sessionId}
+                  />
+                </div>
+              </AnimatedCard>
+
+              {/* Gestion de Session */}
+              <AnimatedCard title="Gestion de Session">
+                <div className="space-y-3 p-4">
+                  <SessionTimer
+                    isTeacher={true}
+                    sessionId={sessionId}
+                    initialDuration={validatedInitialDuration}
+                    timeLeft={validatedTimerTimeLeft}
+                    isTimerRunning={isTimerRunning}
+                    onStart={onStartTimer}
+                    onPause={onPauseTimer}
+                    onReset={onResetTimer}
+                  />
+                  <SessionStatus
+                    participants={allSessionUsers as User[]}
+                    onlineIds={activeParticipantIds}
+                    webrtcConnections={remoteParticipants.length}
+                    whiteboardControllerId={whiteboardControllerId}
+                  />
+                </div>
+              </AnimatedCard>
+
+              {/* Liste des étudiants */}
+              {classroom && (
+                <AnimatedCard title={`Classe ${classroom.nom}`}>
+                  <ClassStudentList
+                    classroom={classroom}
+                    onlineUserIds={classOnlineIds}
+                    currentUserId={currentUserId}
+                    activeParticipantIds={activeParticipantIds}
+                    sessionId={sessionId}
+                    waitingStudentCount={waitingCount}
+                    onSpotlightParticipant={onSpotlightParticipant}
+                    spotlightedParticipantId={spotlightedUser?.id || null}
+                    whiteboardControllerId={whiteboardControllerId}
+                    onWhiteboardControllerChange={onWhiteboardControllerChange}
+                  />
+                </AnimatedCard>
+              )}
+
+              {/* Suivi de la Compréhension */}
+              <AnimatedCard title="Suivi de la Compréhension">
+                <UnderstandingTracker students={students} understandingStatus={understandingStatus} />
+              </AnimatedCard>
+
+              {/* Mains Levées */}
+              <AnimatedCard title="Mains Levées">
+                <HandRaiseController sessionId={sessionId} raisedHands={studentsWithRaisedHands} />
+              </AnimatedCard>
+            </div>
+          </ScrollArea>
+        </div>
+      </div>
     );
 }
