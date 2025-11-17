@@ -1,4 +1,4 @@
-// src/components/SessionInvitationListener.tsx - VERSION CORRIGÉE
+// src/components/SessionInvitationListener.tsx - VERSION CORRIGÉE POUR NAVIGATION
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -104,7 +104,7 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
     }
   }, [studentId, handleInvitation]);
 
-  // CORRECTION: Acceptation d'invitation améliorée
+  // ✅ CORRECTION CRITIQUE : Acceptation d'invitation avec navigation robuste
   const handleAcceptInvitation = useCallback(async (invitation: SessionInvitation) => {
     if (!mountedRef.current) return;
     
@@ -113,6 +113,7 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
     try {
       console.log(`🎯 [INVITE LISTENER] - Acceptation invitation: ${invitation.sessionId}`);
       
+      // ✅ CORRECTION : Appel API pour confirmer la participation
       const response = await fetch('/api/session/student-joined', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -123,19 +124,29 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
       });
       
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
       }
       
       processedInvitationsRef.current.add(invitation.sessionId);
       
       if (mountedRef.current) {
         setSessionInvitation(null);
+        
         toast({ 
           title: 'Connexion...', 
-          description: 'Rejoindre la session vidéo...' 
+          description: 'Redirection vers la session vidéo...' 
         });
-        // CORRECTION: Utiliser replace au lieu de push pour éviter l'historique
-        router.replace(`/session/${invitation.sessionId}`);
+        
+        // ✅ CORRECTION CRITIQUE : Navigation robuste avec délai
+        console.log(`🔄 [INVITE LISTENER] - Navigation vers session: ${invitation.sessionId}`);
+        
+        // Petit délai pour laisser le toast s'afficher
+        setTimeout(() => {
+          if (mountedRef.current) {
+            // ✅ CORRECTION : Utiliser window.location pour une navigation plus fiable
+            window.location.href = `/session/${invitation.sessionId}`;
+          }
+        }, 500);
       }
     } catch (error) {
       console.error('❌ [INVITE LISTENER] - Erreur rejoindre session:', error);
@@ -143,12 +154,12 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
         toast({ 
           variant: 'destructive', 
           title: 'Erreur de connexion',
-          description: 'Impossible de rejoindre la session.'
+          description: 'Impossible de rejoindre la session. Veuillez réessayer.'
         });
         setIsJoiningSession(false);
       }
     }
-  }, [router, toast, studentId]);
+  }, [toast, studentId]);
 
   const handleDeclineInvitation = useCallback(() => {
     if (!mountedRef.current || !sessionInvitation) return;
