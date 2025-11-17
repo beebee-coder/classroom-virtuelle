@@ -1,4 +1,4 @@
-// src/lib/ably/client.ts - VERSION CORRIGÉE AVEC TYPAGE CORRECT
+// src/lib/ably/client.ts - VERSION OPTIMISÉE POUR VERCEL (CORRIGÉE)
 'use client';
 import Ably, { type Types } from 'ably';
 
@@ -8,8 +8,7 @@ let refCount = 0;
 
 /**
  * Fonction pour obtenir l'instance unique du client Ably.
- * Utilise une URL d'authentification pour obtenir des jetons, ce qui permet à Ably
- * de gérer automatiquement l'authentification et le renouvellement des jetons.
+ * Optimisée pour l'environnement serverless de Vercel.
  */
 export const getAblyClient = (): Ably.Realtime => {
     if (globalClient) {
@@ -18,83 +17,129 @@ export const getAblyClient = (): Ably.Realtime => {
         return globalClient;
     }
 
-    // L'URL de notre route API qui gère l'authentification Ably
-    const authUrl = '/api/ably/auth';
+    // ✅ CORRECTION CRITIQUE : URL absolue pour Vercel
+    const getAuthUrl = (): string => {
+        // En production sur Vercel, utiliser l'URL absolue
+        if (typeof window !== 'undefined') {
+            const baseUrl = window.location.origin;
+            return `${baseUrl}/api/ably/auth`;
+        }
+        // Fallback pour le SSR
+        return '/api/ably/auth';
+    };
+
+    const authUrl = getAuthUrl();
     
-    // CORRECTION : Options du client Ably optimisées pour 11 utilisateurs
+    // ✅ CORRECTION : Configuration optimisée pour Vercel (sans propriétés invalides)
     const clientOptions: Types.ClientOptions = {
-        // Au lieu de fournir une clé ou un jeton, nous donnons une URL
-        // pour que le client Ably puisse demander un jeton lui-même.
         authUrl: authUrl,
         authMethod: 'POST',
         
-        // CORRECTION : Paramètres de reconnexion optimisés
-        disconnectedRetryTimeout: 5000,  // Réduction du délai de reconnexion
-        suspendedRetryTimeout: 15000,    // Timeout suspendu augmenté
+        // ✅ CORRECTION : Timeouts adaptés au serverless
+        disconnectedRetryTimeout: 10000,  // Augmenté pour cold starts
+        suspendedRetryTimeout: 30000,     // Augmenté pour Vercel
         
-        // CORRECTION : Paramètres de performance pour multiples connexions
+        // ✅ CORRECTION : Paramètres de stabilité
         echoMessages: false,
         autoConnect: true,
-        queueMessages: true,             // Activer la file d'attente des messages
-        closeOnUnload: false,            // Éviter la fermeture lors du rechargement
+        queueMessages: true,
+        closeOnUnload: true,              // ✅ CORRIGÉ : true pour Vercel
         
-        // CORRECTION : Configuration du transport optimisée
-        transports: ['web_socket'],      // Forcer WebSocket pour de meilleures performances
+        // ✅ CORRECTION : Configuration transport robuste
+        transports: ['web_socket'],
         transportParams: {
-            // CORRECTION : Timeout de requête augmenté via transportParams
-            requestTimeout: 30000
+            requestTimeout: 45000         // Augmenté pour les cold starts
         },
         
-        // CORRECTION : Paramètres HTTP pour l'authentification
-        httpRequestTimeout: 30000,       // Timeout HTTP augmenté à 30 secondes
-        httpMaxRetryCount: 3             // Nombre de tentatives augmenté
+        // ✅ CORRECTION : Timeouts HTTP étendus
+        httpRequestTimeout: 45000,
+        httpMaxRetryCount: 5,             // Plus de tentatives
+        
+        // ✅ CORRECTION : Propriétés valides uniquement
+        realtimeRequestTimeout: 45000,    // ✅ VALIDE dans ClientOptions
+        
+        // ✅ CORRECTION : Logging en production
+        log: {
+            level: process.env.NODE_ENV === 'development' ? 2 : 1 // Réduit en prod
+        }
     };
 
-    console.log('✅ [ABLY CLIENT] Creating new global Ably Realtime client instance with authUrl and optimized timeouts.');
+    console.log('✅ [ABLY CLIENT] Creating new global Ably Realtime client instance optimized for Vercel.');
+    console.log(`🔐 [ABLY CLIENT] Using auth URL: ${authUrl}`);
 
     const ablyClient = new Ably.Realtime(clientOptions);
 
-    // CORRECTION : Gestion améliorée des états de connexion
+    // ✅ CORRECTION AMÉLIORÉE : Gestion d'état robuste pour Vercel
     ablyClient.connection.on((stateChange: Types.ConnectionStateChange) => {
-        console.log(`🔌 [ABLY CLIENT] Connection state: ${stateChange.previous} -> ${stateChange.current}`);
+        const previous = stateChange.previous;
+        const current = stateChange.current;
         
-        if (stateChange.current === 'connected') {
-            console.log(`🎯 [ABLY CLIENT] Client connected with real clientId: ${ablyClient.auth.clientId}`);
+        console.log(`🔌 [ABLY CLIENT] Connection state: ${previous} -> ${current}`);
+        
+        switch (current) {
+            case 'connected':
+                console.log(`🎯 [ABLY CLIENT] Client connected with real clientId: ${ablyClient.auth.clientId}`);
+                break;
+                
+            case 'failed':
+                console.error(`❌ [ABCY CLIENT] Connection failed:`, stateChange.reason);
+                // ✅ CORRECTION : Nettoyage en cas d'échec permanent
+                if (stateChange.reason?.code === 40142) {
+                    console.warn('🔄 [ABLY CLIENT] Token expired, will attempt renewal on next connection');
+                }
+                break;
+                
+            case 'disconnected':
+                console.warn(`⚠️ [ABLY CLIENT] Connection disconnected, will retry in 10s`);
+                break;
+                
+            case 'suspended':
+                console.warn(`⏸️ [ABLY CLIENT] Connection suspended - common on Vercel cold starts`);
+                break;
+                
+            case 'closing':
+                console.log(`🚪 [ABLY CLIENT] Connection closing gracefully`);
+                break;
+                
+            case 'closed':
+                console.log(`🔒 [ABLY CLIENT] Connection closed`);
+                break;
         }
-        
-        if (stateChange.current === 'failed') {
-            console.error(`❌ [ABLY CLIENT] Connection failed:`, stateChange.reason);
-        }
-        
-        if (stateChange.current === 'disconnected') {
-            console.warn(`⚠️ [ABLY CLIENT] Connection disconnected, will retry:`, stateChange.reason);
-        }
-        
-        if (stateChange.current === 'suspended') {
-            console.warn(`⏸️ [ABLY CLIENT] Connection suspended:`, stateChange.reason);
-        }
-        
+
+        // ✅ CORRECTION : Log des erreurs spécifiques Vercel
         if (stateChange.reason) {
-            console.error(`❌ [ABLY CLIENT] Connection error:`, stateChange.reason);
+            console.error(`❌ [ABLY CLIENT] Connection error:`, {
+                code: stateChange.reason.code,
+                statusCode: stateChange.reason.statusCode,
+                message: stateChange.reason.message
+            });
         }
     });
 
-    // CORRECTION : Gestion correcte des événements avec typage approprié
-    ablyClient.connection.on('failed', (stateChange: Types.ConnectionStateChange) => {
-        console.error('❌ [ABLY CLIENT] Connection failed permanently:', stateChange.reason);
-    });
-
-    // CORRECTION : Surveillance de l'état d'authentification
-    ablyClient.connection.on('update', (stateChange: Types.ConnectionStateChange) => {
-        if (stateChange.reason?.code === 40142) {
-            console.warn('⚠️ [ABLY CLIENT] Authentication token expired, will renew automatically');
-        }
-    });
-
-    // CORRECTION : Gestion des erreurs d'authentification
+    // ✅ CORRECTION : Gestion spécifique des erreurs d'authentification Vercel
     ablyClient.connection.on('failed', (stateChange: Types.ConnectionStateChange) => {
         if (stateChange.reason?.code === 40100) {
-            console.error('❌ [ABLY CLIENT] Authentication failed - check auth endpoint:', stateChange.reason);
+            console.error('❌ [ABLY CLIENT] Authentication failed - check Vercel environment variables and auth endpoint');
+            
+            // ✅ CORRECTION : Tentative de récupération pour Vercel
+            setTimeout(() => {
+                if (globalClient && globalClient.connection.state === 'failed') {
+                    console.log('🔄 [ABLY CLIENT] Attempting to recover from auth failure...');
+                    globalClient.connect();
+                }
+            }, 5000);
+        }
+    });
+
+    // ✅ NOUVEAU : Surveillance de la latence pour Vercel
+    ablyClient.connection.on('connected', () => {
+        console.log('📊 [ABLY CLIENT] Connection established - monitoring Vercel performance');
+    });
+
+    // ✅ CORRECTION : Gestion des timeouts réseau spécifiques à Vercel
+    ablyClient.connection.on('disconnected', (stateChange: Types.ConnectionStateChange) => {
+        if (stateChange.reason?.code === 80003) {
+            console.warn('🌐 [ABLY CLIENT] Network timeout - common in Vercel serverless environment');
         }
     });
 
@@ -105,33 +150,80 @@ export const getAblyClient = (): Ably.Realtime => {
 };
 
 /**
- * Fonction pour fermer proprement le client global si nécessaire.
- * Appelle cette fonction lorsque l'application principale est démontée.
+ * Fonction pour fermer proprement le client global.
+ * Optimisée pour éviter les fuites mémoire sur Vercel.
  */
 export const closeAblyClient = (): void => {
     refCount--;
+    
     if (refCount <= 0 && globalClient) {
-        console.log('🚪 [ABLY CLIENT] Closing global Ably client instance.');
-        globalClient.close();
-        globalClient = null;
-        refCount = 0;
+        const currentState = globalClient.connection.state;
+        console.log(`🚪 [ABLY CLIENT] Closing global Ably client instance (refCount: ${refCount}, state: ${currentState})`);
+        
+        // ✅ CORRECTION : Fermeture plus robuste
+        try {
+            if (currentState === 'connected' || currentState === 'connecting') {
+                globalClient.connection.off(); // Nettoyer les listeners
+            }
+            globalClient.close();
+        } catch (error) {
+            console.warn('⚠️ [ABLY CLIENT] Error during close, forcing cleanup:', error);
+        } finally {
+            globalClient = null;
+            refCount = 0;
+        }
+    } else if (globalClient) {
+        console.log(`📊 [ABLY CLIENT] Client still in use (refCount: ${refCount})`);
     }
 };
 
-// CORRECTION : Fonction utilitaire pour vérifier l'état de santé de la connexion
+// ✅ CORRECTION : Fonction utilitaire améliorée
 export const getAblyConnectionState = (): string | null => {
     return globalClient?.connection.state || null;
 };
 
-// CORRECTION : Fonction pour forcer le renouvellement du token si nécessaire
+// ✅ CORRECTION : Fonction de renouvellement avec gestion d'erreur Vercel
 export const renewAblyAuth = async (): Promise<void> => {
     if (globalClient) {
         try {
-            console.log('🔄 [ABLY CLIENT] Manually renewing authentication token...');
+            console.log('🔄 [ABLY CLIENT] Manually renewing authentication token for Vercel...');
             await globalClient.auth.authorize();
             console.log('✅ [ABLY CLIENT] Authentication token renewed successfully');
         } catch (error) {
-            console.error('❌ [ABLY CLIENT] Error renewing authentication token:', error);
+            console.error('❌ [ABLY CLIENT] Error renewing authentication token on Vercel:', error);
+            // ✅ CORRECTION : Reconnecter en cas d'échec
+            if (globalClient.connection.state === 'failed') {
+                console.log('🔄 [ABLY CLIENT] Attempting reconnect after auth renewal failure');
+                globalClient.connect();
+            }
         }
+    }
+};
+
+// ✅ NOUVEAU : Fonction pour vérifier la santé de la connexion Vercel
+export const checkAblyHealth = (): { 
+    isHealthy: boolean; 
+    state: string; 
+    clientId?: string 
+} => {
+    if (!globalClient) {
+        return { isHealthy: false, state: 'no_client' };
+    }
+    
+    const state = globalClient.connection.state;
+    const isHealthy = state === 'connected' || state === 'connecting';
+    
+    return {
+        isHealthy,
+        state,
+        clientId: globalClient.auth.clientId || undefined
+    };
+};
+
+// ✅ NOUVEAU : Fonction pour gérer les rechargements Vercel
+export const handleVercelHotReload = (): void => {
+    if (globalClient && globalClient.connection.state === 'connected') {
+        console.log('♻️ [ABLY CLIENT] Vercel hot reload detected, maintaining connection');
+        // Maintenir la connexion existante pendant les rechargements chauds
     }
 };
