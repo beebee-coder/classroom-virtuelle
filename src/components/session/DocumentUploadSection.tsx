@@ -10,9 +10,14 @@ interface DocumentUploadSectionProps {
   onUploadSuccess: (doc: { name: string; url: string }) => void;
 }
 
+const MAX_FILE_SIZE_MB = 100;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+const WARNING_THRESHOLD_BYTES = MAX_FILE_SIZE_BYTES * 0.9; // 90% de la limite
+
 export function DocumentUploadSection({ sessionId, onUploadSuccess }: DocumentUploadSectionProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadWarning, setUploadWarning] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -23,9 +28,18 @@ export function DocumentUploadSection({ sessionId, onUploadSuccess }: DocumentUp
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 50 * 1024 * 1024) {
-      setUploadError('Le fichier est trop volumineux (maximum 50MB)');
+    // Réinitialiser les états
+    setUploadError(null);
+    setUploadWarning(null);
+    setUploadSuccess(false);
+
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      setUploadError(`Le fichier est trop volumineux (max ${MAX_FILE_SIZE_MB}MB)`);
       return;
+    }
+
+    if (file.size > WARNING_THRESHOLD_BYTES) {
+      setUploadWarning(`Attention: Le fichier est volumineux (${(file.size / 1024 / 1024).toFixed(1)}MB). L'envoi peut être long.`);
     }
 
     if (!cloudName || !uploadPreset) {
@@ -34,8 +48,6 @@ export function DocumentUploadSection({ sessionId, onUploadSuccess }: DocumentUp
     }
 
     setIsUploading(true);
-    setUploadError(null);
-    setUploadSuccess(false);
 
     try {
       console.log('📤 [DOC UPLOAD] Début de l\'upload du fichier:', file.name);
@@ -69,6 +81,7 @@ export function DocumentUploadSection({ sessionId, onUploadSuccess }: DocumentUp
       onUploadSuccess(newDoc);
       
       setUploadSuccess(true);
+      setUploadWarning(null); // Cache l'avertissement en cas de succès
 
       console.log('✅ [DOC UPLOAD] Processus complet réussi');
 
@@ -139,6 +152,13 @@ export function DocumentUploadSection({ sessionId, onUploadSuccess }: DocumentUp
         </div>
       )}
 
+      {uploadWarning && !uploadError && (
+        <div className="flex items-center gap-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-yellow-800 text-sm">
+          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+          <span>{uploadWarning}</span>
+        </div>
+      )}
+
       {uploadSuccess && (
         <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded text-green-700 text-sm">
           <CheckCircle className="h-4 w-4 flex-shrink-0" />
@@ -147,7 +167,7 @@ export function DocumentUploadSection({ sessionId, onUploadSuccess }: DocumentUp
       )}
 
       <div className="text-xs text-muted-foreground text-center">
-        Tous types de fichiers (max 50MB)
+        Tous types de fichiers (max {MAX_FILE_SIZE_MB}MB)
       </div>
     </div>
   );
