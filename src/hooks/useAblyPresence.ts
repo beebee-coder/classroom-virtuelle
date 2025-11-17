@@ -1,4 +1,4 @@
-// src/hooks/useAblyPresence.ts - VERSION CORRIGÉE
+// src/hooks/useAblyPresence.ts - CORRECTION
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
@@ -6,6 +6,7 @@ import { useAbly } from './useAbly';
 import type { AblyPresenceMember } from '@/lib/ably/types';
 import { getClassChannelName } from '@/lib/ably/channels';
 import Ably from 'ably';
+import { Role } from '@prisma/client'; // CORRECTION: Importer le type Role
 
 type AblyChannel = Ably.Types.RealtimeChannelCallbacks;
 type AblyChannelStateChange = Ably.Types.ChannelStateChange;
@@ -93,6 +94,56 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
     }
   }, []);
 
+  // CORRECTION: Fonction améliorée pour extraire les données de présence
+  const extractPresenceData = useCallback((message: AblyPresenceMessage): AblyPresenceMember | null => {
+    if (!message.clientId) return null;
+
+    // CORRECTION: Gérer différents formats de données de présence
+    let presenceData: Omit<AblyPresenceMember, 'id'>;
+    
+    if (typeof message.data === 'object' && message.data !== null) {
+      // Cas 1: Données structurées (format attendu)
+      presenceData = { ...message.data } as Omit<AblyPresenceMember, 'id'>;
+    } else if (typeof message.data === 'string') {
+      // Cas 2: Données en string JSON (fallback)
+      try {
+        presenceData = JSON.parse(message.data);
+      } catch {
+        // CORRECTION: Utiliser Role.ELEVE comme valeur par défaut au lieu de 'unknown'
+        presenceData = { 
+          name: message.data, 
+          role: Role.ELEVE, // CORRECTION: Valeur par défaut valide
+        };
+      }
+    } else {
+      // Cas 3: Format inconnu, créer des données par défaut
+      // CORRECTION: Utiliser Role.ELEVE comme valeur par défaut au lieu de 'unknown'
+      presenceData = { 
+        name: `User ${message.clientId}`, 
+        role: Role.ELEVE, // CORRECTION: Valeur par défaut valide
+        data: {
+          userId: message.clientId.startsWith('cmi') ? message.clientId : undefined
+        }
+      };
+    }
+
+    // CORRECTION: Validation et fallback du rôle
+    if (!isValidRole(presenceData.role)) {
+      console.warn(`⚠️ [PRESENCE HOOK] - Rôle invalide: ${presenceData.role}, utilisation de ELEVE par défaut`);
+      presenceData.role = Role.ELEVE;
+    }
+
+    return {
+      id: message.clientId,
+      ...presenceData
+    };
+  }, []);
+
+  // CORRECTION: Fonction utilitaire pour valider les rôles
+  const isValidRole = useCallback((role: any): role is Role => {
+    return Object.values(Role).includes(role);
+  }, []);
+
   const setupPresenceHandlers = useCallback((channel: AblyChannel, channelName: string) => {
     if (!mountedRef.current) return;
 
@@ -119,20 +170,22 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
       console.log(`🔄 [PRESENCE HOOK] - Mise à jour de présence sur ${channelName}: ${message.action} de ${message.clientId}`);
 
       const currentMembers = channelInfo.members;
+      const presenceMember = extractPresenceData(message);
+
+      if (!presenceMember) {
+        console.warn(`⚠️ [PRESENCE HOOK] - Impossible d'extraire les données de présence pour ${message.clientId}`);
+        return;
+      }
 
       switch (message.action) {
         case 'present':
         case 'enter':
         case 'update':
-          if (message.clientId && message.data) {
-            currentMembers.set(message.clientId, { id: message.clientId, ...(message.data as Omit<AblyPresenceMember, 'id'>) });
-          }
+          currentMembers.set(message.clientId!, presenceMember);
           break;
         case 'leave':
         case 'absent':
-          if (message.clientId) {
-            currentMembers.delete(message.clientId);
-          }
+          currentMembers.delete(message.clientId!);
           break;
       }
       
@@ -156,11 +209,9 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
             console.log(`🔍 [PRESENCE HOOK] - Récupération de ${members.length} membres présents`);
             channelInfo!.members.clear();
             members.forEach((member: AblyPresenceMessage) => {
-              if (member.clientId && member.data) {
-                channelInfo!.members.set(member.clientId, { 
-                  id: member.clientId, 
-                  ...(member.data as Omit<AblyPresenceMember, 'id'>) 
-                });
+              const presenceMember = extractPresenceData(member);
+              if (presenceMember) {
+                channelInfo!.members.set(member.clientId!, presenceMember);
               }
             });
             updateOnlineMembers();
@@ -180,7 +231,7 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
     initializePresence();
 
     return { stateHandler, onPresenceUpdate };
-  }, [updateOnlineMembers]);
+  }, [updateOnlineMembers, extractPresenceData]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -254,7 +305,8 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
     
     isEnteringRef.current = true;
     try {
-      console.log(`➡️ [PRESENCE HOOK] - Entrée en présence pour: ${client?.auth.clientId}`);
+      console.log(`➡️ [PRESENCE HOOK] - Entrée en présence pour: ${client?.auth.clientId}`, userData);
+      // CORRECTION: S'assurer que les données sont bien formatées pour Ably
       await channel.presence.enter(userData);
     } catch (err) {
       console.error('❌ [PRESENCE HOOK] - Erreur d\'entrée en présence:', err);

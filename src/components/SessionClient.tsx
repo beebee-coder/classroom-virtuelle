@@ -1,4 +1,4 @@
-// src/components/SessionClient.tsx - VERSION CORRIGÉE POUR LA STABILITÉ WEBRTC
+// src/components/SessionClient.tsx - VERSION COMPLÈTE CORRIGÉE
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -51,20 +51,17 @@ interface PeerState {
     isConnecting: boolean;
     connectionAttempts: number;
     lastAttempt: number;
-    signalCount: number; // ✅ NOUVEAU : Compteur de signaux par peer
+    signalCount: number;
 }
 
 // ✅ CORRECTION CRITIQUE : Configuration WebRTC optimisée
 const WEBRTC_CONFIG = {
-    // ✅ AUGMENTATION : Limite de signaux augmentée pour TURN
-    MAX_SIGNALS: 50,
+    MAX_SIGNALS: 25,
+    CONNECTION_TIMEOUT: 30000,
+    RETRY_DELAY: 15000,
+    MAX_CONNECTION_ATTEMPTS: 2,
     
-    // ✅ OPTIMISATION : Timeouts adaptés pour TURN
-    CONNECTION_TIMEOUT: 45000, // 45s pour les connexions TURN
-    RETRY_DELAY: 10000, // 10s entre les tentatives
-    MAX_CONNECTION_ATTEMPTS: 3,
-    
-    // ✅ CONFIGURATION ICE optimisée
+    // ✅ CONFIGURATION ICE optimisée avec serveurs TURN gratuits
     ICE_SERVERS: [
         // Serveurs STUN gratuits
         { urls: 'stun:stun.l.google.com:19302' },
@@ -172,10 +169,12 @@ export default function SessionClient({
   const [whiteboardControllerId, setWhiteboardControllerId] = useState<string | null>(initialTeacher?.id || null);
   
   const peersRef = useRef<Map<string, PeerInstance>>(new Map());
-  // CORRECTION : Typage correct de l'état des peers
   const peerStatesRef = useRef<Map<string, PeerState>>(new Map());
   const channelRef = useRef<Ably.Types.RealtimeChannelCallbacks | null>(null);
   const mediaCleanupRef = useRef<(() => void) | null>(null);
+
+  // ✅ CORRECTION : Référence pour suivre les connexions en cours
+  const pendingConnectionsRef = useRef<Set<string>>(new Set());
 
   const teacherName = initialTeacher?.name || '';
   const studentNames = useMemo(() => 
@@ -192,8 +191,11 @@ export default function SessionClient({
     }
   }, [activeTool, sessionId]);
   
-  // CORRECTION : Fonction de nettoyage des peers améliorée
+  // ✅ CORRECTION AMÉLIORÉE : Fonction de nettoyage des peers
   const cleanupPeerConnection = useCallback((userId: string): void => {
+    // Retirer des connexions en cours
+    pendingConnectionsRef.current.delete(userId);
+    
     const peer = peersRef.current.get(userId);
     if (peer && !peer.destroyed) {
         console.log(`🧹 [PEER CLEANUP] - Destroying peer for user: ${userId}`);
@@ -219,6 +221,7 @@ export default function SessionClient({
     });
   }, []);
 
+  // ✅ CORRECTION CRITIQUE : Fonction de création de peer complètement réécrite
   const createPeer = useCallback((targetUserId: string, initiator: boolean, stream: MediaStream | null): PeerInstance | undefined => {
     if (!isMountedRef.current) {
         console.warn(`⚠️ [PEER CREATION] - Component unmounted, skipping peer creation for: ${targetUserId}`);
@@ -232,9 +235,15 @@ export default function SessionClient({
         return undefined;
     }
 
+    // ✅ CORRECTION : Empêcher les connexions en double
+    if (pendingConnectionsRef.current.has(targetUserId)) {
+        console.log(`⏳ [PEER BUSY] - Connection already pending for ${targetUserId}, skipping`);
+        return undefined;
+    }
+
     const now = Date.now();
-    const MAX_ATTEMPTS = 2;
-    const RETRY_DELAY = 15000; // 15 secondes
+    const MAX_ATTEMPTS = WEBRTC_CONFIG.MAX_CONNECTION_ATTEMPTS;
+    const RETRY_DELAY = WEBRTC_CONFIG.RETRY_DELAY;
 
     if (existingState) {
         if (existingState.connectionAttempts >= MAX_ATTEMPTS && 
@@ -258,6 +267,9 @@ export default function SessionClient({
     console.log(`🤝 [PEER CREATION] - Creating peer for target: ${targetUserId}. Initiator: ${initiator}, Has stream: ${!!stream}`);
 
     try {
+        // ✅ CORRECTION : Marquer comme connexion en cours
+        pendingConnectionsRef.current.add(targetUserId);
+        
         peerStatesRef.current.set(targetUserId, { 
             isConnected: false, 
             isConnecting: true,
@@ -266,7 +278,6 @@ export default function SessionClient({
             signalCount: 0
         });
 
-        // ✅ CORRECTION : Configuration WebRTC avec timeouts ajustés
         const peer = new SimplePeer({
             initiator,
             trickle: true,
@@ -304,7 +315,7 @@ export default function SessionClient({
             localSignalCount++;
             
             // ✅ CORRECTION : Arrêt plus précoce des signaux
-            if (localSignalCount > 25) { // Réduit de 50 à 25
+            if (localSignalCount > WEBRTC_CONFIG.MAX_SIGNALS) {
                 console.warn(`🛑 [SIGNAL LIMIT] - Too many signals for ${targetUserId} (${localSignalCount}), stopping further signals`);
                 shouldStopSignaling = true;
                 return;
@@ -325,7 +336,7 @@ export default function SessionClient({
                 processedCandidates.add(candidateKey);
             }
             
-            console.log(`📡 [PEER SIGNAL] - Sending signal ${localSignalCount}/25 from ${currentUserId} to ${targetUserId} (type: ${signal.type})`);
+            console.log(`📡 [PEER SIGNAL] - Sending signal ${localSignalCount}/${WEBRTC_CONFIG.MAX_SIGNALS} from ${currentUserId} to ${targetUserId} (type: ${signal.type})`);
             
             const delay = signal.type === 'candidate' ? 
                 Math.min(localSignalCount * 50, 500) : 0;
@@ -365,6 +376,9 @@ export default function SessionClient({
                     signalCount: localSignalCount
                 });
                 
+                // ✅ CORRECTION : Retirer des connexions en cours
+                pendingConnectionsRef.current.delete(targetUserId);
+                
                 clearTimeout(connectionTimeout);
                 clearTimeout(iceGatheringTimeout);
                 
@@ -381,6 +395,9 @@ export default function SessionClient({
                 signalCount: localSignalCount
             });
             
+            // ✅ CORRECTION : Retirer des connexions en cours
+            pendingConnectionsRef.current.delete(targetUserId);
+            
             clearTimeout(connectionTimeout);
             clearTimeout(iceGatheringTimeout);
         });
@@ -389,11 +406,13 @@ export default function SessionClient({
         peer.on('error', (err: Error) => {
             console.error(`❌ [PEER ERROR] - Peer error with ${targetUserId} after ${localSignalCount} signals:`, err);
             
+            // ✅ CORRECTION : Retirer des connexions en cours même en cas d'erreur
+            pendingConnectionsRef.current.delete(targetUserId);
+            
             if (isConnectionEstablished) {
                 console.error(`🚨 [CONNECTION DROP] - Established connection failed with ${targetUserId}.`);
                 
                 // ✅ CORRECTION : Ne pas tenter de reconnexion immédiate pour les connexions établies
-                // Laisser le système de présence gérer la reconnexion
                 setTimeout(() => {
                     if (isMountedRef.current) {
                         console.log(`📡 [CONNECTION MONITOR] - Connection with ${targetUserId} dropped, waiting for presence update`);
@@ -433,6 +452,10 @@ export default function SessionClient({
                 lastAttempt: now,
                 signalCount: localSignalCount
             });
+            
+            // ✅ CORRECTION : Retirer des connexions en cours
+            pendingConnectionsRef.current.delete(targetUserId);
+            
             clearTimeout(connectionTimeout);
             clearTimeout(iceGatheringTimeout);
         });
@@ -442,7 +465,7 @@ export default function SessionClient({
                 console.log(`⏰ [ICE GATHERING TIMEOUT] - Stopping ICE gathering for ${targetUserId} after ${localSignalCount} signals`);
                 shouldStopSignaling = true;
             }
-        }, 10000); // Réduit à 10s
+        }, 10000);
 
         connectionTimeout = setTimeout(() => {
             if (!isConnectionEstablished && isMountedRef.current) {
@@ -456,9 +479,12 @@ export default function SessionClient({
                     signalCount: localSignalCount
                 });
                 
+                // ✅ CORRECTION : Retirer des connexions en cours
+                pendingConnectionsRef.current.delete(targetUserId);
+                
                 cleanupPeerConnection(targetUserId);
             }
-        }, 30000); // Timeout de connexion à 30s
+        }, WEBRTC_CONFIG.CONNECTION_TIMEOUT);
         
         if (existingPeer && !existingPeer.destroyed) {
             try {
@@ -473,6 +499,10 @@ export default function SessionClient({
         return peer;
     } catch (error) {
         console.error('❌ [PEER CREATION] - Error creating peer:', error);
+        
+        // ✅ CORRECTION : Nettoyer en cas d'erreur
+        pendingConnectionsRef.current.delete(targetUserId);
+        
         peerStatesRef.current.set(targetUserId, { 
             isConnected: false, 
             isConnecting: false,
@@ -482,8 +512,9 @@ export default function SessionClient({
         });
         return undefined;
     }
-}, [sessionId, currentUserId, teacherName, studentNames, initialTeacher?.id, cleanupPeerConnection, isSharingScreen, screenStream, localStream]);
+}, [sessionId, currentUserId, cleanupPeerConnection]);
 
+// ✅ CORRECTION : Initialisation des médias préservée
 useEffect(() => {
     if (setupCompletedRef.current) return;
     
@@ -532,16 +563,20 @@ useEffect(() => {
       isMountedRef.current = false;
       setupCompletedRef.current = false;
       
-      // CORRECTION : Nettoyage complet de tous les peers
+      // ✅ CORRECTION : Nettoyage complet de tous les peers et connexions en cours
       Array.from(peersRef.current.keys()).forEach(userId => {
           cleanupPeerConnection(userId);
       });
+      
+      // Nettoyer toutes les connexions en cours
+      pendingConnectionsRef.current.clear();
       
       mediaCleanupRef.current?.();
       console.log(`🧹 [LIFECYCLE] - UNMOUNT SessionClient for session: ${sessionId}`);
     };
   }, [sessionId, currentUserId, cleanupPeerConnection]);
 
+  // ✅ FONCTIONNALITÉ : Gestion du partage d'écran préservée
   useEffect(() => {
     if (!screenStream) return;
     
@@ -565,7 +600,7 @@ useEffect(() => {
     };
   }, [screenStream]);
 
-  // CORRECTION : Gestion améliorée du partage d'écran
+  // ✅ FONCTIONNALITÉ : Partage d'écran préservé
   const toggleScreenShare = useCallback(async () => {
     if (isSharingScreen && screenStream) {
       console.log('🖥️ [SCREEN SHARE] - Stopping screen share...');
@@ -615,7 +650,7 @@ useEffect(() => {
     }
   }, [isSharingScreen, screenStream, toast]);
 
-// ✅ CORRECTION FINALE : Logique d'initiation renforcée
+// ✅ CORRECTION CRITIQUE : Logique d'initiation centralisée et synchronisée
 useEffect(() => {
   handlePresenceUpdateRef.current = (member: Types.PresenceMessage) => {
     if (!isMountedRef.current || !channelRef.current) return;
@@ -648,34 +683,23 @@ useEffect(() => {
         
         const otherUserIds = uniqueMembers.filter((id: string) => id !== currentUserId);
         
-        // ✅ LOGIQUE D'INITIATION RENFORCÉE
-        otherUserIds.forEach((userId: string) => {
-            const existingState = peerStatesRef.current.get(userId);
-            
-            // ✅ EMPÊCHER TOUTE CRÉATION SI DÉJÀ CONNECTÉ
-            if (existingState?.isConnected) {
-                console.log(`🔗 [PRESENCE] - Already connected to ${userId}, skipping peer creation`);
-                return;
-            }
-            
-            // ✅ EMPÊCHER TOUTE CRÉATION SI DÉJÀ EN COURS
-            if (existingState?.isConnecting) {
-                console.log(`⏳ [PRESENCE] - Already connecting to ${userId}, skipping`);
-                return;
-            }
-            
-            // ✅ LOGIQUE D'INITIATION STRICTE : SEUL LE PROFESSEUR INITIE
-            const shouldInitiatorBeMe = currentUserRole === Role.PROFESSEUR;
-            
-            if (!shouldInitiatorBeMe) {
-                console.log(`⏳ [PRESENCE] - Student ${currentUserId} waiting for professor ${userId} to initiate`);
-                return;
-            }
-            
-            // ✅ VÉRIFICATIONS FINALES AVANT CRÉATION
-            if (isMediaReady && !peersRef.current.has(userId)) {
+        // ✅ CORRECTION : LOGIQUE D'INITIATION CENTRALISÉE
+        // SEUL LE PROFESSEUR INITIE LES CONNEXIONS
+        if (currentUserRole === Role.PROFESSEUR && isMediaReady) {
+            otherUserIds.forEach((userId: string) => {
+                // ✅ VÉRIFICATIONS MULTIPLES POUR ÉVITER LES CONFLITS
+                const existingState = peerStatesRef.current.get(userId);
+                const isPending = pendingConnectionsRef.current.has(userId);
+                
+                // Éviter les connexions en double
+                if (existingState?.isConnected || isPending) {
+                    console.log(`🔗 [PRESENCE] - Already connected/pending for ${userId}, skipping`);
+                    return;
+                }
+                
+                // Vérifier les tentatives récentes
                 const now = Date.now();
-                const MIN_RETRY_DELAY = 15000; // 15 secondes
+                const MIN_RETRY_DELAY = WEBRTC_CONFIG.RETRY_DELAY;
                 
                 if (existingState && 
                     existingState.connectionAttempts > 0 && 
@@ -687,8 +711,10 @@ useEffect(() => {
                 console.log(`🎯 [PEER CREATE PRESENCE] - Professor ${currentUserId} initiating connection to ${userId}`);
                 const streamToUse = isSharingScreen ? screenStream : localStream;
                 createPeer(userId, true, streamToUse);
-            }
-        });
+            });
+        } else if (currentUserRole === Role.ELEVE) {
+            console.log(`⏳ [PRESENCE] - Student ${currentUserId} waiting for professor to initiate connections`);
+        }
 
         // Nettoyer les utilisateurs déconnectés
         const currentPeerUserIds = Array.from(peersRef.current.keys());
@@ -702,41 +728,11 @@ useEffect(() => {
   };
 }, [currentUserId, isMediaReady, isSharingScreen, screenStream, localStream, createPeer, cleanupPeerConnection, currentUserRole]);
 
-// ✅ CORRECTION : Empêcher la création de peer par les élèves dans useEffect MEDIA_READY
-useEffect(() => {
-    if (!isMediaReady || !isMountedRef.current) return;
-    
-    console.log(`🎯 [MEDIA READY] - Checking for peer creation (Role: ${currentUserRole})`);
-    
-    // ✅ SEUL LE PROFESSEUR CRÉE DES PEERS QUAND LES MÉDIAS SONT PRÊTS
-    if (currentUserRole !== Role.PROFESSEUR) {
-        console.log(`⏳ [MEDIA READY] - Student waiting for professor to initiate connections`);
-        return;
-    }
-    
-    const otherUserIds = onlineUserIds.filter((id: string) => id !== currentUserId);
-    
-    otherUserIds.forEach((userId: string) => {
-        if (!peersRef.current.has(userId)) {
-            const existingState = peerStatesRef.current.get(userId);
-            const now = Date.now();
-            const MIN_RETRY_DELAY = 15000;
-            
-            if (existingState && 
-                existingState.connectionAttempts > 0 && 
-                now - existingState.lastAttempt < MIN_RETRY_DELAY) {
-                console.log(`⏳ [PEER DELAY] - Waiting before retrying connection for: ${userId}`);
-                return;
-            }
-            
-            console.log(`🔄 [PEER CREATE ON MEDIA READY] - Professor creating peer for ${userId}`);
-            const streamToUse = isSharingScreen ? screenStream : localStream;
-            createPeer(userId, true, streamToUse);
-        }
-    });
-}, [isMediaReady, onlineUserIds, currentUserId, isSharingScreen, screenStream, localStream, createPeer, currentUserRole]);
+// ✅ CORRECTION : SUPPRIMER l'effet media-ready conflictuel
+// Cet effet créait des conflits avec l'effet presence en tentant de créer
+// les mêmes connexions en double
 
-  // CORRECTION : Gestion des signaux avec prévention des conflits d'état WebRTC
+  // ✅ FONCTIONNALITÉ : Gestion des signaux préservée
   useEffect(() => {
     handleSignalRef.current = (message: Types.Message) => {
         if (!isMountedRef.current) return;
@@ -786,7 +782,7 @@ useEffect(() => {
     };
   }, [currentUserId, isSharingScreen, screenStream, localStream, createPeer]);
 
-  // CORRECTION : Setup Ably avec prévention des doublons
+  // ✅ FONCTIONNALITÉ : Setup Ably complet préservé
   useEffect(() => {
     if (!sessionId || !currentUserId || !ablyClient || ablyLoading || !isAblyConnected) {
         console.log(`⏳ [ABLY SETUP] - Skipping setup, Ably not ready.`, { sessionId, currentUserId, ablyLoading, isAblyConnected });
@@ -954,6 +950,7 @@ useEffect(() => {
       Array.from(peersRef.current.keys()).forEach(cleanupPeerConnection);
       peersRef.current.clear();
       peerStatesRef.current.clear();
+      pendingConnectionsRef.current.clear();
       
       if (channelRef.current) {
         try {
@@ -971,7 +968,7 @@ useEffect(() => {
     currentUserRole, teacherName, studentNames, router, toast, cleanupPeerConnection
   ]);
   
-  // Gestion du minuteur
+  // ✅ FONCTIONNALITÉ : Gestion du minuteur préservée
   useEffect(() => {
     let intervalId: NodeJS.Timeout | null = null;
     if (isTimerRunning && timerTimeLeft > 0) {
@@ -986,6 +983,7 @@ useEffect(() => {
     };
   }, [isTimerRunning, timerTimeLeft]);
 
+  // ✅ FONCTIONNALITÉ : Contrôles audio/vidéo préservés
   const toggleMute = useCallback(() => { 
     if (!localStream) return;
     localStream.getAudioTracks().forEach(track => { track.enabled = !track.enabled; }); 
@@ -998,11 +996,13 @@ useEffect(() => {
     setIsVideoOff(prev => !prev);
   }, [localStream]);
 
+  // ✅ FONCTIONNALITÉ : Gestion des participants préservée
   const onSpotlightParticipant = useCallback((participantId: string) => {
     if (currentUserRole !== Role.PROFESSEUR) return;
     ablyTrigger(getSessionChannelName(sessionId), AblyEvents.PARTICIPANT_SPOTLIGHTED, { participantId });
   }, [sessionId, currentUserRole]);
   
+  // ✅ FONCTIONNALITÉ : Fin de session préservée
   const handleEndSession = useCallback(async () => {
     if (currentUserRole !== Role.PROFESSEUR) return;
     setIsEndingSession(true);
@@ -1016,6 +1016,7 @@ useEffect(() => {
 
   const handleLeaveSession = useCallback(() => router.push(currentUserRole === Role.PROFESSEUR ? '/teacher/dashboard' : '/student/dashboard'), [router, currentUserRole]);
   
+  // ✅ FONCTIONNALITÉ : Minuteur préservé
   const handleStartTimer = useCallback(() => { 
     setIsTimerRunning(true); 
     broadcastTimerEvent(sessionId, 'timer-started'); 
@@ -1034,6 +1035,7 @@ useEffect(() => {
     broadcastTimerEvent(sessionId, 'timer-reset', { duration });
   }, [sessionId, timerDuration]);
   
+  // ✅ FONCTIONNALITÉ : Levée de main préservée
   const handleToggleHandRaise = useCallback((isRaised: boolean) => {
     setRaisedHands(prev => { 
       const newSet = new Set(prev); 
@@ -1043,17 +1045,20 @@ useEffect(() => {
     updateStudentSessionStatus(sessionId, { isHandRaised: isRaised, understanding: understandingStatus.get(currentUserId) || ComprehensionLevel.NONE });
   }, [sessionId, currentUserId, understandingStatus]);
   
+  // ✅ FONCTIONNALITÉ : Compréhension préservée
   const handleUnderstandingChange = useCallback((status: ComprehensionLevel) => {
     const newStatus = understandingStatus.get(currentUserId) === status ? ComprehensionLevel.NONE : status;
     setUnderstandingStatus(prev => new Map(prev).set(currentUserId, newStatus));
     updateStudentSessionStatus(sessionId, { understanding: newStatus, isHandRaised: raisedHands.has(currentUserId) });
   }, [sessionId, currentUserId, understandingStatus, raisedHands]);
 
+  // ✅ FONCTIONNALITÉ : Outils préservés
   const onToolChange = useCallback((tool: string) => { 
     setActiveTool(tool); 
     if (currentUserRole === Role.PROFESSEUR) broadcastActiveTool(sessionId, tool); 
   }, [sessionId, currentUserRole]);
   
+  // ✅ FONCTIONNALITÉ : Tableau blanc préservé
   const handleWhiteboardControllerChange = useCallback((userId: string) => {
     if (currentUserRole === Role.PROFESSEUR) {
       const newControllerId = userId === whiteboardControllerId ? initialTeacher?.id || null : userId;
@@ -1063,6 +1068,7 @@ useEffect(() => {
 
   const handleWhiteboardEvent = useCallback((ops: WhiteboardOperation[]) => sendOperation(ops), [sendOperation]);
 
+  // ✅ FONCTIONNALITÉ : Calculs des streams préservés
   const spotlightedStream = useMemo(() => {
     if (!spotlightedParticipantId) return null;
     return spotlightedParticipantId === currentUserId ? (isSharingScreen ? screenStream : localStream) : remoteStreams.get(spotlightedParticipantId) || null;
@@ -1074,6 +1080,7 @@ useEffect(() => {
 
   const isComponentLoading = loading || ablyLoading || (!isAblyConnected && !!ablyClient);
   
+  // ✅ FONCTIONNALITÉ : Documents préservée
   const handleSelectDocument = useCallback((doc: DocumentInHistory) => {
     setDocumentUrl(doc.url);
     if (currentUserRole === Role.PROFESSEUR) {
@@ -1098,6 +1105,7 @@ useEffect(() => {
     return <SessionLoading />;
   }
   
+  // ✅ RENDU COMPLET PRÉSERVÉ
   return (
     <div className="flex flex-col h-full bg-background p-4">
       <SessionHeader 

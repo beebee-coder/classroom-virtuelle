@@ -48,6 +48,9 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                         name: teacher.name || 'Professeur',
                         role: Role.PROFESSEUR,
                         image: teacher.image,
+                        data: { // CORRECTION: Utilisation correcte de data
+                            userId: teacher.id,
+                        }
                     });
                     setHasEnteredPresence(true);
                 } catch (error) {
@@ -63,24 +66,35 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
         }
     }, [isConnected, classroom?.id, teacher, enterPresence, isLoading, hasEnteredPresence]);
 
-    // CORRECTION: Mapper les clientId Ably vers les userId de la base de données
+    // CORRECTION: Logique de mapping améliorée
     const onlineStudentIds = useMemo(() => {
         console.log('🔍 [CLASSE] - Online members from Ably:', onlineMembers);
         
-        // CORRECTION: Créer un mapping basé sur les noms/emails pour lier les clientId aux userId
         const onlineIds: string[] = [];
         
         onlineMembers.forEach(member => {
-            // Si c'est un élève (pas le professeur)
+            // CORRECTION: Accéder à userId via data
+            if (member.data?.userId) {
+                const studentId = member.data.userId;
+                const student = classroom.eleves?.find(s => s.id === studentId);
+                if (student) {
+                    console.log(`✅ [CLASSE] - Mapped Ably member ${member.id} to student ${studentId} (${student.name}) via userId`);
+                    onlineIds.push(studentId);
+                    return;
+                }
+            }
+            
+            // CORRECTION: Fallback - si c'est un élève sans userId, chercher par nom/email
             if (member.role === Role.ELEVE) {
-                // CORRECTION: Trouver l'élève correspondant dans la classe par nom/email
+                const memberName = member.name;
                 const matchingStudent = classroom.eleves?.find(student => 
-                    student.name === member.name || 
-                    student.email?.includes(member.name?.toLowerCase() || '')
+                    student.name === memberName || 
+                    student.email?.toLowerCase().includes(memberName?.toLowerCase() || '') ||
+                    memberName?.toLowerCase().includes(student.name?.toLowerCase() || '')
                 );
                 
                 if (matchingStudent) {
-                    console.log(`✅ [CLASSE] - Mapped Ably client ${member.id} to student ${matchingStudent.id} (${matchingStudent.name})`);
+                    console.log(`✅ [CLASSE] - Mapped Ably member ${member.id} to student ${matchingStudent.id} (${matchingStudent.name}) via name matching`);
                     onlineIds.push(matchingStudent.id);
                 } else {
                     console.warn(`⚠️ [CLASSE] - No matching student found for Ably member:`, member);
@@ -91,6 +105,19 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
         console.log(`📊 [CLASSE] - Online student IDs:`, onlineIds);
         return onlineIds;
     }, [onlineMembers, classroom.eleves]);
+    // CORRECTION: Calcul des statistiques de présence
+    const presenceStats = useMemo(() => {
+        const totalStudents = classroom.eleves?.length || 0;
+        const onlineStudents = onlineStudentIds.length;
+        const teachersOnline = onlineMembers.filter(m => m.data?.role === Role.PROFESSEUR).length;
+        
+        return {
+            totalStudents,
+            onlineStudents,
+            teachersOnline,
+            totalOnline: onlineMembers.length
+        };
+    }, [onlineMembers, onlineStudentIds, classroom.eleves]);
 
     if (presenceError) {
         console.error('❌ [CLIENT CLASSE] - Erreur de connexion temps réel Ably:', presenceError);
@@ -109,7 +136,7 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                             Gérez vos élèves, annonces et sessions pour cette classe.
                             {isConnected ? (
                                 <span className="ml-2 text-green-600">
-                                    ● En ligne ({onlineMembers.length} membres, {onlineStudentIds.length} élèves)
+                                    ● En ligne ({presenceStats.totalOnline} membres, {presenceStats.onlineStudents} élèves, {presenceStats.teachersOnline} profs)
                                 </span>
                             ) : (
                                 <span className="ml-2 text-yellow-600">
@@ -138,7 +165,7 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                 <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="manage">
                         <Users className="mr-2 h-4 w-4" />
-                        Gérer les Élèves
+                        Gérer les Élèves ({presenceStats.onlineStudents}/{presenceStats.totalStudents} en ligne)
                     </TabsTrigger>
                     <TabsTrigger value="launch">
                         <Video className="mr-2 h-4 w-4" />

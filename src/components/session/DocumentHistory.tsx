@@ -164,68 +164,145 @@ export function DocumentHistory({ documents, onSelectDocument, onReshare, sessio
                             </span>
                         </CardTitle>
                     </AccordionTrigger>
-                    <AccordionContent>
-                        <CardContent className="pt-0 px-4 md:px-6">
-                            <ScrollArea className="h-48 md:h-56">
-                                <div className="space-y-2 pr-2 md:pr-4">
-                                    {validDocuments.map((doc: DocumentInHistory) => (
-                                        <div 
-                                            key={doc.id} 
-                                            className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors gap-2"
+                    <AccordionContent><CardContent className="pt-0 px-4 md:px-6">
+    <ScrollArea className="h-48 md:h-56">
+        <div className="space-y-2 pr-2 md:pr-4">
+            {validDocuments.map((doc: DocumentInHistory) => (
+                <div 
+                    key={doc.id} 
+                    className="flex flex-col p-3 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors gap-3"
+                >
+                    {/* Section supérieure : Contenu du document */}
+                    <div className="flex items-start gap-3 w-full min-w-0">
+                        <FileText className="h-5 w-5 flex-shrink-0 text-muted-foreground mt-0.5" />
+                        <div className="min-w-0 flex-1">
+                            {/* Nom du document avec rupture de ligne */}
+                            <p className="text-sm font-medium break-words leading-relaxed" title={doc.name}>
+                                {doc.name}
+                            </p>
+                            {/* Métadonnées avec rupture de ligne */}
+                            <p className="text-xs text-muted-foreground break-words leading-relaxed mt-1">
+                                Partagé {formatDate(doc.createdAt)}
+                                {doc.sharedBy && ` par ${doc.sharedBy}`}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Section inférieure : Actions - s'aligne en bas quand nécessaire */}
+                    <div className="flex items-center justify-between gap-2 w-full">
+                        {/* Actions principales - visibles sur desktop */}
+                        <div className="hidden sm:flex items-center gap-1 flex-shrink-0 ml-auto">
+                            <Button 
+                                size="icon" 
+                                variant="ghost" 
+                                onClick={() => onSelectDocument(doc)} 
+                                aria-label="Afficher" 
+                                className="h-8 w-8"
+                            >
+                                <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                                size="icon" 
+                                variant="ghost" 
+                                onClick={() => handleReshare(doc)} 
+                                aria-label="Repartager" 
+                                className="h-8 w-8"
+                            >
+                                <Share2 className="h-4 w-4" />
+                            </Button>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button 
+                                        size="icon" 
+                                        variant="ghost" 
+                                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" 
+                                        disabled={isDeleting} 
+                                        aria-label="Supprimer"
+                                    >
+                                        {isDeleting ? <Loader2 className="h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4" />}
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent className="max-w-[95vw] rounded-lg md:max-w-md">
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle className="text-xl">Supprimer le document ?</AlertDialogTitle>
+                                        <AlertDialogDescription className="text-base">
+                                            Cette action est irréversible.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                                        <AlertDialogCancel className="mt-0 sm:mt-0 flex-1">
+                                            Annuler
+                                        </AlertDialogCancel>
+                                        <AlertDialogAction 
+                                            onClick={() => handleDelete(doc.id)} 
+                                            className="bg-destructive hover:bg-destructive/90 flex-1"
                                         >
-                                            <div className="flex items-center gap-3 min-w-0 flex-1">
-                                                <FileText className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
-                                                <div className='min-w-0 flex-1'>
-                                                    <p className="text-sm font-medium truncate" title={doc.name}>
-                                                        {doc.name}
-                                                    </p>
-                                                    <p className='text-xs text-muted-foreground truncate'>
-                                                        Partagé {formatDate(doc.createdAt)}
-                                                        {doc.sharedBy && ` par ${doc.sharedBy}`}
-                                                    </p>
-                                                </div>
-                                            </div>
+                                            Supprimer
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </div>
 
-                                            <div className="hidden sm:flex items-center gap-1 flex-shrink-0">
-                                                <Button size="icon" variant="ghost" onClick={() => onSelectDocument(doc)} aria-label="Afficher" className="h-8 w-8"><Eye className="h-4 w-4" /></Button>
-                                                <Button size="icon" variant="ghost" onClick={() => handleReshare(doc)} aria-label="Repartager" className="h-8 w-8"><Share2 className="h-4 w-4" /></Button>
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" disabled={isDeleting} aria-label="Supprimer">
-                                                            {isDeleting ? <Loader2 className="h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4" />}
-                                                        </Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent className="max-w-[95vw] rounded-lg md:max-w-md">
-                                                        <AlertDialogHeader><AlertDialogTitle className="text-xl">Supprimer le document ?</AlertDialogTitle><AlertDialogDescription className="text-base">Cette action est irréversible.</AlertDialogDescription></AlertDialogHeader>
-                                                        <AlertDialogFooter className="flex-col sm:flex-row gap-2"><AlertDialogCancel className="mt-0 sm:mt-0 flex-1">Annuler</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(doc.id)} className="bg-destructive hover:bg-destructive/90 flex-1">Supprimer</AlertDialogAction></AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            </div>
-
-                                            <div className="sm:hidden flex-shrink-0 self-end">
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild><Button variant="ghost" size="sm" className="h-8 w-8 p-0"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end" className="w-48">
-                                                        <DropdownMenuItem onClick={() => onSelectDocument(doc)}><Eye className="h-4 w-4 mr-2" />Afficher</DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleReshare(doc)}><Share2 className="h-4 w-4 mr-2" />Repartager</DropdownMenuItem>
-                                                        <DropdownMenuSeparator />
-                                                        <AlertDialog>
-                                                            <AlertDialogTrigger asChild>
-                                                                <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={(e) => e.preventDefault()}><Trash2 className="h-4 w-4 mr-2" />Supprimer</DropdownMenuItem>
-                                                            </AlertDialogTrigger>
-                                                            <AlertDialogContent className="max-w-[95vw] rounded-lg">
-                                                                <AlertDialogHeader><AlertDialogTitle className="text-lg">Supprimer le document ?</AlertDialogTitle><AlertDialogDescription>Cette action est irréversible.</AlertDialogDescription></AlertDialogHeader>
-                                                                <AlertDialogFooter className="flex flex-col gap-2"><AlertDialogCancel className="mt-0 flex-1">Annuler</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(doc.id)} className="bg-destructive hover:bg-destructive/90 flex-1">Supprimer</AlertDialogAction></AlertDialogFooter>
-                                                            </AlertDialogContent>
-                                                        </AlertDialog>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </ScrollArea>
-                        </CardContent>
+                        {/* Menu déroulant pour mobile */}
+                        <div className="sm:hidden flex-shrink-0 ml-auto">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                        <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48">
+                                    <DropdownMenuItem onClick={() => onSelectDocument(doc)}>
+                                        <Eye className="h-4 w-4 mr-2" />
+                                        Afficher
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleReshare(doc)}>
+                                        <Share2 className="h-4 w-4 mr-2" />
+                                        Repartager
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <DropdownMenuItem 
+                                                className="text-destructive focus:text-destructive" 
+                                                onSelect={(e) => e.preventDefault()}
+                                            >
+                                                <Trash2 className="h-4 w-4 mr-2" />
+                                                Supprimer
+                                            </DropdownMenuItem>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent className="max-w-[95vw] rounded-lg">
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle className="text-lg">
+                                                    Supprimer le document ?
+                                                </AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    Cette action est irréversible.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter className="flex flex-col gap-2">
+                                                <AlertDialogCancel className="mt-0 flex-1">
+                                                    Annuler
+                                                </AlertDialogCancel>
+                                                <AlertDialogAction 
+                                                    onClick={() => handleDelete(doc.id)} 
+                                                    className="bg-destructive hover:bg-destructive/90 flex-1"
+                                                >
+                                                    Supprimer
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
+                    </div>
+                </div>
+            ))}
+        </div>
+    </ScrollArea>
+</CardContent>
                     </AccordionContent>
                 </AccordionItem>
             </Accordion>

@@ -1,4 +1,4 @@
-// src/lib/ably/types.ts
+// src/lib/ably/types.ts - VERSION CORRIGÉE
 
 /**
  * @fileoverview Shared TypeScript types for Ably integration.
@@ -16,6 +16,12 @@ export interface AblyPresenceMember {
     name: string;
     role: Role;
     image?: string | null;
+    // CORRECTION: Ajout de la propriété data pour les métadonnées supplémentaires
+    data?: {
+        userId?: string;
+        email?: string;
+        [key: string]: any; // Pour les propriétés supplémentaires
+    };
 }
 
 /**

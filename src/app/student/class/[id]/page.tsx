@@ -1,5 +1,4 @@
-//src/app/student/class/[id]/page.tsx
-
+// src/app/student/class/[id]/page.tsx - VERSION CORRIGÉE
 import { notFound, redirect } from 'next/navigation';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
@@ -36,7 +35,6 @@ export default async function StudentClassPage({ params }: { params: { id: strin
     }
   });
 
-
   if (!classroom) {
     notFound();
   }
@@ -46,10 +44,33 @@ export default async function StudentClassPage({ params }: { params: { id: strin
     notFound();
   }
 
+  // CORRECTION: Récupérer l'utilisateur complet depuis la base de données
+  const currentUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      image: true,
+      role: true,
+      points: true,
+      classeId: true,
+      // Ajouter d'autres champs nécessaires pour StudentClassView
+    }
+  });
+
+  if (!currentUser) {
+    redirect('/login');
+  }
+
   return (
     <>
       <Header user={session.user} />
-      <StudentClassView classroom={classroom as ClassroomWithStudents} />
+      {/* CORRECTION: Passage de l'utilisateur complet avec le bon type */}
+      <StudentClassView 
+        classroom={classroom as ClassroomWithStudents} 
+        currentUser={currentUser as User}
+      />
     </>
   );
 }
