@@ -21,6 +21,7 @@ import { Html5Whiteboard } from '@/components/Html5Whiteboard';
 import { AnimatedCard } from './AnimatedCard';
 import { useToast } from '@/hooks/use-toast';
 import { DocumentUploadSection } from './DocumentUploadSection';
+import { shareDocumentToStudents } from '@/lib/actions/session.actions';
 
 interface TeacherSessionViewProps {
     sessionId: string;
