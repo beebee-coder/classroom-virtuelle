@@ -9,7 +9,7 @@ import { ScrollArea } from '../ui/scroll-area';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { DocumentInHistory } from '@/types';
-import { useEffect, useState, useTransition, useCallback } from 'react';
+import { useEffect, useState, useTransition, useCallback, useMemo } from 'react';
 import { deleteSharedDocument } from '@/lib/actions/session.actions';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -168,7 +168,7 @@ export function DocumentHistory({ documents, onSelectDocument, onReshare, sessio
                         <CardContent className="pt-0 px-4 md:px-6">
                             <ScrollArea className="h-48 md:h-56">
                                 <div className="space-y-2 pr-2 md:pr-4">
-                                    {validDocuments.map((doc) => (
+                                    {validDocuments.map((doc: DocumentInHistory) => (
                                         <div 
                                             key={doc.id} 
                                             className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors gap-2"
