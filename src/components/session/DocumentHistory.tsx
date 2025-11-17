@@ -1,4 +1,4 @@
-// src/components/session/DocumentHistory.tsx - VERSION RESPONSIVE
+// src/components/session/DocumentHistory.tsx - VERSION CORRIGÉE
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +9,7 @@ import { ScrollArea } from '../ui/scroll-area';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { DocumentInHistory } from '@/types';
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useState, useTransition, useCallback } from 'react';
 import { deleteSharedDocument } from '@/lib/actions/session.actions';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -34,6 +34,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from '@/lib/utils';
 
 interface DocumentHistoryProps {
     documents: DocumentInHistory[];
@@ -43,42 +44,16 @@ interface DocumentHistoryProps {
     currentUserId: string;
 }
 
-function FormattedDate({ dateString }: { dateString: string }) {
-  const [formattedDate, setFormattedDate] = useState('...');
-
-  useEffect(() => {
-    try {
-      if (!dateString || dateString === 'undefined') {
-        throw new Error('Date string is undefined or invalid');
-      }
-      
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) {
-        throw new Error('Invalid date');
-      }
-      setFormattedDate(formatDistanceToNow(date, { addSuffix: true, locale: fr }));
-    } catch (e) {
-      console.error("Date formatting failed for:", dateString, e);
-      setFormattedDate("date invalide");
-    }
-  }, [dateString]);
-
-  return <>{formattedDate}</>;
-}
-
 export function DocumentHistory({ documents, onSelectDocument, onReshare, sessionId, currentUserId }: DocumentHistoryProps) {
     const { toast } = useToast();
     const [isDeleting, startDeleteTransition] = useTransition();
     const [localDocuments, setLocalDocuments] = useState<DocumentInHistory[]>([]);
     const { client: ablyClient } = useAbly();
 
-    // ✅ CORRECTION : Initialiser correctement les documents locaux
     useEffect(() => {
-        console.log(`📄 [DOCUMENT HISTORY] - Initializing with ${documents.length} documents`);
         setLocalDocuments(documents || []);
     }, [documents]);
 
-    // ✅ CORRECTION SIMPLIFIÉE : Écouter seulement les suppressions
     useEffect(() => {
         if (!ablyClient || !sessionId) return;
 
@@ -87,13 +62,8 @@ export function DocumentHistory({ documents, onSelectDocument, onReshare, sessio
         
         const handleDocumentDeleted = (message: Types.Message) => {
             const { documentId, deletedBy } = message.data;
-            console.log(`📄 [DOCUMENT DELETE EVENT] - Document ${documentId} deleted by ${deletedBy}`);
-            
-            // ✅ Mettre à jour l'état local pour la suppression
-            setLocalDocuments(prev => prev.filter(doc => doc.id !== documentId));
-            
-            // Notification seulement si ce n'est pas notre propre suppression
             if (deletedBy !== currentUserId) {
+                setLocalDocuments(prev => prev.filter(doc => doc.id !== documentId));
                 toast({
                     title: 'Document supprimé',
                     description: 'Un document a été retiré de l\'historique',
@@ -102,49 +72,30 @@ export function DocumentHistory({ documents, onSelectDocument, onReshare, sessio
             }
         };
 
-        console.log('🔔 [DOCUMENT HISTORY] - Subscribing to DELETE events only');
         channel.subscribe(AblyEvents.DOCUMENT_DELETED, handleDocumentDeleted);
 
         return () => {
-            console.log('🔕 [DOCUMENT HISTORY] - Unsubscribing from document events');
             channel.unsubscribe(AblyEvents.DOCUMENT_DELETED, handleDocumentDeleted);
         };
     }, [ablyClient, sessionId, currentUserId, toast]);
 
-    // ✅ CORRECTION : Fonction handleDelete avec mise à jour optimiste
-    const handleDelete = (docId: string) => {
-        if (!docId || docId === 'undefined') {
-            toast({ 
-                variant: 'destructive', 
-                title: "Erreur", 
-                description: "ID de document invalide. Impossible de supprimer." 
-            });
-            return;
-        }
+    const handleDelete = useCallback((docId: string) => {
+        if (!docId || docId === 'undefined' || isDeleting) return;
 
         const documentToDelete = localDocuments.find(doc => doc.id === docId);
-        
-        // ✅ MISE À JOUR OPTIMISTE : Supprimer immédiatement de l'UI
         setLocalDocuments(prev => prev.filter(doc => doc.id !== docId));
 
         startDeleteTransition(async () => {
             try {
-                await deleteSharedDocument(docId, currentUserId, sessionId);
-                console.log(`✅ [DOCUMENT DELETE] - Document ${docId} deleted successfully`);
-                
+                await deleteSharedDocument(docId, sessionId, currentUserId);
                 toast({ 
                     title: "Document supprimé", 
                     description: "Le document a été retiré de l'historique." 
                 });
-                
             } catch (error) {
-                console.error('❌ [DOCUMENT DELETE] - Error deleting document:', error);
-                
-                // ✅ REVERT : Remettre le document si erreur
                 if (documentToDelete) {
-                    setLocalDocuments(prev => [...prev, documentToDelete]);
+                    setLocalDocuments(prev => [...prev, documentToDelete].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
                 }
-                
                 toast({ 
                     variant: 'destructive', 
                     title: "Erreur", 
@@ -152,30 +103,29 @@ export function DocumentHistory({ documents, onSelectDocument, onReshare, sessio
                 });
             }
         });
-    }
+    }, [isDeleting, localDocuments, sessionId, currentUserId, toast]);
 
-    // ✅ CORRECTION : Fonction reshare
     const handleReshare = (doc: DocumentInHistory) => {
-        console.log(`🔄 [DOCUMENT RESHARE] - Resharing document: ${doc.id}`);
         onReshare(doc);
-        
         toast({
             title: 'Document repartagé',
             description: 'Le document a été repartagé avec les participants',
             variant: 'default'
         });
-    }
+    };
 
-    // ✅ CORRECTION : Filtrage robuste des documents
-    const validDocuments = localDocuments.filter(doc => 
-        doc && 
-        doc.id && 
-        doc.id !== 'undefined' && 
-        doc.name && 
-        doc.createdAt
-    );
+    const validDocuments = useMemo(() => localDocuments.filter(doc => 
+        doc && doc.id && doc.id !== 'undefined' && doc.name && doc.createdAt
+    ), [localDocuments]);
 
-    // ✅ VERSION RESPONSIVE : Afficher même si vide, mais avec message
+    const formatDate = (dateString: string) => {
+        try {
+            return formatDistanceToNow(new Date(dateString), { addSuffix: true, locale: fr });
+        } catch {
+            return "date invalide";
+        }
+    };
+
     if (validDocuments.length === 0) {
         return (
             <Card className="bg-background/80 w-full">
@@ -185,9 +135,7 @@ export function DocumentHistory({ documents, onSelectDocument, onReshare, sessio
                             <CardTitle className="flex items-center gap-2 text-sm md:text-base font-semibold">
                                 <History className="h-4 w-4 md:h-5 md:w-5 text-primary" />
                                 Historique des Documents
-                                <span className="text-xs md:text-sm text-muted-foreground ml-2">
-                                    (0)
-                                </span>
+                                <span className="text-xs md:text-sm text-muted-foreground ml-2">(0)</span>
                             </CardTitle>
                         </AccordionTrigger>
                         <AccordionContent>
@@ -210,7 +158,7 @@ export function DocumentHistory({ documents, onSelectDocument, onReshare, sessio
                     <AccordionTrigger className="p-4 md:p-6 hover:no-underline">
                         <CardTitle className="flex items-center gap-2 text-sm md:text-base font-semibold">
                             <History className="h-4 w-4 md:h-5 md:w-5 text-primary" />
-                            <span className="truncate">Historique des Documents</span>
+                            <span className="truncate">Historique</span>
                             <span className="text-xs md:text-sm text-muted-foreground ml-2 flex-shrink-0">
                                 ({validDocuments.length})
                             </span>
@@ -220,137 +168,54 @@ export function DocumentHistory({ documents, onSelectDocument, onReshare, sessio
                         <CardContent className="pt-0 px-4 md:px-6">
                             <ScrollArea className="h-48 md:h-56">
                                 <div className="space-y-2 pr-2 md:pr-4">
-                                    {validDocuments.map((doc, index) => (
+                                    {validDocuments.map((doc) => (
                                         <div 
-                                            key={doc.id || `doc-${index}`} 
-                                            className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors gap-2"
+                                            key={doc.id} 
+                                            className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors gap-2"
                                         >
-                                            {/* Contenu du document */}
-                                            <div className="flex items-center gap-2 min-w-0 flex-1">
-                                                <FileText className="h-4 w-4 md:h-5 md:w-5 flex-shrink-0 text-muted-foreground" />
+                                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                <FileText className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
                                                 <div className='min-w-0 flex-1'>
-                                                    <p className="text-xs md:text-sm font-medium truncate" title={doc.name}>
-                                                        {doc.name || 'Document sans nom'}
+                                                    <p className="text-sm font-medium truncate" title={doc.name}>
+                                                        {doc.name}
                                                     </p>
                                                     <p className='text-xs text-muted-foreground truncate'>
-                                                        Partagé <FormattedDate dateString={doc.createdAt} />
+                                                        Partagé {formatDate(doc.createdAt)}
                                                         {doc.sharedBy && ` par ${doc.sharedBy}`}
                                                     </p>
                                                 </div>
                                             </div>
 
-                                            {/* Actions - Version Desktop (boutons visibles) */}
                                             <div className="hidden sm:flex items-center gap-1 flex-shrink-0">
-                                                <Button 
-                                                    size="icon" 
-                                                    variant="ghost" 
-                                                    onClick={() => onSelectDocument(doc)} 
-                                                    aria-label="Afficher"
-                                                    className="h-7 w-7 md:h-8 md:w-8"
-                                                >
-                                                    <Eye className="h-3 w-3 md:h-4 md:w-4" />
-                                                </Button>
-                                                <Button 
-                                                    size="icon" 
-                                                    variant="ghost" 
-                                                    onClick={() => handleReshare(doc)} 
-                                                    aria-label="Repartager"
-                                                    className="h-7 w-7 md:h-8 md:w-8"
-                                                >
-                                                    <Share2 className="h-3 w-3 md:h-4 md:w-4" />
-                                                </Button>
+                                                <Button size="icon" variant="ghost" onClick={() => onSelectDocument(doc)} aria-label="Afficher" className="h-8 w-8"><Eye className="h-4 w-4" /></Button>
+                                                <Button size="icon" variant="ghost" onClick={() => handleReshare(doc)} aria-label="Repartager" className="h-8 w-8"><Share2 className="h-4 w-4" /></Button>
                                                 <AlertDialog>
                                                     <AlertDialogTrigger asChild>
-                                                        <Button 
-                                                            size="icon" 
-                                                            variant="ghost" 
-                                                            className="h-7 w-7 md:h-8 md:w-8 text-destructive hover:text-destructive hover:bg-destructive/10" 
-                                                            disabled={isDeleting} 
-                                                            aria-label="Supprimer"
-                                                        >
-                                                            {isDeleting ? (
-                                                                <Loader2 className="h-3 w-3 md:h-4 md:w-4 animate-spin"/>
-                                                            ) : (
-                                                                <Trash2 className="h-3 w-3 md:h-4 md:w-4" />
-                                                            )}
+                                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" disabled={isDeleting} aria-label="Supprimer">
+                                                            {isDeleting ? <Loader2 className="h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4" />}
                                                         </Button>
                                                     </AlertDialogTrigger>
                                                     <AlertDialogContent className="max-w-[95vw] rounded-lg md:max-w-md">
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle className="text-lg md:text-xl">
-                                                                Supprimer le document ?
-                                                            </AlertDialogTitle>
-                                                            <AlertDialogDescription className="text-sm md:text-base">
-                                                                Cette action est irréversible. Le document sera définitivement retiré de l'historique de cette session.
-                                                            </AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter className="flex flex-col sm:flex-row gap-2">
-                                                            <AlertDialogCancel className="mt-0 sm:mt-0 flex-1">
-                                                                Annuler
-                                                            </AlertDialogCancel>
-                                                            <AlertDialogAction 
-                                                                onClick={() => handleDelete(doc.id!)} 
-                                                                className="bg-destructive hover:bg-destructive/90 flex-1"
-                                                            >
-                                                                Supprimer
-                                                            </AlertDialogAction>
-                                                        </AlertDialogFooter>
+                                                        <AlertDialogHeader><AlertDialogTitle className="text-xl">Supprimer le document ?</AlertDialogTitle><AlertDialogDescription className="text-base">Cette action est irréversible.</AlertDialogDescription></AlertDialogHeader>
+                                                        <AlertDialogFooter className="flex-col sm:flex-row gap-2"><AlertDialogCancel className="mt-0 sm:mt-0 flex-1">Annuler</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(doc.id)} className="bg-destructive hover:bg-destructive/90 flex-1">Supprimer</AlertDialogAction></AlertDialogFooter>
                                                     </AlertDialogContent>
                                                 </AlertDialog>
                                             </div>
 
-                                            {/* Actions - Version Mobile (menu déroulant) */}
-                                            <div className="sm:hidden flex-shrink-0">
+                                            <div className="sm:hidden flex-shrink-0 self-end">
                                                 <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button 
-                                                            variant="ghost" 
-                                                            size="sm" 
-                                                            className="h-8 w-8 p-0"
-                                                        >
-                                                            <MoreVertical className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuTrigger asChild><Button variant="ghost" size="sm" className="h-8 w-8 p-0"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end" className="w-48">
-                                                        <DropdownMenuItem onClick={() => onSelectDocument(doc)}>
-                                                            <Eye className="h-4 w-4 mr-2" />
-                                                            Afficher
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleReshare(doc)}>
-                                                            <Share2 className="h-4 w-4 mr-2" />
-                                                            Repartager
-                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => onSelectDocument(doc)}><Eye className="h-4 w-4 mr-2" />Afficher</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleReshare(doc)}><Share2 className="h-4 w-4 mr-2" />Repartager</DropdownMenuItem>
                                                         <DropdownMenuSeparator />
                                                         <AlertDialog>
                                                             <AlertDialogTrigger asChild>
-                                                                <DropdownMenuItem 
-                                                                    className="text-destructive focus:text-destructive"
-                                                                    onSelect={(e) => e.preventDefault()}
-                                                                >
-                                                                    <Trash2 className="h-4 w-4 mr-2" />
-                                                                    Supprimer
-                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={(e) => e.preventDefault()}><Trash2 className="h-4 w-4 mr-2" />Supprimer</DropdownMenuItem>
                                                             </AlertDialogTrigger>
                                                             <AlertDialogContent className="max-w-[95vw] rounded-lg">
-                                                                <AlertDialogHeader>
-                                                                    <AlertDialogTitle className="text-lg">
-                                                                        Supprimer le document ?
-                                                                    </AlertDialogTitle>
-                                                                    <AlertDialogDescription>
-                                                                        Cette action est irréversible. Le document sera définitivement retiré de l'historique de cette session.
-                                                                    </AlertDialogDescription>
-                                                                </AlertDialogHeader>
-                                                                <AlertDialogFooter className="flex flex-col gap-2">
-                                                                    <AlertDialogCancel className="mt-0 flex-1">
-                                                                        Annuler
-                                                                    </AlertDialogCancel>
-                                                                    <AlertDialogAction 
-                                                                        onClick={() => handleDelete(doc.id!)} 
-                                                                        className="bg-destructive hover:bg-destructive/90 flex-1"
-                                                                    >
-                                                                        Supprimer
-                                                                    </AlertDialogAction>
-                                                                </AlertDialogFooter>
+                                                                <AlertDialogHeader><AlertDialogTitle className="text-lg">Supprimer le document ?</AlertDialogTitle><AlertDialogDescription>Cette action est irréversible.</AlertDialogDescription></AlertDialogHeader>
+                                                                <AlertDialogFooter className="flex flex-col gap-2"><AlertDialogCancel className="mt-0 flex-1">Annuler</AlertDialogCancel><AlertDialogAction onClick={() => handleDelete(doc.id)} className="bg-destructive hover:bg-destructive/90 flex-1">Supprimer</AlertDialogAction></AlertDialogFooter>
                                                             </AlertDialogContent>
                                                         </AlertDialog>
                                                     </DropdownMenuContent>
