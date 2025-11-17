@@ -1,4 +1,4 @@
-// src/components/session/StudentSessionView.tsx - VERSION CORRIGÉE
+// src/components/session/StudentSessionView.tsx - VERSION CORRIGÉE POUR AFFICHAGE CAMÉRA
 'use client';
 
 import { useState, type ReactNode, useEffect, useMemo, useCallback } from 'react';
@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Participant } from '@/components/Participant';
 import { SessionParticipant, DocumentInHistory, Html5CanvasScene, ComprehensionLevel, WhiteboardOperation, Role } from '@/types';
 import { Card, CardContent, CardHeader } from '../ui/card';
-import { Loader2, File, Users } from 'lucide-react';
+import { Loader2, File, Users, Video, VideoOff } from 'lucide-react';
 import { StudentSessionControls } from './StudentSessionControls';
 import { updateStudentSessionStatus } from '@/lib/actions/session.actions';
 import { useToast } from '@/hooks/use-toast';
@@ -68,15 +68,26 @@ export function StudentSessionView({
     const [isHandRaiseLoading, setIsHandRaiseLoading] = useState(false);
     const [isUnderstandingLoading, setIsUnderstandingLoading] = useState(false);
 
-    // CORRECTION: Logs pour le debugging du whiteboard
+    // ✅ CORRECTION : Logs détaillés pour le debugging des streams
     useEffect(() => {
         console.log(`🎯 [STUDENT VIEW] - Active tool: ${activeTool}, Whiteboard operations: ${whiteboardOperations.length}`);
         console.log(`🎯 [STUDENT VIEW] - Whiteboard controller: ${whiteboardControllerId}, Current user: ${currentUserId}`);
+        console.log(`📹 [STUDENT VIEW] - Spotlighted stream:`, { 
+            hasStream: !!spotlightedStream,
+            streamActive: spotlightedStream?.active,
+            tracks: spotlightedStream?.getTracks().length,
+            user: spotlightedUser?.name
+        });
+        console.log(`📹 [STUDENT VIEW] - Local stream:`, {
+            hasStream: !!localStream,
+            streamActive: localStream?.active,
+            tracks: localStream?.getTracks().length
+        });
         
         if (activeTool === 'whiteboard' && whiteboardOperations.length > 0) {
             console.log(`🎯 [STUDENT VIEW] - Last operation:`, whiteboardOperations[whiteboardOperations.length - 1]);
         }
-    }, [activeTool, whiteboardOperations, whiteboardControllerId, currentUserId]);
+    }, [activeTool, whiteboardOperations, whiteboardControllerId, currentUserId, spotlightedStream, spotlightedUser, localStream]);
 
     const handleToggleHandRaise = useCallback(async (): Promise<void> => {
         if (isHandRaiseLoading) return;
@@ -145,6 +156,22 @@ export function StudentSessionView({
         }
     }, [flushWhiteboardOperations]);
 
+    // ✅ CORRECTION : Fonction pour vérifier l'état du stream
+    const isStreamValid = useCallback((stream: MediaStream | null): boolean => {
+        if (!stream) return false;
+        if (!stream.active) return false;
+        
+        const videoTracks = stream.getVideoTracks();
+        const audioTracks = stream.getAudioTracks();
+        
+        const hasActiveVideo = videoTracks.some(track => track.readyState === 'live' && track.enabled);
+        const hasActiveAudio = audioTracks.some(track => track.readyState === 'live' && track.enabled);
+        
+        console.log(`🔍 [STREAM CHECK] - Video: ${hasActiveVideo}, Audio: ${hasActiveAudio}, Tracks: ${videoTracks.length + audioTracks.length}`);
+        
+        return hasActiveVideo || hasActiveAudio;
+    }, []);
+
     const renderMainContent = useCallback(() => {
         console.log(`🔄 [STUDENT VIEW] - Rendering main content for tool: ${activeTool}`);
         
@@ -178,6 +205,12 @@ export function StudentSessionView({
                 );
             case 'camera':
             default:
+                // ✅ CORRECTION : Vérification améliorée du stream spotlighted
+                const hasValidSpotlightedStream = isStreamValid(spotlightedStream);
+                const hasValidLocalStream = isStreamValid(localStream);
+
+                console.log(`📹 [CAMERA VIEW] - Spotlighted stream valid: ${hasValidSpotlightedStream}, Local stream valid: ${hasValidLocalStream}`);
+
                 if (!spotlightedUser) {
                     return (
                         <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/30 border-dashed">
@@ -199,19 +232,38 @@ export function StudentSessionView({
                     );
                 }
 
-                if (!spotlightedStream) {
+                if (!hasValidSpotlightedStream) {
                   return (
                     <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/30 border-dashed">
                         <CardContent className="text-center text-muted-foreground p-6">
-                            <Loader2 className="h-10 w-10 mx-auto mb-4 animate-spin" />
-                            <h3 className="font-semibold text-xl">Connexion à {spotlightedUser.name}...</h3>
+                            <div className="flex flex-col items-center gap-3">
+                                <VideoOff className="h-12 w-12 mx-auto text-orange-500" />
+                                <div>
+                                    <h3 className="font-semibold text-xl mb-2">Connexion vidéo en cours...</h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        {spotlightedUser.name} se connecte
+                                    </p>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-orange-600">
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                    <span>Établissement de la connexion WebRTC</span>
+                                </div>
+                            </div>
                         </CardContent>
                     </Card>
                   );
                 }
 
                 return (
-                    <div className="w-full h-full ">
+                    <div className="w-full h-full relative">
+                        {/* ✅ CORRECTION : Indicateur de statut de stream */}
+                        <div className="absolute top-3 right-3 z-10">
+                            <div className="bg-black/70 text-white px-2 py-1 rounded-md text-xs flex items-center gap-1">
+                                <Video className="h-3 w-3" />
+                                <span>En direct - {spotlightedUser.name}</span>
+                            </div>
+                        </div>
+                        
                         <Participant 
                             stream={spotlightedStream}
                             isLocal={false} 
@@ -237,24 +289,27 @@ export function StudentSessionView({
         isPresenceConnected,
         onlineMembersCount,
         handleWhiteboardEvent,
-        handleFlushWhiteboardOperations
+        handleFlushWhiteboardOperations,
+        isStreamValid,
+        localStream
     ]);
     
     const mainContent = useMemo(() => renderMainContent(), [renderMainContent]);
     
     return (
-        <div className="flex flex-row  flex-1 min-h-0 gap-4">
+        <div className="flex flex-row flex-1 min-h-0 gap-4">
             <div className="flex-1 flex flex-col min-w-0">
-                <div className="w-full h-full relative rounded-lg overflow-hidden border">
+                <div className="w-full h-full relative rounded-lg overflow-hidden border bg-black">
                     {mainContent}
                 </div>
             </div>
 
-            <div className="w-60  flex-shrink-0 flex flex-col">
+            <div className="w-60 flex-shrink-0 flex flex-col">
                 <motion.div layout className="h-full flex flex-col gap-1">
-                    <ScrollArea className="flex-1 pr-3 -mr-3 ">
-                         <div className="space-y-4 ">
-                             {activeTool !== 'camera' && spotlightedUser && spotlightedStream && (
+                    <ScrollArea className="flex-1 pr-3 -mr-3">
+                         <div className="space-y-4">
+                             {/* ✅ CORRECTION : Afficher le stream spotlighted dans la sidebar quand ce n'est pas l'outil principal */}
+                             {activeTool !== 'camera' && spotlightedUser && isStreamValid(spotlightedStream) && (
                                 <AnimatedCard title={spotlightedUser.name || "Professeur"}>
                                     <div className="p-2">
                                          <Participant
@@ -268,9 +323,10 @@ export function StudentSessionView({
                                     </div>
                                 </AnimatedCard>
                              )}
+                             
                              <AnimatedCard title="Ma Vidéo">
                                 <div className="p-2">
-                                    {localStream ? (
+                                    {isStreamValid(localStream) ? (
                                         <Participant
                                             stream={localStream}
                                             isLocal={true}
@@ -281,8 +337,8 @@ export function StudentSessionView({
                                             isWhiteboardController={currentUserId === whiteboardControllerId}
                                         />
                                     ) : (
-                                        <div className="text-center text-muted-foreground p-4 aspect-video flex flex-col items-center justify-center">
-                                            <File className="h-8 w-8 mx-auto mb-2" />
+                                        <div className="text-center text-muted-foreground p-4 aspect-video flex flex-col items-center justify-center border border-dashed rounded-lg">
+                                            <VideoOff className="h-8 w-8 mx-auto mb-2 text-gray-400" />
                                             <p className="text-sm">Caméra non disponible</p>
                                         </div>
                                     )}
