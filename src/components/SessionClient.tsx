@@ -109,8 +109,12 @@ export default function SessionClient({
   const isMountedRef = useRef(true);
   const setupCompletedRef = useRef(false);
   
+  // ✅ CORRECTION : Utiliser le hook useAbly existant avec gestion d'état améliorée
   const { client: ablyClient, isConnected: isAblyConnected, connectionState } = useAbly();
   const ablyLoading = connectionState === 'initialized' || connectionState === 'connecting';  
+  
+  // ✅ CORRECTION : État de session prête
+  const [sessionReady, setSessionReady] = useState(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
@@ -119,6 +123,16 @@ export default function SessionClient({
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
   const [spotlightedParticipantId, setSpotlightedParticipantId] = useState<string | null>(initialTeacher?.id || null);
   const [isMediaReady, setIsMediaReady] = useState(false);
+
+  // ✅ CORRECTION : Vérifier que la session est prête
+  useEffect(() => {
+    if (ablyClient && isAblyConnected && sessionId) {
+      console.log(`🎯 [SESSION READY] - Session ${sessionId} ready for user ${currentUserId}`);
+      setSessionReady(true);
+    } else {
+      setSessionReady(false);
+    }
+  }, [ablyClient, isAblyConnected, sessionId, currentUserId]);
 
   const [raisedHands, setRaisedHands] = useState<Set<string>>(new Set());
   const [understandingStatus, setUnderstandingStatus] = useState<Map<string, ComprehensionLevel>>(new Map());
@@ -685,26 +699,33 @@ useEffect(() => {
         
         // ✅ CORRECTION : LOGIQUE D'INITIATION CENTRALISÉE
         // SEUL LE PROFESSEUR INITIE LES CONNEXIONS
-        if (currentUserRole === Role.PROFESSEUR && isMediaReady) {
+        if (currentUserRole === Role.PROFESSEUR && isMediaReady && sessionReady) {
+            console.log(`🎯 [PROFESSOR INITIATION] - Professor ready to initiate connections to ${otherUserIds.length} users`);
+            
             otherUserIds.forEach((userId: string) => {
                 // ✅ VÉRIFICATIONS MULTIPLES POUR ÉVITER LES CONFLITS
                 const existingState = peerStatesRef.current.get(userId);
                 const isPending = pendingConnectionsRef.current.has(userId);
                 
                 // Éviter les connexions en double
-                if (existingState?.isConnected || isPending) {
-                    console.log(`🔗 [PRESENCE] - Already connected/pending for ${userId}, skipping`);
+                if (existingState?.isConnected) {
+                    console.log(`🔗 [PRESENCE] - Already connected to ${userId}, skipping`);
                     return;
                 }
                 
-                // Vérifier les tentatives récentes
+                if (isPending) {
+                    console.log(`⏳ [PRESENCE] - Connection already pending for ${userId}, skipping`);
+                    return;
+                }
+                
+                // ✅ CORRECTION : Réduire les restrictions de reconnexion
                 const now = Date.now();
                 const MIN_RETRY_DELAY = WEBRTC_CONFIG.RETRY_DELAY;
                 
                 if (existingState && 
-                    existingState.connectionAttempts > 0 && 
+                    existingState.connectionAttempts >= WEBRTC_CONFIG.MAX_CONNECTION_ATTEMPTS && 
                     now - existingState.lastAttempt < MIN_RETRY_DELAY) {
-                    console.log(`⏳ [PEER DELAY] - Waiting before retrying connection for: ${userId}`);
+                    console.log(`⏳ [PEER DELAY] - Max attempts reached for ${userId}, waiting...`);
                     return;
                 }
                 
@@ -713,7 +734,7 @@ useEffect(() => {
                 createPeer(userId, true, streamToUse);
             });
         } else if (currentUserRole === Role.ELEVE) {
-            console.log(`⏳ [PRESENCE] - Student ${currentUserId} waiting for professor to initiate connections`);
+            console.log(`⏳ [PRESENCE] - Student ${currentUserId} waiting for professor to initiate connections (mediaReady: ${isMediaReady}, sessionReady: ${sessionReady})`);
         }
 
         // Nettoyer les utilisateurs déconnectés
@@ -726,11 +747,39 @@ useEffect(() => {
         });
     });
   };
-}, [currentUserId, isMediaReady, isSharingScreen, screenStream, localStream, createPeer, cleanupPeerConnection, currentUserRole]);
+}, [currentUserId, isMediaReady, isSharingScreen, screenStream, localStream, createPeer, cleanupPeerConnection, currentUserRole, sessionReady]);
 
-// ✅ CORRECTION : SUPPRIMER l'effet media-ready conflictuel
-// Cet effet créait des conflits avec l'effet presence en tentant de créer
-// les mêmes connexions en double
+// ✅ CORRECTION : Ajouter un effet pour forcer l'initiation quand l'élève arrive
+useEffect(() => {
+  if (currentUserRole === Role.PROFESSEUR && isMediaReady && sessionReady && onlineUserIds.length > 1) {
+    // Vérifier s'il y a des élèves en ligne sans connexion
+    const studentsWithoutConnection = onlineUserIds.filter(userId => 
+      userId !== currentUserId && 
+      !peerStatesRef.current.get(userId)?.isConnected &&
+      !pendingConnectionsRef.current.has(userId)
+    );
+    
+    if (studentsWithoutConnection.length > 0) {
+      console.log(`🎯 [FORCE INITIATION] - Professor initiating connections to ${studentsWithoutConnection.length} students without connection`);
+      
+      studentsWithoutConnection.forEach(userId => {
+        const existingState = peerStatesRef.current.get(userId);
+        const now = Date.now();
+        const MIN_RETRY_DELAY = WEBRTC_CONFIG.RETRY_DELAY;
+        
+        if (existingState && 
+            existingState.connectionAttempts >= WEBRTC_CONFIG.MAX_CONNECTION_ATTEMPTS && 
+            now - existingState.lastAttempt < MIN_RETRY_DELAY) {
+            return; // Skip si trop de tentatives récentes
+        }
+        
+        console.log(`🔄 [FORCE PEER CREATE] - Creating peer for ${userId}`);
+        const streamToUse = isSharingScreen ? screenStream : localStream;
+        createPeer(userId, true, streamToUse);
+      });
+    }
+  }
+}, [onlineUserIds, currentUserRole, isMediaReady, sessionReady, isSharingScreen, screenStream, localStream, createPeer, currentUserId]);
 
   // ✅ FONCTIONNALITÉ : Gestion des signaux préservée
   useEffect(() => {
@@ -784,8 +833,14 @@ useEffect(() => {
 
   // ✅ FONCTIONNALITÉ : Setup Ably complet préservé
   useEffect(() => {
-    if (!sessionId || !currentUserId || !ablyClient || ablyLoading || !isAblyConnected) {
-        console.log(`⏳ [ABLY SETUP] - Skipping setup, Ably not ready.`, { sessionId, currentUserId, ablyLoading, isAblyConnected });
+    if (!sessionId || !currentUserId || !ablyClient || ablyLoading || !sessionReady) {
+        console.log(`⏳ [ABLY SETUP] - Skipping setup, Ably not ready.`, { 
+          sessionId, 
+          currentUserId, 
+          ablyLoading, 
+          isAblyConnected, 
+          sessionReady 
+        });
         return;
     }
     
@@ -964,7 +1019,7 @@ useEffect(() => {
       }
     };
   }, [
-    sessionId, currentUserId, ablyClient, ablyLoading, isAblyConnected,
+    sessionId, currentUserId, ablyClient, ablyLoading, sessionReady,
     currentUserRole, teacherName, studentNames, router, toast, cleanupPeerConnection
   ]);
   
