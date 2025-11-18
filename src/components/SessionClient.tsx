@@ -11,8 +11,7 @@ import type { SessionClientProps, IncomingSignalData, SignalPayload, SessionPart
 import SessionLoading from './SessionLoading';
 import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';
-import { ablyTrigger } from '@/lib/ably/triggers';
-import { broadcastTimerEvent, broadcastActiveTool, updateStudentSessionStatus } from '@/lib/actions/ably-session.actions';
+import { ablyTrigger } from '@/lib/actions/ably-session.actions';
 import { endCoursSession, shareDocumentToStudents, saveAndShareDocument } from '@/lib/actions/session.actions';
 import { ComprehensionLevel } from '@/types';
 import { useAbly } from '@/hooks/useAbly';
@@ -1062,9 +1061,9 @@ export default function SessionClient({
   }, [localStream]);
 
   // Gestion des participants
-  const onSpotlightParticipant = useCallback((participantId: string) => {
+  const onSpotlightParticipant = useCallback(async (participantId: string) => {
     if (currentUserRole !== Role.PROFESSEUR) return;
-    ablyTrigger(getSessionChannelName(sessionId), AblyEvents.PARTICIPANT_SPOTLIGHTED, { participantId });
+    await ablyTrigger(getSessionChannelName(sessionId), AblyEvents.PARTICIPANT_SPOTLIGHTED, { participantId });
   }, [sessionId, currentUserRole]);
   
   // Fin de session
@@ -1082,52 +1081,58 @@ export default function SessionClient({
   const handleLeaveSession = useCallback(() => router.push(currentUserRole === Role.PROFESSEUR ? '/teacher/dashboard' : '/student/dashboard'), [router, currentUserRole]);
   
   // Minuteur
-  const handleStartTimer = useCallback(() => { 
+  const handleStartTimer = useCallback(async () => { 
     setIsTimerRunning(true); 
-    broadcastTimerEvent(sessionId, 'timer-started'); 
+    await ablyTrigger(getSessionChannelName(sessionId), 'timer-started', {});
   }, [sessionId]);
   
-  const handlePauseTimer = useCallback(() => { 
+  const handlePauseTimer = useCallback(async () => { 
     setIsTimerRunning(false); 
-    broadcastTimerEvent(sessionId, 'timer-paused'); 
+    await ablyTrigger(getSessionChannelName(sessionId), 'timer-paused', {});
   }, [sessionId]);
   
-  const handleResetTimer = useCallback((newDuration?: number) => {
+  const handleResetTimer = useCallback(async (newDuration?: number) => {
     const duration = validateTimerDuration(newDuration ?? timerDuration);
     setIsTimerRunning(false); 
     setTimerTimeLeft(duration); 
     setTimerDuration(duration);
-    broadcastTimerEvent(sessionId, 'timer-reset', { duration });
+    await ablyTrigger(getSessionChannelName(sessionId), 'timer-reset', { duration });
   }, [sessionId, timerDuration]);
   
   // Levée de main
-  const handleToggleHandRaise = useCallback((isRaised: boolean) => {
+  const handleToggleHandRaise = useCallback(async (isRaised: boolean) => {
+    await fetch(`/api/session/${sessionId}/raise-hand`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: currentUserId, isRaised }),
+    });
     setRaisedHands(prev => { 
       const newSet = new Set(prev); 
       isRaised ? newSet.add(currentUserId) : newSet.delete(currentUserId); 
       return newSet; 
     });
-    updateStudentSessionStatus(sessionId, { isHandRaised: isRaised, understanding: understandingStatus.get(currentUserId) || ComprehensionLevel.NONE });
-  }, [sessionId, currentUserId, understandingStatus]);
+  }, [sessionId, currentUserId]);
   
   // Compréhension
-  const handleUnderstandingChange = useCallback((status: ComprehensionLevel) => {
+  const handleUnderstandingChange = useCallback(async (status: ComprehensionLevel) => {
     const newStatus = understandingStatus.get(currentUserId) === status ? ComprehensionLevel.NONE : status;
+    await ablyTrigger(getSessionChannelName(sessionId), AblyEvents.UNDERSTANDING_UPDATE, { userId: currentUserId, status: newStatus });
     setUnderstandingStatus(prev => new Map(prev).set(currentUserId, newStatus));
-    updateStudentSessionStatus(sessionId, { understanding: newStatus, isHandRaised: raisedHands.has(currentUserId) });
-  }, [sessionId, currentUserId, understandingStatus, raisedHands]);
+  }, [sessionId, currentUserId, understandingStatus]);
 
   // Outils
-  const onToolChange = useCallback((tool: string) => { 
+  const onToolChange = useCallback(async (tool: string) => { 
     setActiveTool(tool); 
-    if (currentUserRole === Role.PROFESSEUR) broadcastActiveTool(sessionId, tool); 
+    if (currentUserRole === Role.PROFESSEUR) {
+        await ablyTrigger(getSessionChannelName(sessionId), AblyEvents.ACTIVE_TOOL_CHANGED, { tool });
+    }
   }, [sessionId, currentUserRole]);
   
   // Tableau blanc
-  const handleWhiteboardControllerChange = useCallback((userId: string) => {
+  const handleWhiteboardControllerChange = useCallback(async (userId: string) => {
     if (currentUserRole === Role.PROFESSEUR) {
       const newControllerId = userId === whiteboardControllerId ? initialTeacher?.id || null : userId;
-      ablyTrigger(getSessionChannelName(sessionId), AblyEvents.WHITEBOARD_CONTROLLER_UPDATE, { controllerId: newControllerId });
+      await ablyTrigger(getSessionChannelName(sessionId), AblyEvents.WHITEBOARD_CONTROLLER_UPDATE, { controllerId: newControllerId });
     }
   }, [sessionId, currentUserRole, whiteboardControllerId, initialTeacher?.id]);
 
@@ -1187,6 +1192,7 @@ export default function SessionClient({
         onToggleVideo={toggleVideo} 
         activeTool={activeTool} 
         onToolChange={onToolChange}
+        classroom={classroom}
       />
      <main className="flex-1 flex flex-col min-h-0 w-full pt-4">
         <PermissionPrompt />

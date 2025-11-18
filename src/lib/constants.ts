@@ -12,9 +12,19 @@ import {
     Shield,
     KeyRound,
     Target,
-    Bot, // Import de l'icône Bot
+    Bot,
+    Square,
+    FileText,
+    Award,
+    Camera,
+    MessageSquare,
+    Calculator,
+    BookOpen,
+    Feather,
+    Atom,
+    Palette,
 } from 'lucide-react';
-import type { Classroom } from '@prisma/client';
+import type { Classroom, TaskCategory } from '@prisma/client';
 import { CreateAnnouncementForm } from '@/components/CreateAnnouncementForm';
 import { ResetButton } from '@/components/ResetButton';
 import type { Session } from "next-auth";
@@ -129,3 +139,42 @@ export const menuItems = [
         ],
     },
 ];
+
+
+// --- Préréglages des Outils de Session ---
+
+const defaultTools = [
+    { id: 'camera', name: 'Caméras', icon: Camera, colors: ['#80FF72', '#7EE8FA'] as [string, string] },
+    { id: 'whiteboard', name: 'Tableau', icon: Square, colors: ['#a955ff', '#ea51ff'] as [string, string] },
+    { id: 'document', name: 'Document', icon: FileText, colors: ['#3b82f6', '#2563eb'] as [string, string] },
+    { id: 'chat', name: 'Chat', icon: MessageSquare, colors: ['#22d3ee', '#06b6d4'] as [string, string] },
+];
+
+export const toolPresets: Record<string, typeof defaultTools> = {
+    DEFAULT: defaultTools,
+    [TaskCategory.MATH]: [
+        { id: 'whiteboard', name: 'Tableau', icon: Square, colors: ['#a955ff', '#ea51ff'] as [string,string] },
+        { id: 'quiz', name: 'Quiz', icon: Award, colors: ['#f59e0b', '#d97706'] as [string,string] },
+        { id: 'camera', name: 'Caméras', icon: Camera, colors: ['#80FF72', '#7EE8FA'] as [string, string] },
+        { id: 'chat', name: 'Chat', icon: MessageSquare, colors: ['#22d3ee', '#06b6d4'] as [string, string] },
+    ],
+    [TaskCategory.LANGUAGE]: [
+        { id: 'document', name: 'Document', icon: FileText, colors: ['#3b82f6', '#2563eb'] as [string, string] },
+        { id: 'whiteboard', name: 'Tableau', icon: Square, colors: ['#a955ff', '#ea51ff'] as [string,string] },
+        { id: 'chat', name: 'Chat', icon: MessageSquare, colors: ['#22d3ee', '#06b6d4'] as [string, string] },
+        { id: 'camera', name: 'Caméras', icon: Camera, colors: ['#80FF72', '#7EE8FA'] as [string, string] },
+    ],
+    [TaskCategory.SCIENCE]: [
+        { id: 'whiteboard', name: 'Tableau', icon: Square, colors: ['#a955ff', '#ea5f1ff'] as [string,string] },
+        { id: 'document', name: 'Document', icon: FileText, colors: ['#3b82f6', '#2563eb'] as [string, string] },
+        { id: 'quiz', name: 'Quiz', icon: Award, colors: ['#f59e0b', '#d97706'] as [string,string] },
+        { id: 'camera', name: 'Caméras', icon: Camera, colors: ['#80FF72', '#7EE8FA'] as [string, string] },
+    ],
+    [TaskCategory.ART]: [
+        { id: 'whiteboard', name: 'Tableau', icon: Palette, colors: ['#a955ff', '#ea51ff'] as [string, string] },
+        { id: 'document', name: 'Modèles', icon: FileText, colors: ['#3b82f6', '#2563eb'] as [string, string] },
+        { id: 'camera', name: 'Caméras', icon: Camera, colors: ['#80FF72', '#7EE8FA'] as [string, string] },
+        { id: 'chat', name: 'Chat', icon: MessageSquare, colors: ['#22d3ee', '#06b6d4'] as [string, string] },
+    ],
+    // Vous pouvez ajouter d'autres catégories ici
+};

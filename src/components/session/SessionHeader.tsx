@@ -3,12 +3,14 @@
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, PhoneOff, Square, FileText, Award, Camera, Mic, MicOff, Video, VideoOff, ScreenShare, ScreenShareOff, MessageSquare } from "lucide-react";
-import { useCallback, useState, useEffect } from "react";
+import { Loader2, PhoneOff, Mic, MicOff, Video, VideoOff, ScreenShare, ScreenShareOff } from "lucide-react";
+import { useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { NavIconButton } from "./NavIconButton";
 import { CubeSpinner } from "./CubeSpinner";
-import { AblyStatusIndicator } from '../ui/AblyStatusIndicator'; // Ajout de l'import
+import { AblyStatusIndicator } from '../ui/AblyStatusIndicator';
+import { toolPresets } from '@/lib/constants'; // Import des préréglages
+import type { Classroom } from '@prisma/client';
 
 interface SessionHeaderProps {
     sessionId: string;
@@ -24,6 +26,7 @@ interface SessionHeaderProps {
     onToggleVideo: () => void;
     activeTool: string;
     onToolChange: (tool: string) => void;
+    classroom: Classroom | null; // Passer les infos de la classe
 }
 
 export function SessionHeader({ 
@@ -40,6 +43,7 @@ export function SessionHeader({
     onToggleVideo,
     activeTool,
     onToolChange,
+    classroom,
 }: SessionHeaderProps) {
     
     const handleEndSessionClick = useCallback((e: React.MouseEvent) => {
@@ -55,13 +59,9 @@ export function SessionHeader({
         onLeaveSession();
     }, [onLeaveSession]);
 
-    const teacherTools = [
-        { id: 'whiteboard', name: 'Tableau', icon: Square, colors: ['#a955ff', '#ea51ff'] as [string,string] },
-        { id: 'document', name: 'Document', icon: FileText, colors: ['#3b82f6', '#2563eb'] as [string,string] },
-        { id: 'quiz', name: 'Quiz', icon: Award, colors: ['#f59e0b', '#d97706'] as [string,string] },
-        { id: 'camera', name: 'Caméras', icon: Camera, colors: ['#80FF72', '#7EE8FA'] as [string,string] },
-        { id: 'chat', name: 'Chat', icon: MessageSquare, colors: ['#22d3ee', '#06b6d4'] as [string, string] },
-    ];
+    // Déterminer le bon préréglage d'outils
+    const subject = classroom?.subject || 'DEFAULT';
+    const teacherTools = toolPresets[subject] || toolPresets.DEFAULT;
     
     const mediaControls = [
         { id: 'mic', name: isMuted ? 'Activer' : 'Couper', icon: isMuted ? MicOff : Mic, onClick: onToggleMute, colors: ['#f87171', '#ef4444'] as [string,string], isDisabled: false },
@@ -91,7 +91,6 @@ export function SessionHeader({
                                 onClick={() => onToolChange(tool.id)}
                             />
                         ))}
-                        {/* Séparateur visuel */}
                         {isTeacher && <div className="h-8 border-l mx-2"></div>}
                         {mediaControls.map(control => (
                             <NavIconButton
