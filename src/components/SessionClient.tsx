@@ -1,3 +1,4 @@
+
 // src/components/SessionClient.tsx - VERSION COMPLÈTE CORRIGÉE
 'use client';
 
@@ -11,13 +12,13 @@ import type { SessionClientProps, IncomingSignalData, SignalPayload, SessionPart
 import SessionLoading from './SessionLoading';
 import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';
-import { ablyTrigger } from '@/lib/actions/ably-session.actions';
 import { endCoursSession, shareDocumentToStudents, saveAndShareDocument } from '@/lib/actions/session.actions';
 import { ComprehensionLevel } from '@/types';
 import { useAbly } from '@/hooks/useAbly';
 import Ably, { type Types } from 'ably';
 import { getSessionChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
+import { ablyTrigger } from '@/lib/ably/triggers';
 
 // Importation statique
 import { TeacherSessionView } from './session/TeacherSessionView';
@@ -1083,12 +1084,12 @@ export default function SessionClient({
   // Minuteur
   const handleStartTimer = useCallback(async () => { 
     setIsTimerRunning(true); 
-    await ablyTrigger(getSessionChannelName(sessionId), 'timer-started', {});
+    await ablyTrigger(getSessionChannelName(sessionId), 'timer-started' as any, {});
   }, [sessionId]);
   
   const handlePauseTimer = useCallback(async () => { 
     setIsTimerRunning(false); 
-    await ablyTrigger(getSessionChannelName(sessionId), 'timer-paused', {});
+    await ablyTrigger(getSessionChannelName(sessionId), 'timer-paused' as any, {});
   }, [sessionId]);
   
   const handleResetTimer = useCallback(async (newDuration?: number) => {
@@ -1096,21 +1097,24 @@ export default function SessionClient({
     setIsTimerRunning(false); 
     setTimerTimeLeft(duration); 
     setTimerDuration(duration);
-    await ablyTrigger(getSessionChannelName(sessionId), 'timer-reset', { duration });
+    await ablyTrigger(getSessionChannelName(sessionId), 'timer-reset' as any, { duration });
   }, [sessionId, timerDuration]);
   
   // Levée de main
   const handleToggleHandRaise = useCallback(async (isRaised: boolean) => {
-    await fetch(`/api/session/${sessionId}/raise-hand`, {
+    const response = await fetch(`/api/session/${sessionId}/raise-hand`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: currentUserId, isRaised }),
     });
-    setRaisedHands(prev => { 
-      const newSet = new Set(prev); 
-      isRaised ? newSet.add(currentUserId) : newSet.delete(currentUserId); 
-      return newSet; 
-    });
+
+    if (response.ok) {
+        setRaisedHands(prev => { 
+            const newSet = new Set(prev); 
+            isRaised ? newSet.add(currentUserId) : newSet.delete(currentUserId); 
+            return newSet; 
+        });
+    }
   }, [sessionId, currentUserId]);
   
   // Compréhension
@@ -1237,7 +1241,7 @@ export default function SessionClient({
             spotlightedStream={spotlightedStream}
             spotlightedUser={spotlightedUser} 
             isHandRaised={raisedHands.has(currentUserId)}
-            onToggleHandRaise={handleToggleHandRaise} 
+            onToggleHandRaise={() => handleToggleHandRaise(!isHandRaised)}
             onUnderstandingChange={handleUnderstandingChange}
             onLeaveSession={handleLeaveSession} 
             currentUnderstanding={understandingStatus.get(currentUserId) || ComprehensionLevel.NONE}
@@ -1257,3 +1261,4 @@ export default function SessionClient({
     </div>
   );
 }
+
