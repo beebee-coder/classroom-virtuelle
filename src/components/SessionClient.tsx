@@ -1,4 +1,3 @@
-
 // src/components/SessionClient.tsx - VERSION COMPLÈTE CORRIGÉE
 'use client';
 
@@ -1261,4 +1260,3 @@ export default function SessionClient({
     </div>
   );
 }
-
