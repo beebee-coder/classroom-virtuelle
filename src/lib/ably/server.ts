@@ -1,80 +1,63 @@
-// src/lib/ably/server.ts - VERSION FINALE CORRIGÉE
-// CORRECTION: Utilisation de l'import conditionnel avec vérification stricte
+// src/lib/ably/server.ts
 
-let ablyServer: any = null;
-let ablyInitialized = false;
+// 'use server' directive is not needed here as this file is intended for server-side usage only.
 
+// This file is intentionally structured to be incompatible with client-side bundling.
+import Ably from 'ably';
+
+// This ensures a single instance of the Ably client is created per server/lambda instance.
 declare global {
   // eslint-disable-next-line no-var
-  var ablyServerInstance: any;
+  var ablyServerInstance: Ably.Rest | undefined;
 }
 
+let ablyServer: Ably.Rest;
 const ablyApiKey = process.env.ABLY_API_KEY;
 
-// CORRECTION: Fonction d'initialisation isolée
-const initializeAblyServer = async (): Promise<any> => {
-  // Double vérification pour s'assurer que nous sommes côté serveur
-  if (typeof window !== 'undefined') {
-    return null;
-  }
+if (!ablyApiKey) {
+  console.error("❌ ABLY_API_KEY is not set. Ably server-side functionality will not work.");
+  // We don't throw an error here to allow the app to build, but functions will fail.
+}
 
-  if (ablyInitialized && ablyServer) {
-    return ablyServer;
-  }
-
+if (process.env.NODE_ENV === 'production') {
   if (!ablyApiKey) {
-    console.error('❌ [ABLY SERVER] ABLY_API_KEY is missing');
-    return null;
+    // In production, we create a placeholder to avoid hard crashes if the key is missing.
+    ablyServer = {
+      channels: {
+        get: () => ({
+          publish: () => Promise.reject(new Error("Ably API key is missing.")),
+        }),
+      },
+    } as any;
+  } else {
+    ablyServer = new Ably.Rest({ key: ablyApiKey });
   }
-
-  try {
-    // CORRECTION: Import dynamique avec gestion d'erreur
-    const Ably = await import('ably')
-      .then(module => module.default)
-      .catch(error => {
-        console.error('❌ [ABLY SERVER] Failed to load Ably module:', error);
-        return null;
-      });
-
-    if (!Ably) {
-      return null;
+} else {
+  if (!global.ablyServerInstance) {
+    if (!ablyApiKey) {
+      console.error("❌ ABLY_API_KEY is missing for development.");
+      global.ablyServerInstance = {
+        channels: {
+          get: () => ({
+            publish: () => Promise.reject(new Error("Ably API key is missing.")),
+          }),
+        },
+      } as any;
+    } else {
+      global.ablyServerInstance = new Ably.Rest({ key: ablyApiKey });
+      console.log('✅ Ably server client initialized for development.');
     }
-
-    const clientOptions = {
-      key: ablyApiKey,
-      logLevel: process.env.NODE_ENV === 'development' ? 2 : 1,
-      tls: true,
-      httpMaxRetryCount: 3
-    };
-
-    ablyServer = global.ablyServerInstance || new Ably.Rest(clientOptions);
-
-    if (process.env.NODE_ENV !== 'production') {
-      global.ablyServerInstance = ablyServer;
-    }
-
-    ablyInitialized = true;
-    console.log('✅ [ABLY SERVER] Ably server-side client initialized successfully.');
-    return ablyServer;
-  } catch (error) {
-    console.error('❌ [ABLY SERVER] Failed to initialize Ably client:', error);
-    return null;
   }
-};
+  ablyServer = global.ablyServerInstance;
+}
 
-// CORRECTION: Export asynchrone uniquement
-export const getServerAblyClient = async (): Promise<any> => {
-  if (typeof window !== 'undefined') {
-    throw new Error('❌ [ABLY SERVER] Cannot use server Ably client in browser context');
+/**
+ * Returns the singleton server-side Ably REST client.
+ * Throws an error if the ABLY_API_KEY is not configured.
+ */
+export function getServerAblyClient(): Ably.Rest {
+  if (!ablyApiKey) {
+    throw new Error("Ably server client cannot be used without an ABLY_API_KEY.");
   }
-  
-  const client = await initializeAblyServer();
-  if (!client) {
-    throw new Error('❌ [ABLY SERVER] Server Ably client not initialized - check ABLY_API_KEY and server environment');
-  }
-  
-  return client;
-};
-
-// CORRECTION: Pas d'export par défaut pour éviter les imports accidentels
-// Les autres fichiers doivent utiliser getServerAblyClient()
+  return ablyServer;
+}
