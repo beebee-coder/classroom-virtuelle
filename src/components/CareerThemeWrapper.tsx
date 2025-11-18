@@ -1,7 +1,7 @@
-// src/components/CareerThemeWrapper.tsx
+// src/components/CareerThemeWrapper.tsx - VERSION CORRIGÉE
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { usePathname } from 'next/navigation';
 import type { Metier } from '@prisma/client';
@@ -14,7 +14,9 @@ interface CareerThemeWrapperProps {
 export function CareerThemeWrapper({ career, children }: CareerThemeWrapperProps) {
   const [theme, setTheme] = useState<any | null>(null);
   const pathname = usePathname();
+  const previousThemeRef = useRef<any | null>(null);
 
+  // ✅ CORRECTION : Supprimer 'theme' des dépendances pour éviter la boucle infinie
   useEffect(() => {
     // Si un métier est sélectionné, on applique son thème
     if (career && career.theme) {
@@ -27,35 +29,50 @@ export function CareerThemeWrapper({ career, children }: CareerThemeWrapperProps
         careerTheme = null;
       }
       
-      setTheme(careerTheme);
-      
-      if (careerTheme) {
-        document.documentElement.style.setProperty('--primary', careerTheme.primaryColor);
-        document.documentElement.style.setProperty('--accent', careerTheme.accentColor);
+      // ✅ CORRECTION : Ne mettre à jour le thème que s'il a changé
+      if (JSON.stringify(careerTheme) !== JSON.stringify(previousThemeRef.current)) {
+        setTheme(careerTheme);
+        previousThemeRef.current = careerTheme;
         
-        // Ajoute la classe du curseur au body
-        if (careerTheme.cursor) {
-          document.body.classList.add(careerTheme.cursor);
+        if (careerTheme) {
+          // ✅ CORRECTION : Appliquer les styles CSS directement
+          document.documentElement.style.setProperty('--primary', careerTheme.primaryColor || '#000000');
+          document.documentElement.style.setProperty('--accent', careerTheme.accentColor || '#ffffff');
+          
+          // Ajoute la classe du curseur au body
+          if (careerTheme.cursor) {
+            document.body.classList.add(careerTheme.cursor);
+          }
         }
       }
       
     } else {
       // Sinon, on réinitialise aux valeurs par défaut
-      setTheme(null);
-      document.documentElement.style.removeProperty('--primary');
-      document.documentElement.style.removeProperty('--accent');
-    }
-
-    // Fonction de nettoyage pour réinitialiser les styles en quittant la page
-    return () => {
-      document.documentElement.style.removeProperty('--primary');
-      document.documentElement.style.removeProperty('--accent');
-      const currentTheme = theme; // Capture theme value at the time of effect
-      if (currentTheme?.cursor) {
-        document.body.classList.remove(currentTheme.cursor);
+      // ✅ CORRECTION : Ne réinitialiser que si nécessaire
+      if (theme !== null || previousThemeRef.current !== null) {
+        setTheme(null);
+        previousThemeRef.current = null;
+        
+        document.documentElement.style.removeProperty('--primary');
+        document.documentElement.style.removeProperty('--accent');
+        
+        // ✅ CORRECTION : Supprimer toutes les classes de curseur potentielles
+        document.body.classList.remove('cursor-default', 'cursor-pointer', 'cursor-crosshair');
       }
+    }
+  }, [career, pathname]); // ✅ CORRECTION : 'theme' retiré des dépendances
+
+  // ✅ CORRECTION : Effet de nettoyage séparé pour gérer le démontage
+  useEffect(() => {
+    return () => {
+      // Réinitialiser les styles uniquement lors du démontage du composant
+      document.documentElement.style.removeProperty('--primary');
+      document.documentElement.style.removeProperty('--accent');
+      
+      // Supprimer toutes les classes de curseur potentielles
+      document.body.classList.remove('cursor-default', 'cursor-pointer', 'cursor-crosshair');
     };
-  }, [career, pathname, theme]); // Se ré-exécute si le métier ou la page change
+  }, []); // ✅ CORRECTION : Dépendances vides - s'exécute uniquement au démontage
 
   const backgroundClass = theme?.backgroundColor || 'bg-background';
   const textClass = theme?.textColor || 'text-foreground';

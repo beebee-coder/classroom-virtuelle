@@ -9,7 +9,7 @@ import { HandRaiseController } from '../HandRaiseController';
 import { UnderstandingTracker } from '../UnderstandingTracker';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { ClassStudentList } from './ClassStudentList';
-import { Loader2, UploadCloud, File, Trash2, Share2, Award, Users, Grid, Presentation, MessageSquare } from 'lucide-react';
+import { Loader2, UploadCloud, File, Trash2, Share2, Award, Users, Grid, Presentation, MessageSquare, PanelRightOpen, PanelRightClose } from 'lucide-react';
 import { Button } from '../ui/button';
 import { SessionStatus } from './SessionStatus';
 import { SessionTimer } from './SessionTimer';
@@ -22,6 +22,8 @@ import { AnimatedCard } from './AnimatedCard';
 import { useToast } from '@/hooks/use-toast';
 import { DocumentUploadSection } from './DocumentUploadSection';
 import { shareDocumentToStudents } from '@/lib/actions/session.actions';
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+
 
 interface TeacherSessionViewProps {
     sessionId: string;
@@ -92,7 +94,8 @@ export function TeacherSessionView({
 }: TeacherSessionViewProps) {
     const { toast } = useToast();
     const [teacherView, setTeacherView] = useState<'content' | 'grid'>('content');
-    
+    const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+
     const validatedTimerTimeLeft = useMemo(() => {
         const time = timerTimeLeft;
         if (typeof time !== 'number' || isNaN(time) || time < 0) {
@@ -429,113 +432,130 @@ export function TeacherSessionView({
       <div className="flex-1 flex min-h-0 gap-4 p-4">
         {/* Zone principale de contenu */}
         <div className="flex-1 flex flex-col min-h-0 min-w-0">
-          {/* Sélecteur de vue */}
-          <div className="flex items-center gap-2 mb-4">
-            <Button
-              variant={teacherView === 'content' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setTeacherView('content')}
-              className="flex-1"
-            >
-              <Presentation className="mr-2 h-4 w-4" /> Contenu
-            </Button>
-            <Button
-              variant={teacherView === 'grid' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setTeacherView('grid')}
-              className="flex-1"
-            >
-              <Grid className="mr-2 h-4 w-4" /> Grille
-            </Button>
-          </div>
+          <div className="flex-1 min-h-0 relative">
+            {/* Contenu principal */}
+             <div className="absolute inset-0 rounded-lg border bg-card p-4">
+                {teacherView === 'content' ? (
+                  renderActiveTool
+                ) : (
+                  <ScrollArea className="h-full">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {allGridParticipants.map(p => renderParticipant(p))}
+                    </div>
+                  </ScrollArea>
+                )}
+             </div>
 
-          {/* Contenu principal */}
-          <div className="flex-1 min-h-0 rounded-lg border bg-card">
-            {teacherView === 'content' ? (
-              <div className="h-full w-full p-4">{renderActiveTool}</div>
-            ) : (
-              <ScrollArea className="h-full">
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4">
-                  {allGridParticipants.map(p => renderParticipant(p))}
-                </div>
-              </ScrollArea>
-            )}
+             {/* Contrôles de vue en superposition */}
+             <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
+                <ToggleGroup 
+                    type="single" 
+                    value={teacherView} 
+                    onValueChange={(value) => value && setTeacherView(value as 'content' | 'grid')}
+                    className="bg-background/80 backdrop-blur-sm p-1 rounded-lg border"
+                >
+                    <ToggleGroupItem value="content" aria-label="Vue Contenu">
+                        <Presentation className="h-4 w-4" />
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="grid" aria-label="Vue Grille">
+                        <Grid className="h-4 w-4" />
+                    </ToggleGroupItem>
+                </ToggleGroup>
+                <Button 
+                    variant="outline" 
+                    size="icon" 
+                    onClick={() => setIsSidebarVisible(!isSidebarVisible)}
+                    className="h-9 w-9 bg-background/80 backdrop-blur-sm"
+                >
+                    {isSidebarVisible ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+                </Button>
+            </div>
           </div>
         </div>
 
         {/* Panneau latéral */}
-        <div className="w-100 flex-shrink-0 flex flex-col">
-          <ScrollArea className="flex-1 -mr-3 pr-3">
-            <div className="space-y-4">
-              {/* Partage de Document */}
-              <AnimatedCard title="Partage de Document">
-                <div className='p-4 space-y-3'>
-                  <DocumentUploadSection
-                    sessionId={sessionId}
-                    onUploadSuccess={onDocumentShared}
-                  />
-                  <DocumentHistory
-                    documents={documentHistory}
-                    onSelectDocument={onSelectDocument}
-                    onReshare={handleDocumentReshare}
-                    sessionId={sessionId}
-                    currentUserId={currentUserId}
-                  />
-                </div>
-              </AnimatedCard>
+        <AnimatePresence>
+            {isSidebarVisible && (
+                 <motion.div
+                    initial={{ width: 0, opacity: 0, x: 50 }}
+                    animate={{ width: 400, opacity: 1, x: 0 }}
+                    exit={{ width: 0, opacity: 0, x: 50 }}
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                    className="flex-shrink-0"
+                  >
+                    <ScrollArea className="h-full pr-3 -mr-3">
+                        <div className="space-y-4">
+                        {/* Partage de Document */}
+                        <AnimatedCard title="Partage de Document">
+                            <div className='p-4 space-y-3'>
+                            <DocumentUploadSection
+                                sessionId={sessionId}
+                                onUploadSuccess={onDocumentShared}
+                            />
+                            <DocumentHistory
+                                documents={documentHistory}
+                                onSelectDocument={onSelectDocument}
+                                onReshare={handleDocumentReshare}
+                                sessionId={sessionId}
+                                currentUserId={currentUserId}
+                            />
+                            </div>
+                        </AnimatedCard>
 
-              {/* Gestion de Session */}
-              <AnimatedCard title="Gestion de Session">
-                <div className="space-y-3 p-4">
-                  <SessionTimer
-                    isTeacher={true}
-                    sessionId={sessionId}
-                    initialDuration={validatedInitialDuration}
-                    timeLeft={validatedTimerTimeLeft}
-                    isTimerRunning={isTimerRunning}
-                    onStart={onStartTimer}
-                    onPause={onPauseTimer}
-                    onReset={onResetTimer}
-                  />
-                  <SessionStatus
-                    participants={allSessionUsers as User[]}
-                    onlineIds={activeParticipantIds}
-                    webrtcConnections={remoteParticipants.length}
-                    whiteboardControllerId={whiteboardControllerId}
-                  />
-                </div>
-              </AnimatedCard>
+                        {/* Gestion de Session */}
+                        <AnimatedCard title="Gestion de Session">
+                            <div className="space-y-3 p-4">
+                            <SessionTimer
+                                isTeacher={true}
+                                sessionId={sessionId}
+                                initialDuration={validatedInitialDuration}
+                                timeLeft={validatedTimerTimeLeft}
+                                isTimerRunning={isTimerRunning}
+                                onStart={onStartTimer}
+                                onPause={onPauseTimer}
+                                onReset={onResetTimer}
+                            />
+                            <SessionStatus
+                                participants={allSessionUsers as User[]}
+                                onlineIds={activeParticipantIds}
+                                webrtcConnections={remoteParticipants.length}
+                                whiteboardControllerId={whiteboardControllerId}
+                            />
+                            </div>
+                        </AnimatedCard>
 
-              {/* Liste des étudiants */}
-              {classroom && (
-                <AnimatedCard title={`Classe ${classroom.nom}`}>
-                  <ClassStudentList
-                    classroom={classroom}
-                    onlineUserIds={classOnlineIds}
-                    currentUserId={currentUserId}
-                    activeParticipantIds={activeParticipantIds}
-                    sessionId={sessionId}
-                    waitingStudentCount={waitingCount}
-                    onSpotlightParticipant={onSpotlightParticipant}
-                    spotlightedParticipantId={spotlightedUser?.id || null}
-                    whiteboardControllerId={whiteboardControllerId}
-                    onWhiteboardControllerChange={onWhiteboardControllerChange}
-                  />
-                </AnimatedCard>
-              )}
+                        {/* Liste des étudiants */}
+                        {classroom && (
+                            <AnimatedCard title={`Classe ${classroom.nom}`}>
+                            <ClassStudentList
+                                classroom={classroom}
+                                onlineUserIds={classOnlineIds}
+                                currentUserId={currentUserId}
+                                activeParticipantIds={activeParticipantIds}
+                                sessionId={sessionId}
+                                waitingStudentCount={waitingCount}
+                                onSpotlightParticipant={onSpotlightParticipant}
+                                spotlightedParticipantId={spotlightedUser?.id || null}
+                                whiteboardControllerId={whiteboardControllerId}
+                                onWhiteboardControllerChange={onWhiteboardControllerChange}
+                            />
+                            </AnimatedCard>
+                        )}
 
-              {/* Suivi de la Compréhension */}
-              <AnimatedCard title="Suivi de la Compréhension">
-                <UnderstandingTracker students={students} understandingStatus={understandingStatus} />
-              </AnimatedCard>
+                        {/* Suivi de la Compréhension */}
+                        <AnimatedCard title="Suivi de la Compréhension">
+                            <UnderstandingTracker students={students} understandingStatus={understandingStatus} />
+                        </AnimatedCard>
 
-              {/* Mains Levées */}
-              <AnimatedCard title="Mains Levées">
-                <HandRaiseController sessionId={sessionId} raisedHands={studentsWithRaisedHands} />
-              </AnimatedCard>
-            </div>
-          </ScrollArea>
-        </div>
+                        {/* Mains Levées */}
+                        <AnimatedCard title="Mains Levées">
+                            <HandRaiseController sessionId={sessionId} raisedHands={studentsWithRaisedHands} />
+                        </AnimatedCard>
+                        </div>
+                    </ScrollArea>
+                 </motion.div>
+            )}
+        </AnimatePresence>
       </div>
     );
 }

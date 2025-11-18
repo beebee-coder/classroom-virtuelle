@@ -1,85 +1,104 @@
 // src/lib/actions/ably-session.actions.ts
 'use server';
 
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
 import { ablyTrigger } from '../ably/triggers';
 import { AblyEvents } from '../ably/events';
 import { getSessionChannelName } from '../ably/channels';
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-options";
 import { Role } from '@prisma/client';
 import { ComprehensionLevel } from '@/types';
 import prisma from '../prisma';
 
-/**
- * Updates a student's status (hand raised, comprehension) and broadcasts it.
- */
-export async function updateStudentSessionStatus(
-  sessionId: string,
-  status: {
-    isHandRaised?: boolean;
-    understanding?: ComprehensionLevel;
-  }
-) {
-  console.log(`🙋 [ACTION] updateStudentSessionStatus pour la session ${sessionId}`);
-  const session = await getServerSession(authOptions);
-  
-  if (!session?.user?.id || session.user.role !== Role.ELEVE) {
-    console.error('❌ [ACTION] Non autorisé: Seul un élève peut mettre à jour son statut.');
-    throw new Error('Unauthorized');
-  }
-  
-  const studentId = session.user.id;
-  const channelName = getSessionChannelName(sessionId);
-  
-  if (status.isHandRaised !== undefined) {
-    console.log(`  -> Main levée: ${status.isHandRaised}`);
-    await ablyTrigger(channelName, AblyEvents.HAND_RAISE_UPDATE, { userId: studentId, isRaised: status.isHandRaised });
-  }
+// --- Validation Utilities ---
+const validateTimerDuration = (duration: unknown): number => {
+    if (typeof duration !== 'number' || isNaN(duration) || duration <= 0) {
+        console.warn('Invalid timer duration detected, using default:', duration);
+        return 3600; // Default to 1 hour
+    }
+    return duration;
+};
 
-  if (status.understanding !== undefined) {
-    console.log(`  -> Compréhension: ${status.understanding}`);
-    await ablyTrigger(channelName, AblyEvents.UNDERSTANDING_UPDATE, { userId: studentId, status: status.understanding });
-  }
+const validateActiveTool = (tool: string): string => {
+    const validTools = ['camera', 'whiteboard', 'document', 'screen', 'chat', 'participants', 'quiz'];
+    if (validTools.includes(tool)) {
+        return tool;
+    }
+    console.warn(`[TOOL VALIDATION] Invalid tool '${tool}', defaulting to 'camera'`);
+    return 'camera';
+};
 
-  return { success: true };
+// --- Real-time Interaction Actions ---
+
+export async function updateStudentSessionStatus(sessionId: string, status: { isHandRaised?: boolean; understanding?: ComprehensionLevel }) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) throw new Error('Not authenticated');
+
+    const userId = session.user.id;
+    const channel = getSessionChannelName(sessionId);
+    const promises = [];
+
+    if (status.isHandRaised !== undefined) {
+        console.log(`✋ [ABLY ACTION] - Broadcasting hand-raise status for ${userId}: ${status.isHandRaised}`);
+        promises.push(
+            ablyTrigger(channel, AblyEvents.HAND_RAISE_UPDATE, { userId, isRaised: status.isHandRaised })
+        );
+    }
+
+    if (status.understanding !== undefined) {
+        console.log(`🤔 [ABLY ACTION] - Broadcasting understanding status for ${userId}: ${status.understanding}`);
+        promises.push(
+            ablyTrigger(channel, AblyEvents.UNDERSTANDING_UPDATE, { userId, status: status.understanding })
+        );
+    }
+
+    await Promise.all(promises);
+    return { success: true };
 }
 
-/**
- * Broadcasts the currently active teaching tool to all participants.
- */
+
+// --- Tool-related Actions ---
+
 export async function broadcastActiveTool(sessionId: string, tool: string) {
-  console.log(`🛠️ [ACTION] broadcastActiveTool pour la session ${sessionId}: ${tool}`);
-  const session = await getServerSession(authOptions);
-  
-  if (session?.user?.role !== Role.PROFESSEUR) {
-    console.error('❌ [ACTION] Non autorisé: Seul un professeur peut changer d\'outil.');
-    throw new Error('Unauthorized');
-  }
-
-  await ablyTrigger(getSessionChannelName(sessionId), AblyEvents.ACTIVE_TOOL_CHANGED, { tool });
-  return { success: true };
-}
-
-
-/**
- * Broadcasts timer-related events to all participants.
- */
-export async function broadcastTimerEvent(
-  sessionId: string,
-  event: 'timer-started' | 'timer-paused' | 'timer-reset',
-  data?: any
-) {
     const session = await getServerSession(authOptions);
     if (session?.user?.role !== Role.PROFESSEUR) {
-        throw new Error('Unauthorized');
-    }
-    
-    const eventName = AblyEvents[event.toUpperCase().replace('-', '_') as keyof typeof AblyEvents];
-    
-    if (!eventName) {
-        throw new Error('Invalid timer event');
+        throw new Error('Only teachers can change tools');
     }
 
-    await ablyTrigger(getSessionChannelName(sessionId), eventName, data);
-    return { success: true };
+    const sessionExists = await prisma.coursSession.count({ where: { id: sessionId, professeurId: session.user.id } });
+    if (!sessionExists) {
+        throw new Error('Session not found or not owned by user');
+    }
+
+    const validatedTool = validateActiveTool(tool);
+    const channel = getSessionChannelName(sessionId);
+    const payload = { tool: validatedTool, sessionId, timestamp: new Date().toISOString() };
+
+    console.log(`🛠️ [ABLY ACTION] - Broadcasting tool change to '${validatedTool}' on ${channel}`);
+    await ablyTrigger(channel, AblyEvents.ACTIVE_TOOL_CHANGED, payload);
+
+    return { success: true, tool: validatedTool, sessionId };
+}
+
+
+// --- Timer Actions ---
+
+export async function broadcastTimerEvent(sessionId: string, event: 'timer-started' | 'timer-paused' | 'timer-reset', data?: any) {
+    const session = await getServerSession(authOptions);
+    if (session?.user?.role !== Role.PROFESSEUR) throw new Error('Only teachers can control the timer');
+
+    const channel = getSessionChannelName(sessionId);
+    const payload: { sessionId: string; timestamp: string; duration?: number } = {
+        sessionId,
+        timestamp: new Date().toISOString(),
+    };
+
+    if (data?.duration !== undefined) {
+        payload.duration = validateTimerDuration(data.duration);
+    }
+
+    console.log(`⏱️ [ABLY ACTION] - Broadcasting timer event '${event}' on ${channel}`);
+    await ablyTrigger(channel, event as any, payload); // Cast to any to satisfy AblyEventName type
+    
+    return { success: true, event, sessionId };
 }

@@ -1,4 +1,4 @@
-// src/components/SessionClient.tsx - VERSION CORRIGÉE
+// src/components/SessionClient.tsx - VERSION COMPLÈTE CORRIGÉE
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -11,6 +11,7 @@ import type { SessionClientProps, IncomingSignalData, SignalPayload, SessionPart
 import SessionLoading from './SessionLoading';
 import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';
+import { ablyTrigger } from '@/lib/ably/triggers';
 import { broadcastTimerEvent, broadcastActiveTool, updateStudentSessionStatus } from '@/lib/actions/ably-session.actions';
 import { endCoursSession, shareDocumentToStudents, saveAndShareDocument } from '@/lib/actions/session.actions';
 import { ComprehensionLevel } from '@/types';
@@ -1061,17 +1062,9 @@ export default function SessionClient({
   }, [localStream]);
 
   // Gestion des participants
-  const onSpotlightParticipant = useCallback(async (participantId: string) => {
+  const onSpotlightParticipant = useCallback((participantId: string) => {
     if (currentUserRole !== Role.PROFESSEUR) return;
-    await fetch('/api/ably/trigger', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            channel: getSessionChannelName(sessionId),
-            eventName: AblyEvents.PARTICIPANT_SPOTLIGHTED,
-            data: { participantId }
-        })
-    });
+    ablyTrigger(getSessionChannelName(sessionId), AblyEvents.PARTICIPANT_SPOTLIGHTED, { participantId });
   }, [sessionId, currentUserRole]);
   
   // Fin de session
@@ -1131,18 +1124,10 @@ export default function SessionClient({
   }, [sessionId, currentUserRole]);
   
   // Tableau blanc
-  const handleWhiteboardControllerChange = useCallback(async (userId: string) => {
+  const handleWhiteboardControllerChange = useCallback((userId: string) => {
     if (currentUserRole === Role.PROFESSEUR) {
       const newControllerId = userId === whiteboardControllerId ? initialTeacher?.id || null : userId;
-      await fetch('/api/ably/trigger', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-              channel: getSessionChannelName(sessionId),
-              eventName: AblyEvents.WHITEBOARD_CONTROLLER_UPDATE,
-              data: { controllerId: newControllerId }
-          })
-      });
+      ablyTrigger(getSessionChannelName(sessionId), AblyEvents.WHITEBOARD_CONTROLLER_UPDATE, { controllerId: newControllerId });
     }
   }, [sessionId, currentUserRole, whiteboardControllerId, initialTeacher?.id]);
 
