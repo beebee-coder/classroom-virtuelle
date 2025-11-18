@@ -1,3 +1,4 @@
+
 // src/components/session/TeacherSessionView.tsx
 import React, { useState, type ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -23,6 +24,7 @@ import { useToast } from '@/hooks/use-toast';
 import { DocumentUploadSection } from './DocumentUploadSection';
 import { shareDocumentToStudents } from '@/lib/actions/session.actions';
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { motion, AnimatePresence } from 'framer-motion';
 
 
 interface TeacherSessionViewProps {
