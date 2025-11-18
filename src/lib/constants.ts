@@ -24,7 +24,8 @@ import {
     Atom,
     Palette,
 } from 'lucide-react';
-import type { Classroom, TaskCategory } from '@prisma/client';
+import type { Classroom } from '@prisma/client';
+import { TaskCategory } from '@prisma/client'; // CORRECTION : Importation ajoutée
 import { CreateAnnouncementForm } from '@/components/CreateAnnouncementForm';
 import { ResetButton } from '@/components/ResetButton';
 import type { Session } from "next-auth";
