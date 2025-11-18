@@ -1,3 +1,4 @@
+
 // src/app/api/whiteboard/state/[sessionId]/route.ts
 // CE FICHIER EST MAINTENANT OBSOLÈTE.
 
@@ -20,3 +21,5 @@ export async function GET(
     { status: 410 } // 410 Gone
   );
 }
+
+    

@@ -1,3 +1,4 @@
+
 // src/app/teacher/class/[id]/StudentGrid.tsx
 'use client';
 
@@ -36,3 +37,5 @@ export function StudentGrid({ students, onlineStudentIds }: StudentGridProps) {
         </div>
     );
 }
+
+    

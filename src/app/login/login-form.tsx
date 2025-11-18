@@ -1,3 +1,4 @@
+
 // src/app/login/login-form.tsx - VERSION SIMPLIFIÉE
 'use client';
 
@@ -232,3 +233,5 @@ export default function LoginForm() {
         </div>
     );
 }
+
+    

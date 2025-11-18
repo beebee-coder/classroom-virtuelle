@@ -1,3 +1,4 @@
+
 // src/app/session/[id]/page.tsx - VERSION CORRIGÉE
 import { Suspense } from 'react';
 import { getServerSession } from "next-auth";
@@ -252,3 +253,5 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
     };
   }
 }
+
+    

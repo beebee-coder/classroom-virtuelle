@@ -1,3 +1,4 @@
+
 // src/app/api/session/[id]/spotlight/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { spotlightParticipant } from '@/lib/actions/session.actions';
@@ -28,3 +29,5 @@ export async function POST(
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }
+
+    

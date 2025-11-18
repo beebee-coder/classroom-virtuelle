@@ -1,3 +1,4 @@
+
 // src/app/teacher/class/[id]/StudentProfileCard.tsx
 'use client';
 
@@ -86,3 +87,5 @@ export function StudentProfileCard({
         </div>
     );
 }
+
+    

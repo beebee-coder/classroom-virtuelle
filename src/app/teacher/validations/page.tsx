@@ -1,3 +1,4 @@
+
 // src/app/teacher/validations/page.tsx
 import { BackButton } from "@/components/BackButton";
 import { getServerSession } from "next-auth";
@@ -49,3 +50,5 @@ export default async function ProfessorValidationPage() {
       </main>
   );
 }
+
+    

@@ -1,3 +1,4 @@
+
 // src/app/teacher/validations/ValidationConsoleClient.tsx
 'use client';
 
@@ -140,3 +141,5 @@ export function ValidationConsoleClient({ initialTasks }: ValidationConsoleClien
     </div>
   );
 }
+
+    

@@ -1,3 +1,4 @@
+
 // src/app/api/whiteboard/operations/batch/route.ts
 // CE FICHIER EST MAINTENANT OBSOLÈTE ET REDIRIGE LA LOGIQUE.
 
@@ -24,3 +25,5 @@ export async function POST(request: NextRequest) {
   // Appeler directement la fonction POST de la nouvelle route centralisée
   return syncPost(request, newParams);
 }
+
+    

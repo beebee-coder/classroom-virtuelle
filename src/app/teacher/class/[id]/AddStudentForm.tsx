@@ -1,3 +1,4 @@
+
 // src/app/teacher/class/[id]/AddStudentForm.tsx
 "use client";
 
@@ -107,3 +108,5 @@ export function AddStudentForm({ classroomId }: AddStudentFormProps) {
     </Dialog>
   );
 }
+
+    

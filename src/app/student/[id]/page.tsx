@@ -1,3 +1,4 @@
+
 // src/app/student/[id]/page.tsx
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
@@ -90,3 +91,5 @@ export default async function StudentProfilePage({ params }: { params: { id: str
     redirect('/login');
   }
 }
+
+    

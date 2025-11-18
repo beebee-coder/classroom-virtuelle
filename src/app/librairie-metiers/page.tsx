@@ -1,3 +1,4 @@
+
 // src/app/librairie-metiers/page.tsx
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
@@ -78,3 +79,5 @@ export default async function CareerLibraryPage() {
     </div>
   );
 }
+
+    

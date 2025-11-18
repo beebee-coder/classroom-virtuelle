@@ -1,3 +1,4 @@
+
 // src/app/api/whiteboard/state/route.ts
 // CE FICHIER EST MAINTENANT OBSOLÈTE.
 // La gestion de l'état du tableau blanc a été centralisée et ne dépend plus de cette route.
@@ -18,3 +19,5 @@ export async function POST(request: NextRequest) {
     { status: 410 } // 410 Gone
   );
 }
+
+    

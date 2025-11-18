@@ -1,3 +1,4 @@
+
 // src/app/student/dashboard/page.tsx
 import { Header } from '@/components/Header';
 import { notFound, redirect } from 'next/navigation';
@@ -148,3 +149,5 @@ const allCareersData = allCareersResult.status === 'fulfilled'
         );
     }
 }
+
+    

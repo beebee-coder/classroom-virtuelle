@@ -1,3 +1,4 @@
+
 // src/app/api/ably/auth/route.ts - VERSION CORRIGÉE POUR VERCEL ET ERREUR 80003
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from "next-auth";
@@ -258,3 +259,5 @@ export async function OPTIONS() {
         }
     });
 }
+
+    

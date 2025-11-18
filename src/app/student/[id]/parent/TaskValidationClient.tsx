@@ -1,3 +1,4 @@
+
 // src/app/student/[id]/parent/TaskValidationClient.tsx
 'use client';
 
@@ -235,3 +236,5 @@ export function TaskValidationClient({
     </div>
   );
 }
+
+    

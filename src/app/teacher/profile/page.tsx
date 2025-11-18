@@ -1,3 +1,4 @@
+
 // src/app/teacher/profile/page.tsx
 import { BackButton } from "@/components/BackButton";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
@@ -130,3 +131,5 @@ export default async function TeacherProfilePage() {
     </main>
   );
 }
+
+    

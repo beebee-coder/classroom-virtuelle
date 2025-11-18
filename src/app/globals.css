@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -121,3 +122,5 @@ body {
     animation: zoom-in 60s infinite alternate ease-in-out;
   }
 }
+
+    

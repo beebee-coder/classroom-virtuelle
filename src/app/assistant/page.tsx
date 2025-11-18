@@ -1,3 +1,4 @@
+
 // src/app/assistant/page.tsx
 import { AssistantChat } from '@/components/AssistantChat';
 
@@ -17,3 +18,5 @@ export default function AssistantPage() {
     </div>
   );
 }
+
+    

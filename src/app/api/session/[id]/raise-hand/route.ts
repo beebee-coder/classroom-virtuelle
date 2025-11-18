@@ -1,3 +1,4 @@
+
 // src/app/api/session/[id]/raise-hand/route.ts
 // ALTERNATIVE AVEC TIMEOUT CONTRÔLÉ
 import { NextRequest, NextResponse } from 'next/server';
@@ -54,3 +55,5 @@ export async function POST(
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }
+
+    

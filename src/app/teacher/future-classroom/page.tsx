@@ -1,3 +1,4 @@
+
 // src/app/teacher/future-classroom/page.tsx
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
@@ -48,3 +49,5 @@ export default async function FutureClassroomPage() {
     </>
   );
 }
+
+    

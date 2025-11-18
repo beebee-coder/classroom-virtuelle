@@ -1,3 +1,4 @@
+
 // src/app/teacher/class/[id]/page.tsx
 import { notFound, redirect } from 'next/navigation';
 import ClassPageClient from './ClassPageClient';
@@ -56,3 +57,5 @@ export default async function ClassPage({ params }: { params: { id: string } }) 
   
   return <ClassPageClient classroom={classroom as ClassroomWithDetails} teacher={teacher} announcements={announcements} />;
 }
+
+    

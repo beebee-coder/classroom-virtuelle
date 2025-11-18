@@ -1,3 +1,4 @@
+
 // src/app/teacher/dashboard/TeacherDashboardClient.tsx
 'use client';
 
@@ -199,3 +200,5 @@ export default function TeacherDashboardClient({
     </main>
   );
 }
+
+    

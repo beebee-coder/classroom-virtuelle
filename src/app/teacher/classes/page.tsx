@@ -1,3 +1,4 @@
+
 // src/app/teacher/classes/page.tsx
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users } from 'lucide-react';
@@ -126,3 +127,5 @@ export default async function TeacherClassesPage() {
     );
   }
 }
+
+    

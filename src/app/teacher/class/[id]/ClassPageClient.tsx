@@ -1,3 +1,4 @@
+
 // src/app/teacher/class/[id]/ClassPageClient.tsx - VERSION CORRIGÉE POUR LA PRÉSENCE
 'use client';
 
@@ -285,3 +286,5 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
         </main>
     );
 }
+
+    

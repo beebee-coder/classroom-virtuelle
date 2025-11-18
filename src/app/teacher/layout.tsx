@@ -1,3 +1,4 @@
+
 // src/app/teacher/layout.tsx
 import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
@@ -108,3 +109,5 @@ export default async function TeacherLayout({
     );
   }
 }
+
+    

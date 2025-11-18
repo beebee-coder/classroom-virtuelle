@@ -1,3 +1,4 @@
+
 // src/app/api/session/[id]/sync/route.ts - VERSION CORRIGÉE
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from "next-auth";
@@ -62,3 +63,5 @@ export async function OPTIONS(request: NextRequest) {
     },
   });
 }
+
+    

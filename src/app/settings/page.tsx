@@ -1,3 +1,4 @@
+
 // src/app/settings/page.tsx
 import { redirect } from 'next/navigation';
 import { getServerSession } from "next-auth";
@@ -61,3 +62,5 @@ export default async function SettingsPage() {
     </SidebarProvider>
   );
 }
+
+    

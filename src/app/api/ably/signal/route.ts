@@ -1,3 +1,4 @@
+
 // src/app/api/ably/signal/route.ts
 import { ablyTrigger } from '@/lib/ably/triggers';
 import { AblyEvents } from '@/lib/ably/events';
@@ -23,3 +24,5 @@ export async function POST(request: Request) {
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }
+
+    

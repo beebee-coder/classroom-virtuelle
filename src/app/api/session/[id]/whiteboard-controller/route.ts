@@ -1,3 +1,4 @@
+
 // src/app/api/session/[id]/whiteboard-controller/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from "next-auth";
@@ -57,3 +58,5 @@ export async function POST(
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }
+
+    

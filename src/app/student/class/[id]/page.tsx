@@ -1,3 +1,4 @@
+
 // src/app/student/class/[id]/page.tsx - VERSION CORRIGÉE
 import { notFound, redirect } from 'next/navigation';
 import { getServerSession } from "next-auth";
@@ -74,3 +75,5 @@ export default async function StudentClassPage({ params }: { params: { id: strin
     </>
   );
 }
+
+    

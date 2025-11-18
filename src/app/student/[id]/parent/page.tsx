@@ -1,3 +1,4 @@
+
 // src/app/student/[id]/parent/page.tsx
 import { notFound, redirect } from 'next/navigation';
 import { getServerSession } from "next-auth";
@@ -76,3 +77,5 @@ export default async function ParentValidationPage({
     </>
   );
 }
+
+    

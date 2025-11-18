@@ -1,3 +1,4 @@
+
 // src/app/login/page.tsx - VERSION CORRIGÉE
 import { Suspense } from 'react';
 import LoginForm from './login-form';
@@ -20,3 +21,5 @@ export default function LoginPage() {
     </Suspense>
   );
 }
+
+    
