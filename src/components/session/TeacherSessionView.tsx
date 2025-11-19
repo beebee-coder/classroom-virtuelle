@@ -36,7 +36,8 @@ interface TeacherSessionViewProps {
     allSessionUsers: SessionParticipant[];
     onlineUserIds: string[];
     onSpotlightParticipant: (participantId: string) => void;
-    raisedHands: Set<string>;
+    raisedHandQueue: User[];
+    onAcknowledgeNextHand: () => void;
     understandingStatus: Map<string, ComprehensionLevel>;
     currentUserId: string;
     isSharingScreen: boolean;
@@ -74,7 +75,8 @@ export function TeacherSessionView({
     allSessionUsers,
     onlineUserIds: allOnlineUserIds,
     onSpotlightParticipant,
-    raisedHands,
+    raisedHandQueue,
+    onAcknowledgeNextHand,
     understandingStatus,
     currentUserId,
     isSharingScreen,
@@ -127,11 +129,6 @@ export function TeacherSessionView({
     const remoteStreamsMap = useMemo(() => 
         new Map(remoteParticipants.map(p => [p.id, p.stream])),
         [remoteParticipants]
-    );
-    
-    const studentsWithRaisedHands = useMemo(() => 
-        allSessionUsers.filter(u => u.role === 'ELEVE' && raisedHands.has(u.id)) as User[],
-        [allSessionUsers, raisedHands]
     );
     
     const students = useMemo(() => 
@@ -209,7 +206,7 @@ export function TeacherSessionView({
                     participantUserId={participant.id}
                     onSpotlightParticipant={handleSpotlightAndSwitch}
                     displayName={participant.name ?? ''}
-                    isHandRaised={raisedHands.has(participant.id)}
+                    isHandRaised={raisedHandQueue.some(u => u.id === participant.id)}
                     onSetWhiteboardController={onWhiteboardControllerChange}
                     isWhiteboardController={participant.id === whiteboardControllerId}
                 />
@@ -225,7 +222,7 @@ export function TeacherSessionView({
                 student={studentData}
                 isOnline={classOnlineIds.includes(participant.id)}
                 onSpotlightParticipant={handleSpotlightAndSwitch}
-                isHandRaised={raisedHands.has(participant.id)}
+                isHandRaised={raisedHandQueue.some(u => u.id === participant.id)}
             />
         );
     }, [
@@ -235,7 +232,7 @@ export function TeacherSessionView({
         currentUserId, 
         spotlightedUser?.id, 
         handleSpotlightAndSwitch, 
-        raisedHands, 
+        raisedHandQueue, 
         onWhiteboardControllerChange, 
         whiteboardControllerId, 
         classOnlineIds,
@@ -378,7 +375,7 @@ export function TeacherSessionView({
                             participantUserId={spotlightedUser.id}
                             onSpotlightParticipant={onSpotlightParticipant}
                             displayName={spotlightedUser.name ?? ''}
-                            isHandRaised={raisedHands.has(spotlightedUser.id)}
+                            isHandRaised={raisedHandQueue.some(u => u.id === spotlightedUser.id)}
                             onSetWhiteboardController={onWhiteboardControllerChange}
                             isWhiteboardController={spotlightedUser.id === whiteboardControllerId}
                         />
@@ -422,7 +419,7 @@ export function TeacherSessionView({
         localStream, 
         remoteStreamsMap, 
         onSpotlightParticipant, 
-        raisedHands, 
+        raisedHandQueue, 
         sessionId,
         whiteboardOperations,
         handleWhiteboardEvent,
@@ -567,7 +564,10 @@ export function TeacherSessionView({
 
                         {/* Mains Levées */}
                         <AnimatedCard title="Mains Levées">
-                            <HandRaiseController sessionId={sessionId} raisedHands={studentsWithRaisedHands} />
+                            <HandRaiseController 
+                                raisedHandQueue={raisedHandQueue} 
+                                onAcknowledgeNext={onAcknowledgeNextHand}
+                            />
                         </AnimatedCard>
                         </div>
                     </ScrollArea>

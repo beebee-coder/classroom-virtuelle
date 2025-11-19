@@ -14,7 +14,7 @@ import { PermissionPrompt } from './PermissionPrompt';
 import { endCoursSession, shareDocumentToStudents, saveAndShareDocument } from '@/lib/actions/session.actions';
 import { useAbly } from '@/hooks/useAbly';
 import Ably, { type Types } from 'ably';
-import { getSessionChannelName } from '@/lib/ably/channels';
+import { getSessionChannelName, getUserChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
 import { ablyTrigger } from '@/lib/ably/triggers';
 import { updateStudentSessionStatus, broadcastActiveTool, broadcastTimerEvent, startQuiz, submitQuizResponse, endQuiz } from '@/lib/actions/ably-session.actions';
@@ -128,7 +128,7 @@ export default function SessionClient({
     }
   }, [ablyClient, isAblyConnected, sessionId, currentUserId]);
 
-  const [raisedHands, setRaisedHands] = useState<Set<string>>(new Set());
+  const [handRaiseQueue, setHandRaiseQueue] = useState<string[]>([]);
   const [understandingStatus, setUnderstandingStatus] = useState<Map<string, ComprehensionLevel>>(new Map());
   const [isEndingSession, setIsEndingSession] = useState<boolean>(false);
   
@@ -865,11 +865,21 @@ export default function SessionClient({
 
   const handleHandRaiseUpdate = useCallback((message: Types.Message) => {
     if (isMountedRef.current) {
-      setRaisedHands(prev => {
-          const newSet = new Set(prev);
-          message.data.isRaised ? newSet.add(message.data.userId) : newSet.delete(message.data.userId);
-          return newSet;
+      const { userId, isRaised } = message.data;
+      setHandRaiseQueue(prev => {
+        const newQueue = prev.filter(id => id !== userId);
+        if (isRaised) {
+          newQueue.push(userId);
+        }
+        return newQueue;
       });
+    }
+  }, []);
+
+  const handleHandAcknowledged = useCallback((message: Types.Message) => {
+    if (isMountedRef.current) {
+      const { userId } = message.data;
+      setHandRaiseQueue(prev => prev.filter(id => id !== userId));
     }
   }, []);
 
@@ -1035,6 +1045,7 @@ export default function SessionClient({
         channel.subscribe(AblyEvents.SESSION_ENDED, handleSessionEnded);
         channel.subscribe(AblyEvents.PARTICIPANT_SPOTLIGHTED, handleSpotlight);
         channel.subscribe(AblyEvents.HAND_RAISE_UPDATE, handleHandRaiseUpdate);
+        channel.subscribe(AblyEvents.HAND_ACKNOWLEDGED, handleHandAcknowledged);
         channel.subscribe(AblyEvents.UNDERSTANDING_UPDATE, handleUnderstandingUpdate);
         channel.subscribe(AblyEvents.ACTIVE_TOOL_CHANGED, handleActiveToolChange);
         channel.subscribe(AblyEvents.DOCUMENT_SHARED, handleDocumentShared);
@@ -1076,7 +1087,7 @@ export default function SessionClient({
   }, [
     sessionId, currentUserId, ablyClient, ablyLoading, sessionReady,
     currentUserRole, teacherName, studentNames, router, toast, cleanupPeerConnection,
-    handleSessionEnded, handleSpotlight, handleHandRaiseUpdate, handleUnderstandingUpdate,
+    handleSessionEnded, handleSpotlight, handleHandRaiseUpdate, handleHandAcknowledged, handleUnderstandingUpdate,
     handleActiveToolChange, handleDocumentShared, handleDocumentDeleted,
     handleWhiteboardControllerUpdate, handleWhiteboardOperations, handleTimerStarted,
     handleTimerPaused, handleTimerReset, handleQuizStarted, handleQuizResponse, handleQuizEnded
@@ -1134,6 +1145,13 @@ export default function SessionClient({
     updateStudentSessionStatus(sessionId, { isHandRaised: isRaised });
   }, [sessionId]);
 
+  const handleAcknowledgeNextHand = useCallback(async () => {
+    if (handRaiseQueue.length === 0) return;
+    const nextUserId = handRaiseQueue[0];
+    await ablyTrigger(getSessionChannelName(sessionId), AblyEvents.HAND_ACKNOWLEDGED, { userId: nextUserId });
+    onSpotlightParticipant(nextUserId);
+  }, [sessionId, handRaiseQueue, onSpotlightParticipant]);
+
   const handleUnderstandingChange = useCallback(async (status: ComprehensionLevel) => {
     updateStudentSessionStatus(sessionId, { understanding: status });
   }, [sessionId]);
@@ -1189,7 +1207,11 @@ export default function SessionClient({
     return <SessionLoading />;
   }
 
-  const isHandRaised = raisedHands.has(currentUserId);
+  const isHandRaised = handRaiseQueue.includes(currentUserId);
+  const raisedHandUsers = useMemo(() => 
+    handRaiseQueue.map(userId => allSessionUsers.find(u => u.id === userId)).filter(Boolean) as User[], 
+    [handRaiseQueue, allSessionUsers]
+  );
   
   // RENDU COMPLET
   return (
@@ -1222,7 +1244,8 @@ export default function SessionClient({
             allSessionUsers={[initialTeacher, ...initialStudents].filter(Boolean) as SessionParticipant[]}
             onlineUserIds={onlineUserIds} 
             onSpotlightParticipant={onSpotlightParticipant} 
-            raisedHands={raisedHands}
+            raisedHandQueue={raisedHandUsers}
+            onAcknowledgeNextHand={handleAcknowledgeNextHand}
             understandingStatus={understandingStatus} 
             currentUserId={currentUserId} 
             isSharingScreen={isSharingScreen} 

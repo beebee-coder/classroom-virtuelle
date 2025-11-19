@@ -13,6 +13,7 @@ export const AblyEvents = {
 
     // Real-time interaction events
     HAND_RAISE_UPDATE: 'hand-raise-update',
+    HAND_ACKNOWLEDGED: 'hand-acknowledged', // Ajout du nouvel événement
     UNDERSTANDING_UPDATE: 'understanding-update',
 
     // Tool-related events
