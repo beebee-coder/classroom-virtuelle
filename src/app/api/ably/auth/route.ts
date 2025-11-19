@@ -1,43 +1,29 @@
-
-// src/app/api/ably/auth/route.ts - VERSION CORRIGÉE POUR VERCEL ET ERREUR 80003
+// src/app/api/ably/auth/route.ts - VERSION CORRIGÉE POUR STABILITÉ
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import Ably from 'ably';
 
-// ✅ CORRECTION : Timeout optimisé pour Vercel et gestion d'erreur 80003
-const AUTH_TIMEOUT_MS = 15000; // 15 secondes - équilibre entre performance et fiabilité
+// ✅ CORRECTION : Timeout unique et optimisé
+const AUTH_TIMEOUT_MS = 10000; // 10 secondes - suffisant pour Vercel
 
 export async function POST(request: NextRequest) {
     console.log('🚪 [ABLY AUTH] - Requête d\'authentification reçue');
 
-    // ✅ CORRECTION : Gestion de timeout robuste pour Vercel
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-        console.warn('⏰ [ABLY AUTH] - Timeout détecté, annulation de la requête');
-        controller.abort();
-    }, AUTH_TIMEOUT_MS);
-
+    let timeoutId: NodeJS.Timeout | null = null;
+    
     try {
-        // ✅ CORRECTION : Session avec timeout spécifique
-        let session;
-        try {
-            session = await Promise.race([
-                getServerSession(authOptions),
-                new Promise<never>((_, reject) => 
-                    setTimeout(() => reject(new Error('Session timeout')), 8000)
-                )
-            ]);
-        } catch (sessionError) {
-            console.error('❌ [ABLY AUTH] - Erreur de session:', sessionError);
-            return new NextResponse('Session timeout - please refresh', { 
-                status: 408,
-                headers: {
-                    'Cache-Control': 'no-store, no-cache, must-revalidate',
-                    'Retry-After': '3'
-                }
-            });
-        }
+        // ✅ CORRECTION : Timeout unique et bien géré
+        const timeoutPromise = new Promise<never>((_, reject) => {
+            timeoutId = setTimeout(() => {
+                reject(new Error('Authentication timeout'));
+            }, AUTH_TIMEOUT_MS);
+        });
+
+        // ✅ CORRECTION : Session simple sans timeout imbriqué
+        const sessionPromise = getServerSession(authOptions);
+        
+        const session = await Promise.race([sessionPromise, timeoutPromise]);
         
         console.log('🔍 [ABLY AUTH] - Session vérifiée:', {
             hasSession: !!session,
@@ -47,103 +33,86 @@ export async function POST(request: NextRequest) {
 
         if (!session?.user?.id) {
             console.error('❌ [ABLY AUTH] - Session utilisateur non valide');
-            return new NextResponse('Unauthorized: Valid session required', { 
-                status: 401,
-                headers: {
-                    'Cache-Control': 'no-store, no-cache, must-revalidate'
+            return NextResponse.json(
+                { error: 'Unauthorized: Valid session required' },
+                { 
+                    status: 401,
+                    headers: {
+                        'Cache-Control': 'no-store, no-cache, must-revalidate'
+                    }
                 }
-            });
+            );
         }
 
         const { user } = session;
 
-        // ✅ CORRECTION : Parsing du corps avec gestion d'erreur améliorée
-        let requestBody = {};
+        // ✅ CORRECTION : Parsing du corps simplifié
+        let clientId = user.id;
         try {
             const bodyText = await request.text();
             if (bodyText.trim()) {
-                requestBody = JSON.parse(bodyText);
+                const requestBody = JSON.parse(bodyText);
+                if (requestBody.clientId && typeof requestBody.clientId === 'string') {
+                    clientId = requestBody.clientId;
+                }
             }
         } catch (parseError) {
-            console.warn('⚠️ [ABLY AUTH] - Corps de requête invalide ou vide, utilisation des valeurs par défaut');
+            console.warn('⚠️ [ABLY AUTH] - Corps de requête invalide, utilisation de l\'ID utilisateur par défaut');
         }
         
-        const requestedClientId = (requestBody as any).clientId;
-        
-        // ✅ CORRECTION : Validation robuste du clientId
-        const clientId = requestedClientId && typeof requestedClientId === 'string' 
-            ? requestedClientId 
-            : user.id;
-
         console.log(`🔑 [ABLY AUTH] - Création du jeton pour: ${clientId.substring(0, 8)}...`);
 
-        // ✅ CORRECTION : Vérification améliorée de la clé API
+        // ✅ CORRECTION : Vérification de la clé API simplifiée
         const ablyApiKey = process.env.ABLY_API_KEY;
         if (!ablyApiKey) {
             console.error('❌ [ABLY AUTH] - ABLY_API_KEY non configurée');
-            return new NextResponse('Server configuration error', { 
-                status: 500,
-                headers: {
-                    'Cache-Control': 'no-store, no-cache, must-revalidate'
+            return NextResponse.json(
+                { error: 'Server configuration error' },
+                { 
+                    status: 500,
+                    headers: {
+                        'Cache-Control': 'no-store, no-cache, must-revalidate'
+                    }
                 }
-            });
+            );
         }
 
-        // ✅ CORRECTION : Validation du format de la clé API
-        if (!ablyApiKey.includes('.') || ablyApiKey.split('.').length !== 2) {
-            console.error('❌ [ABLY AUTH] - Format de ABLY_API_KEY invalide');
-            return new NextResponse('Server configuration error', { 
-                status: 500,
-                headers: {
-                    'Cache-Control': 'no-store, no-cache, must-revalidate'
-                }
-            });
-        }
-
-        // ✅ CORRECTION : Configuration Ably optimisée pour Vercel
+        // ✅ CORRECTION : Configuration Ably optimisée
         const ably = new Ably.Rest({
             key: ablyApiKey,
-            // ✅ CORRECTION : Timeouts étendus pour Vercel
-            httpRequestTimeout: 20000,
-            httpOpenTimeout: 15000,
-            httpMaxRetryCount: 3,
-            // ✅ CORRECTION : Fallback hosts pour la résilience
+            httpRequestTimeout: 15000,
+            httpOpenTimeout: 10000,
+            httpMaxRetryCount: 2,
             fallbackHosts: ['a.ably-realtime.com', 'b.ably-realtime.com', 'c.ably-realtime.com'],
-            // ✅ CORRECTION : Logging réduit en production
             logLevel: (process.env.NODE_ENV === 'development' ? 2 : 1) as any,
             tls: true
         });
         
-        // ✅ CORRECTION : Création du token avec gestion d'erreur robuste
+        // ✅ CORRECTION : Création du token avec timeout intégré
         const tokenRequest = await new Promise<Ably.Types.TokenRequest>((resolve, reject) => {
-            // Timeout pour la création du token
-            const tokenTimeout = setTimeout(() => {
-                console.error('⏰ [ABLY AUTH] - Timeout lors de la création du token');
-                reject(new Error('Token creation timeout'));
-            }, 12000);
-
+            let tokenTimeoutId: NodeJS.Timeout | null = null;
+            
             try {
+                tokenTimeoutId = setTimeout(() => {
+                    reject(new Error('Token creation timeout'));
+                }, 8000);
+
                 ably.auth.createTokenRequest(
                     {
                         clientId: clientId,
-                        // ✅ CORRECTION : Capacités spécifiques et sécurisées
                         capability: {
-                            // Canaux de session
+                            // ✅ CORRECTION : Capacités simplifiées et sécurisées
                             [`classroom-connector:session:*`]: ['presence', 'subscribe', 'publish'],
-                            // Canaux de classe
                             [`classroom-connector:class:*`]: ['presence', 'subscribe', 'publish'],
-                            // Canaux utilisateur
                             [`classroom-connector:user:${clientId}`]: ['subscribe'],
-                            // Canaux système (limités)
                             [`classroom-connector:system`]: ['subscribe']
                         },
                         ttl: 3600000, // 1 heure
-                        // ✅ CORRECTION : Nonce pour la sécurité
-                        nonce: Math.random().toString(36).substring(2, 15) + 
-                               Math.random().toString(36).substring(2, 15)
+                        nonce: Math.random().toString(36).substring(2, 15)
                     },
                     (err, tokenRequest) => {
-                        clearTimeout(tokenTimeout);
+                        if (tokenTimeoutId) clearTimeout(tokenTimeoutId);
+                        
                         if (err) {
                             console.error('❌ [ABLY AUTH] - Erreur création token:', {
                                 code: err.code,
@@ -151,20 +120,14 @@ export async function POST(request: NextRequest) {
                                 message: err.message
                             });
                             
-                            // ✅ CORRECTION : Gestion spécifique des erreurs Ably
+                            // ✅ CORRECTION : Gestion d'erreur simplifiée
                             if (err.code === 40100) {
-                                reject(new Error('Ably authentication failed - check API key'));
-                            } else if (err.code === 40000) {
-                                reject(new Error('Ably bad request - invalid parameters'));
-                            } else if (err.code >= 50000) {
-                                reject(new Error('Ably server error - temporary issue'));
+                                reject(new Error('Invalid API key'));
                             } else {
-                                reject(err);
+                                reject(new Error(`Ably error: ${err.message}`));
                             }
                         } else if (tokenRequest) {
                             console.log(`✅ [ABLY AUTH] - Jeton créé pour ${clientId.substring(0, 8)}...`);
-                            console.log(`📋 [ABLY AUTH] - Token TTL: ${tokenRequest.ttl}ms, Capabilities:`, 
-                                Object.keys(tokenRequest.capability || {}));
                             resolve(tokenRequest);
                         } else {
                             reject(new Error('Token request returned null'));
@@ -172,82 +135,71 @@ export async function POST(request: NextRequest) {
                     }
                 );
             } catch (syncError) {
-                clearTimeout(tokenTimeout);
-                console.error('💥 [ABLY AUTH] - Erreur synchrone lors de la création du token:', syncError);
+                if (tokenTimeoutId) clearTimeout(tokenTimeoutId);
                 reject(syncError);
             }
         });
 
-        // ✅ CORRECTION : Nettoyage du timeout global
-        clearTimeout(timeoutId);
+        // ✅ CORRECTION : Nettoyage du timeout principal
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+        }
 
-        // ✅ CORRECTION : Réponse avec headers optimisés pour Vercel
+        // ✅ CORRECTION : Réponse simplifiée avec headers optimisés
         return NextResponse.json(tokenRequest, {
             status: 200,
             headers: {
                 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
                 'Content-Type': 'application/json; charset=utf-8',
                 'Pragma': 'no-cache',
-                'Expires': '0',
-                // ✅ CORRECTION : Headers de sécurité
                 'X-Content-Type-Options': 'nosniff',
-                'X-Frame-Options': 'DENY',
-                // ✅ CORRECTION : Header pour éviter l'erreur 80003
-                'Connection': 'close'
+                'X-Frame-Options': 'DENY'
             }
         });
 
     } catch (error) {
-        // ✅ CORRECTION : Nettoyage du timeout en cas d'erreur
-        clearTimeout(timeoutId);
+        // ✅ CORRECTION : Nettoyage garantie du timeout
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+        }
         
         console.error('💥 [ABLY AUTH] - Erreur critique:', error);
 
+        let statusCode = 500;
+        let errorMessage = 'Internal server error';
+        let retryAfter = '5';
+
         if (error instanceof Error) {
-            if (error.name === 'AbortError' || error.message.includes('timeout')) {
-                console.error('⏰ [ABLY AUTH] - Timeout d\'authentification global');
-                return new NextResponse('Authentication timeout - server is busy, please try again', { 
-                    status: 408,
-                    headers: {
-                        'Cache-Control': 'no-store, no-cache, must-revalidate',
-                        'Retry-After': '5',
-                        'Connection': 'close'
-                    }
-                });
-            }
-            
-            if (error.message.includes('Ably') || error.message.includes('API key')) {
-                console.error('🔌 [ABLY AUTH] - Erreur Ably spécifique:', error.message);
-                return new NextResponse('Realtime service temporarily unavailable - please try again in a moment', { 
-                    status: 503,
-                    headers: {
-                        'Cache-Control': 'no-store, no-cache, must-revalidate',
-                        'Retry-After': '10',
-                        'Connection': 'close'
-                    }
-                });
+            if (error.message.includes('timeout') || error.message.includes('Timeout')) {
+                statusCode = 408;
+                errorMessage = 'Authentication timeout - please try again';
+                retryAfter = '3';
+            } else if (error.message.includes('Unauthorized') || error.message.includes('session')) {
+                statusCode = 401;
+                errorMessage = 'Authentication required';
+            } else if (error.message.includes('API key') || error.message.includes('Ably')) {
+                statusCode = 503;
+                errorMessage = 'Service temporarily unavailable';
+                retryAfter = '10';
             }
         }
 
-        // ✅ CORRECTION : Réponse d'erreur générique sécurisée
-        return new NextResponse(
-            'Service temporarily unavailable - please try again', 
+        // ✅ CORRECTION : Réponse d'erreur structurée
+        return NextResponse.json(
+            { error: errorMessage },
             { 
-                status: 503,
+                status: statusCode,
                 headers: {
                     'Cache-Control': 'no-store, no-cache, must-revalidate',
-                    'Retry-After': '5',
-                    'Connection': 'close'
+                    'Retry-After': retryAfter
                 }
             }
         );
-    } finally {
-        // ✅ CORRECTION : Nettoyage garantie du timeout
-        clearTimeout(timeoutId);
     }
 }
 
-// ✅ CORRECTION : OPTIONS handler pour CORS (important pour Vercel)
+// ✅ CORRECTION : OPTIONS handler simplifié
 export async function OPTIONS() {
     return new NextResponse(null, {
         status: 200,
@@ -259,5 +211,3 @@ export async function OPTIONS() {
         }
     });
 }
-
-    

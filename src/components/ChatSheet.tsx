@@ -1,4 +1,4 @@
-// src/components/ChatSheet.tsx - VERSION CORRIGÉE AVEC useAbly()
+// src/components/ChatSheet.tsx - VERSION CORRIGÉE SANS ERREURS TYPESCRIPT
 'use client';
 
 import { useState, useEffect, useRef, useTransition, useCallback } from 'react';
@@ -16,7 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import type { Message, Reaction, User, Role } from '@prisma/client';
-import { useAbly } from '@/hooks/useAbly'; // CORRECTION: utiliser useAbly au lieu de useAblyWithSession
+import { useAbly } from '@/hooks/useAbly';
 import { getClassChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
 import Ably from 'ably';
@@ -44,18 +44,16 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   
-  // CORRECTION: Références pour le nettoyage Ably
+  // ✅ CORRECTION : Références unifiées pour la gestion Ably
   const channelRef = useRef<Ably.Types.RealtimeChannelCallbacks | null>(null);
-  const newMessageListenerRef = useRef<((message: Ably.Types.Message) => void) | null>(null);
-  const reactionListenerRef = useRef<((message: Ably.Types.Message) => void) | null>(null);
-  const historyListenerRef = useRef<((message: Ably.Types.Message) => void) | null>(null);
+  const listenersRef = useRef<Map<string, (message: Ably.Types.Message) => void>>(new Map());
   const isMountedRef = useRef(true);
+  const hasInitializedRef = useRef(false);
 
-  // CORRECTION: Utiliser useAbly() au lieu de useAblyWithSession()
   const { client: ablyClient, isConnected: ablyConnected, connectionState } = useAbly();
   const ablyLoading = connectionState === 'initialized' || connectionState === 'connecting';
 
-  // CORRECTION: Fonction de récupération des messages avec useCallback
+  // ✅ CORRECTION : Fonction de récupération des messages avec gestion d'erreur améliorée
   const fetchMessages = useCallback(async () => {
     if (!classroomId || !isMountedRef.current) return;
     
@@ -86,26 +84,48 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
     }
   }, [classroomId, toast]);
 
-  // CORRECTION: Effet pour charger les messages avec dépendances correctes
+  // ✅ CORRECTION : Effet simplifié pour charger les messages
   useEffect(() => {
-    if (isOpen && classroomId) {
+    if (isOpen && classroomId && !hasInitializedRef.current) {
+      hasInitializedRef.current = true;
       fetchMessages();
     }
   }, [isOpen, classroomId, fetchMessages]);
 
-  // CORRECTION: Gestion du cycle de vie du composant
+  // ✅ CORRECTION : Gestion du cycle de vie avec reset
   useEffect(() => {
     isMountedRef.current = true;
+    hasInitializedRef.current = false;
     
     return () => {
       isMountedRef.current = false;
+      hasInitializedRef.current = false;
     };
   }, []);
 
-  // CORRECTION: Configuration Ably avec gestion complète du nettoyage
+  // ✅ CORRECTION : Fonction de nettoyage centralisée DÉCLARÉE AVANT UTILISATION
+  const cleanupAbly = useCallback(() => {
+    if (channelRef.current) {
+      console.log(`🔕 [CHAT] Nettoyage du canal: ${channelRef.current.name}`);
+      
+      // Désabonner tous les listeners enregistrés
+      listenersRef.current.forEach((handler, eventName) => {
+        try {
+          channelRef.current?.unsubscribe(eventName, handler);
+        } catch (error) {
+          console.warn(`⚠️ [CHAT] Erreur lors du désabonnement de ${eventName}:`, error);
+        }
+      });
+      
+      listenersRef.current.clear();
+      channelRef.current = null;
+    }
+  }, []);
+
+  // ✅ CORRECTION : Configuration Ably robuste avec gestion d'état
   useEffect(() => {
     if (!classroomId || !isOpen || !ablyClient || ablyLoading || !ablyConnected) {
-      console.log(`⏳ [CHAT] - Skipping Ably setup:`, {
+      console.log(`⏳ [CHAT] - Configuration Ably différée:`, {
         hasClassroomId: !!classroomId,
         isOpen,
         hasAblyClient: !!ablyClient,
@@ -117,103 +137,96 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
 
     const channelName = getClassChannelName(classroomId);
     
+    // ✅ CORRECTION : Vérifier si déjà configuré
+    if (channelRef.current?.name === channelName) {
+      console.log(`🔁 [CHAT] Canal ${channelName} déjà configuré`);
+      return;
+    }
+
+    console.log(`🔔 [CHAT] Configuration Ably pour le canal: ${channelName}`);
+
     try {
+      // ✅ CORRECTION : Nettoyer l'ancienne configuration
+      cleanupAbly();
+
       const channel = ablyClient.channels.get(channelName);
       channelRef.current = channel;
       
-      console.log(`🔔 [CHAT] Abonné au canal: ${channelName}`);
-
-      // CORRECTION: Définir les handlers avec vérification de montage
-      const handleNewMessage = (message: Ably.Types.Message) => {
-        if (!isMountedRef.current) return;
-        
-        const data = message.data as MessageWithReactions;
-        console.log('📨 [CHAT] Nouveau message reçu:', data);
-        setMessages((prev) => {
-          // Éviter les doublons
-          if (prev.some(msg => msg.id === data.id)) {
-            return prev;
-          }
-          return [...prev, data];
-        });
+      // ✅ CORRECTION : Définir les handlers avec encapsulation
+      const createMessageHandler = () => {
+        const handler = (message: Ably.Types.Message) => {
+          if (!isMountedRef.current) return;
+          
+          const data = message.data as MessageWithReactions;
+          console.log('📨 [CHAT] Nouveau message reçu:', data);
+          setMessages((prev) => {
+            if (prev.some(msg => msg.id === data.id)) {
+              return prev;
+            }
+            return [...prev, data];
+          });
+        };
+        listenersRef.current.set(AblyEvents.NEW_MESSAGE, handler);
+        return handler;
       };
 
-      const handleReaction = (message: Ably.Types.Message) => {
-        if (!isMountedRef.current) return;
-        
-        const data = message.data as { 
-          messageId: string; 
-          reaction: ReactionWithUser; 
-          action: 'added' | 'removed'; 
-        };
-        console.log('😊 [CHAT] Réaction mise à jour:', data);
-        setMessages(prev => prev.map(msg => {
-          if (msg.id === data.messageId) {
-            let newReactions = [...msg.reactions];
-            
-            if (data.action === 'added') {
-              // Éviter les doublons de réaction par utilisateur
-              const existingIndex = newReactions.findIndex(
-                (r: ReactionWithUser) => r.emoji === data.reaction.emoji && r.userId === data.reaction.userId
-              );
-              if (existingIndex === -1) {
-                newReactions.push(data.reaction);
+      const createReactionHandler = () => {
+        const handler = (message: Ably.Types.Message) => {
+          if (!isMountedRef.current) return;
+          
+          const data = message.data as { 
+            messageId: string; 
+            reaction: ReactionWithUser; 
+            action: 'added' | 'removed'; 
+          };
+          console.log('😊 [CHAT] Réaction mise à jour:', data);
+          setMessages(prev => prev.map(msg => {
+            if (msg.id === data.messageId) {
+              let newReactions = [...msg.reactions];
+              
+              if (data.action === 'added') {
+                const existingIndex = newReactions.findIndex(
+                  (r: ReactionWithUser) => r.emoji === data.reaction.emoji && r.userId === data.reaction.userId
+                );
+                if (existingIndex === -1) {
+                  newReactions.push(data.reaction);
+                }
+              } else {
+                newReactions = newReactions.filter(
+                  (r: ReactionWithUser) => !(r.emoji === data.reaction.emoji && r.userId === data.reaction.userId)
+                );
               }
-            } else {
-              newReactions = newReactions.filter(
-                (r: ReactionWithUser) => !(r.emoji === data.reaction.emoji && r.userId === data.reaction.userId)
-              );
+              return { ...msg, reactions: newReactions };
             }
-            return { ...msg, reactions: newReactions };
-          }
-          return msg;
-        }));
+            return msg;
+          }));
+        };
+        listenersRef.current.set(AblyEvents.REACTION_UPDATE, handler);
+        return handler;
       };
       
-      const handleHistoryCleared = () => {
-        if (!isMountedRef.current) return;
-        
-        console.log('🗑️ [CHAT] Historique effacé');
-        setMessages([]);
-        toast({ 
-          title: "Historique effacé", 
-          description: "Le professeur a effacé l'historique de la conversation." 
-        });
+      const createHistoryHandler = () => {
+        const handler = () => {
+          if (!isMountedRef.current) return;
+          
+          console.log('🗑️ [CHAT] Historique effacé');
+          setMessages([]);
+          toast({ 
+            title: "Historique effacé", 
+            description: "Le professeur a effacé l'historique de la conversation." 
+          });
+        };
+        listenersRef.current.set(AblyEvents.HISTORY_CLEARED, handler);
+        return handler;
       };
 
-      // Stocker les références des listeners pour le nettoyage
-      newMessageListenerRef.current = handleNewMessage;
-      reactionListenerRef.current = handleReaction;
-      historyListenerRef.current = handleHistoryCleared;
-
-      // S'abonner aux événements
-      channel.subscribe(AblyEvents.NEW_MESSAGE, handleNewMessage);
-      channel.subscribe(AblyEvents.REACTION_UPDATE, handleReaction);
-      channel.subscribe(AblyEvents.HISTORY_CLEARED, handleHistoryCleared);
+      // ✅ CORRECTION : S'abonner avec les handlers créés
+      channel.subscribe(AblyEvents.NEW_MESSAGE, createMessageHandler());
+      channel.subscribe(AblyEvents.REACTION_UPDATE, createReactionHandler());
+      channel.subscribe(AblyEvents.HISTORY_CLEARED, createHistoryHandler());
 
       console.log(`✅ [CHAT] Abonnement Ably réussi pour ${channelName}`);
 
-      return () => {
-        console.log(`🔕 [CHAT] Désabonnement du canal: ${channelName}`);
-        
-        // CORRECTION: Nettoyage complet de tous les listeners
-        if (channelRef.current) {
-          if (newMessageListenerRef.current) {
-            channelRef.current.unsubscribe(AblyEvents.NEW_MESSAGE, newMessageListenerRef.current);
-          }
-          if (reactionListenerRef.current) {
-            channelRef.current.unsubscribe(AblyEvents.REACTION_UPDATE, reactionListenerRef.current);
-          }
-          if (historyListenerRef.current) {
-            channelRef.current.unsubscribe(AblyEvents.HISTORY_CLEARED, historyListenerRef.current);
-          }
-          channelRef.current = null;
-        }
-        
-        newMessageListenerRef.current = null;
-        reactionListenerRef.current = null;
-        historyListenerRef.current = null;
-      };
     } catch (error) {
       console.error('❌ [CHAT] Erreur d\'abonnement Ably:', error);
       toast({ 
@@ -222,26 +235,34 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
         description: 'Impossible de se connecter au chat en temps réel.' 
       });
     }
-  }, [classroomId, isOpen, toast, ablyClient, ablyLoading, ablyConnected]);
 
-  // CORRECTION: Auto-scroll vers le bas avec gestion d'erreur
+    return cleanupAbly;
+  }, [classroomId, isOpen, toast, ablyClient, ablyLoading, ablyConnected, cleanupAbly]);
+
+  // ✅ CORRECTION : Auto-scroll optimisé
   useEffect(() => {
     if (scrollAreaRef.current && messages.length > 0 && isMountedRef.current) {
-      try {
-        const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
-        if (scrollContainer) {
-          scrollContainer.scrollTo({ 
-            top: scrollContainer.scrollHeight, 
-            behavior: 'smooth' 
-          });
+      const scrollToBottom = () => {
+        try {
+          const scrollContainer = scrollAreaRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+          if (scrollContainer) {
+            scrollContainer.scrollTo({ 
+              top: scrollContainer.scrollHeight, 
+              behavior: 'smooth' 
+            });
+          }
+        } catch (error) {
+          console.warn('⚠️ [CHAT] Erreur lors du scroll automatique:', error);
         }
-      } catch (error) {
-        console.warn('⚠️ [CHAT] Erreur lors du scroll automatique:', error);
-      }
+      };
+
+      // ✅ CORRECTION : Délai pour laisser le DOM se mettre à jour
+      const timeoutId = setTimeout(scrollToBottom, 100);
+      return () => clearTimeout(timeoutId);
     }
   }, [messages]);
 
-  // CORRECTION: Fonction d'envoi de message avec useCallback
+  // ✅ CORRECTION : Fonction d'envoi avec gestion d'état améliorée
   const handleSendMessage = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || isSending || !classroomId) return;
@@ -269,7 +290,6 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
           title: 'Erreur', 
           description: "Le message n'a pas pu être envoyé." 
         });
-        // CORRECTION: Restaurer le message seulement si le composant est toujours monté
         if (isMountedRef.current) {
           setNewMessage(messageToSend);
         }
@@ -277,7 +297,7 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
     });
   }, [newMessage, isSending, classroomId, toast]);
 
-  // CORRECTION: Fonction de réaction avec useCallback
+  // ✅ CORRECTION : Fonction de réaction avec rollback sécurisé
   const handleReactionClick = useCallback(async (messageId: string, emoji: string) => {
     if (!isMountedRef.current) return;
     
@@ -292,10 +312,8 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
         
         let newReactions;
         if (existingReaction) {
-          // Retirer la réaction
           newReactions = msg.reactions.filter((r: ReactionWithUser) => r.id !== existingReaction.id);
         } else {
-          // Ajouter la réaction
           newReactions = [...msg.reactions, { 
             id: `temp-${Date.now()}`, 
             emoji, 
@@ -313,7 +331,6 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
       await toggleReaction(messageId, emoji);
     } catch (error) {
       console.error('❌ [CHAT] Erreur de réaction:', error);
-      // Revenir à l'état précédent en cas d'erreur
       if (isMountedRef.current) {
         setMessages(originalMessages);
       }
@@ -325,7 +342,7 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
     }
   }, [messages, userId, toast]);
 
-  // CORRECTION: Fonction de suppression d'historique avec useCallback
+  // ✅ CORRECTION : Fonction de suppression avec confirmation
   const handleDeleteHistory = useCallback(async () => {
     try {
       console.log('🗑️ [CHAT] Suppression de l\'historique');
@@ -344,7 +361,7 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
     }
   }, [classroomId, toast]);
 
-  // CORRECTION: Fonction utilitaire avec useCallback
+  // ✅ CORRECTION : Fonction utilitaire mémoïsée
   const getReactionSummary = useCallback((reactions: ReactionWithUser[]) => {
     const summary: Record<string, number> = {};
     reactions.forEach((reaction: ReactionWithUser) => {

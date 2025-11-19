@@ -22,9 +22,9 @@ export function useAbly(): UseAblyReturn {
     const [connectionError, setConnectionError] = useState<Types.ErrorInfo | null>(null);
     const [connectionState, setConnectionState] = useState<Types.ConnectionState>('initialized');
     
-    // ✅ CORRECTION : Références pour éviter les boucles de rendu
+    // ✅ CORRECTION : Références uniques par instance de hook
     const isMountedRef = useRef(true);
-    const connectionHandlerRef = useRef<((stateChange: Types.ConnectionStateChange) => void) | null>(null);
+    const connectionHandlerIdRef = useRef<string | null>(null);
 
     useEffect(() => {
         isMountedRef.current = true;
@@ -32,22 +32,25 @@ export function useAbly(): UseAblyReturn {
         const ablyClient = getAblyClient();
         setClient(ablyClient);
 
-        // ✅ CORRECTION : Handler unique et stable
-        if (!connectionHandlerRef.current) {
-            connectionHandlerRef.current = (stateChange: Types.ConnectionStateChange) => {
-                if (!isMountedRef.current) return;
-                
-                setConnectionState(stateChange.current);
-                if (stateChange.reason) {
-                    setConnectionError(stateChange.reason);
-                } else {
-                    setConnectionError(null);
-                }
-            };
-        }
+        // ✅ CORRECTION : Handler unique avec gestion d'état cohérente
+        const connectionHandler = (stateChange: Types.ConnectionStateChange) => {
+            if (!isMountedRef.current) return;
+            
+            const newState = stateChange.current;
+            setConnectionState(newState);
+            
+            // ✅ CORRECTION : Logique d'erreur améliorée
+            if (stateChange.reason) {
+                console.error(`❌ [ABLY HOOK] Connection error:`, stateChange.reason);
+                setConnectionError(stateChange.reason);
+            } else if (newState === 'connected') {
+                setConnectionError(null);
+            }
+        };
 
-        // ✅ CORRECTION : Écouter les changements d'état
-        ablyClient.connection.on(connectionHandlerRef.current);
+        // ✅ CORRECTION : Stocker l'ID du handler pour un nettoyage précis
+        ablyClient.connection.on(connectionHandler);
+        connectionHandlerIdRef.current = 'connection_state_handler';
 
         // Définir l'état initial
         if (isMountedRef.current) {
@@ -57,17 +60,19 @@ export function useAbly(): UseAblyReturn {
             }
         }
 
-        // ✅ CORRECTION : Nettoyage minimal - NE PAS déconnecter les listeners globaux
+        // ✅ CORRECTION : Nettoyage sécurisé uniquement pour ce composant
         return () => {
             isMountedRef.current = false;
-            // NOTE: Nous ne nettoyons PAS les listeners ici car le client est global
-            // et partagé entre tous les composants. Le nettoyage est géré par closeAblyClient.
+            if (connectionHandlerIdRef.current) {
+                ablyClient.connection.off(connectionHandler);
+                connectionHandlerIdRef.current = null;
+            }
         };
     }, []); // ✅ Dépendances vides - effet unique
 
     const isConnected = connectionState === 'connected';
 
-    // ✅ CORRECTION : Mémoisation pour éviter les rendus inutiles
+    // ✅ CORRECTION : Mémoisation optimisée
     return useMemo(() => ({ 
         client, 
         connectionError, 
@@ -76,31 +81,44 @@ export function useAbly(): UseAblyReturn {
     }), [client, connectionError, isConnected, connectionState]);
 }
 
-// ✅ NOUVEAU : Hook spécialisé pour les sessions avec gestion d'erreur améliorée
+// ✅ CORRECTION : Hook spécialisé avec gestion d'état améliorée
 export function useAblyForSession(sessionId?: string) {
     const { client, connectionError, isConnected, connectionState } = useAbly();
-    
     const [sessionReady, setSessionReady] = useState(false);
+    const sessionReadyRef = useRef(false);
     
     useEffect(() => {
-        if (!sessionId || !client) return;
+        if (!sessionId || !client) {
+            setSessionReady(false);
+            sessionReadyRef.current = false;
+            return;
+        }
         
-        // ✅ CORRECTION : Vérification de santé de connexion pour les sessions
-        if (isConnected) {
+        // ✅ CORRECTION : Logique de sessionReady plus robuste
+        const shouldBeReady = isConnected && !connectionError && !!sessionId;
+        
+        if (shouldBeReady && !sessionReadyRef.current) {
             console.log(`🎯 [ABLY SESSION] - Client ready for session: ${sessionId}`);
             setSessionReady(true);
-        } else if (connectionError) {
-            console.error(`❌ [ABLY SESSION] - Connection error for session ${sessionId}:`, connectionError);
+            sessionReadyRef.current = true;
+        } else if (!shouldBeReady && sessionReadyRef.current) {
+            console.warn(`⚠️ [ABLY SESSION] - Session ${sessionId} no longer ready`);
             setSessionReady(false);
+            sessionReadyRef.current = false;
         }
     }, [sessionId, client, isConnected, connectionError]);
     
-    return {
+    // ✅ CORRECTION : États de chargement plus précis
+    const isLoading = connectionState === 'initialized' || connectionState === 'connecting';
+    const hasConnectionError = !!connectionError;
+    
+    return useMemo(() => ({
         client,
         connectionError,
         isConnected,
         connectionState,
-        sessionReady: sessionReady && isConnected,
-        isLoading: connectionState === 'initialized' || connectionState === 'connecting'
-    };
+        sessionReady: sessionReady && isConnected && !connectionError,
+        isLoading,
+        hasConnectionError
+    }), [client, connectionError, isConnected, connectionState, sessionReady, isLoading]);
 }
