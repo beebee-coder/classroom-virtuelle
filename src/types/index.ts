@@ -15,7 +15,10 @@ import type {
   TaskCategory as PrismaTaskCategory,
   TaskDifficulty as PrismaTaskDifficulty,
   ValidationType as PrismaValidationType,
-  ProgressStatus as PrismaProgressStatus
+  ProgressStatus as PrismaProgressStatus,
+  Quiz as PrismaQuiz,
+  QuizQuestion as PrismaQuizQuestion,
+  QuizOption as PrismaQuizOption
 } from '@prisma/client';
 
 import type { Instance as PeerInstance, SignalData as PeerSignalData } from 'simple-peer';
@@ -156,37 +159,30 @@ export interface SessionClientProps {
   currentUserId: string;
   classroom: ClassroomWithDetails | null;
   initialDocumentHistory: DocumentInHistory[];
+  initialActiveQuiz?: Quiz | null;
 }
 
 // Nouveaux types pour le Quiz
-export interface QuizOption {
-  id: string;
-  text: string;
-}
+export type QuizOption = PrismaQuizOption;
 
-export interface QuizQuestion {
-  id: string;
-  text: string;
+export type QuizQuestion = PrismaQuizQuestion & {
   options: QuizOption[];
-  correctOptionId: string;
-}
+};
 
-export interface Quiz {
-  id: string;
-  title: string;
+export type Quiz = PrismaQuiz & {
   questions: QuizQuestion[];
-}
+};
 
 export interface QuizResponse {
   userId: string;
   userName: string;
-  answers: Map<string, string>; // Map<questionId, selectedOptionId>
+  answers: Record<string, string>; // Map<questionId, selectedOptionId>
 }
 
 export interface QuizResults {
   quizId: string;
-  scores: Map<string, { score: number; total: number }>; // Map<userId, { score, total }>
-  responses: Map<string, QuizResponse>;
+  scores: Record<string, { score: number; total: number }>; // Map<userId, { score, total }>
+  responses: Record<string, QuizResponse>;
 }
 
 

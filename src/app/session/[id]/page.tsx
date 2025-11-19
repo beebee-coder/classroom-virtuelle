@@ -1,11 +1,10 @@
-
 // src/app/session/[id]/page.tsx - VERSION CORRIGÉE
 import { Suspense } from 'react';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import { redirect } from 'next/navigation';
 import SessionLoading from '@/components/SessionLoading';
-import { type User, type ClassroomWithDetails, Role, type DocumentInHistory } from '@/types';
+import { type User, type ClassroomWithDetails, Role, type DocumentInHistory, Quiz } from '@/types';
 import prisma from '@/lib/prisma';
 import dynamic from 'next/dynamic';
 
@@ -28,6 +27,7 @@ interface SessionData {
   documentHistory: DocumentInHistory[];
   startTime: string;
   endTime: string | null;
+  activeQuiz: Quiz | null;
 }
 
 // CORRECTION: Composant de fallback avec gestion de reconnexion améliorée
@@ -91,6 +91,15 @@ async function fetchSessionData(sessionId: string): Promise<{ data: SessionData 
                         }
                     }
                 },
+                activeQuiz: {
+                    include: {
+                        questions: {
+                            include: {
+                                options: true
+                            }
+                        }
+                    }
+                }
             },
         });
 
@@ -142,6 +151,7 @@ async function fetchSessionData(sessionId: string): Promise<{ data: SessionData 
             documentHistory: serializableDocumentHistory,
             startTime: session.startTime.toISOString(),
             endTime: session.endTime ? session.endTime.toISOString() : null,
+            activeQuiz: session.activeQuiz as Quiz | null,
         };
 
         console.log(`✅ [SESSION PAGE] Données de session récupérées avec succès pour: ${sessionId}`);
@@ -185,6 +195,7 @@ async function SessionContent({ sessionId }: { sessionId: string }) {
             currentUserRole={userSession.user.role as Role}
             classroom={sessionData.classroom}
             initialDocumentHistory={sessionData.documentHistory}
+            initialActiveQuiz={sessionData.activeQuiz}
         />
     );
 }
@@ -253,5 +264,3 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
     };
   }
 }
-
-    

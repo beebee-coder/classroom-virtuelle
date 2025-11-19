@@ -18,6 +18,7 @@ import Ably, { type Types } from 'ably';
 import { getSessionChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
 import { ablyTrigger } from '@/lib/ably/triggers';
+import { updateStudentSessionStatus, broadcastActiveTool, broadcastTimerEvent, startQuiz, submitQuizResponse, endQuiz } from '@/lib/actions/ably-session.actions';
 
 // Importation statique
 import { TeacherSessionView } from './session/TeacherSessionView';
@@ -95,6 +96,7 @@ export default function SessionClient({
   currentUserId,
   classroom,
   initialDocumentHistory = [],
+  initialActiveQuiz = null,
 }: SessionClientProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -148,7 +150,7 @@ export default function SessionClient({
   const [whiteboardOperations, setWhiteboardOperations] = useState<WhiteboardOperation[]>([]);
 
   // Nouveaux états pour le quiz
-  const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
+  const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(initialActiveQuiz);
   const [quizResponses, setQuizResponses] = useState<Map<string, QuizResponse>>(new Map());
   const [quizResults, setQuizResults] = useState<QuizResults | null>(null);
   
@@ -1024,6 +1026,7 @@ export default function SessionClient({
 
         channel.subscribe(AblyEvents.QUIZ_ENDED, (msg) => {
             if (isMountedRef.current) {
+                setActiveQuiz(null);
                 setQuizResults(msg.data.results);
             }
         });
@@ -1107,59 +1110,17 @@ export default function SessionClient({
 
   const handleLeaveSession = useCallback(() => router.push(currentUserRole === Role.PROFESSEUR ? '/teacher/dashboard' : '/student/dashboard'), [router, currentUserRole]);
   
-  // Minuteur
-  const handleStartTimer = useCallback(async () => {
-    if (currentUserRole !== 'PROFESSEUR') return;
-    setIsTimerRunning(true);
-    await ablyTrigger(getSessionChannelName(sessionId), AblyEvents.TIMER_STARTED, {});
-  }, [sessionId, currentUserRole]);
-
-  const handlePauseTimer = useCallback(async () => {
-    if (currentUserRole !== 'PROFESSEUR') return;
-    setIsTimerRunning(false);
-    await ablyTrigger(getSessionChannelName(sessionId), AblyEvents.TIMER_PAUSED, {});
-  }, [sessionId, currentUserRole]);
-
-  const handleResetTimer = useCallback(async (newDuration?: number) => {
-    if (currentUserRole !== 'PROFESSEUR') return;
-    const duration = validateTimerDuration(newDuration ?? timerDuration);
-    setIsTimerRunning(false);
-    setTimerTimeLeft(duration);
-    setTimerDuration(duration);
-    await ablyTrigger(getSessionChannelName(sessionId), AblyEvents.TIMER_RESET, { duration });
-  }, [sessionId, timerDuration, currentUserRole]);
-  
-  // Levée de main
   const handleToggleHandRaise = useCallback(async (isRaised: boolean) => {
-    const response = await fetch(`/api/session/${sessionId}/raise-hand`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: currentUserId, isRaised }),
-    });
+    await updateStudentSessionStatus(sessionId, { isHandRaised: isRaised });
+  }, [sessionId]);
 
-    if (response.ok) {
-        setRaisedHands(prev => { 
-            const newSet = new Set(prev); 
-            isRaised ? newSet.add(currentUserId) : newSet.delete(currentUserId); 
-            return newSet; 
-        });
-    }
-  }, [sessionId, currentUserId]);
-  
-  // Compréhension
   const handleUnderstandingChange = useCallback(async (status: ComprehensionLevel) => {
-    const newStatus = understandingStatus.get(currentUserId) === status ? ComprehensionLevel.NONE : status;
-    await ablyTrigger(getSessionChannelName(sessionId), AblyEvents.UNDERSTANDING_UPDATE, { userId: currentUserId, status: newStatus });
-    setUnderstandingStatus(prev => new Map(prev).set(currentUserId, newStatus));
-  }, [sessionId, currentUserId, understandingStatus]);
+    await updateStudentSessionStatus(sessionId, { understanding: status });
+  }, [sessionId]);
 
-  // Outils
-  const onToolChange = useCallback(async (tool: string) => { 
-    setActiveTool(tool); 
-    if (currentUserRole === Role.PROFESSEUR) {
-        await ablyTrigger(getSessionChannelName(sessionId), AblyEvents.ACTIVE_TOOL_CHANGED, { tool });
-    }
-  }, [sessionId, currentUserRole]);
+  const onToolChange = useCallback(async (tool: string) => {
+    await broadcastActiveTool(sessionId, tool);
+  }, [sessionId]);
   
   // Tableau blanc
   const handleWhiteboardControllerChange = useCallback(async (userId: string) => {
@@ -1204,11 +1165,11 @@ export default function SessionClient({
     }
   }, [sessionId, toast]);
 
-  const isHandRaisedValue = raisedHands.has(currentUserId);
-
   if (isComponentLoading) {
     return <SessionLoading />;
   }
+
+  const isHandRaised = raisedHands.has(currentUserId);
   
   // RENDU COMPLET
   return (
@@ -1253,17 +1214,22 @@ export default function SessionClient({
             onSelectDocument={handleSelectDocument}
             whiteboardControllerId={whiteboardControllerId} 
             onWhiteboardControllerChange={handleWhiteboardControllerChange}
-            initialDuration={timerDuration} 
+            initialDuration={initialDuration} 
             timerTimeLeft={timerTimeLeft} 
             isTimerRunning={isTimerRunning}
-            onStartTimer={handleStartTimer} 
-            onPauseTimer={handlePauseTimer} 
-            onResetTimer={handleResetTimer}
+            onStartTimer={() => broadcastTimerEvent(sessionId, 'timer-started')}
+            onPauseTimer={() => broadcastTimerEvent(sessionId, 'timer-paused')}
+            onResetTimer={(duration) => broadcastTimerEvent(sessionId, 'timer-reset', { duration })}
             onWhiteboardEvent={handleWhiteboardEvent} 
             whiteboardOperations={whiteboardOperations} 
             flushWhiteboardOperations={flushOperations}
             documentHistory={documentHistory}
             onDocumentShared={handleUploadSuccess}
+            activeQuiz={activeQuiz}
+            quizResponses={quizResponses}
+            quizResults={quizResults}
+            onStartQuiz={(quiz) => startQuiz(sessionId, quiz)}
+            onEndQuiz={(quizId) => endQuiz(sessionId, quizId)}
           />
         ) : (
           <StudentSessionView
@@ -1271,8 +1237,8 @@ export default function SessionClient({
             localStream={localStream} 
             spotlightedStream={spotlightedStream}
             spotlightedUser={spotlightedUser} 
-            isHandRaised={isHandRaisedValue}
-            onToggleHandRaise={() => handleToggleHandRaise(!isHandRaisedValue)}
+            isHandRaised={isHandRaised}
+            onToggleHandRaise={() => handleToggleHandRaise(!isHandRaised)}
             onUnderstandingChange={handleUnderstandingChange}
             onLeaveSession={handleLeaveSession} 
             currentUnderstanding={understandingStatus.get(currentUserId) || ComprehensionLevel.NONE}
@@ -1286,6 +1252,9 @@ export default function SessionClient({
             flushWhiteboardOperations={flushOperations}
             onlineMembersCount={onlineUserIds.length} 
             isPresenceConnected={isAblyConnected}
+            activeQuiz={activeQuiz}
+            onSubmitQuizResponse={(response) => submitQuizResponse(sessionId, response)}
+            quizResults={quizResults}
           />
         )}
       </main>
