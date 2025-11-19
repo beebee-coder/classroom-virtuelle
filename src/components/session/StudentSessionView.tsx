@@ -4,7 +4,7 @@
 import { useState, type ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Participant } from '@/components/Participant';
-import { SessionParticipant, DocumentInHistory, Html5CanvasScene, ComprehensionLevel, WhiteboardOperation, Role } from '@/types';
+import { SessionParticipant, DocumentInHistory, Html5CanvasScene, ComprehensionLevel, WhiteboardOperation, Role, Quiz, QuizResponse, QuizResults } from '@/types';
 import { Card, CardContent, CardHeader } from '../ui/card';
 import { Loader2, File, Users, Video, VideoOff } from 'lucide-react';
 import { StudentSessionControls } from './StudentSessionControls';
@@ -39,6 +39,9 @@ interface StudentSessionViewProps {
     flushWhiteboardOperations?: () => void;
     onlineMembersCount: number;
     isPresenceConnected: boolean;
+    activeQuiz: Quiz | null;
+    onSubmitQuizResponse: (response: QuizResponse) => Promise<{ success: boolean; }>;
+    quizResults: QuizResults | null;
 }
 
 export function StudentSessionView({
@@ -61,6 +64,9 @@ export function StudentSessionView({
     flushWhiteboardOperations,
     onlineMembersCount,
     isPresenceConnected,
+    activeQuiz,
+    onSubmitQuizResponse,
+    quizResults,
 }: StudentSessionViewProps) {
     const { toast } = useToast();
     const { data: session } = useSession();

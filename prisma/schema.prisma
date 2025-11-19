@@ -15,38 +15,40 @@ datasource db {
 // ===================================
 
 model User {
-  id              String        @id @default(cuid())
-  name            String?
-  email           String?       @unique
-  emailVerified   DateTime?
-  image           String?
-  password        String?
-  ambition        String?
-  points          Int           @default(0)
-  role            Role          @default(ELEVE)
-  accounts        Account[]
-  sessions        Session[]
-  
-  classeId        String?
-  classe          Classroom?    @relation(fields: [classeId], references: [id])
-  
-  etat            EtatEleve?
-  
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  ambition      String?
+  points        Int       @default(0)
+  role          Role      @default(ELEVE)
+  accounts      Account[]
+  sessions      Session[]
+
+  classeId String?
+  classe   Classroom? @relation(fields: [classeId], references: [id])
+
+  etat EtatEleve?
+
   studentProgress StudentProgress[]
   announcements   Announcement[]
   reactions       Reaction[]
-  sentMessages    Message[]     @relation("Sender")
+  sentMessages    Message[]         @relation("Sender")
 
-  createdClasses  Classroom[]   @relation("Teacher")
+  createdClasses  Classroom[]    @relation("Teacher")
   createdSessions CoursSession[] @relation("Teacher")
 
-  parentPassword  String?
+  parentPassword String?
 
   quizzes         Quiz[]
   sharedDocuments SharedDocument[]
 
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  CoursSession   CoursSession? @relation(fields: [coursSessionId], references: [id])
+  coursSessionId String?
 }
 
 enum Role {
@@ -55,46 +57,46 @@ enum Role {
 }
 
 model Classroom {
-  id            String    @id @default(cuid())
+  id            String         @id @default(cuid())
   nom           String
   professeurId  String
-  professeur    User      @relation("Teacher", fields: [professeurId], references: [id])
+  professeur    User           @relation("Teacher", fields: [professeurId], references: [id])
   eleves        User[]
   sessions      CoursSession[]
   announcements Announcement[]
 
-  subject       String?   // Ex: 'MATH', 'LANGUAGE', etc.
+  subject String? // Ex: 'MATH', 'LANGUAGE', etc.
 
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model CoursSession {
-  id             String    @id @default(cuid())
-  startTime      DateTime  @default(now())
-  endTime        DateTime?
-  professeurId   String
-  professeur     User      @relation("Teacher", fields: [professeurId], references: [id])
-  classroomId    String
-  classe         Classroom @relation(fields: [classroomId], references: [id])
-  participants   User[]    
-  activeQuizId   String?   @unique // ID du quiz en cours
-  activeQuiz     Quiz?     @relation(fields: [activeQuizId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  id           String    @id @default(cuid())
+  startTime    DateTime  @default(now())
+  endTime      DateTime?
+  professeurId String
+  professeur   User      @relation("Teacher", fields: [professeurId], references: [id])
+  classroomId  String
+  classe       Classroom @relation(fields: [classroomId], references: [id])
+  participants User[]
+  activeQuizId String?   @unique // ID du quiz en cours
+  activeQuiz   Quiz?     @relation(fields: [activeQuizId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model EtatEleve {
-  id              String    @id @default(cuid())
-  eleveId         String    @unique
-  eleve           User      @relation(fields: [eleveId], references: [id])
-  isPunished      Boolean   @default(false)
-  metierId        String?
-  metier          Metier?   @relation(fields: [metierId], references: [id])
-  
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id         String  @id @default(cuid())
+  eleveId    String  @unique
+  eleve      User    @relation(fields: [eleveId], references: [id])
+  isPunished Boolean @default(false)
+  metierId   String?
+  metier     Metier? @relation(fields: [metierId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Metier {
@@ -107,7 +109,7 @@ model Metier {
 }
 
 model Task {
-  id              String         @id @default(cuid())
+  id              String            @id @default(cuid())
   title           String
   description     String
   points          Int
@@ -115,12 +117,12 @@ model Task {
   category        TaskCategory
   difficulty      TaskDifficulty
   validationType  ValidationType
-  requiresProof   Boolean        @default(false)
-  isActive        Boolean        @default(true)
+  requiresProof   Boolean           @default(false)
+  isActive        Boolean           @default(true)
   studentProgress StudentProgress[]
-  
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum TaskType {
@@ -161,11 +163,11 @@ model StudentProgress {
   completionDate DateTime?
   pointsAwarded  Int?
   submissionUrl  String?
-  feedback       Json?          // Pour stocker le feedback détaillé des parents/prof
-  recipeName     String?        // Champ spécifique pour la tâche de cuisine
-  
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  feedback       Json? // Pour stocker le feedback détaillé des parents/prof
+  recipeName     String? // Champ spécifique pour la tâche de cuisine
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([studentId, taskId])
 }
@@ -178,16 +180,16 @@ enum ProgressStatus {
 }
 
 model Announcement {
-  id            String    @id @default(cuid())
+  id            String     @id @default(cuid())
   title         String
   content       String
   authorId      String
-  author        User      @relation(fields: [authorId], references: [id])
+  author        User       @relation(fields: [authorId], references: [id])
   classeId      String?
   classe        Classroom? @relation(fields: [classeId], references: [id])
   attachmentUrl String?
 
-  createdAt     DateTime  @default(now())
+  createdAt DateTime @default(now())
 }
 
 model Message {
@@ -198,35 +200,35 @@ model Message {
   sender      User       @relation("Sender", fields: [senderId], references: [id])
   reactions   Reaction[]
 
-  createdAt   DateTime   @default(now())
+  createdAt DateTime @default(now())
 }
 
 model Reaction {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   emoji     String
   messageId String
-  message   Message  @relation(fields: [messageId], references: [id])
+  message   Message @relation(fields: [messageId], references: [id])
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User    @relation(fields: [userId], references: [id])
 
   @@unique([messageId, userId, emoji])
 }
 
 model Quiz {
-  id          String        @id @default(cuid())
+  id          String         @id @default(cuid())
   title       String
   questions   QuizQuestion[]
   createdById String
-  createdBy   User          @relation(fields: [createdById], references: [id])
-  createdAt   DateTime      @default(now())
+  createdBy   User           @relation(fields: [createdById], references: [id])
+  createdAt   DateTime       @default(now())
   session     CoursSession?
 }
 
 model QuizQuestion {
-  id              String        @id @default(cuid())
+  id              String       @id @default(cuid())
   text            String
   quizId          String
-  quiz            Quiz          @relation(fields: [quizId], references: [id])
+  quiz            Quiz         @relation(fields: [quizId], references: [id])
   options         QuizOption[]
   correctOptionId String
 }

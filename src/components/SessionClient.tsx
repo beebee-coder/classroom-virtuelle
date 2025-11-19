@@ -7,12 +7,11 @@ import type { Instance as PeerInstance, SignalData as PeerSignalData } from 'sim
 import SimplePeer from 'simple-peer';
 import { useToast } from '@/hooks/use-toast';
 import { User, Role } from '@prisma/client';
-import type { SessionClientProps, IncomingSignalData, SignalPayload, SessionParticipant, DocumentInHistory, WhiteboardOperation, Quiz, QuizResponse, QuizResults } from '@/types';
+import type { SessionClientProps, IncomingSignalData, SignalPayload, SessionParticipant, DocumentInHistory, WhiteboardOperation, Quiz, QuizResponse, QuizResults, ComprehensionLevel } from '@/types';
 import SessionLoading from './SessionLoading';
 import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';
 import { endCoursSession, shareDocumentToStudents, saveAndShareDocument } from '@/lib/actions/session.actions';
-import { ComprehensionLevel } from '@/types';
 import { useAbly } from '@/hooks/useAbly';
 import Ably, { type Types } from 'ably';
 import { getSessionChannelName } from '@/lib/ably/channels';
@@ -1114,7 +1113,7 @@ export default function SessionClient({
   // Gestion des participants
   const onSpotlightParticipant = useCallback(async (participantId: string) => {
     if (currentUserRole !== Role.PROFESSEUR) return;
-    await ablyTrigger(getSessionChannelName(sessionId), AblyEvents.PARTICIPANT_SPOTLIGHTED, { participantId });
+    ablyTrigger(getSessionChannelName(sessionId), AblyEvents.PARTICIPANT_SPOTLIGHTED, { participantId });
   }, [sessionId, currentUserRole]);
   
   // Fin de session
@@ -1132,22 +1131,22 @@ export default function SessionClient({
   const handleLeaveSession = useCallback(() => router.push(currentUserRole === Role.PROFESSEUR ? '/teacher/dashboard' : '/student/dashboard'), [router, currentUserRole]);
   
   const handleToggleHandRaise = useCallback(async (isRaised: boolean) => {
-    await updateStudentSessionStatus(sessionId, { isHandRaised: isRaised });
+    updateStudentSessionStatus(sessionId, { isHandRaised: isRaised });
   }, [sessionId]);
 
   const handleUnderstandingChange = useCallback(async (status: ComprehensionLevel) => {
-    await updateStudentSessionStatus(sessionId, { understanding: status });
+    updateStudentSessionStatus(sessionId, { understanding: status });
   }, [sessionId]);
 
   const onToolChange = useCallback(async (tool: string) => {
-    await broadcastActiveTool(sessionId, tool);
+    broadcastActiveTool(sessionId, tool);
   }, [sessionId]);
   
   // Tableau blanc
   const handleWhiteboardControllerChange = useCallback(async (userId: string) => {
     if (currentUserRole === Role.PROFESSEUR) {
       const newControllerId = userId === whiteboardControllerId ? initialTeacher?.id || null : userId;
-      await ablyTrigger(getSessionChannelName(sessionId), AblyEvents.WHITEBOARD_CONTROLLER_UPDATE, { controllerId: newControllerId });
+      ablyTrigger(getSessionChannelName(sessionId), AblyEvents.WHITEBOARD_CONTROLLER_UPDATE, { controllerId: newControllerId });
     }
   }, [sessionId, currentUserRole, whiteboardControllerId, initialTeacher?.id]);
 
@@ -1218,7 +1217,7 @@ export default function SessionClient({
             sessionId={sessionId} 
             localStream={localStream} 
             screenStream={screenStream}
-            remoteParticipants={remoteParticipants} 
+            remoteParticipants={remoteParticipants as { id: string; stream: MediaStream; }[]} 
             spotlightedUser={spotlightedUser}
             allSessionUsers={[initialTeacher, ...initialStudents].filter(Boolean) as SessionParticipant[]}
             onlineUserIds={onlineUserIds} 
@@ -1226,7 +1225,6 @@ export default function SessionClient({
             raisedHands={raisedHands}
             understandingStatus={understandingStatus} 
             currentUserId={currentUserId} 
-            onScreenShare={toggleScreenShare}
             isSharingScreen={isSharingScreen} 
             activeTool={activeTool} 
             onToolChange={onToolChange}
@@ -1235,7 +1233,7 @@ export default function SessionClient({
             onSelectDocument={handleSelectDocument}
             whiteboardControllerId={whiteboardControllerId} 
             onWhiteboardControllerChange={handleWhiteboardControllerChange}
-            initialDuration={initialDuration || INITIAL_TIMER_DURATION}
+            initialDuration={INITIAL_TIMER_DURATION}
             timerTimeLeft={timerTimeLeft} 
             isTimerRunning={isTimerRunning}
             onStartTimer={() => broadcastTimerEvent(sessionId, 'timer-started')}

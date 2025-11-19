@@ -3,7 +3,7 @@
 import React, { useState, type ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { User, Role } from '@prisma/client';
-import type { SessionParticipant, ClassroomWithDetails, DocumentInHistory, Html5CanvasScene, ComprehensionLevel, WhiteboardOperation } from '@/types';
+import type { SessionParticipant, ClassroomWithDetails, DocumentInHistory, Html5CanvasScene, ComprehensionLevel, WhiteboardOperation, Quiz, QuizResponse, QuizResults } from '@/types';
 import { Participant } from '@/components/Participant';
 import { StudentPlaceholder } from '../StudentPlaceholder';
 import { HandRaiseController } from '../HandRaiseController';
@@ -31,7 +31,7 @@ interface TeacherSessionViewProps {
     sessionId: string;
     localStream: MediaStream | null;
     screenStream: MediaStream | null;
-    remoteParticipants: { id: string; stream: MediaStream | undefined }[];
+    remoteParticipants: { id: string; stream: MediaStream; }[];
     spotlightedUser: SessionParticipant | undefined | null;
     allSessionUsers: SessionParticipant[];
     onlineUserIds: string[];
@@ -39,7 +39,6 @@ interface TeacherSessionViewProps {
     raisedHands: Set<string>;
     understandingStatus: Map<string, ComprehensionLevel>;
     currentUserId: string;
-    onScreenShare: () => void;
     isSharingScreen: boolean;
     activeTool: string;
     onToolChange: (tool: string) => void;
@@ -59,6 +58,11 @@ interface TeacherSessionViewProps {
     flushWhiteboardOperations?: () => void;
     documentHistory: DocumentInHistory[];
     onDocumentShared: (doc: { name: string; url: string }) => void;
+    activeQuiz: Quiz | null;
+    quizResponses: Map<string, QuizResponse>;
+    quizResults: QuizResults | null;
+    onStartQuiz: (quiz: Omit<Quiz, 'id' | 'createdAt' | 'createdById'>) => Promise<{ success: boolean; error?: string; }>;
+    onEndQuiz: (quizId: string) => Promise<{ success: boolean; }>;
 }
 
 export function TeacherSessionView({
@@ -73,7 +77,6 @@ export function TeacherSessionView({
     raisedHands,
     understandingStatus,
     currentUserId,
-    onScreenShare,
     isSharingScreen,
     activeTool,
     onToolChange,
@@ -93,6 +96,11 @@ export function TeacherSessionView({
     flushWhiteboardOperations,
     documentHistory,
     onDocumentShared,
+    activeQuiz,
+    quizResponses,
+    quizResults,
+    onStartQuiz,
+    onEndQuiz,
 }: TeacherSessionViewProps) {
     const { toast } = useToast();
     const [teacherView, setTeacherView] = useState<'content' | 'grid'>('content');
