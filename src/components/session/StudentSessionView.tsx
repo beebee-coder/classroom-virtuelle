@@ -1,4 +1,4 @@
-// src/components/session/StudentSessionView.tsx - VERSION CORRIGÉE POUR AFFICHAGE CAMÉRA
+// src/components/session/StudentSessionView.tsx - VERSION CORRIGÉE POUR AFFICHAGE CAMÉRA PROFESSEUR
 'use client';
 
 import { useState, type ReactNode, useEffect, useMemo, useCallback } from 'react';
@@ -156,20 +156,54 @@ export function StudentSessionView({
         }
     }, [flushWhiteboardOperations]);
 
-    // ✅ CORRECTION : Fonction pour vérifier l'état du stream
+    // ✅ CORRECTION AMÉLIORÉE : Fonction pour vérifier l'état du stream
     const isStreamValid = useCallback((stream: MediaStream | null): boolean => {
-        if (!stream) return false;
-        if (!stream.active) return false;
+        if (!stream) {
+            console.log(`❌ [STREAM CHECK] - Stream is null`);
+            return false;
+        }
+        
+        if (!stream.active) {
+            console.log(`❌ [STREAM CHECK] - Stream is not active`);
+            return false;
+        }
         
         const videoTracks = stream.getVideoTracks();
         const audioTracks = stream.getAudioTracks();
         
-        const hasActiveVideo = videoTracks.some(track => track.readyState === 'live' && track.enabled);
-        const hasActiveAudio = audioTracks.some(track => track.readyState === 'live' && track.enabled);
+        console.log(`🔍 [STREAM CHECK] - Total tracks: ${videoTracks.length + audioTracks.length}, Video: ${videoTracks.length}, Audio: ${audioTracks.length}`);
         
-        console.log(`🔍 [STREAM CHECK] - Video: ${hasActiveVideo}, Audio: ${hasActiveAudio}, Tracks: ${videoTracks.length + audioTracks.length}`);
+        // ✅ CORRECTION CRITIQUE : Vérifier chaque track individuellement
+        const validVideoTracks = videoTracks.filter(track => {
+            const isValid = track.readyState === 'live' && track.enabled;
+            console.log(`🎥 [TRACK CHECK] - Video track: readyState=${track.readyState}, enabled=${track.enabled}, muted=${track.muted}, valid=${isValid}`);
+            return isValid;
+        });
         
-        return hasActiveVideo || hasActiveAudio;
+        const validAudioTracks = audioTracks.filter(track => {
+            const isValid = track.readyState === 'live' && track.enabled;
+            console.log(`🎤 [TRACK CHECK] - Audio track: readyState=${track.readyState}, enabled=${track.enabled}, muted=${track.muted}, valid=${isValid}`);
+            return isValid;
+        });
+        
+        const hasValidTracks = validVideoTracks.length > 0 || validAudioTracks.length > 0;
+        
+        console.log(`✅ [STREAM CHECK] - Valid video tracks: ${validVideoTracks.length}, Valid audio tracks: ${validAudioTracks.length}, Stream valid: ${hasValidTracks}`);
+        
+        return hasValidTracks;
+    }, []);
+
+    // ✅ NOUVELLE FONCTION : Vérification spécifique pour l'affichage vidéo
+    const canDisplayVideo = useCallback((stream: MediaStream | null): boolean => {
+        if (!stream || !stream.active) return false;
+        
+        const videoTracks = stream.getVideoTracks();
+        const hasActiveVideo = videoTracks.some(track => 
+            track.readyState === 'live' && track.enabled && !track.muted
+        );
+        
+        console.log(`📺 [VIDEO DISPLAY] - Can display video: ${hasActiveVideo}, Tracks: ${videoTracks.length}`);
+        return hasActiveVideo;
     }, []);
 
     const renderMainContent = useCallback(() => {
@@ -205,72 +239,62 @@ export function StudentSessionView({
                 );
             case 'camera':
             default:
-                // ✅ CORRECTION : Vérification améliorée du stream spotlighted
+                // ✅ CORRECTION AMÉLIORÉE : Vérifications séparées
                 const hasValidSpotlightedStream = isStreamValid(spotlightedStream);
+                const canDisplaySpotlightedVideo = canDisplayVideo(spotlightedStream);
                 const hasValidLocalStream = isStreamValid(localStream);
 
-                console.log(`📹 [CAMERA VIEW] - Spotlighted stream valid: ${hasValidSpotlightedStream}, Local stream valid: ${hasValidLocalStream}`);
+                console.log(`📹 [CAMERA VIEW] - Spotlighted: valid=${hasValidSpotlightedStream}, displayable=${canDisplaySpotlightedVideo}, Local: valid=${hasValidLocalStream}`);
 
-                if (!spotlightedUser) {
+                // ✅ CORRECTION : Afficher le stream même si le user n'est pas défini (cas du professeur)
+                if (!hasValidSpotlightedStream) {
                     return (
                         <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/30 border-dashed">
                             <CardContent className="text-center text-muted-foreground p-6">
-                                <Users className="h-10 w-10 mx-auto mb-4" />
-                                <h3 className="font-semibold text-xl">En attente du professeur...</h3>
-                                <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium mt-2 ${
-                                    isPresenceConnected 
-                                        ? 'bg-green-100 text-green-800 border border-green-200' 
-                                        : 'bg-yellow-100 text-yellow-800 border border-yellow-200'
-                                }`}>
-                                    {isPresenceConnected 
-                                        ? `✅ Connecté à la classe (${onlineMembersCount} en ligne)` 
-                                        : '⏳ Connexion en cours...'
-                                    }
+                                <div className="flex flex-col items-center gap-3">
+                                    <VideoOff className="h-12 w-12 mx-auto text-orange-500" />
+                                    <div>
+                                        <h3 className="font-semibold text-xl mb-2">
+                                            {spotlightedUser ? `${spotlightedUser.name} se connecte` : 'En attente du professeur...'}
+                                        </h3>
+                                        <p className="text-sm text-muted-foreground">
+                                            {spotlightedUser ? 'Connexion vidéo en cours...' : 'Le professeur rejoindra bientôt la session'}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs text-orange-600">
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                        <span>Établissement de la connexion WebRTC</span>
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>
                     );
                 }
 
-                if (!hasValidSpotlightedStream) {
-                  return (
-                    <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/30 border-dashed">
-                        <CardContent className="text-center text-muted-foreground p-6">
-                            <div className="flex flex-col items-center gap-3">
-                                <VideoOff className="h-12 w-12 mx-auto text-orange-500" />
-                                <div>
-                                    <h3 className="font-semibold text-xl mb-2">Connexion vidéo en cours...</h3>
-                                    <p className="text-sm text-muted-foreground">
-                                        {spotlightedUser.name} se connecte
-                                    </p>
-                                </div>
-                                <div className="flex items-center gap-2 text-xs text-orange-600">
-                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                    <span>Établissement de la connexion WebRTC</span>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                  );
-                }
-
+                // ✅ CORRECTION CRITIQUE : Toujours afficher le stream spotlighted s'il est valide
                 return (
-                    <div className="w-full h-full relative">
+                    <div className="w-full h-full relative bg-black">
                         {/* ✅ CORRECTION : Indicateur de statut de stream */}
                         <div className="absolute top-3 right-3 z-10">
                             <div className="bg-black/70 text-white px-2 py-1 rounded-md text-xs flex items-center gap-1">
                                 <Video className="h-3 w-3" />
-                                <span>En direct - {spotlightedUser.name}</span>
+                                <span>
+                                    {spotlightedUser ? `En direct - ${spotlightedUser.name}` : 'En direct - Professeur'}
+                                </span>
+                                {!canDisplaySpotlightedVideo && (
+                                    <span className="text-orange-300">(Audio seulement)</span>
+                                )}
                             </div>
                         </div>
                         
+                        {/* ✅ CORRECTION : Participant avec fallback pour user non défini */}
                         <Participant 
                             stream={spotlightedStream}
                             isLocal={false} 
                             isSpotlighted={true}
-                            isTeacher={spotlightedUser.role === Role.PROFESSEUR}
-                            participantUserId={spotlightedUser?.id ?? ''}
-                            displayName={spotlightedUser?.name ?? 'Participant'}
+                            isTeacher={spotlightedUser?.role === Role.PROFESSEUR || !spotlightedUser} // Fallback pour professeur
+                            participantUserId={spotlightedUser?.id ?? 'professor'}
+                            displayName={spotlightedUser?.name ?? 'Professeur'}
                             isHandRaised={isHandRaised}
                         />
                     </div>
@@ -291,6 +315,7 @@ export function StudentSessionView({
         handleWhiteboardEvent,
         handleFlushWhiteboardOperations,
         isStreamValid,
+        canDisplayVideo,
         localStream
     ]);
     
@@ -309,16 +334,16 @@ export function StudentSessionView({
                     <ScrollArea className="flex-1 pr-3 -mr-3">
                          <div className="space-y-4">
                              {/* ✅ CORRECTION : Afficher le stream spotlighted dans la sidebar quand ce n'est pas l'outil principal */}
-                             {activeTool !== 'camera' && spotlightedUser && isStreamValid(spotlightedStream) && (
-                                <AnimatedCard title={spotlightedUser.name || "Professeur"}>
+                             {activeTool !== 'camera' && isStreamValid(spotlightedStream) && (
+                                <AnimatedCard title={spotlightedUser?.name || "Professeur"}>
                                     <div className="p-2">
                                          <Participant
                                             stream={spotlightedStream}
                                             isLocal={false} 
                                             isSpotlighted={false}
-                                            isTeacher={spotlightedUser.role === Role.PROFESSEUR}
-                                            participantUserId={spotlightedUser.id}
-                                            displayName={spotlightedUser.name || "Professeur"}
+                                            isTeacher={spotlightedUser?.role === Role.PROFESSEUR || !spotlightedUser}
+                                            participantUserId={spotlightedUser?.id ?? 'professor'}
+                                            displayName={spotlightedUser?.name || "Professeur"}
                                         />
                                     </div>
                                 </AnimatedCard>

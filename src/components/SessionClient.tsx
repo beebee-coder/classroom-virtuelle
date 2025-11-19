@@ -1081,23 +1081,26 @@ export default function SessionClient({
   const handleLeaveSession = useCallback(() => router.push(currentUserRole === Role.PROFESSEUR ? '/teacher/dashboard' : '/student/dashboard'), [router, currentUserRole]);
   
   // Minuteur
-  const handleStartTimer = useCallback(async () => { 
-    setIsTimerRunning(true); 
-    await ablyTrigger(getSessionChannelName(sessionId), 'timer-started' as any, {});
-  }, [sessionId]);
-  
-  const handlePauseTimer = useCallback(async () => { 
-    setIsTimerRunning(false); 
-    await ablyTrigger(getSessionChannelName(sessionId), 'timer-paused' as any, {});
-  }, [sessionId]);
-  
+  const handleStartTimer = useCallback(async () => {
+    if (currentUserRole !== 'PROFESSEUR') return;
+    setIsTimerRunning(true);
+    await ablyTrigger(getSessionChannelName(sessionId), AblyEvents.TIMER_STARTED, {});
+  }, [sessionId, currentUserRole]);
+
+  const handlePauseTimer = useCallback(async () => {
+    if (currentUserRole !== 'PROFESSEUR') return;
+    setIsTimerRunning(false);
+    await ablyTrigger(getSessionChannelName(sessionId), AblyEvents.TIMER_PAUSED, {});
+  }, [sessionId, currentUserRole]);
+
   const handleResetTimer = useCallback(async (newDuration?: number) => {
+    if (currentUserRole !== 'PROFESSEUR') return;
     const duration = validateTimerDuration(newDuration ?? timerDuration);
-    setIsTimerRunning(false); 
-    setTimerTimeLeft(duration); 
+    setIsTimerRunning(false);
+    setTimerTimeLeft(duration);
     setTimerDuration(duration);
-    await ablyTrigger(getSessionChannelName(sessionId), 'timer-reset' as any, { duration });
-  }, [sessionId, timerDuration]);
+    await ablyTrigger(getSessionChannelName(sessionId), AblyEvents.TIMER_RESET, { duration });
+  }, [sessionId, timerDuration, currentUserRole]);
   
   // Levée de main
   const handleToggleHandRaise = useCallback(async (isRaised: boolean) => {
@@ -1240,7 +1243,7 @@ export default function SessionClient({
             spotlightedStream={spotlightedStream}
             spotlightedUser={spotlightedUser} 
             isHandRaised={raisedHands.has(currentUserId)}
-            onToggleHandRaise={() => handleToggleHandRaise(!isHandRaised)}
+            onToggleHandRaise={() => handleToggleHandRaise(!raisedHands.has(currentUserId))}
             onUnderstandingChange={handleUnderstandingChange}
             onLeaveSession={handleLeaveSession} 
             currentUnderstanding={understandingStatus.get(currentUserId) || ComprehensionLevel.NONE}
