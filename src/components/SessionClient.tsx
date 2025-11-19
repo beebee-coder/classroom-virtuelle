@@ -541,7 +541,7 @@ export default function SessionClient({
         });
         return undefined;
     }
-}, [sessionId, currentUserId, cleanupPeerConnection]);
+  }, [sessionId, currentUserId, cleanupPeerConnection]);
 
   // Initialisation des médias
   useEffect(() => {
@@ -864,23 +864,22 @@ export default function SessionClient({
   }, []);
 
   const handleHandRaiseUpdate = useCallback((message: Types.Message) => {
-    if (isMountedRef.current) {
-      const { userId, isRaised } = message.data;
-      setHandRaiseQueue(prev => {
+    if (!isMountedRef.current) return;
+    const { userId, isRaised } = message.data;
+    setHandRaiseQueue(prev => {
         const newQueue = prev.filter(id => id !== userId);
         if (isRaised) {
           newQueue.push(userId);
         }
         return newQueue;
       });
-    }
   }, []);
 
   const handleHandAcknowledged = useCallback((message: Types.Message) => {
     if (isMountedRef.current) {
-      const { userId } = message.data;
-      setHandRaiseQueue(prev => prev.filter(id => id !== userId));
-    }
+        const { userId } = message.data;
+        setHandRaiseQueue(prev => prev.filter(id => id !== userId));
+      }
   }, []);
 
   const handleUnderstandingUpdate = useCallback((message: Types.Message) => {
@@ -1164,9 +1163,17 @@ export default function SessionClient({
   const handleWhiteboardControllerChange = useCallback(async (userId: string) => {
     if (currentUserRole === Role.PROFESSEUR) {
       const newControllerId = userId === whiteboardControllerId ? initialTeacher?.id || null : userId;
-      ablyTrigger(getSessionChannelName(sessionId), AblyEvents.WHITEBOARD_CONTROLLER_UPDATE, { controllerId: newControllerId });
+      const response = await fetch(`/api/session/${sessionId}/whiteboard-controller`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ controllerId: newControllerId }),
+      });
+
+      if (!response.ok) {
+        toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de changer le contrôleur du tableau blanc.' });
+      }
     }
-  }, [sessionId, currentUserRole, whiteboardControllerId, initialTeacher?.id]);
+  }, [sessionId, currentUserRole, whiteboardControllerId, initialTeacher?.id, toast]);
 
   const handleWhiteboardEvent = useCallback((ops: WhiteboardOperation[]) => sendOperation(ops), [sendOperation]);
 
@@ -1202,11 +1209,13 @@ export default function SessionClient({
       toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de partager le document' });
     }
   }, [sessionId, toast]);
+  
+  const allSessionUsers = useMemo(() => [initialTeacher, ...initialStudents].filter(Boolean), [initialTeacher, initialStudents]);
 
   if (isComponentLoading) {
     return <SessionLoading />;
   }
-
+  
   const isHandRaised = handRaiseQueue.includes(currentUserId);
   const raisedHandUsers = useMemo(() => 
     handRaiseQueue.map(userId => allSessionUsers.find(u => u.id === userId)).filter(Boolean) as User[], 
@@ -1241,7 +1250,7 @@ export default function SessionClient({
             screenStream={screenStream}
             remoteParticipants={remoteParticipants as { id: string; stream: MediaStream; }[]} 
             spotlightedUser={spotlightedUser}
-            allSessionUsers={[initialTeacher, ...initialStudents].filter(Boolean) as SessionParticipant[]}
+            allSessionUsers={allSessionUsers as SessionParticipant[]}
             onlineUserIds={onlineUserIds} 
             onSpotlightParticipant={onSpotlightParticipant} 
             raisedHandQueue={raisedHandUsers}
