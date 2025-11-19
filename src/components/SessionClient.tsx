@@ -1210,7 +1210,7 @@ export default function SessionClient({
     }
   }, [sessionId, toast]);
   
-  const allSessionUsers = useMemo(() => [initialTeacher, ...initialStudents].filter(Boolean), [initialTeacher, initialStudents]);
+  const allSessionUsers = useMemo(() => [initialTeacher, ...initialStudents].filter(Boolean) as User[], [initialTeacher, initialStudents]);
 
   if (isComponentLoading) {
     return <SessionLoading />;
