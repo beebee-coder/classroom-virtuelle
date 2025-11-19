@@ -76,7 +76,7 @@ export function StudentSessionControls({
           <AccordionTrigger className="p-6">
             <CardTitle className="text-lg flex items-center gap-2">
               <HelpCircle className="h-5 w-5" />
-              Ma Compréhension
+              Sondage Rapide
             </CardTitle>
           </AccordionTrigger>
           <AccordionContent>

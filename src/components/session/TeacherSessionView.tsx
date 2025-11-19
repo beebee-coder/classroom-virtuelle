@@ -6,7 +6,7 @@ import type { SessionParticipant, ClassroomWithDetails, DocumentInHistory, Html5
 import { Participant } from '@/components/Participant';
 import { StudentPlaceholder } from '../StudentPlaceholder';
 import { HandRaiseController } from '../HandRaiseController';
-import { UnderstandingTracker } from '../UnderstandingTracker';
+import { QuickPollResults } from './QuickPollResults';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { ClassStudentList } from './ClassStudentList';
 import { Loader2, UploadCloud, File, Trash2, Share2, Award, Users, Grid, Presentation, MessageSquare, PanelRightOpen, PanelRightClose } from 'lucide-react';
@@ -561,8 +561,8 @@ export function TeacherSessionView({
                         )}
 
                         {/* Suivi de la Compréhension */}
-                        <AnimatedCard title="Suivi de la Compréhension">
-                            <UnderstandingTracker students={students} understandingStatus={understandingStatus} />
+                        <AnimatedCard title="Sondage de Compréhension">
+                            <QuickPollResults students={students} understandingStatus={understandingStatus} />
                         </AnimatedCard>
 
                         {/* Mains Levées */}
