@@ -105,38 +105,41 @@ export async function broadcastTimerEvent(sessionId: string, event: 'timer-start
 
 // --- Quiz Actions ---
 
-export async function startQuiz(sessionId: string, quiz: Quiz): Promise<{ success: boolean; error?: string }> {
+export async function startQuiz(sessionId: string, quizData: Omit<Quiz, 'id' | 'createdAt' | 'createdById'>): Promise<{ success: boolean; error?: string }> {
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== Role.PROFESSEUR) {
     return { success: false, error: 'Only teachers can start a quiz' };
   }
   
   try {
-    const [newQuiz, updatedSession] = await prisma.$transaction([
-      prisma.quiz.create({
-        data: {
-          title: quiz.title,
-          createdById: session.user.id,
-          questions: {
-            create: quiz.questions.map(q => ({
-              text: q.text,
-              correctOptionId: q.correctOptionId,
-              options: {
-                create: q.options.map(o => ({
-                  id: o.id,
-                  text: o.text,
+    const newQuiz = await prisma.$transaction(async (tx) => {
+        const createdQuiz = await tx.quiz.create({
+            data: {
+              title: quizData.title,
+              createdById: session.user!.id,
+              questions: {
+                create: quizData.questions.map(q => ({
+                  text: q.text,
+                  correctOptionId: q.correctOptionId,
+                  options: {
+                    create: q.options.map(o => ({
+                      id: o.id,
+                      text: o.text,
+                    })),
+                  },
                 })),
               },
-            })),
-          },
-        },
-        include: { questions: { include: { options: true } } },
-      }),
-      prisma.coursSession.update({
-        where: { id: sessionId },
-        data: { activeQuizId: quiz.id },
-      }),
-    ]);
+            },
+            include: { questions: { include: { options: true } } },
+        });
+
+        await tx.coursSession.update({
+            where: { id: sessionId },
+            data: { activeQuizId: createdQuiz.id },
+        });
+        
+        return createdQuiz;
+    });
 
     const channel = getSessionChannelName(sessionId);
     await ablyTrigger(channel, AblyEvents.QUIZ_STARTED, { quiz: newQuiz });
@@ -168,17 +171,14 @@ export async function endQuiz(sessionId: string, quizId: string): Promise<{ succ
   // Calculer les résultats ici (logique simplifiée)
   const results: QuizResults = {
     quizId: quizId,
-    scores: new Map(),
-    responses: new Map(),
+    scores: {},
+    responses: {},
   };
 
-  const [updatedSession] = await prisma.$transaction([
-    prisma.coursSession.update({
-        where: { id: sessionId },
-        data: { activeQuizId: null },
-    }),
-    // Potentiellement sauvegarder les résultats du quiz ici
-  ]);
+  await prisma.coursSession.update({
+      where: { id: sessionId },
+      data: { activeQuizId: null },
+  });
   
   const channel = getSessionChannelName(sessionId);
   await ablyTrigger(channel, AblyEvents.QUIZ_ENDED, { results });

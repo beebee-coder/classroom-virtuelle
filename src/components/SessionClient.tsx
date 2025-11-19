@@ -604,7 +604,7 @@ export default function SessionClient({
       mediaCleanupRef.current?.();
       console.log(`🧹 [LIFECYCLE] - UNMOUNT SessionClient for session: ${sessionId}`);
     };
-  }, [sessionId, currentUserId, cleanupPeerConnection]);
+  }, [sessionId, currentUserId, cleanupPeerConnection, screenStream]);
 
   // Gestion du partage d'écran
   useEffect(() => {
@@ -846,6 +846,130 @@ export default function SessionClient({
         }
     };
   }, [currentUserId, isSharingScreen, screenStream, localStream, createPeer]);
+  
+  const handleSessionEnded = useCallback(() => {
+    if (!isMountedRef.current) return;
+    console.log('🛑 [SESSION END] - Session ended event received.');
+    toast({ 
+      title: 'Session terminée', 
+      description: 'Le professeur a mis fin à la session.' 
+    });
+    router.push(currentUserRole === Role.PROFESSEUR ? '/teacher/dashboard' : '/student/dashboard');
+  }, [router, currentUserRole, toast]);
+
+  const handleSpotlight = useCallback((message: Types.Message) => {
+    if (isMountedRef.current) {
+      console.log(`🌟 [SPOTLIGHT] - Received spotlight for ${message.data.participantId}`);
+      setSpotlightedParticipantId(message.data.participantId);
+    }
+  }, []);
+
+  const handleHandRaiseUpdate = useCallback((message: Types.Message) => {
+    if (isMountedRef.current) {
+      setRaisedHands(prev => {
+          const newSet = new Set(prev);
+          message.data.isRaised ? newSet.add(message.data.userId) : newSet.delete(message.data.userId);
+          return newSet;
+      });
+    }
+  }, []);
+
+  const handleUnderstandingUpdate = useCallback((message: Types.Message) => {
+    if (isMountedRef.current) {
+      setUnderstandingStatus(prev => new Map(prev).set(message.data.userId, message.data.status));
+    }
+  }, []);
+
+  const handleActiveToolChange = useCallback((message: Types.Message) => {
+    if (isMountedRef.current) {
+      const validTools = ['camera', 'whiteboard', 'document', 'screen', 'chat', 'participants', 'quiz'];
+      const validatedTool = validTools.includes(message.data.tool) ? message.data.tool : 'camera';
+      setActiveTool(validatedTool);
+    }
+  }, []);
+
+  const handleDocumentShared = useCallback((message: Types.Message) => {
+    if (!isMountedRef.current) return;
+    const data = message.data;
+    if (data.sharedByUserId === currentUserId) return;
+    
+    setDocumentHistory(prev => {
+      const newDocument: DocumentInHistory = {
+        id: data.id,
+        name: data.name,
+        url: data.url,
+        createdAt: data.createdAt,
+        sharedBy: data.sharedBy,
+        coursSessionId: data.coursSessionId,
+      };
+      if (prev.some(doc => doc.id === newDocument.id)) return prev;
+      return [...prev, newDocument];
+    });
+    setDocumentUrl(data.url);
+    if (currentUserRole === Role.ELEVE) {
+      setActiveTool('document');
+      toast({ title: 'Document partagé', description: `${data.sharedBy} a partagé un nouveau document.` });
+    }
+  }, [currentUserId, currentUserRole, toast]);
+
+  const handleDocumentDeleted = useCallback((message: Types.Message) => {
+    if (!isMountedRef.current) return;
+    const { documentId, deletedBy } = message.data;
+    setDocumentHistory(prev => prev.filter(doc => doc.id !== documentId));
+    if (deletedBy !== currentUserId) {
+        toast({ title: 'Document supprimé' });
+    }
+  }, [currentUserId, toast]);
+
+  const handleWhiteboardControllerUpdate = useCallback((message: Types.Message) => {
+    if (isMountedRef.current) setWhiteboardControllerId(message.data.controllerId);
+  }, []);
+
+  const handleWhiteboardOperations = useCallback((message: Types.Message) => {
+    if (!isMountedRef.current) return;
+    const data = message.data;
+    if (data.userId !== currentUserId && Array.isArray(data.operations)) {
+        handleIncomingWhiteboardOperationsRef.current?.(data.operations);
+    }
+  }, [currentUserId]);
+
+  const handleTimerStarted = useCallback(() => {
+    if (isMountedRef.current) setIsTimerRunning(true);
+  }, []);
+
+  const handleTimerPaused = useCallback(() => {
+    if (isMountedRef.current) setIsTimerRunning(false);
+  }, []);
+
+  const handleTimerReset = useCallback((message: Types.Message) => {
+    if (isMountedRef.current) {
+      const duration = validateTimerDuration(message.data.duration);
+      setIsTimerRunning(false);
+      setTimerTimeLeft(duration);
+      setTimerDuration(duration);
+    }
+  }, []);
+
+  const handleQuizStarted = useCallback((message: Types.Message) => {
+    if (isMountedRef.current) {
+        setActiveQuiz(message.data.quiz);
+        setQuizResults(null);
+        setQuizResponses(new Map());
+    }
+  }, []);
+
+  const handleQuizResponse = useCallback((message: Types.Message) => {
+    if (isMountedRef.current) {
+        setQuizResponses(prev => new Map(prev).set(message.data.userId, message.data.response));
+    }
+  }, []);
+
+  const handleQuizEnded = useCallback((message: Types.Message) => {
+    if (isMountedRef.current) {
+        setActiveQuiz(null);
+        setQuizResults(message.data.results);
+    }
+  }, []);
 
   // Setup Ably complet
   useEffect(() => {
@@ -870,16 +994,6 @@ export default function SessionClient({
     const channelName = getSessionChannelName(sessionId);
     const channel = ablyClient.channels.get(channelName);
     channelRef.current = channel;
-
-    const handleSessionEnded = () => {
-        if (!isMountedRef.current) return;
-        console.log('🛑 [SESSION END] - Session ended event received.');
-        toast({ 
-          title: 'Session terminée', 
-          description: 'Le professeur a mis fin à la session.' 
-        });
-        router.push(currentUserRole === Role.PROFESSEUR ? '/teacher/dashboard' : '/student/dashboard');
-    };
 
     const setupPresence = async () => {
         try {
@@ -916,121 +1030,24 @@ export default function SessionClient({
         }
     };
 
-    const handleWhiteboardOperations = (message: Types.Message) => {
-        if (!isMountedRef.current) return;
-        const data = message.data;
-        if (data.userId !== currentUserId && Array.isArray(data.operations)) {
-            handleIncomingWhiteboardOperationsRef.current?.(data.operations);
-        }
-    };
-    
-    const handleDocumentShared = (message: Types.Message) => {
-      if (!isMountedRef.current) return;
-      const data = message.data;
-      if (data.sharedByUserId === currentUserId) return;
-      
-      setDocumentHistory(prev => {
-        const newDocument: DocumentInHistory = {
-          id: data.id,
-          name: data.name,
-          url: data.url,
-          createdAt: data.createdAt,
-          sharedBy: data.sharedBy,
-          coursSessionId: data.coursSessionId,
-        };
-        if (prev.some(doc => doc.id === newDocument.id)) return prev;
-        return [...prev, newDocument];
-      });
-      setDocumentUrl(data.url);
-      if (currentUserRole === Role.ELEVE) {
-        setActiveTool('document');
-        toast({ title: 'Document partagé', description: `${data.sharedBy} a partagé un nouveau document.` });
-      }
-    };
-    
-    const handleDocumentDeleted = (message: Types.Message) => {
-        if (!isMountedRef.current) return;
-        const { documentId, deletedBy } = message.data;
-        setDocumentHistory(prev => prev.filter(doc => doc.id !== documentId));
-        if (deletedBy !== currentUserId) {
-            toast({ title: 'Document supprimé' });
-        }
-    };
-
     const bindEvents = () => {
         console.log('🔗 [EVENTS] - Binding Ably channel events...');
         channel.subscribe(AblyEvents.SIGNAL, (msg) => handleSignalRef.current?.(msg));
         channel.subscribe(AblyEvents.SESSION_ENDED, handleSessionEnded);
-        channel.subscribe(AblyEvents.PARTICIPANT_SPOTLIGHTED, (msg) => {
-          if (isMountedRef.current) {
-            console.log(`🌟 [SPOTLIGHT] - Received spotlight for ${msg.data.participantId}`);
-            setSpotlightedParticipantId(msg.data.participantId);
-          }
-        });
-        channel.subscribe(AblyEvents.HAND_RAISE_UPDATE, (msg) => {
-          if (isMountedRef.current) {
-            setRaisedHands(prev => {
-                const newSet = new Set(prev);
-                msg.data.isRaised ? newSet.add(msg.data.userId) : newSet.delete(msg.data.userId);
-                return newSet;
-            });
-          }
-        });
-        channel.subscribe(AblyEvents.UNDERSTANDING_UPDATE, (msg) => {
-          if (isMountedRef.current) {
-            setUnderstandingStatus(prev => new Map(prev).set(msg.data.userId, msg.data.status));
-          }
-        });
-        channel.subscribe(AblyEvents.ACTIVE_TOOL_CHANGED, (msg) => {
-          if (isMountedRef.current) {
-            const validTools = ['camera', 'whiteboard', 'document', 'screen', 'chat', 'participants', 'quiz'];
-            const validatedTool = validTools.includes(msg.data.tool) ? msg.data.tool : 'camera';
-            setActiveTool(validatedTool);
-          }
-        });
+        channel.subscribe(AblyEvents.PARTICIPANT_SPOTLIGHTED, handleSpotlight);
+        channel.subscribe(AblyEvents.HAND_RAISE_UPDATE, handleHandRaiseUpdate);
+        channel.subscribe(AblyEvents.UNDERSTANDING_UPDATE, handleUnderstandingUpdate);
+        channel.subscribe(AblyEvents.ACTIVE_TOOL_CHANGED, handleActiveToolChange);
         channel.subscribe(AblyEvents.DOCUMENT_SHARED, handleDocumentShared);
         channel.subscribe(AblyEvents.DOCUMENT_DELETED, handleDocumentDeleted);
-        channel.subscribe(AblyEvents.WHITEBOARD_CONTROLLER_UPDATE, (msg) => {
-          if (isMountedRef.current) setWhiteboardControllerId(msg.data.controllerId);
-        });
+        channel.subscribe(AblyEvents.WHITEBOARD_CONTROLLER_UPDATE, handleWhiteboardControllerUpdate);
         channel.subscribe(AblyEvents.WHITEBOARD_OPERATION_BATCH, handleWhiteboardOperations);
-        channel.subscribe(AblyEvents.TIMER_STARTED, () => {
-          if (isMountedRef.current) setIsTimerRunning(true);
-        });
-        channel.subscribe(AblyEvents.TIMER_PAUSED, () => {
-          if (isMountedRef.current) setIsTimerRunning(false);
-        });
-        channel.subscribe(AblyEvents.TIMER_RESET, (msg) => {
-          if (isMountedRef.current) {
-            const duration = validateTimerDuration(msg.data.duration);
-            setIsTimerRunning(false);
-            setTimerTimeLeft(duration);
-            setTimerDuration(duration);
-          }
-        });
-
-        // Quiz Events
-        channel.subscribe(AblyEvents.QUIZ_STARTED, (msg) => {
-            if (isMountedRef.current) {
-                setActiveQuiz(msg.data.quiz);
-                setQuizResults(null);
-                setQuizResponses(new Map());
-            }
-        });
-
-        channel.subscribe(AblyEvents.QUIZ_RESPONSE, (msg) => {
-            if (isMountedRef.current) {
-                setQuizResponses(prev => new Map(prev).set(msg.data.userId, msg.data.response));
-            }
-        });
-
-        channel.subscribe(AblyEvents.QUIZ_ENDED, (msg) => {
-            if (isMountedRef.current) {
-                setActiveQuiz(null);
-                setQuizResults(msg.data.results);
-            }
-        });
-
+        channel.subscribe(AblyEvents.TIMER_STARTED, handleTimerStarted);
+        channel.subscribe(AblyEvents.TIMER_PAUSED, handleTimerPaused);
+        channel.subscribe(AblyEvents.TIMER_RESET, handleTimerReset);
+        channel.subscribe(AblyEvents.QUIZ_STARTED, handleQuizStarted);
+        channel.subscribe(AblyEvents.QUIZ_RESPONSE, handleQuizResponse);
+        channel.subscribe(AblyEvents.QUIZ_ENDED, handleQuizEnded);
         console.log('✅ [EVENTS] - All Ably events bound.');
     };
 
@@ -1059,7 +1076,11 @@ export default function SessionClient({
     };
   }, [
     sessionId, currentUserId, ablyClient, ablyLoading, sessionReady,
-    currentUserRole, teacherName, studentNames, router, toast, cleanupPeerConnection
+    currentUserRole, teacherName, studentNames, router, toast, cleanupPeerConnection,
+    handleSessionEnded, handleSpotlight, handleHandRaiseUpdate, handleUnderstandingUpdate,
+    handleActiveToolChange, handleDocumentShared, handleDocumentDeleted,
+    handleWhiteboardControllerUpdate, handleWhiteboardOperations, handleTimerStarted,
+    handleTimerPaused, handleTimerReset, handleQuizStarted, handleQuizResponse, handleQuizEnded
   ]);
   
   // Gestion du minuteur
@@ -1214,7 +1235,7 @@ export default function SessionClient({
             onSelectDocument={handleSelectDocument}
             whiteboardControllerId={whiteboardControllerId} 
             onWhiteboardControllerChange={handleWhiteboardControllerChange}
-            initialDuration={initialDuration} 
+            initialDuration={initialDuration || INITIAL_TIMER_DURATION}
             timerTimeLeft={timerTimeLeft} 
             isTimerRunning={isTimerRunning}
             onStartTimer={() => broadcastTimerEvent(sessionId, 'timer-started')}
