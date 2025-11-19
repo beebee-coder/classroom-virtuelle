@@ -18,6 +18,7 @@ import React from 'react';
 import { Html5Whiteboard } from '../Html5Whiteboard';
 import { AnimatedCard } from './AnimatedCard';
 import { useSession } from 'next-auth/react';
+import { QuizView } from './quiz/QuizView';
 
 interface StudentSessionViewProps {
     sessionId: string;
@@ -244,6 +245,17 @@ export function StudentSessionView({
                         />
                     </div>
                 );
+            case 'quiz':
+                 return (
+                    <div className="h-full w-full flex items-center justify-center p-4">
+                        <QuizView
+                            quiz={activeQuiz!}
+                            isTeacherView={false}
+                            onSubmitResponse={onSubmitQuizResponse}
+                            results={quizResults}
+                        />
+                    </div>
+                 );
             case 'camera':
             default:
                 // ✅ CORRECTION AMÉLIORÉE : Vérifications plus permissives
@@ -322,7 +334,10 @@ export function StudentSessionView({
         handleFlushWhiteboardOperations,
         isStreamValid,
         canDisplayVideo,
-        localStream
+        localStream,
+        activeQuiz,
+        onSubmitQuizResponse,
+        quizResults
     ]);
     
     const mainContent = useMemo(() => renderMainContent(), [renderMainContent]);
