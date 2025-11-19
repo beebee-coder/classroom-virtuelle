@@ -7,7 +7,7 @@ import type { Instance as PeerInstance, SignalData as PeerSignalData } from 'sim
 import SimplePeer from 'simple-peer';
 import { useToast } from '@/hooks/use-toast';
 import { User, Role } from '@prisma/client';
-import type { SessionClientProps, IncomingSignalData, SignalPayload, SessionParticipant, DocumentInHistory, WhiteboardOperation, Quiz, QuizResponse, QuizResults, ComprehensionLevel } from '@/types';
+import { SessionClientProps, IncomingSignalData, SignalPayload, SessionParticipant, DocumentInHistory, WhiteboardOperation, Quiz, QuizResponse, QuizResults, ComprehensionLevel } from '@/types';
 import SessionLoading from './SessionLoading';
 import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';

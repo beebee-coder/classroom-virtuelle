@@ -45,23 +45,24 @@ function SessionErrorFallback({ sessionId, error }: { sessionId: string; error: 
           {error}
         </p>
         <div className="flex gap-2 justify-center">
-          <button 
+          <Button 
             onClick={() => window.location.reload()}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
           >
             Réessayer
-          </button>
-          <button 
-            onClick={() => redirect('/dashboard')}
-            className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90"
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => window.location.href = (session?.user.role === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard')}
           >
             Retour au tableau de bord
-          </button>
+          </Button>
         </div>
       </div>
     </div>
   );
 }
+
 
 // CORRECTION: Fonction de récupération des données avec timeout et meilleure gestion d'erreur
 async function fetchSessionData(sessionId: string): Promise<{ data: SessionData | null; error: string | null }> {
@@ -203,34 +204,26 @@ async function SessionContent({ sessionId }: { sessionId: string }) {
 export default async function SessionPage({ params }: { params: { id: string } }) {
   console.log(`[SESSION PAGE] Chargement de la page pour la session: ${params.id}`);
   
+  const userSession = await getServerSession(authOptions);
+
+  if (!userSession?.user) {
+    console.log(`[SESSION PAGE] Utilisateur non authentifié. Redirection vers /login.`);
+    redirect(`/login?callbackUrl=/session/${params.id}`);
+  }
+
+  if (!params.id || typeof params.id !== 'string') {
+    console.error(`[SESSION PAGE] ID de session invalide: ${params.id}`);
+    return <SessionErrorFallback sessionId="invalid" error="ID de session invalide" />;
+  }
+
   try {
-    // CORRECTION: Vérification d'authentification en premier
-    const userSession = await getServerSession(authOptions);
-
-    if (!userSession?.user) {
-      console.log(`[SESSION PAGE] Utilisateur non authentifié. Redirection vers /login.`);
-      redirect(`/login?callbackUrl=/session/${params.id}`);
-    }
-
-    if (!params.id || typeof params.id !== 'string') {
-      console.error(`[SESSION PAGE] ID de session invalide: ${params.id}`);
-      return <SessionErrorFallback sessionId="invalid" error="ID de session invalide" />;
-    }
-
-    // CORRECTION: Utilisation de Suspense pour une meilleure gestion du chargement
     return (
         <div className="h-screen flex flex-col">
-            <Suspense fallback={
-                <div className="h-screen flex flex-col">
-                    <SessionLoading />
-                </div>
-            }>
-                {/* CORRECTION: Composant séparé pour isoler les erreurs */}
+            <Suspense fallback={<SessionLoading />}>
                 <SessionContent sessionId={params.id} />
             </Suspense>
         </div>
     );
-
   } catch (error: any) {
     console.error(`[SESSION PAGE] Erreur générale dans SessionPage:`, error);
     return <SessionErrorFallback sessionId={params.id} error={error.message || "Erreur inattendue"} />;
@@ -263,4 +256,11 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
       title: 'Session de cours',
     };
   }
+}
+
+let session: { user: { role: 'PROFESSEUR' | 'ELEVE' } } | null = null;
+try {
+  session = await getServerSession(authOptions);
+} catch (e) {
+  // ignore
 }
