@@ -1,4 +1,4 @@
-// src/components/session/StudentSessionView.tsx - VERSION CORRIGÉE POUR AFFICHAGE CAMÉRA PROFESSEUR
+// src/components/session/StudentSessionView.tsx - VERSION CORRIGÉE
 'use client';
 
 import { useState, type ReactNode, useEffect, useMemo, useCallback } from 'react';
@@ -156,7 +156,7 @@ export function StudentSessionView({
         }
     }, [flushWhiteboardOperations]);
 
-    // ✅ CORRECTION AMÉLIORÉE : Fonction pour vérifier l'état du stream
+    // ✅ CORRECTION CRITIQUE : Fonction améliorée pour vérifier l'état du stream
     const isStreamValid = useCallback((stream: MediaStream | null): boolean => {
         if (!stream) {
             console.log(`❌ [STREAM CHECK] - Stream is null`);
@@ -173,33 +173,34 @@ export function StudentSessionView({
         
         console.log(`🔍 [STREAM CHECK] - Total tracks: ${videoTracks.length + audioTracks.length}, Video: ${videoTracks.length}, Audio: ${audioTracks.length}`);
         
-        // ✅ CORRECTION CRITIQUE : Vérifier chaque track individuellement
-        const validVideoTracks = videoTracks.filter(track => {
-            const isValid = track.readyState === 'live' && track.enabled;
-            console.log(`🎥 [TRACK CHECK] - Video track: readyState=${track.readyState}, enabled=${track.enabled}, muted=${track.muted}, valid=${isValid}`);
-            return isValid;
+        // ✅ CORRECTION : Vérifier que le stream a au moins un track valide
+        // Un track est valide s'il est en état 'live' - enabled=false est normal pour l'audio désactivé
+        const hasValidVideoTracks = videoTracks.some(track => track.readyState === 'live');
+        const hasValidAudioTracks = audioTracks.some(track => track.readyState === 'live');
+        
+        // ✅ CORRECTION : Log détaillé par track
+        videoTracks.forEach((track, index) => {
+            console.log(`🎥 [TRACK CHECK] - Video track ${index}: readyState=${track.readyState}, enabled=${track.enabled}, muted=${track.muted}`);
         });
         
-        const validAudioTracks = audioTracks.filter(track => {
-            const isValid = track.readyState === 'live' && track.enabled;
-            console.log(`🎤 [TRACK CHECK] - Audio track: readyState=${track.readyState}, enabled=${track.enabled}, muted=${track.muted}, valid=${isValid}`);
-            return isValid;
+        audioTracks.forEach((track, index) => {
+            console.log(`🎤 [TRACK CHECK] - Audio track ${index}: readyState=${track.readyState}, enabled=${track.enabled}, muted=${track.muted}`);
         });
         
-        const hasValidTracks = validVideoTracks.length > 0 || validAudioTracks.length > 0;
+        const isValid = hasValidVideoTracks || hasValidAudioTracks;
         
-        console.log(`✅ [STREAM CHECK] - Valid video tracks: ${validVideoTracks.length}, Valid audio tracks: ${validAudioTracks.length}, Stream valid: ${hasValidTracks}`);
+        console.log(`✅ [STREAM CHECK] - Valid video tracks: ${hasValidVideoTracks}, Valid audio tracks: ${hasValidAudioTracks}, Stream valid: ${isValid}`);
         
-        return hasValidTracks;
+        return isValid;
     }, []);
 
-    // ✅ NOUVELLE FONCTION : Vérification spécifique pour l'affichage vidéo
+    // ✅ CORRECTION : Fonction pour vérifier l'affichage vidéo
     const canDisplayVideo = useCallback((stream: MediaStream | null): boolean => {
         if (!stream || !stream.active) return false;
         
         const videoTracks = stream.getVideoTracks();
         const hasActiveVideo = videoTracks.some(track => 
-            track.readyState === 'live' && track.enabled && !track.muted
+            track.readyState === 'live' && !track.muted
         );
         
         console.log(`📺 [VIDEO DISPLAY] - Can display video: ${hasActiveVideo}, Tracks: ${videoTracks.length}`);
@@ -239,65 +240,64 @@ export function StudentSessionView({
                 );
             case 'camera':
             default:
-                // ✅ CORRECTION AMÉLIORÉE : Vérifications séparées
+                // ✅ CORRECTION AMÉLIORÉE : Vérifications plus permissives
                 const hasValidSpotlightedStream = isStreamValid(spotlightedStream);
                 const canDisplaySpotlightedVideo = canDisplayVideo(spotlightedStream);
-                const hasValidLocalStream = isStreamValid(localStream);
 
-                console.log(`📹 [CAMERA VIEW] - Spotlighted: valid=${hasValidSpotlightedStream}, displayable=${canDisplaySpotlightedVideo}, Local: valid=${hasValidLocalStream}`);
+                console.log(`📹 [CAMERA VIEW] - Spotlighted: valid=${hasValidSpotlightedStream}, displayable=${canDisplaySpotlightedVideo}`);
 
-                // ✅ CORRECTION : Afficher le stream même si le user n'est pas défini (cas du professeur)
-                if (!hasValidSpotlightedStream) {
+                // ✅ CORRECTION : Afficher le stream spotlighted s'il est valide, même sans vidéo
+                if (hasValidSpotlightedStream) {
                     return (
-                        <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/30 border-dashed">
-                            <CardContent className="text-center text-muted-foreground p-6">
-                                <div className="flex flex-col items-center gap-3">
-                                    <VideoOff className="h-12 w-12 mx-auto text-orange-500" />
-                                    <div>
-                                        <h3 className="font-semibold text-xl mb-2">
-                                            {spotlightedUser ? `${spotlightedUser.name} se connecte` : 'En attente du professeur...'}
-                                        </h3>
-                                        <p className="text-sm text-muted-foreground">
-                                            {spotlightedUser ? 'Connexion vidéo en cours...' : 'Le professeur rejoindra bientôt la session'}
-                                        </p>
-                                    </div>
-                                    <div className="flex items-center gap-2 text-xs text-orange-600">
-                                        <Loader2 className="h-3 w-3 animate-spin" />
-                                        <span>Établissement de la connexion WebRTC</span>
-                                    </div>
+                        <div className="w-full h-full relative bg-black">
+                            {/* ✅ CORRECTION : Indicateur de statut de stream */}
+                            <div className="absolute top-3 right-3 z-10">
+                                <div className="bg-black/70 text-white px-2 py-1 rounded-md text-xs flex items-center gap-1">
+                                    <Video className="h-3 w-3" />
+                                    <span>
+                                        {spotlightedUser ? `En direct - ${spotlightedUser.name}` : 'En direct - Professeur'}
+                                    </span>
+                                    {!canDisplaySpotlightedVideo && (
+                                        <span className="text-orange-300">(Audio seulement)</span>
+                                    )}
                                 </div>
-                            </CardContent>
-                        </Card>
+                            </div>
+                            
+                            {/* ✅ CORRECTION : Participant avec fallback pour user non défini */}
+                            <Participant 
+                                stream={spotlightedStream}
+                                isLocal={false} 
+                                isSpotlighted={true}
+                                isTeacher={spotlightedUser?.role === Role.PROFESSEUR || !spotlightedUser}
+                                participantUserId={spotlightedUser?.id ?? 'professor'}
+                                displayName={spotlightedUser?.name ?? 'Professeur'}
+                                isHandRaised={isHandRaised}
+                            />
+                        </div>
                     );
                 }
 
-                // ✅ CORRECTION CRITIQUE : Toujours afficher le stream spotlighted s'il est valide
+                // ✅ CORRECTION : Fallback seulement si le stream n'est pas valide
                 return (
-                    <div className="w-full h-full relative bg-black">
-                        {/* ✅ CORRECTION : Indicateur de statut de stream */}
-                        <div className="absolute top-3 right-3 z-10">
-                            <div className="bg-black/70 text-white px-2 py-1 rounded-md text-xs flex items-center gap-1">
-                                <Video className="h-3 w-3" />
-                                <span>
-                                    {spotlightedUser ? `En direct - ${spotlightedUser.name}` : 'En direct - Professeur'}
-                                </span>
-                                {!canDisplaySpotlightedVideo && (
-                                    <span className="text-orange-300">(Audio seulement)</span>
-                                )}
+                    <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/30 border-dashed">
+                        <CardContent className="text-center text-muted-foreground p-6">
+                            <div className="flex flex-col items-center gap-3">
+                                <VideoOff className="h-12 w-12 mx-auto text-orange-500" />
+                                <div>
+                                    <h3 className="font-semibold text-xl mb-2">
+                                        {spotlightedUser ? `${spotlightedUser.name} se connecte` : 'En attente du professeur...'}
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        {spotlightedUser ? 'Connexion vidéo en cours...' : 'Le professeur rejoindra bientôt la session'}
+                                    </p>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-orange-600">
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                    <span>Établissement de la connexion WebRTC</span>
+                                </div>
                             </div>
-                        </div>
-                        
-                        {/* ✅ CORRECTION : Participant avec fallback pour user non défini */}
-                        <Participant 
-                            stream={spotlightedStream}
-                            isLocal={false} 
-                            isSpotlighted={true}
-                            isTeacher={spotlightedUser?.role === Role.PROFESSEUR || !spotlightedUser} // Fallback pour professeur
-                            participantUserId={spotlightedUser?.id ?? 'professor'}
-                            displayName={spotlightedUser?.name ?? 'Professeur'}
-                            isHandRaised={isHandRaised}
-                        />
-                    </div>
+                        </CardContent>
+                    </Card>
                 );
         }
     }, [

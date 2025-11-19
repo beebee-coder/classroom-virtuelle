@@ -7,7 +7,7 @@ import { ablyTrigger } from '../ably/triggers';
 import { AblyEvents } from '../ably/events';
 import { getSessionChannelName } from '../ably/channels';
 import { Role } from '@prisma/client';
-import { ComprehensionLevel } from '@/types';
+import { ComprehensionLevel, Quiz, QuizResponse } from '@/types';
 import prisma from '../prisma';
 
 // --- Validation Utilities ---
@@ -101,4 +101,35 @@ export async function broadcastTimerEvent(sessionId: string, event: 'timer-start
     await ablyTrigger(channel, event as any, payload); // Cast to any to satisfy AblyEventName type
     
     return { success: true, event, sessionId };
+}
+
+// --- Quiz Actions ---
+
+export async function startQuiz(sessionId: string, quiz: Quiz) {
+  const session = await getServerSession(authOptions);
+  if (session?.user?.role !== Role.PROFESSEUR) {
+    throw new Error('Only teachers can start a quiz');
+  }
+  const channel = getSessionChannelName(sessionId);
+  await ablyTrigger(channel, AblyEvents.QUIZ_STARTED, { quiz });
+  return { success: true };
+}
+
+export async function submitQuizResponse(sessionId: string, response: QuizResponse) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) throw new Error('Not authenticated');
+
+  const channel = getSessionChannelName(sessionId);
+  await ablyTrigger(channel, AblyEvents.QUIZ_RESPONSE, { userId: session.user.id, response });
+  return { success: true };
+}
+
+export async function endQuiz(sessionId: string, results: any) {
+  const session = await getServerSession(authOptions);
+  if (session?.user?.role !== Role.PROFESSEUR) {
+    throw new Error('Only teachers can end a quiz');
+  }
+  const channel = getSessionChannelName(sessionId);
+  await ablyTrigger(channel, AblyEvents.QUIZ_ENDED, { results });
+  return { success: true };
 }

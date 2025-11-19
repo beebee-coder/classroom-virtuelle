@@ -7,7 +7,7 @@ import type { Instance as PeerInstance, SignalData as PeerSignalData } from 'sim
 import SimplePeer from 'simple-peer';
 import { useToast } from '@/hooks/use-toast';
 import { User, Role } from '@prisma/client';
-import type { SessionClientProps, IncomingSignalData, SignalPayload, SessionParticipant, DocumentInHistory, WhiteboardOperation } from '@/types';
+import type { SessionClientProps, IncomingSignalData, SignalPayload, SessionParticipant, DocumentInHistory, WhiteboardOperation, Quiz, QuizResponse, QuizResults } from '@/types';
 import SessionLoading from './SessionLoading';
 import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';
@@ -146,6 +146,11 @@ export default function SessionClient({
   const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
 
   const [whiteboardOperations, setWhiteboardOperations] = useState<WhiteboardOperation[]>([]);
+
+  // Nouveaux états pour le quiz
+  const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
+  const [quizResponses, setQuizResponses] = useState<Map<string, QuizResponse>>(new Map());
+  const [quizResults, setQuizResults] = useState<QuizResults | null>(null);
   
   // Références stables
   const handleIncomingWhiteboardOperationsRef = useRef<(externalOps: WhiteboardOperation[]) => void>();
@@ -1001,6 +1006,28 @@ export default function SessionClient({
             setTimerDuration(duration);
           }
         });
+
+        // Quiz Events
+        channel.subscribe(AblyEvents.QUIZ_STARTED, (msg) => {
+            if (isMountedRef.current) {
+                setActiveQuiz(msg.data.quiz);
+                setQuizResults(null);
+                setQuizResponses(new Map());
+            }
+        });
+
+        channel.subscribe(AblyEvents.QUIZ_RESPONSE, (msg) => {
+            if (isMountedRef.current) {
+                setQuizResponses(prev => new Map(prev).set(msg.data.userId, msg.data.response));
+            }
+        });
+
+        channel.subscribe(AblyEvents.QUIZ_ENDED, (msg) => {
+            if (isMountedRef.current) {
+                setQuizResults(msg.data.results);
+            }
+        });
+
         console.log('✅ [EVENTS] - All Ably events bound.');
     };
 
@@ -1177,6 +1204,8 @@ export default function SessionClient({
     }
   }, [sessionId, toast]);
 
+  const isHandRaisedValue = raisedHands.has(currentUserId);
+
   if (isComponentLoading) {
     return <SessionLoading />;
   }
@@ -1242,8 +1271,8 @@ export default function SessionClient({
             localStream={localStream} 
             spotlightedStream={spotlightedStream}
             spotlightedUser={spotlightedUser} 
-            isHandRaised={raisedHands.has(currentUserId)}
-            onToggleHandRaise={() => handleToggleHandRaise(!raisedHands.has(currentUserId))}
+            isHandRaised={isHandRaisedValue}
+            onToggleHandRaise={() => handleToggleHandRaise(!isHandRaisedValue)}
             onUnderstandingChange={handleUnderstandingChange}
             onLeaveSession={handleLeaveSession} 
             currentUnderstanding={understandingStatus.get(currentUserId) || ComprehensionLevel.NONE}

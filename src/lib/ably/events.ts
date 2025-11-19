@@ -41,6 +41,11 @@ export const AblyEvents = {
     NEW_MESSAGE: 'new-message',
     REACTION_UPDATE: 'reaction-update',
     HISTORY_CLEARED: 'history-cleared',
+
+    // Quiz events
+    QUIZ_STARTED: 'quiz-started',
+    QUIZ_RESPONSE: 'quiz-response',
+    QUIZ_ENDED: 'quiz-ended',
 } as const;
 
 export type AblyEventName = typeof AblyEvents[keyof typeof AblyEvents];

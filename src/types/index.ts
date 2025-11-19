@@ -20,7 +20,7 @@ import type {
 
 import type { Instance as PeerInstance, SignalData as PeerSignalData } from 'simple-peer';
 
-// Re-export des types Prisma de base si nécessaire ailleurs, mais il vaut mieux importer directement.
+// Re-export des types Prisma de base si nécessaire, mais il vaut mieux importer directement.
 export * from '@prisma/client';
 
 // Types pour le nouveau système de tableau blanc avec Redis
@@ -157,6 +157,38 @@ export interface SessionClientProps {
   classroom: ClassroomWithDetails | null;
   initialDocumentHistory: DocumentInHistory[];
 }
+
+// Nouveaux types pour le Quiz
+export interface QuizOption {
+  id: string;
+  text: string;
+}
+
+export interface QuizQuestion {
+  id: string;
+  text: string;
+  options: QuizOption[];
+  correctOptionId: string;
+}
+
+export interface Quiz {
+  id: string;
+  title: string;
+  questions: QuizQuestion[];
+}
+
+export interface QuizResponse {
+  userId: string;
+  userName: string;
+  answers: Map<string, string>; // Map<questionId, selectedOptionId>
+}
+
+export interface QuizResults {
+  quizId: string;
+  scores: Map<string, { score: number; total: number }>; // Map<userId, { score, total }>
+  responses: Map<string, QuizResponse>;
+}
+
 
 // CORRECTION: Types pour la compatibilité avec les composants
 export type { PeerInstance, PeerSignalData };
