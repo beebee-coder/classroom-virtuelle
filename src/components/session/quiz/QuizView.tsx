@@ -61,7 +61,7 @@ export function QuizView({ quiz, isTeacherView, onSubmitResponse, onEndQuiz, res
             <CardContent className="flex-1">
                 <h3 className="font-semibold mb-4 text-lg">{currentQuestion.text}</h3>
                 <RadioGroup onValueChange={(value) => handleSelectAnswer(currentQuestion.id, value)} value={selectedAnswers[currentQuestion.id]}>
-                    {currentQuestion.options.map(option => (
+                    {currentQuestion.options.map((option: QuizOption) => (
                         <div key={option.id} className="flex items-center space-x-2 p-3 border rounded-md has-[:checked]:bg-accent">
                             <RadioGroupItem value={option.id} id={option.id} />
                             <Label htmlFor={option.id} className="flex-1 cursor-pointer">{option.text}</Label>
@@ -98,11 +98,11 @@ function TeacherQuizDashboard({ quiz, responses = new Map(), onEndQuiz, students
                         <Users className="h-4 w-4" />
                         <span>{answeredStudents} / {totalStudents} ont répondu</span>
                     </div>
-                    <Progress value={(answeredStudents / totalStudents) * 100} className="w-1/3" />
+                    <Progress value={(totalStudents > 0 ? (answeredStudents / totalStudents) * 100 : 0)} className="w-1/3" />
                 </div>
             </CardHeader>
             <CardContent className="flex-1 overflow-y-auto space-y-4">
-                {quiz.questions.map(q => (
+                {quiz.questions.map((q: QuizQuestion) => (
                     <QuestionStats key={q.id} question={q} responses={responses} />
                 ))}
             </CardContent>
@@ -114,7 +114,7 @@ function TeacherQuizDashboard({ quiz, responses = new Map(), onEndQuiz, students
 }
 
 function QuestionStats({ question, responses }: { question: QuizQuestion; responses: Map<string, QuizResponse> }) {
-    const optionCounts = question.options.reduce((acc, option) => {
+    const optionCounts = question.options.reduce((acc: Record<string, number>, option: QuizOption) => {
         acc[option.id] = 0;
         return acc;
     }, {} as Record<string, number>);
@@ -132,7 +132,7 @@ function QuestionStats({ question, responses }: { question: QuizQuestion; respon
         <div className="p-4 border rounded-lg">
             <h4 className="font-semibold mb-2">{question.text}</h4>
             <div className="space-y-2">
-                {question.options.map(option => {
+                {question.options.map((option: QuizOption) => {
                     const count = optionCounts[option.id];
                     const percentage = totalResponses > 0 ? (count / totalResponses) * 100 : 0;
                     const isCorrect = option.id === question.correctOptionId;
