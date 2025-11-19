@@ -4,9 +4,12 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import { redirect } from 'next/navigation';
 import SessionLoading from '@/components/SessionLoading';
-import { type User, type ClassroomWithDetails, Role, type DocumentInHistory, Quiz } from '@/types';
+import { type User, type ClassroomWithDetails, Role, type DocumentInHistory } from '@/types';
 import prisma from '@/lib/prisma';
 import dynamic from 'next/dynamic';
+
+// CORRECTION: Import du composant Button manquant
+import { Button } from '@/components/ui/button';
 
 // CORRECTION: Import dynamique AVEC gestion d'erreur améliorée
 const SessionClient = dynamic(() => import('@/components/SessionClient'), {
@@ -27,7 +30,6 @@ interface SessionData {
   documentHistory: DocumentInHistory[];
   startTime: string;
   endTime: string | null;
-  activeQuiz: Quiz | null;
 }
 
 // CORRECTION: Composant de fallback avec gestion de reconnexion améliorée
@@ -53,7 +55,16 @@ function SessionErrorFallback({ sessionId, error }: { sessionId: string; error: 
           </Button>
           <Button
             variant="outline"
-            onClick={() => window.location.href = (session?.user.role === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard')}
+            onClick={() => {
+              // CORRECTION: Redirection conditionnelle basée sur le rôle
+              const role = typeof window !== 'undefined' 
+                ? localStorage.getItem('userRole') 
+                : null;
+              const dashboardUrl = role === 'PROFESSEUR' 
+                ? '/teacher/dashboard' 
+                : '/student/dashboard';
+              window.location.href = dashboardUrl;
+            }}
           >
             Retour au tableau de bord
           </Button>
@@ -62,7 +73,6 @@ function SessionErrorFallback({ sessionId, error }: { sessionId: string; error: 
     </div>
   );
 }
-
 
 // CORRECTION: Fonction de récupération des données avec timeout et meilleure gestion d'erreur
 async function fetchSessionData(sessionId: string): Promise<{ data: SessionData | null; error: string | null }> {
@@ -78,6 +88,7 @@ async function fetchSessionData(sessionId: string): Promise<{ data: SessionData 
             where: { id: sessionId },
             include: {
                 professeur: true,
+                // CORRECTION: Les participants sont directement des User[], pas besoin d'inclure user
                 participants: true,
                 classe: {
                     include: {
@@ -92,15 +103,6 @@ async function fetchSessionData(sessionId: string): Promise<{ data: SessionData 
                         }
                     }
                 },
-                activeQuiz: {
-                    include: {
-                        questions: {
-                            include: {
-                                options: true
-                            }
-                        }
-                    }
-                }
             },
         });
 
@@ -119,7 +121,9 @@ async function fetchSessionData(sessionId: string): Promise<{ data: SessionData 
             return { data: null, error: 'Utilisateur non authentifié' };
         }
 
-        const isParticipant = session.participants.some(p => p.id === currentUserId) || 
+        // CORRECTION: Vérification d'accès corrigée - participants est directement un tableau d'User
+        const participantIds = session.participants.map((p: User) => p.id);
+        const isParticipant = participantIds.includes(currentUserId) || 
                             session.professeurId === currentUserId;
         
         if (!isParticipant) {
@@ -133,6 +137,9 @@ async function fetchSessionData(sessionId: string): Promise<{ data: SessionData 
             orderBy: { createdAt: 'desc' },
         });
 
+        // CORRECTION: Les participants sont déjà des User, on les filtre directement
+        const students = session.participants.filter((p: User) => p.role === Role.ELEVE);
+
         const serializableDocumentHistory: DocumentInHistory[] = teacherDocuments.map(doc => ({
             ...doc,
             createdAt: doc.createdAt.toISOString(),
@@ -143,7 +150,7 @@ async function fetchSessionData(sessionId: string): Promise<{ data: SessionData 
         const responsePayload: SessionData = {
             id: session.id,
             teacher: session.professeur as User,
-            students: session.participants.filter(p => p.role === Role.ELEVE) as User[],
+            students: students as User[],
             participants: session.participants as User[],
             classroom: session.classe ? {
                 ...session.classe,
@@ -152,7 +159,6 @@ async function fetchSessionData(sessionId: string): Promise<{ data: SessionData 
             documentHistory: serializableDocumentHistory,
             startTime: session.startTime.toISOString(),
             endTime: session.endTime ? session.endTime.toISOString() : null,
-            activeQuiz: session.activeQuiz as Quiz | null,
         };
 
         console.log(`✅ [SESSION PAGE] Données de session récupérées avec succès pour: ${sessionId}`);
@@ -196,7 +202,6 @@ async function SessionContent({ sessionId }: { sessionId: string }) {
             currentUserRole={userSession.user.role as Role}
             classroom={sessionData.classroom}
             initialDocumentHistory={sessionData.documentHistory}
-            initialActiveQuiz={sessionData.activeQuiz}
         />
     );
 }
@@ -256,11 +261,4 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
       title: 'Session de cours',
     };
   }
-}
-
-let session: { user: { role: 'PROFESSEUR' | 'ELEVE' } } | null = null;
-try {
-  session = await getServerSession(authOptions);
-} catch (e) {
-  // ignore
 }

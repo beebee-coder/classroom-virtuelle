@@ -1,4 +1,3 @@
-
 // src/components/session/TeacherSessionView.tsx
 import React, { useState, type ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -25,6 +24,7 @@ import { DocumentUploadSection } from './DocumentUploadSection';
 import { shareDocumentToStudents } from '@/lib/actions/session.actions';
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { motion, AnimatePresence } from 'framer-motion';
+import { QuizWorkspace } from './QuizWorkspace';
 
 
 interface TeacherSessionViewProps {
@@ -311,13 +311,15 @@ export function TeacherSessionView({
                 
             case 'quiz':
                 return (
-                    <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/50 border-dashed rounded-lg">
-                        <CardContent className="text-center text-muted-foreground p-6">
-                            <Award className="h-10 w-10 mx-auto mb-4" />
-                            <h3 className="font-semibold">Fonctionnalité Quiz</h3>
-                            <p className="text-sm">Cet outil est en cours de développement.</p>
-                        </CardContent>
-                    </Card>
+                    <QuizWorkspace
+                        sessionId={sessionId}
+                        activeQuiz={activeQuiz}
+                        quizResponses={quizResponses}
+                        quizResults={quizResults}
+                        onStartQuiz={onStartQuiz}
+                        onEndQuiz={onEndQuiz}
+                        students={students}
+                    />
                 );
                 
             case 'chat':
@@ -425,6 +427,12 @@ export function TeacherSessionView({
         whiteboardOperations,
         handleWhiteboardEvent,
         handleFlushWhiteboardOperations,
+        activeQuiz,
+        quizResponses,
+        quizResults,
+        onStartQuiz,
+        onEndQuiz,
+        students
     ]);
     
     if (!currentUserId || !teacher) {
