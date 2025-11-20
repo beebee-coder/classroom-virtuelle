@@ -154,7 +154,7 @@ export default function SessionClient({
   // --- Mémos pour l'affichage ---
   const allSessionUsers = useMemo(() => [initialTeacher, ...initialStudents].filter(Boolean) as User[], [initialTeacher, initialStudents]);
   const spotlightedUser = useMemo(() => allSessionUsers.find(u => u.id === spotlightedParticipantId), [allSessionUsers, spotlightedParticipantId]);
-  const spotlightedStream = useMemo(() => spotlightedParticipantId === currentUserId ? activeStream : remoteStreams.get(spotlightedParticipantId || ''), [spotlightedParticipantId, currentUserId, activeStream, remoteStreams]);
+  const spotlightedStream = useMemo(() => spotlightedParticipantId === currentUserId ? activeStream : remoteStreams.get(spotlightedParticipantId || '') || null, [spotlightedParticipantId, currentUserId, activeStream, remoteStreams]);
   const remoteParticipants = useMemo(() => Array.from(remoteStreams.entries()).map(([id, stream]) => ({ id, stream })), [remoteStreams]);
   const isHandRaised = handRaiseQueue.includes(currentUserId);
   const raisedHandUsers = useMemo(() => handRaiseQueue.map(userId => allSessionUsers.find(u => u.id === userId)).filter(Boolean) as User[], [handRaiseQueue, allSessionUsers]);
@@ -195,7 +195,7 @@ export default function SessionClient({
             onDocumentShared={handleUploadSuccess} activeQuiz={activeQuiz}
             quizResponses={quizResponses} quizResults={quizResults}
             onStartQuiz={(quiz) => startQuiz(sessionId, quiz)}
-            onEndQuiz={(quizId) => endQuiz(sessionId, quizId)} students={initialStudents}
+            onEndQuiz={(quizId) => endQuiz(sessionId, quizId, quizResponses)} students={initialStudents}
           />
         ) : (
           <StudentSessionView
