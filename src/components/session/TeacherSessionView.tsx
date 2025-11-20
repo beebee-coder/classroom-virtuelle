@@ -70,9 +70,12 @@ interface TeacherSessionViewProps {
 }
 
 // Composant pour le contenu principal
-const TeacherMainContent: React.FC<Pick<TeacherSessionViewProps, 
-    'teacherView' | 'allGridParticipants' | 'renderParticipant' | 'renderActiveTool'
->> = ({ teacherView, allGridParticipants, renderParticipant, renderActiveTool }) => (
+const TeacherMainContent: React.FC<{
+    teacherView: 'content' | 'grid';
+    allGridParticipants: SessionParticipant[];
+    renderParticipant: (participant: SessionParticipant) => ReactNode;
+    renderActiveTool: ReactNode;
+}> = ({ teacherView, allGridParticipants, renderParticipant, renderActiveTool }) => (
     <div className="absolute inset-0 rounded-lg border bg-card p-4">
         {teacherView === 'content' ? (
           renderActiveTool
@@ -87,14 +90,34 @@ const TeacherMainContent: React.FC<Pick<TeacherSessionViewProps,
 );
 
 // Composant pour la barre latérale
-const TeacherSidebar: React.FC<Pick<TeacherSessionViewProps, 
-    'sessionId' | 'onDocumentShared' | 'documentHistory' | 'onSelectDocument' | 'handleDocumentReshare' |
-    'currentUserId' | 'validatedInitialDuration' | 'validatedTimerTimeLeft' | 'isTimerRunning' | 'onStartTimer' |
-    'onPauseTimer' | 'onResetTimer' | 'allSessionUsers' | 'activeParticipantIds' | 'remoteParticipants' |
-    'whiteboardControllerId' | 'classroom' | 'classOnlineIds' | 'waitingCount' | 'onSpotlightParticipant' |
-    'spotlightedUser' | 'onWhiteboardControllerChange' | 'students' | 'understandingStatus' | 'raisedHandQueue' |
-    'onAcknowledgeNextHand'
->> = (props) => (
+const TeacherSidebar: React.FC<{
+    sessionId: string;
+    onDocumentShared: (doc: { name: string; url: string }) => void;
+    documentHistory: DocumentInHistory[];
+    onSelectDocument: (doc: DocumentInHistory) => void;
+    handleDocumentReshare: (doc: DocumentInHistory) => void;
+    currentUserId: string;
+    validatedInitialDuration: number;
+    validatedTimerTimeLeft: number;
+    isTimerRunning: boolean;
+    onStartTimer: () => void;
+    onPauseTimer: () => void;
+    onResetTimer: (newDuration?: number) => void;
+    allSessionUsers: SessionParticipant[];
+    activeParticipantIds: string[];
+    remoteParticipants: { id: string; stream: MediaStream; }[];
+    whiteboardControllerId: string | null;
+    classroom: ClassroomWithDetails | null;
+    classOnlineIds: string[];
+    waitingCount: number;
+    onSpotlightParticipant: (participantId: string) => void;
+    spotlightedUser: SessionParticipant | null | undefined;
+    onWhiteboardControllerChange: (userId: string) => void;
+    students: User[];
+    understandingStatus: Map<string, ComprehensionLevel>;
+    raisedHandQueue: User[];
+    onAcknowledgeNextHand: () => void;
+}> = (props) => (
     <ScrollArea className="h-full pr-3 -mr-3">
         <div className="space-y-4">
             <AnimatedCard title="Partage de Document">
@@ -130,20 +153,18 @@ const TeacherSidebar: React.FC<Pick<TeacherSessionViewProps,
                 </div>
             </AnimatedCard>
             {props.classroom && (
-                <AnimatedCard title={`Classe ${props.classroom.nom}`}>
-                    <ClassStudentList
-                        classroom={props.classroom}
-                        onlineUserIds={props.classOnlineIds}
-                        currentUserId={props.currentUserId}
-                        activeParticipantIds={props.activeParticipantIds}
-                        sessionId={props.sessionId}
-                        waitingStudentCount={props.waitingCount}
-                        onSpotlightParticipant={props.onSpotlightParticipant}
-                        spotlightedParticipantId={props.spotlightedUser?.id || null}
-                        whiteboardControllerId={props.whiteboardControllerId}
-                        onWhiteboardControllerChange={props.onWhiteboardControllerChange}
-                    />
-                </AnimatedCard>
+                 <ClassStudentList
+                    classroom={props.classroom}
+                    onlineUserIds={props.classOnlineIds}
+                    currentUserId={props.currentUserId}
+                    activeParticipantIds={props.activeParticipantIds}
+                    sessionId={props.sessionId}
+                    waitingStudentCount={props.waitingCount}
+                    onSpotlightParticipant={props.onSpotlightParticipant}
+                    spotlightedParticipantId={props.spotlightedUser?.id || null}
+                    whiteboardControllerId={props.whiteboardControllerId}
+                    onWhiteboardControllerChange={props.onWhiteboardControllerChange}
+                />
             )}
             <AnimatedCard title="Sondage de Compréhension">
                 <QuickPollResults students={props.students} understandingStatus={props.understandingStatus} />
