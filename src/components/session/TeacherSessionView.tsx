@@ -9,7 +9,7 @@ import { HandRaiseController } from '../HandRaiseController';
 import { QuickPollResults } from './QuickPollResults';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { ClassStudentList } from './ClassStudentList';
-import { Loader2, UploadCloud, File, Trash2, Share2, Award, Users, Grid, Presentation, MessageSquare, PanelRightOpen, PanelRightClose } from 'lucide-react';
+import { Loader2, UploadCloud, File, Trash2, Share2, Award, Users, Grid, Presentation, MessageSquare, PanelRightOpen, PanelRightClose, Network } from 'lucide-react';
 import { Button } from '../ui/button';
 import { SessionStatus } from './SessionStatus';
 import { SessionTimer } from './SessionTimer';
@@ -330,6 +330,19 @@ export function TeacherSessionView({
                             />
                         )}
                     </div>
+                );
+
+            case 'breakout':
+                return (
+                    <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/30 border-dashed rounded-lg">
+                        <CardContent className="text-center text-muted-foreground p-6">
+                            <Network className="h-10 w-10 mx-auto mb-4" />
+                            <h3 className="font-semibold text-xl">Groupes de Travail</h3>
+                            <p className="text-sm mt-2">
+                                Cette fonctionnalité est en cours de développement.
+                            </p>
+                        </CardContent>
+                    </Card>
                 );
                 
             case 'camera':

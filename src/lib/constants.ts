@@ -23,6 +23,7 @@ import {
     Feather,
     Atom,
     Palette,
+    Network, // Ajout de l'icône pour les groupes
 } from 'lucide-react';
 import type { Classroom } from '@prisma/client';
 import { TaskCategory } from '@prisma/client'; // CORRECTION : Importation ajoutée
@@ -149,6 +150,7 @@ const defaultTools = [
     { id: 'whiteboard', name: 'Tableau', icon: Square, colors: ['#a955ff', '#ea51ff'] as [string, string] },
     { id: 'document', name: 'Document', icon: FileText, colors: ['#3b82f6', '#2563eb'] as [string, string] },
     { id: 'chat', name: 'Chat', icon: MessageSquare, colors: ['#22d3ee', '#06b6d4'] as [string, string] },
+    { id: 'breakout', name: 'Groupes', icon: Network, colors: ['#f472b6', '#ec4899'] as [string, string] },
 ];
 
 export const toolPresets: Record<string, typeof defaultTools> = {

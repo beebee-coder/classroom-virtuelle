@@ -185,6 +185,15 @@ export interface QuizResults {
   responses: Record<string, QuizResponse>;
 }
 
+export interface BreakoutRoom {
+  id: string;
+  name: string;
+  participants: string[];
+  teacherAssigned?: string;
+  duration: number;
+  task: string;
+}
+
 
 // CORRECTION: Types pour la compatibilité avec les composants
 export type { PeerInstance, PeerSignalData };
