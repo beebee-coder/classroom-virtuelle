@@ -64,7 +64,7 @@ interface TeacherSessionViewProps {
     quizResponses: Map<string, QuizResponse>;
     quizResults: QuizResults | null;
     onStartQuiz: (quiz: Omit<Quiz, 'id' | 'createdAt' | 'createdById'>) => Promise<{ success: boolean; error?: string; }>;
-    onEndQuiz: (quizId: string, responses: Map<string, QuizResponse>) => Promise<{ success: boolean; }>;
+    onEndQuiz: (quizId: string) => Promise<{ success: boolean; }>;
 }
 
 export function TeacherSessionView({
@@ -316,7 +316,7 @@ export function TeacherSessionView({
                         quizResponses={quizResponses}
                         quizResults={quizResults}
                         onStartQuiz={onStartQuiz}
-                        onEndQuiz={(quizId, responses) => onEndQuiz(quizId, responses)}
+                        onEndQuiz={(quizId) => onEndQuiz(quizId, quizResponses)}
                         students={students}
                     />
                 );

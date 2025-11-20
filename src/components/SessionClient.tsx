@@ -892,6 +892,7 @@ export default function SessionClient({
 
   const handleUnderstandingUpdate = useCallback((message: Types.Message) => {
     if (isMountedRef.current) {
+      console.log(`🤔 [UNDERSTANDING] - Statut de compréhension reçu pour ${message.data.userId}: ${message.data.status}`);
       setUnderstandingStatus(prev => new Map(prev).set(message.data.userId, message.data.status));
     }
   }, []);
@@ -1163,6 +1164,7 @@ export default function SessionClient({
   }, [sessionId, handRaiseQueue, onSpotlightParticipant]);
 
   const handleUnderstandingChange = useCallback(async (status: ComprehensionLevel) => {
+    console.log(`🤔 [ACTION DISPATCH] - Envoi du statut de compréhension: ${status}`);
     updateStudentSessionStatus(sessionId, { understanding: status });
   }, [sessionId]);
 
