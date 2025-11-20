@@ -1,5 +1,4 @@
-
-// src/app/login/login-form.tsx - VERSION SIMPLIFIÉE
+// src/app/login/login-form.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -18,7 +17,7 @@ import Image from 'next/image';
 export default function LoginForm() {
     const router = useRouter();
     const { data: session, status } = useSession();
-    const searchParams = useSearchParams(); // ✅ Maintenant safe avec dynamic
+    const searchParams = useSearchParams();
 
     const errorParam = searchParams?.get('error');
     const callbackUrl = searchParams?.get('callbackUrl') || '/';
@@ -46,6 +45,7 @@ export default function LoginForm() {
         }
     }, [status, session, router]);
 
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -63,13 +63,15 @@ export default function LoginForm() {
         const result = await signIn('credentials', {
             email: email.trim().toLowerCase(),
             password: password,
-            redirect: false,
+            redirect: false, // Important: nous gérons la redirection manuellement
         });
         
         console.log('🔵 [LOGIN FORM] - Résultat de signIn:', result);
 
         if (result?.ok && !result.error) {
             console.log('✅ [LOGIN FORM] - Connexion réussie. Redirection en cours...');
+            // La redirection sera gérée par le `useEffect` ci-dessus ou par le rechargement de la page
+            // qui détectera la nouvelle session. Pour forcer, on peut utiliser router.refresh().
             router.refresh();
         } else {
              if (result?.error === 'CredentialsSignin') {
@@ -94,8 +96,9 @@ export default function LoginForm() {
         console.log(`🔵 [LOGIN FORM] - Pré-remplissage pour le rôle: ${role}`);
     };
     
-    // Afficher un loader pendant le chargement
-    if (status === "loading") {
+    // Si l'utilisateur est authentifié ou si le statut est en chargement, on affiche un loader
+    // pour attendre que la redirection du `useEffect` s'effectue.
+    if (status === "loading" || status === "authenticated") {
         return (
             <div className="flex items-center justify-center min-h-screen bg-background">
                 <Loader2 className="h-12 w-12 animate-spin" />
@@ -233,5 +236,3 @@ export default function LoginForm() {
         </div>
     );
 }
-
-    
