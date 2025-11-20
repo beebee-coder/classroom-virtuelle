@@ -188,10 +188,8 @@ export interface QuizResults {
 export interface BreakoutRoom {
   id: string;
   name: string;
-  participants: string[];
-  teacherAssigned?: string;
-  duration: number;
-  task: string;
+  task: string; // Ajout de la consigne
+  participants: User[];
 }
 
 

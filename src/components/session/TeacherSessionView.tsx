@@ -25,6 +25,7 @@ import { shareDocumentToStudents } from '@/lib/actions/session.actions';
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { motion, AnimatePresence } from 'framer-motion';
 import { QuizWorkspace } from './QuizWorkspace';
+import { BreakoutRoomsManager } from './breakout/BreakoutRoomsManager';
 
 
 interface TeacherSessionViewProps {
@@ -334,15 +335,10 @@ export function TeacherSessionView({
 
             case 'breakout':
                 return (
-                    <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/30 border-dashed rounded-lg">
-                        <CardContent className="text-center text-muted-foreground p-6">
-                            <Network className="h-10 w-10 mx-auto mb-4" />
-                            <h3 className="font-semibold text-xl">Groupes de Travail</h3>
-                            <p className="text-sm mt-2">
-                                Cette fonctionnalité est en cours de développement.
-                            </p>
-                        </CardContent>
-                    </Card>
+                     <BreakoutRoomsManager
+                        sessionId={sessionId}
+                        students={students.filter(s => allOnlineUserIds.includes(s.id))}
+                    />
                 );
                 
             case 'camera':
@@ -442,7 +438,8 @@ export function TeacherSessionView({
         quizResults,
         onStartQuiz,
         onEndQuiz,
-        students
+        students,
+        allOnlineUserIds
     ]);
     
     if (!currentUserId || !teacher) {
