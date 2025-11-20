@@ -166,7 +166,7 @@ export async function submitQuizResponse(sessionId: string, response: QuizRespon
   return { success: true };
 }
 
-export async function endQuiz(sessionId: string, quizId: string): Promise<{ success: boolean }> {
+export async function endQuiz(sessionId: string, quizId: string, responses: Map<string, QuizResponse>): Promise<{ success: boolean }> {
     console.log(`🏁 [ACTION] - Fin du quiz ${quizId} pour la session ${sessionId}`);
     const session = await getServerSession(authOptions);
     if (session?.user?.role !== Role.PROFESSEUR) {
@@ -181,9 +181,6 @@ export async function endQuiz(sessionId: string, quizId: string): Promise<{ succ
     if (!quiz) {
         throw new Error("Quiz not found");
     }
-
-    // This is a simplified version. A real implementation would fetch responses from a temporary store.
-    const responses: Map<string, QuizResponse> = new Map(); // Placeholder
 
     const correctAnswers = new Map(quiz.questions.map(q => [q.id, q.correctOptionId]));
     const studentScores: Record<string, { score: number; total: number }> = {};

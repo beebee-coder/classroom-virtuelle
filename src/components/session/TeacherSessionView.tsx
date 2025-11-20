@@ -66,7 +66,7 @@ interface TeacherSessionViewProps {
     quizResponses: Map<string, QuizResponse>;
     quizResults: QuizResults | null;
     onStartQuiz: (quiz: Omit<Quiz, 'id' | 'createdAt' | 'createdById'>) => Promise<{ success: boolean; error?: string; }>;
-    onEndQuiz: (quizId: string) => Promise<{ success: boolean; }>;
+    onEndQuiz: (quizId: string, responses: Map<string, QuizResponse>) => Promise<{ success: boolean; }>;
     students: User[];
 }
 
@@ -291,7 +291,7 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
         switch(activeTool) {
             case 'document': return <div className="h-full w-full rounded-lg overflow-hidden"><DocumentViewer url={documentUrl} /></div>;
             case 'whiteboard': return <div className="h-full w-full relative rounded-lg overflow-hidden"><div className="absolute top-2 left-2 z-10 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">👨‍🏫 Vous contrôlez le tableau</div><Html5Whiteboard sessionId={sessionId} userId={currentUserId} isController={currentUserId === whiteboardControllerId} operations={whiteboardOperations} onEvent={onWhiteboardEvent} flushOperations={flushWhiteboardOperations} /></div>;
-            case 'quiz': return <QuizWorkspace sessionId={sessionId} activeQuiz={activeQuiz} quizResponses={quizResponses} quizResults={quizResults} onStartQuiz={onStartQuiz} onEndQuiz={(quizId) => onEndQuiz(quizId)} students={students} />;
+            case 'quiz': return <QuizWorkspace sessionId={sessionId} activeQuiz={activeQuiz} quizResponses={quizResponses} quizResults={quizResults} onStartQuiz={onStartQuiz} onEndQuiz={(quizId) => onEndQuiz(quizId, quizResponses)} students={students} />;
             case 'chat': return <div className="h-full w-full rounded-lg overflow-hidden">{classroom?.id && teacher?.id && teacher.role && <ChatSheet classroomId={classroom.id} userId={teacher.id} userRole={teacher.role} />}</div>;
             case 'breakout': return <BreakoutRoomsManager sessionId={sessionId} students={students.filter(s => allOnlineUserIds.includes(s.id))} />;
             case 'camera':

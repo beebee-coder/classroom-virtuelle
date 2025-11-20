@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
 interface QuizViewProps {
-    quiz: Quiz;
+    quiz: Quiz | null;
     isTeacherView: boolean;
     onSubmitResponse?: (response: QuizResponse) => Promise<{ success: boolean; }>;
     onEndQuiz?: (quizId: string, responses: Map<string, QuizResponse>) => Promise<{ success: boolean; }>;

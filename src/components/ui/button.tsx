@@ -1,4 +1,3 @@
-'use client'; // Doit être présent en haut du fichier
 
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
