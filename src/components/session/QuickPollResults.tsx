@@ -30,7 +30,9 @@ export function QuickPollResults({ students, understandingStatus }: QuickPollRes
   const prevStatusRef = useRef<Map<string, ComprehensionLevel>>();
 
   useEffect(() => {
+    console.log('🤔 [TRACKER] - Mise à jour du statut de compréhension reçue.');
     if (accordionValue === undefined && prevStatusRef.current && prevStatusRef.current !== understandingStatus) {
+        console.log('✨ [TRACKER] - Nouveau statut détecté, affichage de la notification.');
         setHasNewStatus(true);
     }
     prevStatusRef.current = understandingStatus;
@@ -39,6 +41,7 @@ export function QuickPollResults({ students, understandingStatus }: QuickPollRes
   const handleAccordionChange = (value?: string) => {
     setAccordionValue(value);
     if (value === 'tracker') {
+      console.log('👀 [TRACKER] - Le professeur consulte les statuts.');
       setHasNewStatus(false);
     }
   };

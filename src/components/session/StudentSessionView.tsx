@@ -157,6 +157,7 @@ export function StudentSessionView({
         
         const previousStatus = currentUnderstanding;
         
+        console.log(`🤔 [ACTION DISPATCH] - Clic pour statut de compréhension: ${newStatus}`);
         onUnderstandingChange(newStatus);
         
         try {

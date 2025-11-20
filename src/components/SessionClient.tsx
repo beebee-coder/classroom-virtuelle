@@ -891,10 +891,9 @@ export default function SessionClient({
   }, []);
 
   const handleUnderstandingUpdate = useCallback((message: Types.Message) => {
-    if (isMountedRef.current) {
-      console.log(`🤔 [UNDERSTANDING] - Statut de compréhension reçu pour ${message.data.userId}: ${message.data.status}`);
-      setUnderstandingStatus(prev => new Map(prev).set(message.data.userId, message.data.status));
-    }
+    if (!isMountedRef.current) return;
+    console.log(`🤔 [SESSION CLIENT] - Statut de compréhension reçu pour ${message.data.userId}: ${message.data.status}`);
+    setUnderstandingStatus(prev => new Map(prev).set(message.data.userId, message.data.status));
   }, []);
 
   const handleActiveToolChange = useCallback((message: Types.Message) => {
@@ -909,6 +908,7 @@ export default function SessionClient({
     if (!isMountedRef.current) return;
     const data = message.data;
     if (data.sharedByUserId === currentUserId) return;
+    console.log('📥 [SESSION CLIENT] - Événement de partage de document reçu:', data);
     
     setDocumentHistory(prev => {
       const newDocument: DocumentInHistory = {
@@ -932,6 +932,7 @@ export default function SessionClient({
   const handleDocumentDeleted = useCallback((message: Types.Message) => {
     if (!isMountedRef.current) return;
     const { documentId, deletedBy } = message.data;
+    console.log(`🗑️ [SESSION CLIENT] - Événement de suppression de document reçu pour: ${documentId}`);
     setDocumentHistory(prev => prev.filter(doc => doc.id !== documentId));
     if (deletedBy !== currentUserId) {
         toast({ title: 'Document supprimé' });
@@ -969,6 +970,7 @@ export default function SessionClient({
 
   const handleQuizStarted = useCallback((message: Types.Message) => {
     if (isMountedRef.current) {
+        console.log("🎯 [SESSION CLIENT] - Événement de lancement de quiz reçu", message.data.quiz);
         setActiveQuiz(message.data.quiz);
         setQuizResults(null);
         setQuizResponses(new Map());
@@ -977,12 +979,14 @@ export default function SessionClient({
 
   const handleQuizResponse = useCallback((message: Types.Message) => {
     if (isMountedRef.current) {
+        console.log("📝 [SESSION CLIENT] - Réponse de quiz reçue", message.data);
         setQuizResponses(prev => new Map(prev).set(message.data.userId, message.data.response));
     }
   }, []);
 
   const handleQuizEnded = useCallback((message: Types.Message) => {
     if (isMountedRef.current) {
+        console.log("🏁 [SESSION CLIENT] - Événement de fin de quiz reçu", message.data.results);
         setActiveQuiz(null);
         setQuizResults(message.data.results);
     }
