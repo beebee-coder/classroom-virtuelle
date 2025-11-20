@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Hand } from 'lucide-react';
 import { Avatar, AvatarFallback } from '../ui/avatar';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { User } from '@prisma/client';
 
 interface HandRaiseControllerProps {
