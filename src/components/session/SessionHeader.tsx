@@ -11,6 +11,7 @@ import { CubeSpinner } from "./CubeSpinner";
 import { AblyStatusIndicator } from '../ui/AblyStatusIndicator';
 import { toolPresets } from '@/lib/constants'; // Import des préréglages
 import type { Classroom } from '@prisma/client';
+import { VideoControls } from '../VideoControls'; // Import du nouveau composant
 
 interface SessionHeaderProps {
     sessionId: string;
@@ -63,12 +64,6 @@ export function SessionHeader({
     const subject = classroom?.subject || 'DEFAULT';
     const teacherTools = toolPresets[subject] || toolPresets.DEFAULT;
     
-    const mediaControls = [
-        { id: 'mic', name: isMuted ? 'Activer' : 'Couper', icon: isMuted ? MicOff : Mic, onClick: onToggleMute, colors: ['#f87171', '#ef4444'] as [string,string], isDisabled: false },
-        { id: 'video', name: isVideoOff ? 'Activer' : 'Couper', icon: isVideoOff ? VideoOff : Video, onClick: onToggleVideo, colors: ['#fb923c', '#f97316'] as [string,string], isDisabled: false },
-        { id: 'screen', name: isSharingScreen ? 'Arrêter' : 'Partager', icon: isSharingScreen ? ScreenShareOff : ScreenShare, onClick: onToggleScreenShare, colors: ['#38bdf8', '#0ea5e9'] as [string,string], isDisabled: !isTeacher },
-    ];
-    
     return (
         <header className="border-b bg-background/95 backdrop-blur-sm z-10 sticky top-0">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-20">
@@ -79,7 +74,7 @@ export function SessionHeader({
                     <AblyStatusIndicator /> 
                 </div>
 
-                <div className="absolute left-1/2 -translate-x-1/2">
+                <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-4">
                     <ul className="nav-icon-list">
                         {isTeacher && teacherTools.map(tool => (
                             <NavIconButton
@@ -91,18 +86,16 @@ export function SessionHeader({
                                 onClick={() => onToolChange(tool.id)}
                             />
                         ))}
-                        {isTeacher && <div className="h-8 border-l mx-2"></div>}
-                        {mediaControls.map(control => (
-                            <NavIconButton
-                                key={control.id}
-                                icon={control.icon}
-                                label={control.name}
-                                colors={control.colors}
-                                onClick={control.onClick}
-                                isDisabled={control.isDisabled}
-                            />
-                        ))}
                     </ul>
+                    {isTeacher && <div className="h-8 border-l mx-2"></div>}
+                     <VideoControls 
+                        isMuted={isMuted}
+                        onToggleMute={onToggleMute}
+                        isVideoOff={isVideoOff}
+                        onToggleVideo={onToggleVideo}
+                        isSharingScreen={isSharingScreen}
+                        onToggleScreenShare={onToggleScreenShare}
+                    />
                 </div>
                 
                 <div className='w-48 flex justify-end'>
