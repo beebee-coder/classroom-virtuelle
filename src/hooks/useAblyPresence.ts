@@ -1,4 +1,4 @@
-// src/hooks/useAblyPresence.ts - VERSION CORRIGÉE POUR STABILITÉ
+// src/hooks/useAblyPresence.ts - VERSION CORRIGÉE AVEC RATE LIMITING
 'use client';
 
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
@@ -29,12 +29,17 @@ declare global {
     channel: AblyChannel;
     members: Map<string, AblyPresenceMember>;
     listeners: Set<string>;
+    lastPresenceUpdate: number; // ✅ CORRECTION : Tracking des updates
   }>;
 }
 
 if (typeof globalThis.activePresenceChannels === 'undefined') {
   globalThis.activePresenceChannels = new Map();
 }
+
+// ✅ CORRECTION : Constantes pour le rate limiting
+const PRESENCE_UPDATE_DELAY_MS = 2000; // Mise à jour max toutes les 2 secondes
+const MAX_PRESENCE_UPDATES_PER_MINUTE = 30; // Limite conservatrice
 
 export const useAblyPresence = (channelId?: string, enabled: boolean = true): UseAblyPresenceReturn => {
   const { client, connectionError, isConnected: ablyConnected, connectionState } = useAbly();
@@ -48,11 +53,43 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
   const currentChannelNameRef = useRef<string | null>(null);
   const componentIdRef = useRef(`presence_${Math.random().toString(36).substring(2, 8)}`);
   const handlersRef = useRef<{ stateHandler: any; onPresenceUpdate: any } | null>(null);
+  
+  // ✅ CORRECTION : Système de rate limiting pour les updates de présence
+  const lastPresenceUpdateRef = useRef<number>(0);
+  const presenceUpdateCountRef = useRef<number>(0);
+  const presenceUpdateResetTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const isLoading = useMemo(() => 
     connectionState === 'initialized' || connectionState === 'connecting', 
     [connectionState]
   );
+
+  // ✅ CORRECTION : Fonction de vérification du rate limiting pour présence
+  const canUpdatePresence = useCallback(() => {
+    const now = Date.now();
+    
+    // Réinitialiser le compteur toutes les minutes
+    if (presenceUpdateResetTimeoutRef.current === null) {
+      presenceUpdateResetTimeoutRef.current = setTimeout(() => {
+        presenceUpdateCountRef.current = 0;
+        presenceUpdateResetTimeoutRef.current = null;
+      }, 60000);
+    }
+    
+    // Vérifier la limite par minute
+    if (presenceUpdateCountRef.current >= MAX_PRESENCE_UPDATES_PER_MINUTE) {
+      console.warn(`⏸️ [PRESENCE HOOK] - Rate limiting: ${presenceUpdateCountRef.current} updates cette minute`);
+      return false;
+    }
+    
+    // Vérifier le délai minimum entre les updates
+    if (now - lastPresenceUpdateRef.current < PRESENCE_UPDATE_DELAY_MS) {
+      console.warn(`⏸️ [PRESENCE HOOK] - Délai trop court depuis dernière update: ${now - lastPresenceUpdateRef.current}ms`);
+      return false;
+    }
+    
+    return true;
+  }, []);
 
   // ✅ CORRECTION : Fonction utilitaire pour valider les rôles
   const isValidRole = useCallback((role: any): role is Role => {
@@ -119,7 +156,7 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
     }
   }, [isValidRole]);
 
-  // ✅ CORRECTION : Mise à jour des membres en ligne avec mémoisation
+  // ✅ CORRECTION : Mise à jour des membres en ligne avec debouncing
   const updateOnlineMembers = useCallback(() => {
     if (!mountedRef.current) return;
     
@@ -168,7 +205,7 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
             }
             globalThis.activePresenceChannels.delete(channelName);
           }
-        }, 10000); // ✅ CORRECTION : Délai augmenté pour éviter les reconnexions fréquentes
+        }, 15000); // ✅ CORRECTION : Délai augmenté pour éviter les reconnexions fréquentes
       }
     }
   }, []);
@@ -195,12 +232,15 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
         setIsConnected(true);
         setError(null);
         
+        // ✅ CORRECTION : Mettre à jour le timestamp global
+        channelInfo.lastPresenceUpdate = Date.now();
+        
         // ✅ CORRECTION : Initialisation différée sécurisée
         setTimeout(() => {
           if (mountedRef.current && channel.state === 'attached') {
             initializePresence(channel, channelInfo);
           }
-        }, 500);
+        }, 1000); // ✅ CORRECTION : Délai augmenté pour réduire la charge
       } else if (['detached', 'failed', 'suspended'].includes(stateChange.current)) {
         setIsConnected(false);
         if (stateChange.reason) {
@@ -232,7 +272,8 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
           break;
       }
       
-      updateOnlineMembers();
+      // ✅ CORRECTION : Debouncing des mises à jour d'UI
+      setTimeout(updateOnlineMembers, 100);
     };
 
     channel.on(stateHandler);
@@ -273,7 +314,12 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
     };
 
     if (channel.state === 'attached') {
-      initializePresence(channel, channelInfo);
+      // ✅ CORRECTION : Délai avant l'initialisation pour réduire la charge initiale
+      setTimeout(() => {
+        if (mountedRef.current && channel.state === 'attached') {
+          initializePresence(channel, channelInfo);
+        }
+      }, 500);
     }
 
     return { stateHandler, onPresenceUpdate };
@@ -308,7 +354,8 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
             refCount: 0, 
             channel, 
             members: new Map(),
-            listeners: new Set()
+            listeners: new Set(),
+            lastPresenceUpdate: Date.now() // ✅ CORRECTION : Initialisation du timestamp
           };
           globalThis.activePresenceChannels.set(channelName, channelInfo);
           
@@ -323,7 +370,8 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
           
           if (channelInfo.channel.state === 'attached') {
             setIsConnected(true);
-            updateOnlineMembers();
+            // ✅ CORRECTION : Délai avant mise à jour pour éviter les pics
+            setTimeout(updateOnlineMembers, 200);
           }
         }
 
@@ -338,10 +386,18 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
       }
     };
 
-    initializePresence();
+    // ✅ CORRECTION : Délai d'initialisation pour étaler les connexions
+    setTimeout(initializePresence, Math.random() * 1000);
 
     return () => {
       mountedRef.current = false;
+      
+      // ✅ CORRECTION : Nettoyage des timeouts
+      if (presenceUpdateResetTimeoutRef.current) {
+        clearTimeout(presenceUpdateResetTimeoutRef.current);
+        presenceUpdateResetTimeoutRef.current = null;
+      }
+      
       const channelNameToCleanup = currentChannelNameRef.current;
       if (channelNameToCleanup) {
         console.log(`🧹 [PRESENCE HOOK] - Nettoyage pour canal: ${channelNameToCleanup}`);
@@ -352,12 +408,18 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
     };
   }, [channelId, enabled, client, manageChannelRefCount, setupPresenceHandlers, updateOnlineMembers]);
 
-  // ✅ CORRECTION : Fonctions de présence avec gestion d'état améliorée
+  // ✅ CORRECTION : Fonctions de présence avec rate limiting
   const enterPresence = useCallback(async (userData: Omit<AblyPresenceMember, 'id'>) => {
     const channel = channelRef.current;
     if (!channel || !isConnected || isEnteringRef.current) {
       console.warn('⚠️ [PRESENCE HOOK] - Impossible d\'entrer en présence: canal pas prêt');
       throw new Error('Canal de présence non disponible');
+    }
+    
+    // ✅ CORRECTION : Vérification du rate limiting
+    if (!canUpdatePresence()) {
+      console.warn('⏸️ [PRESENCE HOOK] - Rate limiting activé, report de l\'entrée en présence');
+      throw new Error('Rate limiting: trop de mises à jour de présence');
     }
     
     isEnteringRef.current = true;
@@ -371,7 +433,20 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
         data: userData.data || {}
       };
       
+      // ✅ CORRECTION : Mettre à jour les trackers de rate limiting
+      lastPresenceUpdateRef.current = Date.now();
+      presenceUpdateCountRef.current++;
+      
       await channel.presence.enter(presenceData);
+      
+      // ✅ CORRECTION : Mettre à jour le timestamp global
+      const channelName = currentChannelNameRef.current;
+      if (channelName) {
+        const channelInfo = globalThis.activePresenceChannels.get(channelName);
+        if (channelInfo) {
+          channelInfo.lastPresenceUpdate = Date.now();
+        }
+      }
     } catch (err) {
       console.error('❌ [PRESENCE HOOK] - Erreur d\'entrée en présence:', err);
       setError(err as AblyErrorInfo);
@@ -379,7 +454,7 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
     } finally {
       isEnteringRef.current = false;
     }
-  }, [client?.auth.clientId, isConnected]);
+  }, [client?.auth.clientId, isConnected, canUpdatePresence]);
   
   const leavePresence = useCallback(async () => {
     const channel = channelRef.current;
@@ -403,13 +478,32 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
       return;
     }
     
+    // ✅ CORRECTION : Vérification du rate limiting
+    if (!canUpdatePresence()) {
+      console.warn('⏸️ [PRESENCE HOOK] - Rate limiting activé, report de la mise à jour');
+      return;
+    }
+    
     try {
+      // ✅ CORRECTION : Mettre à jour les trackers de rate limiting
+      lastPresenceUpdateRef.current = Date.now();
+      presenceUpdateCountRef.current++;
+      
       await channel.presence.update(userData);
+      
+      // ✅ CORRECTION : Mettre à jour le timestamp global
+      const channelName = currentChannelNameRef.current;
+      if (channelName) {
+        const channelInfo = globalThis.activePresenceChannels.get(channelName);
+        if (channelInfo) {
+          channelInfo.lastPresenceUpdate = Date.now();
+        }
+      }
     } catch (err) {
       console.error('❌ [PRESENCE HOOK] - Erreur de mise à jour:', err);
       setError(err as AblyErrorInfo);
     }
-  }, [isConnected]);
+  }, [isConnected, canUpdatePresence]);
 
   // ✅ CORRECTION : Effets de synchronisation simplifiés
   useEffect(() => {

@@ -21,6 +21,7 @@ import type { CreateQuizData } from '@/lib/actions/ably-session.actions';
 import { useWebRTCConnection } from '@/hooks/session/useWebRTCConnection';
 import { useAblyCommunication } from '@/hooks/session/useAblyCommunication';
 import { useMediaManagement } from '@/hooks/session/useMediaManagement';
+import { useSessionState } from '@/hooks/session/useSessionState'; // NOUVEAU HOOK
 
 // Importation statique
 import { TeacherSessionView } from './session/TeacherSessionView';
@@ -63,6 +64,26 @@ export default function SessionClient({
     createPeer,
     handleIncomingSignal
   } = useWebRTCConnection(sessionId, currentUserId, activeStream, isMountedRef.current);
+  
+  // EXTRACTION DE L'ETAT LOCAL DANS UN HOOK DEDIE
+  const {
+    activeTool,
+    documentUrl,
+    documentHistory,
+    whiteboardOperations,
+    activeQuiz,
+    quizResponses,
+    quizResults,
+    setActiveTool,
+    setDocumentUrl,
+    setDocumentHistory,
+    setWhiteboardOperations,
+    handleSelectDocument,
+    handleUploadSuccess,
+    handleStartQuiz,
+    handleEndQuiz,
+    handleNewQuizResponse,
+  } = useSessionState({ initialDocumentHistory, initialActiveQuiz });
 
   const handleSignalReceived = useCallback((fromUserId: string, signal: any) => {
     if (!isMountedRef.current) return;
@@ -76,21 +97,21 @@ export default function SessionClient({
     spotlightedParticipantId,
     handRaiseQueue,
     understandingStatus,
-    activeTool,
-    documentUrl,
     whiteboardControllerId,
-    whiteboardOperations,
     isTimerRunning,
     timerTimeLeft,
-    setDocumentUrl,
-    setActiveTool,
-    setWhiteboardOperations
   } = useAblyCommunication({
     sessionId,
     currentUserId,
     initialTeacherId: initialTeacher.id,
     onSessionEnded: () => router.push(currentUserRole === Role.PROFESSEUR ? '/teacher/dashboard' : '/student/dashboard'),
-    onSignalReceived: handleSignalReceived
+    onSignalReceived: handleSignalReceived,
+    // Passer les setters de l'état pour les mises à jour Ably
+    setActiveTool,
+    setDocumentUrl,
+    setActiveQuiz: handleStartQuiz, // Renommer pour clarifier
+    onNewQuizResponse: handleNewQuizResponse,
+    onQuizEnded: handleEndQuiz,
   });
 
   const { sendOperation, flushOperations } = useAblyWhiteboardSync(
@@ -98,11 +119,6 @@ export default function SessionClient({
     currentUserId, 
     (ops) => setWhiteboardOperations(prev => [...prev, ...ops])
   );
-
-  const [documentHistory, setDocumentHistory] = useState(initialDocumentHistory);
-  const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(initialActiveQuiz);
-  const [quizResponses, setQuizResponses] = useState<Map<string, QuizResponse>>(new Map());
-  const [quizResults, setQuizResults] = useState<QuizResults | null>(null);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -157,9 +173,8 @@ export default function SessionClient({
   }, [sessionId]);
 
   const onToolChange = useCallback(async (tool: string) => { 
-    setActiveTool(tool);
     await broadcastActiveTool(sessionId, tool); 
-  }, [sessionId, setActiveTool]);
+  }, [sessionId]);
   
   const handleWhiteboardControllerChange = useCallback(async (userId: string) => {
     if (currentUserRole === Role.PROFESSEUR) {
@@ -181,13 +196,11 @@ export default function SessionClient({
     }
   }, [sessionId, currentUserRole, whiteboardControllerId, initialTeacher?.id, toast]);
 
-  const handleUploadSuccess = useCallback(async (uploadedDoc: { name: string; url: string }) => {
+  const handleOnUploadSuccess = useCallback(async (uploadedDoc: { name: string; url: string }) => {
     try {
       const result = await saveAndShareDocument(sessionId, uploadedDoc);
       if (result.success && isMountedRef.current) {
-        setDocumentHistory(prev => [result.document, ...prev]);
-        setDocumentUrl(result.document.url);
-        setActiveTool('document');
+        handleUploadSuccess(result.document);
       }
       toast({
         title: 'Succès',
@@ -201,9 +214,9 @@ export default function SessionClient({
         description: 'Impossible de partager le document' 
       });
     }
-  }, [sessionId, toast, setActiveTool, setDocumentUrl]);
+  }, [sessionId, toast, handleUploadSuccess]);
   
-  const handleStartQuiz = useCallback(async (quizData: CreateQuizData) => {
+  const handleOnStartQuiz = useCallback(async (quizData: CreateQuizData) => {
     const result = await startQuiz(sessionId, quizData);
     if (!result.success) {
       toast({ variant: 'destructive', title: 'Erreur', description: result.error || 'Impossible de lancer le quiz.' });
@@ -219,7 +232,7 @@ export default function SessionClient({
     return result;
   }, [sessionId, toast]);
 
-  const handleEndQuiz = useCallback(async (quizId: string, responses: Map<string, QuizResponse>) => {
+  const handleOnEndQuiz = useCallback(async (quizId: string, responses: Map<string, QuizResponse>) => {
     const result = await endQuiz(sessionId, quizId, responses);
     return result;
   }, [sessionId]);
@@ -274,7 +287,7 @@ export default function SessionClient({
             onToolChange={onToolChange}
             classroom={classroom} 
             documentUrl={documentUrl} 
-            onSelectDocument={(doc) => setDocumentUrl(doc.url)}
+            onSelectDocument={handleSelectDocument}
             whiteboardControllerId={whiteboardControllerId} 
             onWhiteboardControllerChange={handleWhiteboardControllerChange}
             initialDuration={3600} 
@@ -287,12 +300,12 @@ export default function SessionClient({
             whiteboardOperations={whiteboardOperations} 
             flushWhiteboardOperations={flushOperations} 
             documentHistory={documentHistory}
-            onDocumentShared={handleUploadSuccess} 
+            onDocumentShared={handleOnUploadSuccess} 
             activeQuiz={activeQuiz}
             quizResponses={quizResponses} 
             quizResults={quizResults}
-            onStartQuiz={handleStartQuiz}
-            onEndQuiz={handleEndQuiz} 
+            onStartQuiz={handleOnStartQuiz}
+            onEndQuiz={handleOnEndQuiz} 
             students={initialStudents}
           />
         ) : (

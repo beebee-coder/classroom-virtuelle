@@ -1,11 +1,11 @@
-// src/hooks/session/useAblyCommunication.ts - VERSION CORRIGÉE SANS ERREURS TS
+// src/hooks/session/useAblyCommunication.ts
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAbly } from '@/hooks/useAbly';
 import { getSessionChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
-import { ComprehensionLevel, WhiteboardOperation } from '@/types';
+import { ComprehensionLevel, WhiteboardOperation, Quiz, QuizResponse, QuizResults } from '@/types';
 import type { Types as AblyTypes } from 'ably';
 import { useToast } from '../use-toast';
 import { useRouter } from 'next/navigation';
@@ -31,6 +31,12 @@ interface AblyCommunicationProps {
   initialTeacherId: string;
   onSessionEnded?: () => void;
   onSignalReceived: (fromUserId: string, signal: any) => void;
+  // Fonctions pour mettre à jour l'état du parent (SessionClient)
+  setActiveTool: (tool: string) => void;
+  setDocumentUrl: (url: string | null) => void;
+  setActiveQuiz: (quiz: Quiz) => void;
+  onNewQuizResponse: (response: QuizResponse) => void;
+  onQuizEnded: (results: QuizResults) => void;
 }
 
 export function useAblyCommunication({ 
@@ -38,25 +44,36 @@ export function useAblyCommunication({
   currentUserId,
   initialTeacherId,
   onSessionEnded,
-  onSignalReceived
+  onSignalReceived,
+  setActiveTool,
+  setDocumentUrl,
+  setActiveQuiz,
+  onNewQuizResponse,
+  onQuizEnded
 }: AblyCommunicationProps) {
   const { client: ablyClient, isConnected: isAblyConnected } = useAbly();
   const { toast } = useToast();
-  const router = useRouter();
 
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
   const [spotlightedParticipantId, setSpotlightedParticipantId] = useState<string | null>(initialTeacherId);
   const [handRaiseQueue, setHandRaiseQueue] = useState<string[]>([]);
   const [understandingStatus, setUnderstandingStatus] = useState<Map<string, ComprehensionLevel>>(new Map());
-  const [activeTool, setActiveTool] = useState<string>('camera');
-  const [documentUrl, setDocumentUrl] = useState<string | null>(null);
   const [whiteboardControllerId, setWhiteboardControllerId] = useState<string | null>(initialTeacherId);
-  const [whiteboardOperations, setWhiteboardOperations] = useState<WhiteboardOperation[]>([]);
   const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
   const [timerTimeLeft, setTimerTimeLeft] = useState<number>(3600);
 
   const channelRef = useRef<AblyTypes.RealtimeChannelCallbacks | null>(null);
   const isMountedRef = useRef(true);
+  
+  const onSignalReceivedRef = useRef(onSignalReceived);
+  useEffect(() => {
+    onSignalReceivedRef.current = onSignalReceived;
+  }, [onSignalReceived]);
+
+  const onSessionEndedRef = useRef(onSessionEnded);
+  useEffect(() => {
+    onSessionEndedRef.current = onSessionEnded;
+  }, [onSessionEnded]);
 
   // Handler pour les signaux WebRTC
   const handleSignalEvent = useCallback((message: AblyTypes.Message) => {
@@ -68,8 +85,8 @@ export function useAblyCommunication({
       return;
     }
     
-    onSignalReceived(data.userId, data.signal);
-  }, [currentUserId, onSignalReceived]);
+    onSignalReceivedRef.current(data.userId, data.signal);
+  }, [currentUserId]);
 
   // Handlers existants
   const handlePresenceUpdate = useCallback(() => {
@@ -97,10 +114,10 @@ export function useAblyCommunication({
       title: 'Session terminée', 
       description: 'Le professeur a mis fin à la session.' 
     });
-    if (onSessionEnded) {
-      onSessionEnded();
+    if (onSessionEndedRef.current) {
+      onSessionEndedRef.current();
     }
-  }, [toast, onSessionEnded]);
+  }, [toast]);
 
   const handleSpotlightEvent = useCallback((message: AblyTypes.Message) => {
     if (isMountedRef.current) {
@@ -138,7 +155,7 @@ export function useAblyCommunication({
       const validatedTool = validateActiveTool(message.data.tool);
       setActiveTool(validatedTool);
     }
-  }, []);
+  }, [setActiveTool]);
 
   const handleDocumentSharedEvent = useCallback((message: AblyTypes.Message) => {
     if (isMountedRef.current && message.data.sharedByUserId !== currentUserId) {
@@ -150,20 +167,14 @@ export function useAblyCommunication({
         description: `${message.data.sharedBy} a partagé un nouveau document.`
       });
     }
-  }, [currentUserId, toast]);
+  }, [currentUserId, toast, setDocumentUrl, setActiveTool]);
 
   const handleWhiteboardControllerUpdateEvent = useCallback((message: AblyTypes.Message) => {
     if (isMountedRef.current) {
       setWhiteboardControllerId(message.data.controllerId);
     }
   }, []);
-
-  const handleWhiteboardOperationsEvent = useCallback((message: AblyTypes.Message) => {
-    if (isMountedRef.current && message.data.userId !== currentUserId) {
-      setWhiteboardOperations(prevOps => [...prevOps, ...(message.data.operations || [])]);
-    }
-  }, [currentUserId]);
-
+  
   const handleTimerStartedEvent = useCallback(() => {
     if (isMountedRef.current) {
       setIsTimerRunning(true);
@@ -183,6 +194,24 @@ export function useAblyCommunication({
       setIsTimerRunning(false);
     }
   }, []);
+
+  const handleQuizStartedEvent = useCallback((message: AblyTypes.Message) => {
+    if (isMountedRef.current) {
+      setActiveQuiz(message.data.quiz as Quiz);
+    }
+  }, [setActiveQuiz]);
+
+  const handleQuizResponseEvent = useCallback((message: AblyTypes.Message) => {
+    if (isMountedRef.current) {
+      onNewQuizResponse(message.data as QuizResponse);
+    }
+  }, [onNewQuizResponse]);
+  
+  const handleQuizEndedEvent = useCallback((message: AblyTypes.Message) => {
+    if (isMountedRef.current) {
+      onQuizEnded(message.data.results as QuizResults);
+    }
+  }, [onQuizEnded]);
 
   const enterPresence = useCallback(async (channel: AblyTypes.RealtimeChannelCallbacks, userData: any) => {
     try {
@@ -221,10 +250,12 @@ export function useAblyCommunication({
       { event: AblyEvents.ACTIVE_TOOL_CHANGED, handler: handleActiveToolChangeEvent },
       { event: AblyEvents.DOCUMENT_SHARED, handler: handleDocumentSharedEvent },
       { event: AblyEvents.WHITEBOARD_CONTROLLER_UPDATE, handler: handleWhiteboardControllerUpdateEvent },
-      { event: AblyEvents.WHITEBOARD_OPERATION_BATCH, handler: handleWhiteboardOperationsEvent },
       { event: AblyEvents.TIMER_STARTED, handler: handleTimerStartedEvent },
       { event: AblyEvents.TIMER_PAUSED, handler: handleTimerPausedEvent },
       { event: AblyEvents.TIMER_RESET, handler: handleTimerResetEvent },
+      { event: AblyEvents.QUIZ_STARTED, handler: handleQuizStartedEvent },
+      { event: AblyEvents.QUIZ_RESPONSE, handler: handleQuizResponseEvent },
+      { event: AblyEvents.QUIZ_ENDED, handler: handleQuizEndedEvent },
     ];
     
     subscriptions.forEach(({ event, handler }) => {
@@ -256,11 +287,12 @@ export function useAblyCommunication({
       }
     };
   }, [
-    ablyClient, isAblyConnected, sessionId, currentUserId, handleSignalEvent,
-    handlePresenceUpdate, handleSessionEndedEvent, handleSpotlightEvent, handleHandRaiseUpdateEvent,
-    handleHandAcknowledgedEvent, handleUnderstandingUpdateEvent, handleActiveToolChangeEvent,
-    handleDocumentSharedEvent, handleWhiteboardControllerUpdateEvent, handleWhiteboardOperationsEvent,
+    ablyClient, isAblyConnected, sessionId, currentUserId, 
+    handleSignalEvent, handlePresenceUpdate, handleSessionEndedEvent, handleSpotlightEvent,
+    handleHandRaiseUpdateEvent, handleHandAcknowledgedEvent, handleUnderstandingUpdateEvent,
+    handleActiveToolChangeEvent, handleDocumentSharedEvent, handleWhiteboardControllerUpdateEvent,
     handleTimerStartedEvent, handleTimerPausedEvent, handleTimerResetEvent,
+    handleQuizStartedEvent, handleQuizResponseEvent, handleQuizEndedEvent,
     enterPresence, leavePresence
   ]);
 
@@ -269,14 +301,8 @@ export function useAblyCommunication({
       spotlightedParticipantId,
       handRaiseQueue,
       understandingStatus,
-      activeTool,
-      documentUrl,
       whiteboardControllerId,
-      whiteboardOperations,
       isTimerRunning,
       timerTimeLeft,
-      setDocumentUrl,
-      setActiveTool,
-      setWhiteboardOperations
   };
 }
