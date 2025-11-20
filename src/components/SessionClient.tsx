@@ -1,4 +1,4 @@
-// src/components/SessionClient.tsx - VERSION AVEC HOOKS WebRTC & Ably
+// src/components/SessionClient.tsx - VERSION AVEC HOOKS WebRTC, Ably & Media
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -16,9 +16,10 @@ import { AblyEvents } from '@/lib/ably/events';
 import { getSessionChannelName } from '@/lib/ably/channels';
 import { updateStudentSessionStatus, broadcastActiveTool, broadcastTimerEvent, startQuiz, submitQuizResponse, endQuiz } from '@/lib/actions/ably-session.actions';
 
-// Importation des nouveaux hooks
+// Importation des hooks de refactorisation
 import { useWebRTCConnection } from '@/hooks/session/useWebRTCConnection';
 import { useAblyCommunication } from '@/hooks/session/useAblyCommunication';
+import { useMediaManagement } from '@/hooks/session/useMediaManagement'; // NOUVEAU HOOK
 
 // Importation statique
 import { TeacherSessionView } from './session/TeacherSessionView';
@@ -40,17 +41,24 @@ export default function SessionClient({
   const { toast } = useToast();
   
   const isMountedRef = useRef(true);
-  const mediaCleanupRef = useRef<(() => void) | null>(null);
-  
-  const [loading, setLoading] = useState<boolean>(true);
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
-  const [isSharingScreen, setIsSharingScreen] = useState<boolean>(false);
-  const [isMediaReady, setIsMediaReady] = useState(false);
   const [isEndingSession, setIsEndingSession] = useState<boolean>(false);
   
   // --- Utilisation des hooks de refactorisation ---
-  const { remoteStreams, createPeer, cleanupPeerConnection } = useWebRTCConnection(sessionId, currentUserId, isSharingScreen ? screenStream : localStream, isMountedRef.current);
+  const {
+    localStream,
+    screenStream,
+    isSharingScreen,
+    isMuted,
+    isVideoOff,
+    isMediaReady,
+    isMediaLoading,
+    toggleMute,
+    toggleVideo,
+    toggleScreenShare
+  } = useMediaManagement();
+
+  const activeStream = isSharingScreen ? screenStream : localStream;
+  const { remoteStreams, createPeer } = useWebRTCConnection(sessionId, currentUserId, activeStream, isMountedRef.current);
   
   const {
     onlineUserIds,
@@ -83,76 +91,25 @@ export default function SessionClient({
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(initialActiveQuiz);
   const [quizResponses, setQuizResponses] = useState<Map<string, QuizResponse>>(new Map());
   const [quizResults, setQuizResults] = useState<QuizResults | null>(null);
-  
-  const [isMuted, setIsMuted] = useState(false);
-  const [isVideoOff, setIsVideoOff] = useState(false);
 
-  // --- Initialisation des médias ---
   useEffect(() => {
     isMountedRef.current = true;
-    let stream: MediaStream | null = null;
-    
-    const getMedia = async () => {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { width: 1280, height: 720 }, 
-          audio: true 
-        });
-        if (isMountedRef.current) {
-          setLocalStream(stream);
-          setIsMediaReady(true);
-        }
-      } catch (error) {
-        if (isMountedRef.current) {
-          setIsMediaReady(true);
-        }
-      } finally {
-        if (isMountedRef.current) {
-          setLoading(false);
-        }
-      }
-    };
-
-    getMedia();
-    
-    mediaCleanupRef.current = () => stream?.getTracks().forEach(track => track.stop());
-
-    return () => {
-      isMountedRef.current = false;
-      mediaCleanupRef.current?.();
-    };
+    return () => { isMountedRef.current = false; };
   }, []);
-
-  // --- Gestion du cycle de vie du partage d'écran ---
-  useEffect(() => {
-    if (!screenStream) return;
-    const handleTrackEnded = () => {
-      if (isMountedRef.current) {
-        setIsSharingScreen(false);
-        setScreenStream(null);
-      }
-    };
-    screenStream.getTracks().forEach(track => track.addEventListener('ended', handleTrackEnded));
-    return () => screenStream.getTracks().forEach(track => track.removeEventListener('ended', handleTrackEnded));
-  }, [screenStream]);
-
 
   // --- Logique d'envoi et de réception de signaux WebRTC via le hook ---
   useEffect(() => {
     if (isMediaReady) {
         onlineUserIds.forEach(userId => {
             if (userId !== currentUserId) {
-                createPeer(userId, true, isSharingScreen ? screenStream : localStream);
+                createPeer(userId, true, activeStream);
             }
         });
     }
-  }, [onlineUserIds, currentUserId, isMediaReady, isSharingScreen, screenStream, localStream, createPeer]);
+  }, [onlineUserIds, currentUserId, isMediaReady, activeStream, createPeer]);
 
 
   // --- Actions utilisateur ---
-  const toggleMute = useCallback(() => { localStream?.getAudioTracks().forEach(track => { track.enabled = !track.enabled; }); setIsMuted(prev => !prev); }, [localStream]);
-  const toggleVideo = useCallback(() => { localStream?.getVideoTracks().forEach(track => { track.enabled = !track.enabled; }); setIsVideoOff(prev => !prev); }, [localStream]);
-  
   const handleEndSession = useCallback(async () => {
     if (currentUserRole === Role.PROFESSEUR) {
       setIsEndingSession(true);
@@ -197,12 +154,12 @@ export default function SessionClient({
   // --- Mémos pour l'affichage ---
   const allSessionUsers = useMemo(() => [initialTeacher, ...initialStudents].filter(Boolean) as User[], [initialTeacher, initialStudents]);
   const spotlightedUser = useMemo(() => allSessionUsers.find(u => u.id === spotlightedParticipantId), [allSessionUsers, spotlightedParticipantId]);
-  const spotlightedStream = useMemo(() => spotlightedParticipantId === currentUserId ? (isSharingScreen ? screenStream : localStream) : remoteStreams.get(spotlightedParticipantId || ''), [spotlightedParticipantId, currentUserId, isSharingScreen, screenStream, localStream, remoteStreams]);
+  const spotlightedStream = useMemo(() => spotlightedParticipantId === currentUserId ? activeStream : remoteStreams.get(spotlightedParticipantId || ''), [spotlightedParticipantId, currentUserId, activeStream, remoteStreams]);
   const remoteParticipants = useMemo(() => Array.from(remoteStreams.entries()).map(([id, stream]) => ({ id, stream })), [remoteStreams]);
   const isHandRaised = handRaiseQueue.includes(currentUserId);
   const raisedHandUsers = useMemo(() => handRaiseQueue.map(userId => allSessionUsers.find(u => u.id === userId)).filter(Boolean) as User[], [handRaiseQueue, allSessionUsers]);
 
-  if (loading) {
+  if (isMediaLoading) {
     return <SessionLoading />;
   }
 
@@ -212,7 +169,7 @@ export default function SessionClient({
         sessionId={sessionId} isTeacher={currentUserRole === Role.PROFESSEUR}
         onEndSession={handleEndSession} onLeaveSession={handleLeaveSession}
         isEndingSession={isEndingSession} isSharingScreen={isSharingScreen}
-        onToggleScreenShare={() => { /* TODO: Implement screen share */ }} 
+        onToggleScreenShare={toggleScreenShare} 
         isMuted={isMuted} onToggleMute={toggleMute}
         isVideoOff={isVideoOff} onToggleVideo={toggleVideo} 
         activeTool={activeTool} onToolChange={onToolChange} classroom={classroom}
