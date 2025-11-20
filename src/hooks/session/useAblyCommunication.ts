@@ -1,3 +1,4 @@
+
 // src/hooks/session/useAblyCommunication.ts
 'use client';
 
@@ -61,8 +62,12 @@ export function useAblyCommunication({
     if (!channelRef.current || !isMountedRef.current) return;
     channelRef.current.presence.get((err, members) => {
       if (err || !isMountedRef.current) return;
-      const uniqueMembers = Array.from(new Set(members.map(m => m.clientId)));
-      setOnlineUserIds(uniqueMembers);
+      if (members) {
+        const uniqueMembers = Array.from(new Set(members.map(m => m.clientId)));
+        setOnlineUserIds(uniqueMembers);
+      } else {
+        setOnlineUserIds([]);
+      }
     });
   }, []);
   
