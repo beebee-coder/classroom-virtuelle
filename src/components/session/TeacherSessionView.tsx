@@ -5,7 +5,7 @@ import { User, Role } from '@prisma/client';
 import type { SessionParticipant, ClassroomWithDetails, DocumentInHistory, Html5CanvasScene, ComprehensionLevel, WhiteboardOperation, Quiz, QuizResponse, QuizResults } from '@/types';
 import { Participant } from '@/components/Participant';
 import { StudentPlaceholder } from '../StudentPlaceholder';
-import { HandRaiseController } from '../HandRaiseController';
+import { HandRaiseController } from './HandRaiseController';
 import { QuickPollResults } from './QuickPollResults';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { ClassStudentList } from './ClassStudentList';
@@ -265,6 +265,7 @@ export function TeacherSessionView({
     const renderActiveTool = useMemo(() => {
         console.log(`🖌️ [TEACHER VIEW] - Affichage de l'outil actif: ${activeTool}`);
         if (isSharingScreen && screenStream) {
+            console.log("🖥️ [TEACHER VIEW] - Affichage du partage d'écran.");
             return (
                 <div className="w-full h-full bg-black rounded-lg overflow-hidden">
                     <Participant

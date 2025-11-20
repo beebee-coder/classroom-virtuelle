@@ -891,9 +891,10 @@ export default function SessionClient({
   }, []);
 
   const handleUnderstandingUpdate = useCallback((message: Types.Message) => {
-    if (!isMountedRef.current) return;
-    console.log(`🤔 [SESSION CLIENT] - Statut de compréhension reçu pour ${message.data.userId}: ${message.data.status}`);
-    setUnderstandingStatus(prev => new Map(prev).set(message.data.userId, message.data.status));
+    if (isMountedRef.current) {
+      console.log(`🤔 [SESSION CLIENT] - Statut de compréhension reçu pour ${message.data.userId}: ${message.data.status}`);
+      setUnderstandingStatus(prev => new Map(prev).set(message.data.userId, message.data.status));
+    }
   }, []);
 
   const handleActiveToolChange = useCallback((message: Types.Message) => {
