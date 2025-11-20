@@ -21,24 +21,15 @@ import { DocumentUploadSection } from './DocumentUploadSection';
 import { shareDocumentToStudents } from '@/lib/actions/session.actions';
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { motion, AnimatePresence } from 'framer-motion';
-import { QuizWorkspace } from './QuizWorkspace';
+import { QuizWorkspace } from './quiz/QuizWorkspace';
 import { BreakoutRoomsManager } from './breakout/BreakoutRoomsManager';
 import { QuickPollResults } from './QuickPollResults';
 import { HandRaiseController } from './HandRaiseController';
 import { SessionTimer } from './SessionTimer';
 import { DocumentHistory } from './DocumentHistory';
 import { DocumentViewer } from './DocumentViewer';
+import type { CreateQuizData } from '@/lib/actions/ably-session.actions';
 
-
-interface CreateQuizData {
-  title: string;
-  questions: Array<{
-    id: string;
-    text: string;
-    options: Array<{ id: string; text: string }>;
-    correctOptionId: string;
-  }>;
-}
 
 // Définition des props pour TeacherSessionView
 interface TeacherSessionViewProps {

@@ -9,14 +9,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Trash2, PlusCircle, Rocket, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
-import type { Quiz, QuizQuestion as PrismaQuizQuestion } from '@/types';
+import type { CreateQuizData } from '@/lib/actions/ably-session.actions';
 
 interface QuizLauncherProps {
-    onStartQuiz: (quiz: Omit<Quiz, 'id' | 'createdAt' | 'createdById'>) => Promise<{ success: boolean; error?: string }>;
+    onStartQuiz: (quiz: CreateQuizData) => Promise<{ success: boolean; error?: string }>;
 }
 
-// CORRECTION: Ces types représentent les données en cours de création,
-// ils ne doivent pas correspondre exactement au modèle Prisma final.
 interface Option {
     id: string;
     text: string;
@@ -108,9 +106,7 @@ export function QuizLauncher({ onStartQuiz }: QuizLauncherProps) {
         }
 
         startTransition(async () => {
-             // CORRECTION: Le type est maintenant compatible avec ce que `onStartQuiz` attend.
-             // Il n'y a pas de `quizId` ici, ce qui est correct.
-            const quizData = { title, questions };
+            const quizData: CreateQuizData = { title, questions };
             const result = await onStartQuiz(quizData);
             if (!result.success) {
                 toast({ variant: 'destructive', title: 'Erreur', description: result.error || 'Impossible de lancer le quiz.' });
