@@ -29,6 +29,17 @@ import { SessionTimer } from './SessionTimer';
 import { DocumentHistory } from './DocumentHistory';
 import { DocumentViewer } from './DocumentViewer';
 
+
+interface CreateQuizData {
+  title: string;
+  questions: Array<{
+    id: string;
+    text: string;
+    options: Array<{ id: string; text: string }>;
+    correctOptionId: string;
+  }>;
+}
+
 // Définition des props pour TeacherSessionView
 interface TeacherSessionViewProps {
     sessionId: string;
@@ -65,7 +76,7 @@ interface TeacherSessionViewProps {
     activeQuiz: Quiz | null;
     quizResponses: Map<string, QuizResponse>;
     quizResults: QuizResults | null;
-    onStartQuiz: (quiz: Omit<Quiz, 'id' | 'createdAt' | 'createdById'>) => Promise<{ success: boolean; error?: string; }>;
+    onStartQuiz: (quiz: CreateQuizData) => Promise<{ success: boolean; error?: string; }>;
     onEndQuiz: (quizId: string, responses: Map<string, QuizResponse>) => Promise<{ success: boolean; }>;
     students: User[];
 }

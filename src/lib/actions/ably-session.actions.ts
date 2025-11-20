@@ -10,6 +10,17 @@ import { Role } from '@prisma/client';
 import { ComprehensionLevel, Quiz, QuizResponse, QuizResults } from '@/types';
 import prisma from '../prisma';
 
+// Type pour les données de création d'un quiz, venant du client
+interface CreateQuizData {
+  title: string;
+  questions: Array<{
+    id: string;
+    text: string;
+    options: Array<{ id: string; text: string }>;
+    correctOptionId: string;
+  }>;
+}
+
 // --- Validation Utilities ---
 const validateTimerDuration = (duration: unknown): number => {
     if (typeof duration !== 'number' || isNaN(duration) || duration <= 0) {
@@ -106,7 +117,7 @@ export async function broadcastTimerEvent(sessionId: string, event: 'timer-start
 
 // --- Quiz Actions ---
 
-export async function startQuiz(sessionId: string, quizData: Omit<Quiz, 'id' | 'createdAt' | 'createdById'>): Promise<{ success: boolean; error?: string }> {
+export async function startQuiz(sessionId: string, quizData: CreateQuizData): Promise<{ success: boolean; error?: string }> {
   console.log(`🎯 [ACTION] - Lancement du quiz pour la session ${sessionId}`);
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== Role.PROFESSEUR) {
