@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
-import { BarChart, Users, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { BarChart, Users, CheckCircle, XCircle, Loader2, Info } from 'lucide-react';
 import type { Quiz, QuizResponse, QuizResults, User, QuizQuestion, QuizOption } from '@/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -27,6 +27,19 @@ export function QuizView({ quiz, isTeacherView, onSubmitResponse, onEndQuiz, res
     const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
     const [isSubmitting, startSubmitting] = useTransition();
     const { toast } = useToast();
+
+    // Correction : Gérer le cas où le quiz est absent.
+    if (!quiz || !quiz.questions || quiz.questions.length === 0) {
+        return (
+            <Card className="h-full w-full flex flex-col items-center justify-center">
+                <CardHeader className="text-center">
+                    <Info className="h-10 w-10 mx-auto text-muted-foreground" />
+                    <CardTitle>Quiz non disponible</CardTitle>
+                    <CardDescription>Aucun quiz n'est actuellement actif ou il est mal configuré.</CardDescription>
+                </CardHeader>
+            </Card>
+        );
+    }
 
     const currentQuestion = quiz.questions[currentQuestionIndex];
     const totalQuestions = quiz.questions.length;
@@ -170,7 +183,7 @@ function QuestionStats({ question, responses }: { question: QuizQuestion; respon
                                 </span>
                                 <span>{count} vote(s)</span>
                             </div>
-                            <Progress value={percentage} indicatorClassName={isCorrect ? "bg-green-500" : "bg-primary"} />
+                            <Progress value={percentage} className={isCorrect ? "bg-green-500" : "bg-primary"} />
                         </div>
                     );
                 })}
