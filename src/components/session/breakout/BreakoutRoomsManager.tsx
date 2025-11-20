@@ -32,7 +32,7 @@ export function BreakoutRoomsManager({ sessionId, students }: BreakoutRoomsManag
             id: `room-${i + 1}`,
             name: `Groupe ${i + 1}`,
             task: '',
-            participants: [],
+            participants: [] as PrismaUser[], // CORRECTION: Spécifier le type explicitement
         }));
         
         // Réaffecter les étudiants déjà dans des groupes
@@ -46,7 +46,7 @@ export function BreakoutRoomsManager({ sessionId, students }: BreakoutRoomsManag
     const autoAssignStudents = () => {
         if (rooms.length === 0) return;
         const shuffledStudents = [...unassignedStudents].sort(() => Math.random() - 0.5);
-        const newRooms = rooms.map(room => ({ ...room, participants: [] }));
+        const newRooms = rooms.map(room => ({ ...room, participants: [] as PrismaUser[] }));
         
         shuffledStudents.forEach((student, index) => {
             newRooms[index % rooms.length].participants.push(student);
