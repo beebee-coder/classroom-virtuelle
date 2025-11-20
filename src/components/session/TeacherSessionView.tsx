@@ -30,8 +30,6 @@ import { DocumentHistory } from './DocumentHistory';
 import { DocumentViewer } from './DocumentViewer';
 import type { CreateQuizData } from '@/lib/actions/ably-session.actions';
 
-
-// Définition des props pour TeacherSessionView
 interface TeacherSessionViewProps {
     sessionId: string;
     localStream: MediaStream | null;
@@ -72,7 +70,6 @@ interface TeacherSessionViewProps {
     students: User[];
 }
 
-// Composant pour le contenu principal
 const TeacherMainContent: React.FC<{
     teacherView: 'content' | 'grid';
     allGridParticipants: SessionParticipant[];
@@ -92,7 +89,6 @@ const TeacherMainContent: React.FC<{
     </div>
 );
 
-// Composant pour la barre latérale
 const TeacherSidebar: React.FC<{
     sessionId: string;
     onDocumentShared: (doc: { name: string; url: string }) => void;
@@ -198,7 +194,6 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
     const validatedTimerTimeLeft = useMemo(() => {
         const time = timerTimeLeft;
         if (typeof time !== 'number' || isNaN(time) || time < 0) {
-            console.warn('Invalid timerTimeLeft value detected, using default:', time);
             return 0;
         }
         return time;
@@ -207,7 +202,6 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
     const validatedInitialDuration = useMemo(() => {
         const duration = initialDuration;
         if (typeof duration !== 'number' || isNaN(duration) || duration < 0) {
-            console.warn('Invalid initialDuration value detected, using default:', duration);
             return 600; 
         }
         return duration;
@@ -230,28 +224,17 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
     }, [classOnlineIds, activeParticipantIds, classroom]);
 
     const handleSpotlightAndSwitch = useCallback(async (participantId: string) => {
-        try {
-            await spotlightParticipant(sessionId, participantId);
-            onToolChange('camera');
-            setTeacherView('content');
-        } catch (error) {
-            console.error('Failed to spotlight participant', error);
-            toast({
-                variant: "destructive",
-                title: "Erreur",
-                description: "Impossible de mettre le participant en vedette.",
-            });
-        }
-    }, [onToolChange, sessionId, toast]);
+        onSpotlightParticipant(participantId);
+        onToolChange('camera');
+        setTeacherView('content');
+    }, [onSpotlightParticipant, onToolChange]);
 
     const handleDocumentReshare = useCallback(async (doc: DocumentInHistory) => {
         try {
-            console.log('📤 [TEACHER VIEW] - Partage du document aux élèves:', doc.name);
             await shareDocumentToStudents(sessionId, doc);
             onSelectDocument(doc);
             toast({ title: 'Document partagé !', description: `"${doc.name}" est maintenant affiché et partagé aux élèves.` });
         } catch (error) {
-            console.error('❌ [TEACHER VIEW] - Erreur lors du partage du document:', error);
             toast({ variant: 'destructive', title: 'Erreur de partage', description: "Impossible de partager le document aux élèves." });
         }
     }, [sessionId, onSelectDocument, toast]);

@@ -1,5 +1,4 @@
-
-// src/components/SessionClient.tsx - VERSION CORRIGÉE AVEC SIGNAL HANDLER
+// src/components/SessionClient.tsx - VERSION FINALE CORRIGÉE
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -16,6 +15,7 @@ import { ablyTrigger } from '@/lib/ably/triggers';
 import { AblyEvents } from '@/lib/ably/events';
 import { getSessionChannelName } from '@/lib/ably/channels';
 import { updateStudentSessionStatus, broadcastActiveTool, broadcastTimerEvent, startQuiz, submitQuizResponse, endQuiz } from '@/lib/actions/ably-session.actions';
+import type { CreateQuizData } from '@/lib/actions/ably-session.actions';
 
 // Importation des hooks de refactorisation
 import { useWebRTCConnection } from '@/hooks/session/useWebRTCConnection';
@@ -61,27 +61,16 @@ export default function SessionClient({
   const {
     remoteStreams,
     createPeer,
-    handleIncomingSignal: handleWebRTCSignal
+    handleIncomingSignal
   } = useWebRTCConnection(sessionId, currentUserId, activeStream, isMountedRef.current);
-  
-  // --- Handler pour les signaux WebRTC ---
+
   const handleSignalReceived = useCallback((fromUserId: string, signal: any) => {
     if (!isMountedRef.current) return;
     
-    console.log(`🔧 [SIGNAL HANDLER] - Traitement du signal de ${fromUserId}`, {
-      type: signal?.type,
-      candidate: signal?.candidate ? 'présent' : 'absent',
-      sdp: signal?.sdp ? 'présent' : 'absent'
-    });
-    
-    // Transmettre le signal au hook WebRTC
-    if (handleWebRTCSignal) {
-      handleWebRTCSignal(fromUserId, signal);
-    } else {
-      console.warn('⚠️ [SIGNAL HANDLER] - Aucun handler WebRTC disponible');
-    }
-  }, [handleWebRTCSignal]);
-  
+    console.log(`🔧 [SIGNAL HANDLER] - Traitement du signal de ${fromUserId}`);
+    handleIncomingSignal(fromUserId, signal);
+  }, [handleIncomingSignal]);
+
   const {
     onlineUserIds,
     spotlightedParticipantId,
@@ -120,9 +109,8 @@ export default function SessionClient({
     return () => { isMountedRef.current = false; };
   }, []);
 
-  // --- Logique d'envoi et de réception de signaux WebRTC via le hook ---
   useEffect(() => {
-    if (isMediaReady) {
+    if (isMediaReady && activeStream) {
         onlineUserIds.forEach(userId => {
             if (userId !== currentUserId) {
                 createPeer(userId, true, activeStream);
@@ -131,7 +119,6 @@ export default function SessionClient({
     }
   }, [onlineUserIds, currentUserId, isMediaReady, activeStream, createPeer]);
 
-  // --- Actions utilisateur ---
   const handleEndSession = useCallback(async () => {
     if (currentUserRole === Role.PROFESSEUR) {
       setIsEndingSession(true);
@@ -196,7 +183,12 @@ export default function SessionClient({
 
   const handleUploadSuccess = useCallback(async (uploadedDoc: { name: string; url: string }) => {
     try {
-      await saveAndShareDocument(sessionId, uploadedDoc);
+      const result = await saveAndShareDocument(sessionId, uploadedDoc);
+      if (result.success && isMountedRef.current) {
+        setDocumentHistory(prev => [result.document, ...prev]);
+        setDocumentUrl(result.document.url);
+        setActiveTool('document');
+      }
       toast({
         title: 'Succès',
         description: 'Document partagé avec la classe'
@@ -209,12 +201,32 @@ export default function SessionClient({
         description: 'Impossible de partager le document' 
       });
     }
+  }, [sessionId, toast, setActiveTool, setDocumentUrl]);
+  
+  const handleStartQuiz = useCallback(async (quizData: CreateQuizData) => {
+    const result = await startQuiz(sessionId, quizData);
+    if (!result.success) {
+      toast({ variant: 'destructive', title: 'Erreur', description: result.error || 'Impossible de lancer le quiz.' });
+    }
+    return result;
   }, [sessionId, toast]);
 
-  // --- Mémos pour l'affichage ---
+  const handleSubmitQuizResponse = useCallback(async (response: QuizResponse) => {
+    const result = await submitQuizResponse(sessionId, response);
+    if (!result.success) {
+      toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible d\'envoyer vos réponses.' });
+    }
+    return result;
+  }, [sessionId, toast]);
+
+  const handleEndQuiz = useCallback(async (quizId: string, responses: Map<string, QuizResponse>) => {
+    const result = await endQuiz(sessionId, quizId, responses);
+    return result;
+  }, [sessionId]);
+
   const allSessionUsers = useMemo(() => [initialTeacher, ...initialStudents].filter(Boolean) as User[], [initialTeacher, initialStudents]);
   const spotlightedUser = useMemo(() => allSessionUsers.find(u => u.id === spotlightedParticipantId), [allSessionUsers, spotlightedParticipantId]);
-  const spotlightedStream = useMemo(() => (spotlightedParticipantId === currentUserId ? activeStream : remoteStreams.get(spotlightedParticipantId || '')) || null, [spotlightedParticipantId, currentUserId, activeStream, remoteStreams]);
+  const spotlightedStream = useMemo(() => spotlightedParticipantId === currentUserId ? activeStream : remoteStreams.get(spotlightedParticipantId || '') || null, [spotlightedParticipantId, currentUserId, activeStream, remoteStreams]);
   const remoteParticipants = useMemo(() => Array.from(remoteStreams.entries()).map(([id, stream]) => ({ id, stream })), [remoteStreams]);
   const isHandRaised = handRaiseQueue.includes(currentUserId);
   const raisedHandUsers = useMemo(() => handRaiseQueue.map(userId => allSessionUsers.find(u => u.id === userId)).filter(Boolean) as User[], [handRaiseQueue, allSessionUsers]);
@@ -279,8 +291,8 @@ export default function SessionClient({
             activeQuiz={activeQuiz}
             quizResponses={quizResponses} 
             quizResults={quizResults}
-            onStartQuiz={(quiz) => startQuiz(sessionId, quiz)}
-            onEndQuiz={(quizId: string) => endQuiz(sessionId, quizId, quizResponses)} 
+            onStartQuiz={handleStartQuiz}
+            onEndQuiz={handleEndQuiz} 
             students={initialStudents}
           />
         ) : (
@@ -305,7 +317,7 @@ export default function SessionClient({
             onlineMembersCount={onlineUserIds.length} 
             isPresenceConnected={true} 
             activeQuiz={activeQuiz}
-            onSubmitQuizResponse={(response) => submitQuizResponse(sessionId, response)}
+            onSubmitQuizResponse={handleSubmitQuizResponse}
             quizResults={quizResults}
           />
         )}

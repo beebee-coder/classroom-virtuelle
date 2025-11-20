@@ -18,7 +18,7 @@ import { Html5Whiteboard } from '../Html5Whiteboard';
 import { AnimatedCard } from './AnimatedCard';
 import { useSession } from 'next-auth/react';
 import { QuizView } from './quiz/QuizView';
-import { trackStudentActivity } from '@/lib/actions/activity.actions'; // Ajout de l'import
+import { trackStudentActivity } from '@/lib/actions/activity.actions';
 
 interface StudentSessionViewProps {
     sessionId: string;
@@ -75,12 +75,9 @@ export function StudentSessionView({
     const [isHandRaiseLoading, setIsHandRaiseLoading] = useState(false);
     const [isUnderstandingLoading, setIsUnderstandingLoading] = useState(false);
     
-    // ✅ GAMIFICATION: Suivi de l'activité de l'élève
     useEffect(() => {
-        const ACTIVITY_INTERVAL_MS = 30000; // Envoyer un ping toutes les 30 secondes
+        const ACTIVITY_INTERVAL_MS = 30000;
         
-        console.log(`💓 [HEARTBEAT] Démarrage du suivi d'activité pour la session ${sessionId}`);
-
         const intervalId = setInterval(() => {
             trackStudentActivity(ACTIVITY_INTERVAL_MS / 1000)
                 .then((result: { success: boolean; pointsAwarded: number; }) => {
@@ -94,30 +91,13 @@ export function StudentSessionView({
         }, ACTIVITY_INTERVAL_MS);
 
         return () => {
-            console.log(`🛑 [HEARTBEAT] Arrêt du suivi d'activité pour la session ${sessionId}`);
             clearInterval(intervalId);
         };
     }, [sessionId]);
 
 
-    // ✅ CORRECTION : Logs détaillés pour le debugging des streams
     useEffect(() => {
-        console.log(`🎯 [STUDENT VIEW] - Active tool: ${activeTool}, Whiteboard operations: ${whiteboardOperations.length}`);
-        console.log(`🎯 [STUDENT VIEW] - Whiteboard controller: ${whiteboardControllerId}, Current user: ${currentUserId}`);
-        console.log(`📹 [STUDENT VIEW] - Spotlighted stream:`, { 
-            hasStream: !!spotlightedStream,
-            streamActive: spotlightedStream?.active,
-            tracks: spotlightedStream?.getTracks().length,
-            user: spotlightedUser?.name
-        });
-        console.log(`📹 [STUDENT VIEW] - Local stream:`, {
-            hasStream: !!localStream,
-            streamActive: localStream?.active,
-            tracks: localStream?.getTracks().length
-        });
-        
         if (activeTool === 'whiteboard' && whiteboardOperations.length > 0) {
-            console.log(`🎯 [STUDENT VIEW] - Last operation:`, whiteboardOperations[whiteboardOperations.length - 1]);
         }
     }, [activeTool, whiteboardOperations, whiteboardControllerId, currentUserId, spotlightedStream, spotlightedUser, localStream]);
 
@@ -156,7 +136,6 @@ export function StudentSessionView({
         
         const previousStatus = currentUnderstanding;
         
-        console.log(`🤔 [ACTION DISPATCH] - Clic pour statut de compréhension: ${newStatus}`);
         onUnderstandingChange(newStatus);
         
         try {
@@ -176,72 +155,37 @@ export function StudentSessionView({
         }
     }, [isUnderstandingLoading, currentUnderstanding, sessionId, isHandRaised, onUnderstandingChange, toast]);
 
-    // CORRECTION: Gestion améliorée des événements whiteboard
     const handleWhiteboardEvent = useCallback((operations: WhiteboardOperation[]) => {
-        console.log(`📥 [STUDENT VIEW] - Received ${operations.length} whiteboard operations`);
         onWhiteboardEvent(operations);
     }, [onWhiteboardEvent]);
 
     const handleFlushWhiteboardOperations = useCallback(() => {
-        console.log(`🚀 [STUDENT VIEW] - Flushing whiteboard operations`);
         if (flushWhiteboardOperations) {
             flushWhiteboardOperations();
         }
     }, [flushWhiteboardOperations]);
 
-    // ✅ CORRECTION CRITIQUE : Fonction améliorée pour vérifier l'état du stream
     const isStreamValid = useCallback((stream: MediaStream | null): boolean => {
-        if (!stream) {
-            console.log(`❌ [STREAM CHECK] - Stream is null`);
-            return false;
-        }
-        
-        if (!stream.active) {
-            console.log(`❌ [STREAM CHECK] - Stream is not active`);
-            return false;
-        }
+        if (!stream) return false;
+        if (!stream.active) return false;
         
         const videoTracks = stream.getVideoTracks();
         const audioTracks = stream.getAudioTracks();
         
-        console.log(`🔍 [STREAM CHECK] - Total tracks: ${videoTracks.length + audioTracks.length}, Video: ${videoTracks.length}, Audio: ${audioTracks.length}`);
-        
-        // ✅ CORRECTION : Vérifier que le stream a au moins un track valide
-        // Un track est valide s'il est en état 'live' - enabled=false est normal pour l'audio désactivé
         const hasValidVideoTracks = videoTracks.some(track => track.readyState === 'live');
         const hasValidAudioTracks = audioTracks.some(track => track.readyState === 'live');
         
-        // ✅ CORRECTION : Log détaillé par track
-        videoTracks.forEach((track, index) => {
-            console.log(`🎥 [TRACK CHECK] - Video track ${index}: readyState=${track.readyState}, enabled=${track.enabled}, muted=${track.muted}`);
-        });
-        
-        audioTracks.forEach((track, index) => {
-            console.log(`🎤 [TRACK CHECK] - Audio track ${index}: readyState=${track.readyState}, enabled=${track.enabled}, muted=${track.muted}`);
-        });
-        
-        const isValid = hasValidVideoTracks || hasValidAudioTracks;
-        
-        console.log(`✅ [STREAM CHECK] - Valid video tracks: ${hasValidVideoTracks}, Valid audio tracks: ${hasValidAudioTracks}, Stream valid: ${isValid}`);
-        
-        return isValid;
+        return hasValidVideoTracks || hasValidAudioTracks;
     }, []);
 
-    // ✅ CORRECTION : Fonction pour vérifier l'affichage vidéo
     const canDisplayVideo = useCallback((stream: MediaStream | null): boolean => {
         if (!stream || !stream.active) return false;
         
         const videoTracks = stream.getVideoTracks();
-        const hasActiveVideo = videoTracks.some(track => 
-            track.readyState === 'live' && !track.muted
-        );
-        
-        console.log(`📺 [VIDEO DISPLAY] - Can display video: ${hasActiveVideo}, Tracks: ${videoTracks.length}`);
-        return hasActiveVideo;
+        return videoTracks.some(track => track.readyState === 'live' && !track.muted);
     }, []);
 
     const renderMainContent = useCallback(() => {
-        console.log(`🔄 [STUDENT VIEW] - Rendering main content for tool: ${activeTool}`);
         
         switch(activeTool) {
             case 'document':
@@ -249,7 +193,6 @@ export function StudentSessionView({
             case 'whiteboard':
                 return (
                     <div className="h-full w-full relative">
-                        {/* CORRECTION: Indicateur de statut de connexion */}
                         <div className={`absolute top-2 left-2 z-10 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                             isPresenceConnected 
                                 ? 'bg-green-100 text-green-800 border border-green-200' 
@@ -284,17 +227,12 @@ export function StudentSessionView({
                  );
             case 'camera':
             default:
-                // ✅ CORRECTION AMÉLIORÉE : Vérifications plus permissives
                 const hasValidSpotlightedStream = isStreamValid(spotlightedStream);
                 const canDisplaySpotlightedVideo = canDisplayVideo(spotlightedStream);
 
-                console.log(`📹 [CAMERA VIEW] - Spotlighted: valid=${hasValidSpotlightedStream}, displayable=${canDisplaySpotlightedVideo}`);
-
-                // ✅ CORRECTION : Afficher le stream spotlighted s'il est valide, même sans vidéo
                 if (hasValidSpotlightedStream) {
                     return (
                         <div className="w-full h-full relative bg-black">
-                            {/* ✅ CORRECTION : Indicateur de statut de stream */}
                             <div className="absolute top-3 right-3 z-10">
                                 <div className="bg-black/70 text-white px-2 py-1 rounded-md text-xs flex items-center gap-1">
                                     <Video className="h-3 w-3" />
@@ -307,7 +245,6 @@ export function StudentSessionView({
                                 </div>
                             </div>
                             
-                            {/* ✅ CORRECTION : Participant avec fallback pour user non défini */}
                             <Participant 
                                 stream={spotlightedStream}
                                 isLocal={false} 
@@ -321,7 +258,6 @@ export function StudentSessionView({
                     );
                 }
 
-                // ✅ CORRECTION : Fallback seulement si le stream n'est pas valide
                 return (
                     <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/30 border-dashed">
                         <CardContent className="text-center text-muted-foreground p-6">
@@ -345,25 +281,10 @@ export function StudentSessionView({
                 );
         }
     }, [
-        activeTool,
-        documentUrl,
-        whiteboardControllerId,
-        currentUserId,
-        whiteboardOperations,
-        spotlightedUser,
-        spotlightedStream,
-        isHandRaised,
-        sessionId,
-        isPresenceConnected,
-        onlineMembersCount,
-        handleWhiteboardEvent,
-        handleFlushWhiteboardOperations,
-        isStreamValid,
-        canDisplayVideo,
-        localStream,
-        activeQuiz,
-        onSubmitQuizResponse,
-        quizResults
+        activeTool, documentUrl, whiteboardControllerId, currentUserId, whiteboardOperations,
+        spotlightedUser, spotlightedStream, isHandRaised, sessionId, isPresenceConnected,
+        onlineMembersCount, handleWhiteboardEvent, handleFlushWhiteboardOperations,
+        isStreamValid, canDisplayVideo, localStream, activeQuiz, onSubmitQuizResponse, quizResults
     ]);
     
     const mainContent = useMemo(() => renderMainContent(), [renderMainContent]);
@@ -380,7 +301,6 @@ export function StudentSessionView({
                 <motion.div layout className="h-full flex flex-col gap-1">
                     <ScrollArea className="flex-1 pr-3 -mr-3">
                          <div className="space-y-4">
-                             {/* ✅ CORRECTION : Afficher le stream spotlighted dans la sidebar quand ce n'est pas l'outil principal */}
                              {activeTool !== 'camera' && isStreamValid(spotlightedStream) && (
                                 <AnimatedCard title={spotlightedUser?.name || "Professeur"}>
                                     <div className="p-2">
@@ -453,7 +373,6 @@ export function StudentSessionView({
                                                 : '👀 Vous visualisez seulement'
                                             }
                                         </div>
-                                        {/* CORRECTION: Affichage des statistiques du whiteboard */}
                                         <div className="mt-2 text-xs text-muted-foreground">
                                             {whiteboardOperations.length} opérations chargées
                                         </div>
