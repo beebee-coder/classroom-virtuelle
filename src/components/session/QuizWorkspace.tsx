@@ -7,13 +7,14 @@ import { Award } from 'lucide-react';
 import { QuizLauncher } from './quiz/QuizLauncher';
 import { QuizView } from './quiz/QuizView';
 import type { Quiz, QuizResponse, QuizResults, User } from '@/types';
+import type { CreateQuizData } from '@/lib/actions/ably-session.actions';
 
 interface QuizWorkspaceProps {
     sessionId: string;
     activeQuiz: Quiz | null;
     quizResponses: Map<string, QuizResponse>;
     quizResults: QuizResults | null;
-    onStartQuiz: (quiz: Omit<Quiz, 'id' | 'createdAt' | 'createdById'>) => Promise<{ success: boolean; error?: string; }>;
+    onStartQuiz: (quiz: CreateQuizData) => Promise<{ success: boolean; error?: string; }>;
     onEndQuiz: (quizId: string, responses: Map<string, QuizResponse>) => Promise<{ success: boolean; }>;
     students: User[];
 }
