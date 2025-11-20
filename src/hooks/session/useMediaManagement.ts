@@ -14,7 +14,6 @@ const MEDIA_CONSTRAINTS: MediaStreamConstraints = {
 
 const SCREEN_CONSTRAINTS: DisplayMediaStreamOptions = {
     video: { 
-        cursor: 'always',
         frameRate: 30,
     },
     audio: true,
