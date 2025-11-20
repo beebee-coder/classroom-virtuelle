@@ -13,6 +13,7 @@ import Link from 'next/link';
 export const dynamic = 'force-dynamic';
 
 export default async function TeacherResourcesPage() {
+    console.log('📚 [PAGE] Loading Teacher Resources page...');
     const session = await getServerSession(authOptions);
 
     if (!session?.user || session.user.role !== 'PROFESSEUR') {
@@ -20,6 +21,7 @@ export default async function TeacherResourcesPage() {
     }
 
     const documents = await getTeacherDocuments();
+    console.log(`✅ [PAGE] Found ${documents.length} documents for the library.`);
 
     return (
         <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">

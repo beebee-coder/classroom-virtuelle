@@ -356,14 +356,17 @@ export async function deleteSharedDocument(documentId: string, sessionId: string
 }
 
 export async function getTeacherDocuments(): Promise<DocumentInHistory[]> {
+    console.log('📚 [ACTION] getTeacherDocuments');
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return [];
 
+    console.log(` -> pour l'utilisateur ${session.user.id}`);
     const documents = await prisma.sharedDocument.findMany({
         where: { userId: session.user.id },
         orderBy: { createdAt: 'desc' }
     });
 
+    console.log(` -> ${documents.length} documents trouvés.`);
     return documents.map(doc => ({
         id: doc.id,
         name: doc.name,
