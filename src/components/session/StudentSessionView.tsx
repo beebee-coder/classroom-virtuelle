@@ -1,4 +1,3 @@
-// src/components/session/StudentSessionView.tsx - VERSION CORRIGÉE
 'use client';
 
 import { useState, type ReactNode, useEffect, useMemo, useCallback } from 'react';
@@ -8,7 +7,7 @@ import { SessionParticipant, DocumentInHistory, Html5CanvasScene, ComprehensionL
 import { Card, CardContent, CardHeader } from '../ui/card';
 import { Loader2, File, Users, Video, VideoOff } from 'lucide-react';
 import { StudentSessionControls } from './StudentSessionControls';
-import { updateStudentSessionStatus } from '@/lib/actions/session.actions';
+import { updateStudentSessionStatus } from '@/lib/actions/ably-session.actions';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '../ui/scroll-area';
 import { SessionTimer } from './SessionTimer';

@@ -180,7 +180,7 @@ export default function SessionClient({
           <TeacherSessionView
             sessionId={sessionId} localStream={localStream} screenStream={screenStream}
             remoteParticipants={remoteParticipants} 
-            spotlightedUser={spotlightedUser} allSessionUsers={allSessionUsers as SessionParticipant[]}
+            spotlightedUser={spotlightedUser} allSessionUsers={allSessionUsers as any[]}
             onlineUserIds={onlineUserIds} onSpotlightParticipant={(id) => ablyTrigger(getSessionChannelName(sessionId), AblyEvents.PARTICIPANT_SPOTLIGHTED, { participantId: id })} 
             raisedHandQueue={raisedHandUsers} onAcknowledgeNextHand={handleAcknowledgeNextHand}
             understandingStatus={understandingStatus} currentUserId={currentUserId} 

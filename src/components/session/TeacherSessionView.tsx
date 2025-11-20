@@ -1,4 +1,3 @@
-// src/components/session/TeacherSessionView.tsx
 'use client';
 
 import React, { useState, type ReactNode, useEffect, useMemo, useCallback } from 'react';
@@ -67,6 +66,7 @@ interface TeacherSessionViewProps {
     quizResults: QuizResults | null;
     onStartQuiz: (quiz: Omit<Quiz, 'id' | 'createdAt' | 'createdById'>) => Promise<{ success: boolean; error?: string; }>;
     onEndQuiz: (quizId: string) => Promise<{ success: boolean; }>;
+    students: User[];
 }
 
 export function TeacherSessionView({
@@ -319,7 +319,7 @@ export function TeacherSessionView({
                         quizResponses={quizResponses}
                         quizResults={quizResults}
                         onStartQuiz={onStartQuiz}
-                        onEndQuiz={(quizId) => onEndQuiz(quizId, quizResponses)}
+                        onEndQuiz={(quizId) => onEndQuiz(quizId)}
                         students={students}
                     />
                 );

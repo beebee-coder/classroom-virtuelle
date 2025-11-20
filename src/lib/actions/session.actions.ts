@@ -29,6 +29,7 @@ export interface SessionDetails {
   classroom: ClassroomWithDetails | null;
   startTime: string;
   endTime: string | null;
+  activeQuiz: Quiz | null;
 }
 
 interface InvitationPayload {
@@ -426,6 +427,15 @@ export async function getSessionDetails(sessionId: string): Promise<SessionDetai
                         }
                     }
                 }
+            },
+            activeQuiz: {
+                include: {
+                    questions: {
+                        include: {
+                            options: true
+                        }
+                    }
+                }
             }
         }
     });
@@ -443,5 +453,6 @@ export async function getSessionDetails(sessionId: string): Promise<SessionDetai
         classroom: sessionData.classe as any,
         startTime: sessionData.startTime.toISOString(),
         endTime: sessionData.endTime?.toISOString() || null,
+        activeQuiz: sessionData.activeQuiz as Quiz | null,
     };
 }
