@@ -380,7 +380,7 @@ export async function reinviteStudentToSession(sessionId: string, studentId: str
     if (session?.user?.role !== Role.PROFESSEUR) throw new Error("Seuls les professeurs peuvent ré-inviter.");
 
     const sessionExists = await prisma.coursSession.count({ where: { id: sessionId, professeurId: session.user.id } });
-    if (!sessionExists) throw new Error('Session non trouvée ou non possédée par l'utilisateur');
+    if (!sessionExists) throw new Error('Session non trouvée ou non possédée par l\'utilisateur');
 
     await sendIndividualInvitations(sessionId, session.user.id, classroomId, [studentId]);
 
