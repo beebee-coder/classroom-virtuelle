@@ -7,16 +7,11 @@ import { User, Role } from '@prisma/client';
 import type { SessionParticipant, ClassroomWithDetails, DocumentInHistory, Html5CanvasScene, ComprehensionLevel, WhiteboardOperation, Quiz, QuizResponse, QuizResults } from '@/types';
 import { Participant } from '@/components/Participant';
 import { StudentPlaceholder } from '../StudentPlaceholder';
-import { HandRaiseController } from './HandRaiseController';
-import { QuickPollResults } from './QuickPollResults';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { ClassStudentList } from './ClassStudentList';
 import { Loader2, UploadCloud, File, Trash2, Share2, Award, Users, Grid, Presentation, MessageSquare, PanelRightOpen, PanelRightClose, Network } from 'lucide-react';
 import { Button } from '../ui/button';
 import { SessionStatus } from './SessionStatus';
-import { SessionTimer } from './SessionTimer';
-import { DocumentHistory } from './DocumentHistory';
-import { DocumentViewer } from './DocumentViewer';
 import { cn } from '@/lib/utils';
 import { ChatSheet } from '../ChatSheet';
 import { Html5Whiteboard } from '@/components/Html5Whiteboard';
@@ -28,6 +23,11 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { motion, AnimatePresence } from 'framer-motion';
 import { QuizWorkspace } from './quiz/QuizWorkspace';
 import { BreakoutRoomsManager } from './breakout/BreakoutRoomsManager';
+import { QuickPollResults } from './QuickPollResults';
+import { HandRaiseController } from './HandRaiseController';
+import { SessionTimer } from './SessionTimer';
+import { DocumentHistory } from './DocumentHistory';
+import { DocumentViewer } from './DocumentViewer';
 
 // Définition des props pour TeacherSessionView
 interface TeacherSessionViewProps {
