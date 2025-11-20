@@ -83,12 +83,12 @@ export function StudentSessionView({
 
         const intervalId = setInterval(() => {
             trackStudentActivity(ACTIVITY_INTERVAL_MS / 1000)
-                .then(result => {
+                .then((result: { success: boolean; pointsAwarded: number; }) => {
                     if (result.success) {
                         console.log(`✨ [HEARTBEAT] +${result.pointsAwarded} points attribués.`);
                     }
                 })
-                .catch(error => {
+                .catch((error: Error) => {
                     console.warn("⚠️ [HEARTBEAT] Échec du suivi d'activité:", error);
                 });
         }, ACTIVITY_INTERVAL_MS);
