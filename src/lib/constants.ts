@@ -24,6 +24,7 @@ import {
     Atom,
     Palette,
     Network, // Ajout de l'icône pour les groupes
+    Folder, // Ajout de l'icône pour la bibliothèque
 } from 'lucide-react';
 import type { Classroom } from '@prisma/client';
 import { TaskCategory } from '@prisma/client'; // CORRECTION : Importation ajoutée
@@ -52,6 +53,12 @@ export const menuItems = [
                 label: "Validations", 
                 href: "/teacher/validations", 
                 icon: CheckCircle,
+                roles: ['PROFESSEUR'],
+            },
+             { 
+                label: "Bibliothèque", 
+                href: "/teacher/resources", 
+                icon: Folder,
                 roles: ['PROFESSEUR'],
             },
             { 

@@ -64,7 +64,7 @@ const validateTimerDuration = (duration: unknown): number => {
 };
 
 const validateActiveTool = (tool: string): string => {
-    const validTools = ['camera', 'whiteboard', 'document', 'screen', 'chat', 'participants', 'quiz'];
+    const validTools = ['camera', 'whiteboard', 'document', 'screen', 'chat', 'participants', 'quiz', 'breakout'];
     if (validTools.includes(tool)) {
         return tool;
     }
