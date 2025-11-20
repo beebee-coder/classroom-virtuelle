@@ -11,7 +11,7 @@ import { ComprehensionLevel, Quiz, QuizResponse, QuizResults } from '@/types';
 import prisma from '../prisma';
 
 // Type pour les données de création d'un quiz, venant du client
-interface CreateQuizData {
+export interface CreateQuizData {
   title: string;
   questions: Array<{
     id: string;
