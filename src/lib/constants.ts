@@ -151,6 +151,7 @@ const defaultTools = [
     { id: 'document', name: 'Document', icon: FileText, colors: ['#3b82f6', '#2563eb'] as [string, string] },
     { id: 'chat', name: 'Chat', icon: MessageSquare, colors: ['#22d3ee', '#06b6d4'] as [string, string] },
     { id: 'breakout', name: 'Groupes', icon: Network, colors: ['#f472b6', '#ec4899'] as [string, string] },
+    { id: 'quiz', name: 'Quiz', icon: Award, colors: ['#f59e0b', '#d97706'] as [string, string] },
 ];
 
 export const toolPresets: Record<string, typeof defaultTools> = {

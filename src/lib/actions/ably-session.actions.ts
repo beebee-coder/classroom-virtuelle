@@ -20,7 +20,7 @@ const validateTimerDuration = (duration: unknown): number => {
 };
 
 const validateActiveTool = (tool: string): string => {
-    const validTools = ['camera', 'whiteboard', 'document', 'screen', 'chat', 'participants', 'quiz'];
+    const validTools = ['camera', 'whiteboard', 'document', 'screen', 'chat', 'participants', 'quiz', 'breakout'];
     if (validTools.includes(tool)) {
         return tool;
     }
@@ -121,6 +121,7 @@ export async function startQuiz(sessionId: string, quizData: Omit<Quiz, 'id' | '
               createdById: session.user!.id,
               questions: {
                 create: quizData.questions.map(q => ({
+                  id: q.id,
                   text: q.text,
                   correctOptionId: q.correctOptionId,
                   options: {
@@ -161,7 +162,7 @@ export async function submitQuizResponse(sessionId: string, response: QuizRespon
   }
 
   const channel = getSessionChannelName(sessionId);
-  await ablyTrigger(channel, AblyEvents.QUIZ_RESPONSE, { userId: session.user.id, userName: session.user.name, response });
+  await ablyTrigger(channel, AblyEvents.QUIZ_RESPONSE, { userId: session.user.id, userName: session.user.name, answers: response.answers });
   return { success: true };
 }
 

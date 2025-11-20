@@ -166,10 +166,15 @@ export interface SessionClientProps {
 export type QuizOption = PrismaQuizOption;
 
 export type QuizQuestion = PrismaQuizQuestion & {
+  id: string; // Assurer que l'ID est toujours présent
+  text: string;
   options: QuizOption[];
+  correctOptionId: string;
 };
 
 export type Quiz = PrismaQuiz & {
+  id: string; // Assurer que l'ID est toujours présent
+  title: string;
   questions: QuizQuestion[];
 };
 
