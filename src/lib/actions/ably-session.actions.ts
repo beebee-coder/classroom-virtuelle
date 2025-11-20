@@ -13,7 +13,7 @@ import prisma from '../prisma';
 // --- Validation Utilities ---
 const validateTimerDuration = (duration: unknown): number => {
     if (typeof duration !== 'number' || isNaN(duration) || duration <= 0) {
-        console.warn('Invalid timer duration detected, using default:', duration);
+        console.warn('⚠️ [TIMER] - Durée invalide détectée, utilisation de la valeur par défaut:', duration);
         return 3600; // Default to 1 hour
     }
     return duration;
@@ -31,6 +31,7 @@ const validateActiveTool = (tool: string): string => {
 // --- Real-time Interaction Actions ---
 
 export async function updateStudentSessionStatus(sessionId: string, status: { isHandRaised?: boolean; understanding?: ComprehensionLevel }) {
+    console.log(`🔄 [ACTION] - Mise à jour du statut élève pour la session ${sessionId}:`, status);
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) throw new Error('Not authenticated');
 
@@ -39,14 +40,14 @@ export async function updateStudentSessionStatus(sessionId: string, status: { is
     const promises = [];
 
     if (status.isHandRaised !== undefined) {
-        console.log(`✋ [ABLY ACTION] - Broadcasting hand-raise status for ${userId}: ${status.isHandRaised}`);
+        console.log(`✋ [ACTION] - Diffusion du statut main-levée pour ${userId}: ${status.isHandRaised}`);
         promises.push(
             ablyTrigger(channel, AblyEvents.HAND_RAISE_UPDATE, { userId, isRaised: status.isHandRaised })
         );
     }
 
     if (status.understanding !== undefined) {
-        console.log(`🤔 [ABLY ACTION] - Broadcasting understanding status for ${userId}: ${status.understanding}`);
+        console.log(`🤔 [ACTION] - Diffusion du statut compréhension pour ${userId}: ${status.understanding}`);
         promises.push(
             ablyTrigger(channel, AblyEvents.UNDERSTANDING_UPDATE, { userId, status: status.understanding })
         );
@@ -60,6 +61,7 @@ export async function updateStudentSessionStatus(sessionId: string, status: { is
 // --- Tool-related Actions ---
 
 export async function broadcastActiveTool(sessionId: string, tool: string) {
+    console.log(`🛠️ [ACTION] - Diffusion du changement d'outil vers '${tool}' sur la session ${sessionId}`);
     const session = await getServerSession(authOptions);
     if (session?.user?.role !== Role.PROFESSEUR) {
         throw new Error('Only teachers can change tools');
@@ -74,7 +76,6 @@ export async function broadcastActiveTool(sessionId: string, tool: string) {
     const channel = getSessionChannelName(sessionId);
     const payload = { tool: validatedTool, sessionId, timestamp: new Date().toISOString() };
 
-    console.log(`🛠️ [ABLY ACTION] - Broadcasting tool change to '${validatedTool}' on ${channel}`);
     await ablyTrigger(channel, AblyEvents.ACTIVE_TOOL_CHANGED, payload);
 
     return { success: true, tool: validatedTool, sessionId };
@@ -84,6 +85,7 @@ export async function broadcastActiveTool(sessionId: string, tool: string) {
 // --- Timer Actions ---
 
 export async function broadcastTimerEvent(sessionId: string, event: 'timer-started' | 'timer-paused' | 'timer-reset', data?: any) {
+    console.log(`⏱️ [ACTION] - Diffusion de l'événement minuteur '${event}' sur la session ${sessionId}`);
     const session = await getServerSession(authOptions);
     if (session?.user?.role !== Role.PROFESSEUR) throw new Error('Only teachers can control the timer');
 
@@ -97,7 +99,6 @@ export async function broadcastTimerEvent(sessionId: string, event: 'timer-start
         payload.duration = validateTimerDuration(data.duration);
     }
 
-    console.log(`⏱️ [ABLY ACTION] - Broadcasting timer event '${event}' on ${channel}`);
     await ablyTrigger(channel, event as any, payload); // Cast to any to satisfy AblyEventName type
     
     return { success: true, event, sessionId };
@@ -106,6 +107,7 @@ export async function broadcastTimerEvent(sessionId: string, event: 'timer-start
 // --- Quiz Actions ---
 
 export async function startQuiz(sessionId: string, quizData: Omit<Quiz, 'id' | 'createdAt' | 'createdById'>): Promise<{ success: boolean; error?: string }> {
+  console.log(`🎯 [ACTION] - Lancement du quiz pour la session ${sessionId}`);
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== Role.PROFESSEUR) {
     return { success: false, error: 'Only teachers can start a quiz' };
@@ -146,12 +148,13 @@ export async function startQuiz(sessionId: string, quizData: Omit<Quiz, 'id' | '
     
     return { success: true };
   } catch (error) {
-    console.error("Failed to start quiz:", error);
+    console.error("❌ [ACTION] - Échec du lancement du quiz:", error);
     return { success: false, error: "Failed to start quiz." };
   }
 }
 
 export async function submitQuizResponse(sessionId: string, response: QuizResponse): Promise<{ success: boolean }> {
+  console.log(`📝 [ACTION] - Soumission d'une réponse au quiz pour la session ${sessionId}`);
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     throw new Error('Not authenticated');
@@ -163,6 +166,7 @@ export async function submitQuizResponse(sessionId: string, response: QuizRespon
 }
 
 export async function endQuiz(sessionId: string, quizId: string): Promise<{ success: boolean }> {
+  console.log(`🏁 [ACTION] - Fin du quiz ${quizId} pour la session ${sessionId}`);
   const session = await getServerSession(authOptions);
   if (session?.user?.role !== Role.PROFESSEUR) {
     throw new Error('Only teachers can end a quiz');

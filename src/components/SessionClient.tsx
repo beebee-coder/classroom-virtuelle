@@ -100,14 +100,16 @@ export default function SessionClient({
   const router = useRouter();
   const { toast } = useToast();
   
+  // CORRECTION: Références pour gérer le cycle de vie
   const isMountedRef = useRef(true);
   const setupCompletedRef = useRef(false);
+  const mediaCleanupRef = useRef<(() => void) | null>(null);
   
   // Utiliser le hook useAbly existant avec gestion d'état améliorée
   const { client: ablyClient, isConnected: isAblyConnected, connectionState } = useAbly();
   const ablyLoading = connectionState === 'initialized' || connectionState === 'connecting';  
   
-  // État de session prête
+  // CORRECTION: État de session prête avec gestion améliorée
   const [sessionReady, setSessionReady] = useState(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
@@ -118,9 +120,9 @@ export default function SessionClient({
   const [spotlightedParticipantId, setSpotlightedParticipantId] = useState<string | null>(initialTeacher?.id || null);
   const [isMediaReady, setIsMediaReady] = useState(false);
 
-  // Vérifier que la session est prête
+  // CORRECTION: Vérification améliorée de la session prête
   useEffect(() => {
-    if (ablyClient && isAblyConnected && sessionId) {
+    if (ablyClient && isAblyConnected && sessionId && currentUserId) {
       console.log(`🎯 [SESSION READY] - Session ${sessionId} ready for user ${currentUserId}`);
       setSessionReady(true);
     } else {
@@ -153,10 +155,10 @@ export default function SessionClient({
   const [quizResponses, setQuizResponses] = useState<Map<string, QuizResponse>>(new Map());
   const [quizResults, setQuizResults] = useState<QuizResults | null>(null);
   
-  // Références stables
-  const handleIncomingWhiteboardOperationsRef = useRef<(externalOps: WhiteboardOperation[]) => void>();
-  const handlePresenceUpdateRef = useRef<(member: Types.PresenceMessage) => void>();
-  const handleSignalRef = useRef<(message: Types.Message) => void>();
+  // CORRECTION: Références stables avec initialisation correcte
+  const handleIncomingWhiteboardOperationsRef = useRef<(externalOps: WhiteboardOperation[]) => void>(() => {});
+  const handlePresenceUpdateRef = useRef<(member: Types.PresenceMessage) => void>(() => {});
+  const handleSignalRef = useRef<(message: Types.Message) => void>(() => {});
   
   useEffect(() => {
     handleIncomingWhiteboardOperationsRef.current = (externalOps: WhiteboardOperation[]) => {
@@ -184,9 +186,8 @@ export default function SessionClient({
   const peersRef = useRef<Map<string, PeerInstance>>(new Map());
   const peerStatesRef = useRef<Map<string, PeerState>>(new Map());
   const channelRef = useRef<Ably.Types.RealtimeChannelCallbacks | null>(null);
-  const mediaCleanupRef = useRef<(() => void) | null>(null);
 
-  // Référence pour suivre les connexions en cours
+  // CORRECTION: Référence pour suivre les connexions en cours
   const pendingConnectionsRef = useRef<Set<string>>(new Set());
 
   const teacherName = initialTeacher?.name || '';
@@ -204,7 +205,7 @@ export default function SessionClient({
     }
   }, [activeTool, sessionId]);
   
-  // FONCTION DE NETTOYAGE DES PEERS AMÉLIORÉE
+  // CORRECTION: FONCTION DE NETTOYAGE DES PEERS AMÉLIORÉE
   const cleanupPeerConnection = useCallback((userId: string): void => {
     // Retirer des connexions en cours
     pendingConnectionsRef.current.delete(userId);
@@ -234,7 +235,7 @@ export default function SessionClient({
     });
   }, []);
 
-  // FONCTION DE CRÉATION DE PEER COMPLÈTEMENT RÉÉCRITE POUR LA STABILITÉ
+  // CORRECTION: FONCTION DE CRÉATION DE PEER OPTIMISÉE
   const createPeer = useCallback((targetUserId: string, initiator: boolean, stream: MediaStream | null): PeerInstance | undefined => {
     if (!isMountedRef.current) {
         console.warn(`⚠️ [PEER CREATION] - Component unmounted, skipping peer creation for: ${targetUserId}`);
@@ -292,7 +293,7 @@ export default function SessionClient({
             hasReceivedStream: false
         });
 
-        // CORRECTION CRITIQUE : Configuration SimplePeer optimisée
+        // Configuration SimplePeer optimisée
         const peer = new SimplePeer({
             initiator,
             trickle: true,
@@ -322,7 +323,7 @@ export default function SessionClient({
         const processedCandidates = new Set<string>();
         let shouldStopSignaling = false;
 
-        // CORRECTION : Gestion améliorée des signaux
+        // Gestion améliorée des signaux
         peer.on('signal', (signal: PeerSignalData) => {
             if (!isMountedRef.current || peer.destroyed || shouldStopSignaling) return;
             
@@ -362,7 +363,7 @@ export default function SessionClient({
             }, delay);
         });
 
-        // CORRECTION CRITIQUE : Gestion du stream avec validation
+        // Gestion du stream avec validation
         peer.on('stream', (remoteStream: MediaStream) => {
             if (!isMountedRef.current) return;
             
@@ -401,7 +402,7 @@ export default function SessionClient({
             }
         });
 
-        // CORRECTION : Gestion de l'événement 'connect' pour confirmer la connexion
+        // Gestion de l'événement 'connect' pour confirmer la connexion
         peer.on('connect', () => {
             console.log(`🔗 [PEER CONNECT] - Peer connection established with ${targetUserId}`);
             
@@ -421,7 +422,7 @@ export default function SessionClient({
             clearTimeout(iceGatheringTimeout);
         });
 
-        // CORRECTION CRITIQUE : Gestion d'erreur améliorée
+        // Gestion d'erreur améliorée
         peer.on('error', (err: Error) => {
             console.error(`❌ [PEER ERROR] - Peer error with ${targetUserId} after ${localSignalCount} signals:`, err);
             
@@ -543,11 +544,12 @@ export default function SessionClient({
     }
   }, [sessionId, currentUserId, cleanupPeerConnection]);
 
-  // Initialisation des médias
+  // CORRECTION: Initialisation des médias avec gestion de montage unique
   useEffect(() => {
     if (setupCompletedRef.current) return;
     
     isMountedRef.current = true;
+    setupCompletedRef.current = true;
     console.log(`🎬 [LIFECYCLE] - MOUNT SessionClient for session: ${sessionId}, user: ${currentUserId}`);
     
     let stream: MediaStream | null = null;
@@ -585,23 +587,29 @@ export default function SessionClient({
     };
     
     getMedia();
-    setupCompletedRef.current = true;
 
     return () => {
       mounted = false;
       isMountedRef.current = false;
-      setupCompletedRef.current = false;
       
-      // Nettoyage complet de tous les peers et connexions en cours
+      // CORRECTION: Nettoyage complet et ordonné
+      console.log(`🧹 [LIFECYCLE] - UNMOUNT SessionClient for session: ${sessionId}`);
+      
+      // 1. Arrêter tous les médias
+      mediaCleanupRef.current?.();
+      
+      // 2. Nettoyer toutes les connexions peers
       Array.from(peersRef.current.keys()).forEach(userId => {
           cleanupPeerConnection(userId);
       });
       
-      // Nettoyer toutes les connexions en cours
+      // 3. Vider les références
+      peersRef.current.clear();
+      peerStatesRef.current.clear();
       pendingConnectionsRef.current.clear();
       
-      mediaCleanupRef.current?.();
-      console.log(`🧹 [LIFECYCLE] - UNMOUNT SessionClient for session: ${sessionId}`);
+      // 4. Reset du flag de setup
+      setupCompletedRef.current = false;
     };
   }, [sessionId, currentUserId, cleanupPeerConnection, screenStream]);
 
@@ -679,7 +687,7 @@ export default function SessionClient({
     }
   }, [isSharingScreen, screenStream, toast]);
 
-  // Logique d'initiation centralisée et synchronisée
+  // CORRECTION: Logique d'initiation centralisée avec dépendances correctes
   useEffect(() => {
     handlePresenceUpdateRef.current = (member: Types.PresenceMessage) => {
       if (!isMountedRef.current || !channelRef.current) return;
@@ -764,7 +772,7 @@ export default function SessionClient({
     };
   }, [currentUserId, isMediaReady, isSharingScreen, screenStream, localStream, createPeer, cleanupPeerConnection, currentUserRole, sessionReady]);
 
-  // Ajouter un effet pour forcer l'initiation quand l'élève arrive
+  // CORRECTION: Effet séparé pour forcer l'initiation quand l'élève arrive
   useEffect(() => {
     if (currentUserRole === Role.PROFESSEUR && isMediaReady && sessionReady && onlineUserIds.length > 1) {
       // Vérifier s'il y a des élèves en ligne sans connexion
@@ -796,7 +804,7 @@ export default function SessionClient({
     }
   }, [onlineUserIds, currentUserRole, isMediaReady, sessionReady, isSharingScreen, screenStream, localStream, createPeer, currentUserId]);
 
-  // Gestion des signaux
+  // CORRECTION: Gestion des signaux avec dépendances correctes
   useEffect(() => {
     handleSignalRef.current = (message: Types.Message) => {
         if (!isMountedRef.current) return;
@@ -979,7 +987,7 @@ export default function SessionClient({
     }
   }, []);
 
-  // Setup Ably complet
+  // CORRECTION: Setup Ably avec gestion de dépendances optimisée
   useEffect(() => {
     if (!sessionId || !currentUserId || !ablyClient || ablyLoading || !sessionReady) {
         console.log(`⏳ [ABLY SETUP] - Skipping setup, Ably not ready.`, { 
@@ -1064,6 +1072,8 @@ export default function SessionClient({
     bindEvents();
 
     return () => {
+      if (!isMountedRef.current) return;
+      
       console.log(`🧹 [CLEANUP] - Cleaning up SessionClient for session: ${sessionId}`);
       
       // Nettoyage complet de tous les peers
@@ -1085,11 +1095,12 @@ export default function SessionClient({
     };
   }, [
     sessionId, currentUserId, ablyClient, ablyLoading, sessionReady,
-    currentUserRole, teacherName, studentNames, router, toast, cleanupPeerConnection,
-    handleSessionEnded, handleSpotlight, handleHandRaiseUpdate, handleHandAcknowledged, handleUnderstandingUpdate,
+    currentUserRole, teacherName, studentNames, handleSessionEnded, handleSpotlight, 
+    handleHandRaiseUpdate, handleHandAcknowledged, handleUnderstandingUpdate,
     handleActiveToolChange, handleDocumentShared, handleDocumentDeleted,
     handleWhiteboardControllerUpdate, handleWhiteboardOperations, handleTimerStarted,
-    handleTimerPaused, handleTimerReset, handleQuizStarted, handleQuizResponse, handleQuizEnded
+    handleTimerPaused, handleTimerReset, handleQuizStarted, handleQuizResponse, handleQuizEnded,
+    cleanupPeerConnection
   ]);
   
   // Gestion du minuteur
@@ -1212,15 +1223,16 @@ export default function SessionClient({
   
   const allSessionUsers = useMemo(() => [initialTeacher, ...initialStudents].filter(Boolean) as User[], [initialTeacher, initialStudents]);
 
-  if (isComponentLoading) {
-    return <SessionLoading />;
-  }
-  
+  // CORRECTION: Déplacer TOUS les hooks avant tout rendu conditionnel
   const isHandRaised = handRaiseQueue.includes(currentUserId);
   const raisedHandUsers = useMemo(() => 
     handRaiseQueue.map(userId => allSessionUsers.find(u => u.id === userId)).filter(Boolean) as User[], 
     [handRaiseQueue, allSessionUsers]
   );
+
+  if (isComponentLoading) {
+    return <SessionLoading />;
+  }
   
   // RENDU COMPLET
   return (

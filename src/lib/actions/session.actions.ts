@@ -10,7 +10,7 @@ import { authOptions } from "@/lib/auth-options";
 import prisma from '../prisma';
 import type { CoursSession, User, SharedDocument } from '@prisma/client';
 import { Role } from '@prisma/client';
-import { ComprehensionLevel, type DocumentInHistory, type ClassroomWithDetails } from '@/types';
+import { ComprehensionLevel, type DocumentInHistory, type ClassroomWithDetails, Quiz } from '@/types';
 
 export interface SessionData extends CoursSession {
     invitationResults?: {
@@ -74,7 +74,6 @@ const validateActiveTool = (tool: string): string => {
 
 // --- Core Session Actions ---
 
-// ✅ NOUVELLE FONCTION : Sauvegarde et partage
 export async function saveAndShareDocument(
     sessionId: string,
     newDoc: { name: string; url: string }
@@ -130,11 +129,11 @@ export async function saveAndShareDocument(
 }
 
 export async function createCoursSession(professeurId: string, classroomId: string, studentIds: string[]): Promise<SessionData> {
-    console.log('🚀 [ACTION CRITIQUE] - DEBUT createCoursSession', { professeurId, classroomId, studentIds });
+    console.log('🚀 [ACTION] - Lancement de createCoursSession', { professeurId, classroomId, studentIds });
     
     try {
         validateSessionParameters(professeurId, classroomId, studentIds);
-        console.log('✅ [ACTION CRITIQUE] - Paramètres validés');
+        console.log('✅ [ACTION] - Paramètres validés');
         
         const classroomExists = await prisma.classroom.findUnique({
             where: { id: classroomId },
@@ -142,11 +141,11 @@ export async function createCoursSession(professeurId: string, classroomId: stri
         });
         
         if (!classroomExists) {
-            console.error('❌ [ACTION CRITIQUE] - Classroom not found');
+            console.error('❌ [ACTION] - Classe non trouvée');
             throw new Error('Classroom not found');
         }
 
-        console.log('✅ [ACTION CRITIQUE] - Classroom trouvée, création session...');
+        console.log('✅ [ACTION] - Classe trouvée, création de la session...');
         const participantIds = [professeurId, ...studentIds];
 
         const session = await prisma.$transaction(async (tx) => {
@@ -158,30 +157,30 @@ export async function createCoursSession(professeurId: string, classroomId: stri
                 },
                 include: { participants: true }
             });
-            console.log('✅ [ACTION CRITIQUE] - Session créée en base:', newSession.id);
+            console.log('✅ [ACTION] - Session créée en base de données:', newSession.id);
             return newSession;
         });
 
-        console.log('📨 [ACTION CRITIQUE] - APPEL sendIndividualInvitations...');
+        console.log('📨 [ACTION] - Appel de sendIndividualInvitations...');
         const invitationResults = await sendIndividualInvitations(session.id, professeurId, classroomId, studentIds);
-        console.log('📊 [ACTION CRITIQUE] - Résultats invitations:', invitationResults);
+        console.log('📊 [ACTION] - Résultats des invitations:', invitationResults);
 
         studentIds.forEach(id => {
             revalidatePath(`/student/dashboard`);
             revalidatePath(`/student/${id}`);
         });
         
-        console.log('🎉 [ACTION CRITIQUE] - createCoursSession TERMINÉ avec succès');
+        console.log('🎉 [ACTION] - createCoursSession terminé avec succès.');
         return { ...session, invitationResults, success: true };
         
     } catch (error) {
-        console.error('💥 [ACTION CRITIQUE] - ERREUR dans createCoursSession:', error);
+        console.error('💥 [ACTION] - ERREUR dans createCoursSession:', error);
         throw error;
     }
 }
 
 async function sendIndividualInvitations(sessionId: string, professeurId: string, classroomId: string, studentIds: string[]) {
-    console.log(`📨 [INVITATIONS CRITIQUE] - DEBUT sendIndividualInvitations pour session ${sessionId}`, studentIds);
+    console.log(`📨 [INVITE] - Début de l'envoi des invitations pour la session ${sessionId}`, studentIds);
     
     try {
         const results = { successful: [] as string[], failed: [] as string[] };
@@ -192,7 +191,7 @@ async function sendIndividualInvitations(sessionId: string, professeurId: string
         ]);
 
         if (!classroom || !teacher) {
-            console.error('❌ [INVITATIONS CRITIQUE] - Classroom ou teacher non trouvé');
+            console.error('❌ [INVITE] - Classe ou professeur non trouvé');
             throw new Error('Classroom or teacher not found');
         }
 
@@ -206,71 +205,41 @@ async function sendIndividualInvitations(sessionId: string, professeurId: string
             type: 'session-invitation'
         };
         
-        console.log('📤 [INVITATIONS CRITIQUE] - Payload invitation créé:', invitationPayload);
+        console.log('📤 [INVITE] - Payload de l\'invitation créé:', invitationPayload);
         
         const invitationPromises = studentIds.map(async (studentId) => {
             const channelName = getUserChannelName(studentId);
-            console.log(`📤 [INVITATIONS CRITIQUE] - Envoi à ${studentId} via canal ${channelName}`);
+            console.log(`📤 [INVITE] - Envoi à ${studentId} via le canal ${channelName}`);
             try {
-                console.log(`🎯 [INVITATIONS CRITIQUE] - Appel ablyTrigger pour ${studentId}...`);
                 const success = await ablyTrigger(channelName, AblyEvents.SESSION_INVITATION, invitationPayload);
                 
                 if (success) {
-                    console.log(`✅ [INVITATIONS CRITIQUE] - SUCCÈS envoi à ${studentId}`);
+                    console.log(`✅ [INVITE] - Succès de l'envoi à ${studentId}`);
                     results.successful.push(studentId);
                 } else {
-                    console.error(`❌ [INVITATIONS CRITIQUE] - ÉCHEC ablyTrigger pour ${studentId}`);
+                    console.error(`❌ [INVITE] - Échec de l'envoi Ably à ${studentId}`);
                     results.failed.push(studentId);
                 }
             } catch (error) {
-                console.error(`💥 [INVITATIONS CRITIQUE] - ERREUR ablyTrigger pour ${studentId}:`, error);
+                console.error(`💥 [INVITE] - Erreur lors de l'envoi Ably à ${studentId}:`, error);
                 results.failed.push(studentId);
             }
         });
 
-        console.log('⏳ [INVITATIONS CRITIQUE] - Attente résultats envois...');
+        console.log('⏳ [INVITE] - En attente de la fin de tous les envois...');
         await Promise.allSettled(invitationPromises);
 
-        console.log(`📊 [INVITATIONS CRITIQUE] - RÉSUMÉ FINAL: ${results.successful.length} succès, ${results.failed.length} échecs`);
+        console.log(`📊 [INVITE] - Résumé : ${results.successful.length} succès, ${results.failed.length} échecs`);
         return results;
         
     } catch (error) {
-        console.error('💥 [INVITATIONS CRITIQUE] - ERREUR dans sendIndividualInvitations:', error);
+        console.error('💥 [INVITE] - ERREUR dans sendIndividualInvitations:', error);
         throw error;
     }
 }
 
-export async function updateStudentSessionStatus(sessionId: string, status: { isHandRaised?: boolean; understanding?: ComprehensionLevel }) {
-    console.log(`🔄 [ACTION] - updateStudentSessionStatus for session ${sessionId}:`, status);
-    
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) throw new Error('Not authenticated');
-
-    const userId = session.user.id;
-    const channel = getSessionChannelName(sessionId);
-    const promises = [];
-
-    if (status.isHandRaised !== undefined) {
-        console.log(`✋ [ACTION] - Broadcasting hand-raise status for ${userId}: ${status.isHandRaised}`);
-        promises.push(
-            ablyTrigger(channel, AblyEvents.HAND_RAISE_UPDATE, { userId, isRaised: status.isHandRaised })
-        );
-    }
-
-    if (status.understanding !== undefined) {
-        console.log(`🤔 [ACTION] - Broadcasting understanding status for ${userId}: ${status.understanding}`);
-        promises.push(
-            ablyTrigger(channel, AblyEvents.UNDERSTANDING_UPDATE, { userId, status: status.understanding })
-        );
-    }
-
-    await Promise.all(promises);
-    console.log('✅ [ACTION] - Student session status updated successfully');
-    return { success: true };
-}
-
 export async function endCoursSession(sessionId: string) {
-    console.log(`🔚 [ACTION] - Ending session ${sessionId}`);
+    console.log(`🔚 [ACTION] - Fin de la session ${sessionId}`);
     
     const session = await prisma.coursSession.update({
         where: { id: sessionId },
@@ -286,12 +255,12 @@ export async function endCoursSession(sessionId: string) {
 
     await ablyTrigger(channels, AblyEvents.SESSION_ENDED, eventData);
 
-    console.log('✅ [ACTION] - Session ended and event broadcasted.');
+    console.log('✅ [ACTION] - Session terminée et événement diffusé.');
     return { id: sessionId, success: true };
 }
 
 export async function spotlightParticipant(sessionId: string, participantId: string) {
-    console.log(`🌟 [ACTION] - Spotlighting ${participantId} in session ${sessionId}`);
+    console.log(`🌟 [ACTION] - Mise en vedette de ${participantId} dans la session ${sessionId}`);
     
     const sessionExists = await prisma.coursSession.count({ where: { id: sessionId } });
     if (!sessionExists) throw new Error('Session not found');
@@ -300,7 +269,7 @@ export async function spotlightParticipant(sessionId: string, participantId: str
     await ablyTrigger(channelName, AblyEvents.PARTICIPANT_SPOTLIGHTED, { participantId, sessionId, timestamp: new Date().toISOString() });
 
     revalidatePath(`/session/${sessionId}`);
-    console.log('✅ [ACTION] - Spotlight event broadcasted.');
+    console.log('✅ [ACTION] - Événement de mise en vedette diffusé.');
     return { success: true, participantId, sessionId };
 }
 
@@ -310,16 +279,16 @@ export async function shareDocumentToStudents(
 ): Promise<{ success: boolean }> {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
-        console.error('❌ [SHARE TO STUDENTS] - Not authenticated');
+        console.error('❌ [SHARE TO STUDENTS] - Non authentifié');
         throw new Error('Not authenticated');
     }
 
-    console.log('📤 [SHARE TO STUDENTS] - Sharing document to students:', { sessionId, document });
+    console.log('📤 [SHARE TO STUDENTS] - Partage du document aux élèves:', { sessionId, document });
 
     try {
         const channel = getSessionChannelName(sessionId);
         
-        console.log('📡 [SHARE TO STUDENTS] - Broadcasting to channel:', channel, 'with document:', document);
+        console.log('📡 [SHARE TO STUDENTS] - Diffusion sur le canal:', channel, 'avec le document:', document);
         
         await ablyTrigger(channel, AblyEvents.DOCUMENT_SHARED, {
             ...document,
@@ -327,33 +296,22 @@ export async function shareDocumentToStudents(
             timestamp: new Date().toISOString()
         });
 
-        console.log('✅ [SHARE TO STUDENTS] - Document shared to students successfully');
+        console.log('✅ [SHARE TO STUDENTS] - Document partagé aux élèves avec succès');
         
         return { success: true };
 
     } catch (error) {
-        console.error('❌ [SHARE TO STUDENTS] - Error sharing document to students:', error);
+        console.error('❌ [SHARE TO STUDENTS] - Erreur lors du partage du document aux élèves:', error);
         throw new Error('Failed to share document to students: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
 }
 
-
-export async function shareDocument(
-    sessionId: string,
-    newDoc: { name: string; url: string }
-  ): Promise<{ success: true; document: DocumentInHistory }> {
-    console.warn('⚠️ [SHARE DOCUMENT] - Using deprecated shareDocument function, use saveAndShareDocument instead');
-    return saveAndShareDocument(sessionId, newDoc);
-  }
-
-
-
 export async function deleteSharedDocument(documentId: string, sessionId: string, currentUserId: string) {
-    console.log(`🗑️ [ACTION] deleteSharedDocument: ${documentId} from session ${sessionId}`);
+    console.log(`🗑️ [ACTION] - Suppression du document ${documentId} de la session ${sessionId}`);
     
     try {
         if (!currentUserId) {
-            console.error('❌ [DOCUMENT DELETE] - User not authenticated');
+            console.error('❌ [DOCUMENT DELETE] - Utilisateur non authentifié');
             throw new Error('Non authentifié');
         }
 
@@ -383,7 +341,7 @@ export async function deleteSharedDocument(documentId: string, sessionId: string
                 timestamp: new Date().toISOString()
             });
         } catch (broadcastError) {
-            console.warn('⚠️ [DOCUMENT DELETE] - Broadcast failed, but document was deleted:', broadcastError);
+            console.warn('⚠️ [DOCUMENT DELETE] - La diffusion a échoué, mais le document a été supprimé:', broadcastError);
         }
 
         revalidatePath(`/session/${sessionId}`);
@@ -392,7 +350,7 @@ export async function deleteSharedDocument(documentId: string, sessionId: string
         return { success: true, documentId };
 
     } catch (error) {
-        console.error(`❌ [DOCUMENT DELETE] - Error deleting document ${documentId}:`, error);
+        console.error(`❌ [DOCUMENT DELETE] - Erreur lors de la suppression du document ${documentId}:`, error);
         throw new Error(error instanceof Error ? error.message : 'Erreur lors de la suppression du document');
     }
 }
@@ -416,52 +374,14 @@ export async function getTeacherDocuments(): Promise<DocumentInHistory[]> {
     }));
 }
 
-
-export async function broadcastTimerEvent(sessionId: string, event: 'timer-started' | 'timer-paused' | 'timer-reset', data?: any) {
-    const session = await getServerSession(authOptions);
-    if (session?.user?.role !== Role.PROFESSEUR) throw new Error('Only teachers can control the timer');
-
-    const channel = getSessionChannelName(sessionId);
-    const payload: TimerEventData = {
-        sessionId,
-        timestamp: new Date().toISOString(),
-    };
-
-    if (data?.duration !== undefined) {
-        payload.duration = validateTimerDuration(data.duration);
-    }
-
-    console.log(`⏱️ [ACTION] - Broadcasting timer event '${event}' on ${channel}`);
-    await ablyTrigger(channel, event as any, payload);
-    
-    return { success: true, event, sessionId };
-}
-
-export async function broadcastActiveTool(sessionId: string, tool: string) {
-    const session = await getServerSession(authOptions);
-    if (session?.user?.role !== Role.PROFESSEUR) throw new Error('Only teachers can change tools');
-
-    const sessionExists = await prisma.coursSession.count({ where: { id: sessionId, professeurId: session.user.id } });
-    if (!sessionExists) throw new Error('Session not found or not owned by user');
-
-    const validatedTool = validateActiveTool(tool);
-    const channel = getSessionChannelName(sessionId);
-    const payload = { tool: validatedTool, sessionId, timestamp: new Date().toISOString() };
-
-    console.log(`🛠️ [ACTION] - Broadcasting tool change to '${validatedTool}' on ${channel}`);
-    await ablyTrigger(channel, AblyEvents.ACTIVE_TOOL_CHANGED, payload);
-
-    return { success: true, tool: validatedTool, sessionId };
-}
-
 export async function reinviteStudentToSession(sessionId: string, studentId: string, classroomId: string) {
+    console.log(`🔄 [ACTION] - Ré-invitation de ${studentId} à la session ${sessionId}`);
     const session = await getServerSession(authOptions);
-    if (session?.user?.role !== Role.PROFESSEUR) throw new Error("Only teachers can re-invite.");
+    if (session?.user?.role !== Role.PROFESSEUR) throw new Error("Seuls les professeurs peuvent ré-inviter.");
 
     const sessionExists = await prisma.coursSession.count({ where: { id: sessionId, professeurId: session.user.id } });
-    if (!sessionExists) throw new Error('Session not found or not owned by user');
+    if (!sessionExists) throw new Error('Session non trouvée ou non possédée par l'utilisateur');
 
-    console.log(`🔄 [ACTION] - Re-inviting ${studentId} to session ${sessionId}`);
     await sendIndividualInvitations(sessionId, session.user.id, classroomId, [studentId]);
 
     revalidatePath(`/session/${sessionId}`);
@@ -469,7 +389,7 @@ export async function reinviteStudentToSession(sessionId: string, studentId: str
 }
 
 export async function cleanupExpiredSessions() {
-    console.log('🧹 [ACTION] - Cleaning up expired sessions...');
+    console.log('🧹 [ACTION] - Nettoyage des sessions expirées...');
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
     
     const { count } = await prisma.coursSession.updateMany({
@@ -480,11 +400,12 @@ export async function cleanupExpiredSessions() {
         data: { endTime: new Date() }
     });
 
-    console.log(`✅ [ACTION] - ${count} expired sessions cleaned.`);
+    console.log(`✅ [ACTION] - ${count} sessions expirées nettoyées.`);
     return { cleaned: count };
 }
 
 export async function getSessionDetails(sessionId: string): Promise<SessionDetails | null> {
+    console.log(`ℹ️ [ACTION] - Récupération des détails de la session ${sessionId}`);
     const sessionData = await prisma.coursSession.findUnique({
         where: { id: sessionId },
         include: { 

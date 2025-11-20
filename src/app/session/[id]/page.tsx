@@ -4,11 +4,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import { redirect } from 'next/navigation';
 import SessionLoading from '@/components/SessionLoading';
-import { type User, type ClassroomWithDetails, Role, type DocumentInHistory } from '@/types';
+import { type User, type ClassroomWithDetails, Role, type DocumentInHistory, type Quiz } from '@/types';
 import prisma from '@/lib/prisma';
 import dynamic from 'next/dynamic';
-
-// CORRECTION: Import du composant Button manquant
 import { Button } from '@/components/ui/button';
 
 // CORRECTION: Import dynamique AVEC gestion d'erreur améliorée
@@ -30,6 +28,7 @@ interface SessionData {
   documentHistory: DocumentInHistory[];
   startTime: string;
   endTime: string | null;
+  activeQuiz: Quiz | null; // Ajout du quiz actif
 }
 
 // CORRECTION: Composant de fallback avec gestion de reconnexion améliorée
@@ -56,7 +55,6 @@ function SessionErrorFallback({ sessionId, error }: { sessionId: string; error: 
           <Button
             variant="outline"
             onClick={() => {
-              // CORRECTION: Redirection conditionnelle basée sur le rôle
               const role = typeof window !== 'undefined' 
                 ? localStorage.getItem('userRole') 
                 : null;
@@ -76,9 +74,8 @@ function SessionErrorFallback({ sessionId, error }: { sessionId: string; error: 
 
 // CORRECTION: Fonction de récupération des données avec timeout et meilleure gestion d'erreur
 async function fetchSessionData(sessionId: string): Promise<{ data: SessionData | null; error: string | null }> {
-    console.log(`[SESSION PAGE] Démarrage fetchSessionData pour la session: ${sessionId}`);
+    console.log(`[SESSION PAGE] 🚀 Démarrage fetchSessionData pour la session: ${sessionId}`);
     
-    // CORRECTION: Timeout pour éviter les blocages
     const timeoutPromise = new Promise<never>((_, reject) => 
         setTimeout(() => reject(new Error('Timeout lors de la récupération des données')), 10000)
     );
@@ -88,7 +85,6 @@ async function fetchSessionData(sessionId: string): Promise<{ data: SessionData 
             where: { id: sessionId },
             include: {
                 professeur: true,
-                // CORRECTION: Les participants sont directement des User[], pas besoin d'inclure user
                 participants: true,
                 classe: {
                     include: {
@@ -103,17 +99,25 @@ async function fetchSessionData(sessionId: string): Promise<{ data: SessionData 
                         }
                     }
                 },
+                activeQuiz: {
+                    include: {
+                        questions: {
+                            include: {
+                                options: true,
+                            }
+                        }
+                    }
+                }
             },
         });
 
         const session = await Promise.race([sessionPromise, timeoutPromise]);
 
         if (!session) {
-            console.warn(`[SESSION PAGE] Session ${sessionId} non trouvée`);
+            console.warn(`[SESSION PAGE] ⚠️ Session ${sessionId} non trouvée`);
             return { data: null, error: 'Session non trouvée' };
         }
         
-        // CORRECTION: Vérifier si l'utilisateur a accès à cette session
         const userSession = await getServerSession(authOptions);
         const currentUserId = userSession?.user?.id;
         
@@ -121,23 +125,20 @@ async function fetchSessionData(sessionId: string): Promise<{ data: SessionData 
             return { data: null, error: 'Utilisateur non authentifié' };
         }
 
-        // CORRECTION: Vérification d'accès corrigée - participants est directement un tableau d'User
         const participantIds = session.participants.map((p: User) => p.id);
         const isParticipant = participantIds.includes(currentUserId) || 
                             session.professeurId === currentUserId;
         
         if (!isParticipant) {
-            console.warn(`[SESSION PAGE] Accès refusé pour l'utilisateur ${currentUserId} à la session ${sessionId}`);
+            console.warn(`[SESSION PAGE] 🚫 Accès refusé pour l'utilisateur ${currentUserId} à la session ${sessionId}`);
             return { data: null, error: 'Accès non autorisé à cette session' };
         }
         
-        // Récupérer les documents du professeur
         const teacherDocuments = await prisma.sharedDocument.findMany({
             where: { userId: session.professeurId },
             orderBy: { createdAt: 'desc' },
         });
 
-        // CORRECTION: Les participants sont déjà des User, on les filtre directement
         const students = session.participants.filter((p: User) => p.role === Role.ELEVE);
 
         const serializableDocumentHistory: DocumentInHistory[] = teacherDocuments.map(doc => ({
@@ -159,15 +160,21 @@ async function fetchSessionData(sessionId: string): Promise<{ data: SessionData 
             documentHistory: serializableDocumentHistory,
             startTime: session.startTime.toISOString(),
             endTime: session.endTime ? session.endTime.toISOString() : null,
+            activeQuiz: session.activeQuiz ? {
+                ...session.activeQuiz,
+                questions: session.activeQuiz.questions.map(q => ({
+                    ...q,
+                    options: q.options
+                }))
+            } : null,
         };
 
-        console.log(`✅ [SESSION PAGE] Données de session récupérées avec succès pour: ${sessionId}`);
-        console.log(`📊 Détails: ${responsePayload.students.length} élèves, ${responsePayload.participants.length} participants, ${responsePayload.documentHistory.length} documents`);
+        console.log(`[SESSION PAGE] ✅ Données de session récupérées avec succès pour: ${sessionId}`);
+        console.log(`[SESSION PAGE] 📊 Détails: ${responsePayload.students.length} élèves, ${responsePayload.participants.length} participants, ${responsePayload.documentHistory.length} documents, Quiz actif: ${!!responsePayload.activeQuiz}`);
         return { data: responsePayload, error: null };
     } catch (e: any) {
         console.error("❌ [SESSION PAGE] Erreur critique dans fetchSessionData:", e);
         
-        // CORRECTION: Messages d'erreur plus spécifiques
         let errorMessage = 'Échec de la récupération des données';
         if (e.message.includes('Timeout')) {
             errorMessage = 'La récupération des données a pris trop de temps';
@@ -202,22 +209,23 @@ async function SessionContent({ sessionId }: { sessionId: string }) {
             currentUserRole={userSession.user.role as Role}
             classroom={sessionData.classroom}
             initialDocumentHistory={sessionData.documentHistory}
+            initialActiveQuiz={sessionData.activeQuiz}
         />
     );
 }
 
 export default async function SessionPage({ params }: { params: { id: string } }) {
-  console.log(`[SESSION PAGE] Chargement de la page pour la session: ${params.id}`);
+  console.log(`[SESSION PAGE] 📄 Chargement de la page pour la session: ${params.id}`);
   
   const userSession = await getServerSession(authOptions);
 
   if (!userSession?.user) {
-    console.log(`[SESSION PAGE] Utilisateur non authentifié. Redirection vers /login.`);
+    console.log(`[SESSION PAGE] 🚫 Utilisateur non authentifié. Redirection vers /login.`);
     redirect(`/login?callbackUrl=/session/${params.id}`);
   }
 
   if (!params.id || typeof params.id !== 'string') {
-    console.error(`[SESSION PAGE] ID de session invalide: ${params.id}`);
+    console.error(`[SESSION PAGE] ❌ ID de session invalide: ${params.id}`);
     return <SessionErrorFallback sessionId="invalid" error="ID de session invalide" />;
   }
 
@@ -230,7 +238,7 @@ export default async function SessionPage({ params }: { params: { id: string } }
         </div>
     );
   } catch (error: any) {
-    console.error(`[SESSION PAGE] Erreur générale dans SessionPage:`, error);
+    console.error(`[SESSION PAGE] ❌ Erreur générale dans SessionPage:`, error);
     return <SessionErrorFallback sessionId={params.id} error={error.message || "Erreur inattendue"} />;
   }
 }
