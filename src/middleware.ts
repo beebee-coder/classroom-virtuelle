@@ -1,20 +1,15 @@
-
 // src/middleware.ts - VERSION CORRIGÉE
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+// Le middleware est conservé pour une utilisation future mais ne fait rien pour l'instant.
 export function middleware(request: NextRequest) {
-    // La logique du middleware peut être étendue ici si nécessaire,
-    // mais pour l'instant, nous laissons passer toutes les requêtes
-    // non interceptées par le `matcher` ci-dessous.
-    return NextResponse.next();
+  return NextResponse.next();
 }
 
+// AUCUNE ROUTE N'EST INTERCEPTÉE
+// En spécifiant un matcher qui ne correspond à rien, nous évitons
+// toute interférence avec les requêtes internes de Next.js.
 export const config = {
-    // 🔥 CORRECTION : Le matcher est mis à jour pour ignorer TOUTES les routes API,
-    // ainsi que les fichiers statiques, les images, et le favicon.
-    // Cela empêche le middleware d'interférer avec les routes de NextAuth.js, Ably, etc.
-    matcher: [
-        '/((?!api|_next/static|_next/image|favicon.ico).*)',
-    ],
+  matcher: [],
 };

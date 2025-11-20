@@ -2,7 +2,6 @@
 'use client';
 
 import React from 'react';
-import { Card, CardContent } from '../ui/card';
 import { Award } from 'lucide-react';
 import { QuizLauncher } from './QuizLauncher';
 import { QuizView } from './QuizView';
