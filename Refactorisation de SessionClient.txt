@@ -1,0 +1,246 @@
+Ce plan permet une migration progressive sans rupture de fonctionnalité, avec validation à chaque étape.
+
+Plan de Migration et Refactorisation de SessionClient.tsx
+Phase 1: Analyse et Planification Structurelle
+1.1 Audit du Composant Actuel
+Identifier les responsabilités multiples : WebRTC, Ably, UI, State Management
+
+Cartographier les dépendances : Hooks, actions, types
+
+Évaluer la complexité cyclomatique : Détecter les fonctions trop complexes
+
+1.2 Définition de l'Architecture Cible
+text
+SessionClient/ (composant racine)
+├── hooks/ (custom hooks spécialisés)
+├── providers/ (contexts et providers)
+├── components/ (sous-composants)
+├── services/ (logique métier)
+└── types/ (types spécifiques)
+Phase 2: Extraction des Custom Hooks
+2.1 Hook de Gestion WebRTC
+Fichier: src/hooks/session/useWebRTCConnection.ts
+
+Gestion des peers (création, destruction, états)
+
+Configuration ICE/STUN/TURN
+
+Streams média (local, screen share)
+
+Nettoyage des connexions
+
+2.2 Hook de Communication Ably
+Fichier: src/hooks/session/useAblyCommunication.ts
+
+Setup des channels Ably
+
+Gestion des événements temps réel
+
+Présence des utilisateurs
+
+Synchronisation des états
+
+2.3 Hook de Gestion d'État de Session
+Fichier: src/hooks/session/useSessionState.ts
+
+États locaux (tools, timer, quiz, documents)
+
+Actions utilisateur
+
+Synchronisation avec Ably
+
+2.4 Hook de Gestion Média
+Fichier: src/hooks/session/useMediaManagement.ts
+
+Accès caméra/micro
+
+Screen sharing
+
+Contrôles audio/vidéo
+
+Gestion des permissions
+
+Phase 3: Création des Providers/Contexts
+3.1 Session Context
+Fichier: src/providers/SessionProvider.tsx
+
+État global de la session
+
+Fonctions de manipulation partagées
+
+Données utilisateurs et streams
+
+3.2 WebRTC Context
+Fichier: src/providers/WebRTCProvider.tsx
+
+Connexions peer-to-peer
+
+Gestion des streams distants
+
+État des connexions
+
+Phase 4: Découpage en Sous-Composants
+4.1 Composant Principal SessionClient
+Fichier: src/components/session/SessionClient.tsx
+
+Composant racine minimal
+
+Orchestration des providers
+
+Gestion du cycle de vie
+
+4.2 Session Header
+Fichier: src/components/session/SessionHeader.tsx (existe déjà)
+
+Contrôles principaux
+
+Informations session
+
+4.3 Media Controls
+Fichier: src/components/session/MediaControls.tsx
+
+Boutons audio/vidéo
+
+Screen sharing
+
+États média
+
+4.4 Participant Manager
+Fichier: src/components/session/ParticipantManager.tsx
+
+Liste participants
+
+Gestion main levée
+
+Spotlight
+
+4.5 Tool Manager
+Fichier: src/components/session/ToolManager.tsx
+
+Sélection outil actif
+
+Router vers composant outil
+
+Phase 5: Services et Logique Métier
+5.1 Service WebRTC
+Fichier: src/services/webrtcService.ts
+
+Logique pure WebRTC
+
+Configuration peers
+
+Gestion signaux
+
+5.2 Service Ably Events
+Fichier: src/services/ablyEventService.ts
+
+Mapping événements Ably
+
+Handlers spécialisés
+
+Gestion erreurs
+
+5.3 Service Session State
+Fichier: src/services/sessionStateService.ts
+
+Validation données
+
+Transformations état
+
+Persistence locale
+
+Phase 6: Types et Interfaces
+6.1 Types Session Spécialisés
+Fichier: src/types/session.ts
+
+Interfaces séparées par domaine
+
+Types unions pour états
+
+Enums détaillés
+
+Phase 7: Stratégie de Migration Incrémentale
+7.1 Étape 1: Extraction Hooks
+Extraire useWebRTCConnection premier
+
+Tester avec composant existant
+
+Valider fonctionnalités
+
+7.2 Étape 2: Création Providers
+Implémenter SessionProvider
+
+Migrer état progressivement
+
+Maintenir compatibilité
+
+7.3 Étape 3: Découpage Composants
+Extraire MediaControls
+
+Puis ParticipantManager
+
+Enfin ToolManager
+
+7.4 Étape 4: Services
+Refactoriser logique métier
+
+Extraire des hooks
+
+Centraliser configurations
+
+Phase 8: Tests et Validation
+8.1 Tests Unitaires
+Hooks individuels
+
+Services
+
+Composants isolés
+
+8.2 Tests d'Intégration
+Flux complets
+
+Communication entre modules
+
+États partagés
+
+8.3 Tests de Performance
+Chargement mémoire
+
+Temps réponse
+
+Stabilité connexions
+
+Phase 9: Optimisations Finales
+9.1 Performance
+Mémoisation sélective
+
+Chargement paresseux
+
+Optimisation re-rendus
+
+9.2 Maintenabilité
+Documentation interne
+
+Error boundaries
+
+Logging structuré
+
+9.3 Évolutivité
+Architecture extensible
+
+Nouveaux outils
+
+Scalabilité utilisateurs
+
+Règles de Refactorisation
+Une responsabilité par module
+
+Dépendances explicites
+
+Interface cohérente entre composants
+
+Gestion d'erreur centralisée
+
+Tests après chaque extraction
+
+Rétrocompatibilité pendant migration
