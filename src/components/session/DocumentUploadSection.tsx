@@ -167,7 +167,7 @@ export function DocumentUploadSection({ sessionId, onUploadSuccess }: DocumentUp
       )}
 
       <div className="text-xs text-muted-foreground text-center">
-        Tous types de fichiers (max {MAX_FILE_SIZE_MB}MB)
+        Tous types de fichiers (max ${MAX_FILE_SIZE_MB}MB)
       </div>
     </div>
   );
