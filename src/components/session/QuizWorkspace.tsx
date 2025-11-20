@@ -14,7 +14,7 @@ interface QuizWorkspaceProps {
     quizResponses: Map<string, QuizResponse>;
     quizResults: QuizResults | null;
     onStartQuiz: (quiz: Omit<Quiz, 'id' | 'createdAt' | 'createdById'>) => Promise<{ success: boolean; error?: string; }>;
-    onEndQuiz: (quizId: string) => Promise<{ success: boolean; }>;
+    onEndQuiz: (quizId: string, responses: Map<string, QuizResponse>) => Promise<{ success: boolean; }>;
     students: User[];
 }
 
@@ -27,6 +27,7 @@ export function QuizWorkspace({
     onEndQuiz,
     students,
 }: QuizWorkspaceProps) {
+    console.log("🛠️ [QUIZ WORKSPACE] - Affichage de l'espace de travail du quiz", { hasActiveQuiz: !!activeQuiz, hasResults: !!quizResults });
 
     if (!activeQuiz) {
         return (

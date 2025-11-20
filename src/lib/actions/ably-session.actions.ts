@@ -166,26 +166,53 @@ export async function submitQuizResponse(sessionId: string, response: QuizRespon
   return { success: true };
 }
 
-export async function endQuiz(sessionId: string, quizId: string): Promise<{ success: boolean }> {
-  console.log(`🏁 [ACTION] - Fin du quiz ${quizId} pour la session ${sessionId}`);
-  const session = await getServerSession(authOptions);
-  if (session?.user?.role !== Role.PROFESSEUR) {
-    throw new Error('Only teachers can end a quiz');
-  }
+export async function endQuiz(sessionId: string, quizId: string, responses: Map<string, QuizResponse>): Promise<{ success: boolean }> {
+    console.log(`🏁 [ACTION] - Fin du quiz ${quizId} pour la session ${sessionId}`);
+    const session = await getServerSession(authOptions);
+    if (session?.user?.role !== Role.PROFESSEUR) {
+        throw new Error('Only teachers can end a quiz');
+    }
 
-  // Calculer les résultats ici (logique simplifiée)
-  const results: QuizResults = {
-    quizId: quizId,
-    scores: {},
-    responses: {},
-  };
+    const quiz = await prisma.quiz.findUnique({
+        where: { id: quizId },
+        include: { questions: true },
+    });
 
-  await prisma.coursSession.update({
-      where: { id: sessionId },
-      data: { activeQuizId: null },
-  });
-  
-  const channel = getSessionChannelName(sessionId);
-  await ablyTrigger(channel, AblyEvents.QUIZ_ENDED, { results });
-  return { success: true };
+    if (!quiz) {
+        throw new Error("Quiz not found");
+    }
+
+    const correctAnswers = new Map(quiz.questions.map(q => [q.id, q.correctOptionId]));
+    const studentScores: Record<string, { score: number; total: number }> = {};
+    const detailedResponses: Record<string, QuizResponse> = {};
+
+    responses.forEach((response, userId) => {
+        let score = 0;
+        Object.entries(response.answers).forEach(([questionId, selectedOptionId]) => {
+            if (correctAnswers.get(questionId) === selectedOptionId) {
+                score++;
+            }
+        });
+        studentScores[userId] = { score, total: quiz.questions.length };
+        detailedResponses[userId] = response;
+    });
+
+    const results: QuizResults = {
+        quizId: quizId,
+        scores: studentScores,
+        responses: detailedResponses,
+    };
+    
+    console.log("📊 [ACTION] - Calcul des résultats du quiz terminé:", results);
+
+    await prisma.coursSession.update({
+        where: { id: sessionId },
+        data: { activeQuizId: null },
+    });
+
+    const channel = getSessionChannelName(sessionId);
+    await ablyTrigger(channel, AblyEvents.QUIZ_ENDED, { results });
+    
+    console.log("✅ [ACTION] - Événement de fin de quiz diffusé.");
+    return { success: true };
 }

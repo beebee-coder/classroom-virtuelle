@@ -64,7 +64,7 @@ interface TeacherSessionViewProps {
     quizResponses: Map<string, QuizResponse>;
     quizResults: QuizResults | null;
     onStartQuiz: (quiz: Omit<Quiz, 'id' | 'createdAt' | 'createdById'>) => Promise<{ success: boolean; error?: string; }>;
-    onEndQuiz: (quizId: string) => Promise<{ success: boolean; }>;
+    onEndQuiz: (quizId: string, responses: Map<string, QuizResponse>) => Promise<{ success: boolean; }>;
 }
 
 export function TeacherSessionView({
@@ -263,6 +263,7 @@ export function TeacherSessionView({
     }, [teacher, classroom?.eleves]);
 
     const renderActiveTool = useMemo(() => {
+        console.log(`🖌️ [TEACHER VIEW] - Affichage de l'outil actif: ${activeTool}`);
         if (isSharingScreen && screenStream) {
             return (
                 <div className="w-full h-full bg-black rounded-lg overflow-hidden">
@@ -315,7 +316,7 @@ export function TeacherSessionView({
                         quizResponses={quizResponses}
                         quizResults={quizResults}
                         onStartQuiz={onStartQuiz}
-                        onEndQuiz={onEndQuiz}
+                        onEndQuiz={(quizId, responses) => onEndQuiz(quizId, responses)}
                         students={students}
                     />
                 );

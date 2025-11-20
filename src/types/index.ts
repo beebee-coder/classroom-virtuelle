@@ -193,7 +193,7 @@ export interface QuizResults {
 export interface BreakoutRoom {
   id: string;
   name: string;
-  task: string; // Ajout de la consigne
+  task: string;
   participants: User[];
 }
 

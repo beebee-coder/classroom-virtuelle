@@ -80,6 +80,7 @@ export function QuizLauncher({ onStartQuiz }: QuizLauncherProps) {
     };
 
     const handleStartQuiz = () => {
+        console.log("🚀 [QUIZ LAUNCHER] - Tentative de lancement du quiz...");
         // Validation
         if (!title.trim()) {
             toast({ variant: 'destructive', title: 'Titre manquant', description: 'Veuillez donner un titre à votre quiz.' });

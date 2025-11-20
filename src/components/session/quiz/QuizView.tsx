@@ -1,28 +1,32 @@
 // src/components/session/quiz/QuizView.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useTransition } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
-import { BarChart, Users, CheckCircle, XCircle } from 'lucide-react';
+import { BarChart, Users, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import type { Quiz, QuizResponse, QuizResults, User, QuizQuestion, QuizOption } from '@/types';
+import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface QuizViewProps {
     quiz: Quiz;
     isTeacherView: boolean;
-    onSubmitResponse?: (response: QuizResponse) => void;
-    onEndQuiz?: (quizId: string) => void;
+    onSubmitResponse?: (response: QuizResponse) => Promise<{ success: boolean; }>;
+    onEndQuiz?: (quizId: string, responses: Map<string, QuizResponse>) => Promise<{ success: boolean; }>;
     responses?: Map<string, QuizResponse>;
     results?: QuizResults | null;
     studentsInSession?: User[];
 }
 
-export function QuizView({ quiz, isTeacherView, onSubmitResponse, onEndQuiz, responses, results, studentsInSession = [] }: QuizViewProps) {
+export function QuizView({ quiz, isTeacherView, onSubmitResponse, onEndQuiz, responses = new Map(), results, studentsInSession = [] }: QuizViewProps) {
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
+    const [isSubmitting, startSubmitting] = useTransition();
+    const { toast } = useToast();
 
     const currentQuestion = quiz.questions[currentQuestionIndex];
     const totalQuestions = quiz.questions.length;
@@ -36,8 +40,18 @@ export function QuizView({ quiz, isTeacherView, onSubmitResponse, onEndQuiz, res
             setCurrentQuestionIndex(prev => prev + 1);
         } else {
             // Submit
-            if (onSubmitResponse) {
-                onSubmitResponse({ userId: '', userName: '', answers: selectedAnswers });
+            if (onSubmitResponse && Object.keys(selectedAnswers).length === totalQuestions) {
+                console.log("📝 [QUIZ VIEW] - Soumission des réponses...");
+                startSubmitting(async () => {
+                    const result = await onSubmitResponse({ userId: '', userName: '', answers: selectedAnswers });
+                    if(result.success) {
+                        toast({ title: 'Réponses envoyées !', description: 'Vos réponses ont été enregistrées.' });
+                    } else {
+                        toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible d\'envoyer vos réponses.' });
+                    }
+                });
+            } else {
+                toast({ variant: 'destructive', title: 'Réponses manquantes', description: 'Veuillez répondre à toutes les questions.' });
             }
         }
     };
@@ -54,7 +68,7 @@ export function QuizView({ quiz, isTeacherView, onSubmitResponse, onEndQuiz, res
     return (
         <Card className="h-full w-full flex flex-col">
             <CardHeader>
-                <Progress value={(currentQuestionIndex / totalQuestions) * 100} className="mb-2" />
+                <Progress value={((currentQuestionIndex + 1) / totalQuestions) * 100} className="mb-2" />
                 <CardTitle>{quiz.title}</CardTitle>
                 <CardDescription>Question {currentQuestionIndex + 1} sur {totalQuestions}</CardDescription>
             </CardHeader>
@@ -70,8 +84,8 @@ export function QuizView({ quiz, isTeacherView, onSubmitResponse, onEndQuiz, res
                 </RadioGroup>
             </CardContent>
             <div className="p-6 border-t">
-                <Button className="w-full" onClick={handleNextQuestion}>
-                    {currentQuestionIndex < totalQuestions - 1 ? 'Question suivante' : 'Terminer et voir les résultats'}
+                <Button className="w-full" onClick={handleNextQuestion} disabled={isSubmitting}>
+                    {isSubmitting ? <Loader2 className="animate-spin" /> : (currentQuestionIndex < totalQuestions - 1 ? 'Question suivante' : 'Terminer et voir les résultats')}
                 </Button>
             </div>
         </Card>
@@ -82,11 +96,20 @@ export function QuizView({ quiz, isTeacherView, onSubmitResponse, onEndQuiz, res
 function TeacherQuizDashboard({ quiz, responses = new Map(), onEndQuiz, studentsInSession = [] }: {
     quiz: Quiz;
     responses?: Map<string, QuizResponse>;
-    onEndQuiz?: (quizId: string) => void;
+    onEndQuiz?: (quizId: string, responses: Map<string, QuizResponse>) => Promise<{ success: boolean; }>;
     studentsInSession?: User[];
 }) {
     const totalStudents = studentsInSession.length;
     const answeredStudents = responses.size;
+    const [isEnding, startEnding] = useTransition();
+
+    const handleEndQuiz = () => {
+        if (!onEndQuiz) return;
+        console.log("🏁 [TEACHER DASHBOARD] - Fin du quiz déclenchée.");
+        startEnding(async () => {
+            await onEndQuiz(quiz.id, responses);
+        });
+    };
 
     return (
         <Card className="h-full w-full flex flex-col">
@@ -107,7 +130,9 @@ function TeacherQuizDashboard({ quiz, responses = new Map(), onEndQuiz, students
                 ))}
             </CardContent>
             <div className="p-6 border-t">
-                {onEndQuiz && <Button variant="destructive" className="w-full" onClick={() => onEndQuiz(quiz.id)}>Terminer le Quiz pour tout le monde</Button>}
+                <Button variant="destructive" className="w-full" onClick={handleEndQuiz} disabled={isEnding}>
+                    {isEnding ? <Loader2 className="animate-spin" /> : "Terminer le Quiz pour tout le monde"}
+                </Button>
             </div>
         </Card>
     );
@@ -139,10 +164,13 @@ function QuestionStats({ question, responses }: { question: QuizQuestion; respon
                     return (
                         <div key={option.id}>
                             <div className="flex justify-between items-center mb-1 text-sm">
-                                <span className="flex items-center">{option.text} {isCorrect && <CheckCircle className="h-4 w-4 text-green-500 ml-2"/>}</span>
+                                <span className={cn("flex items-center", isCorrect && "font-bold")}>
+                                    {option.text} 
+                                    {isCorrect && <CheckCircle className="h-4 w-4 text-green-500 ml-2"/>}
+                                </span>
                                 <span>{count} vote(s)</span>
                             </div>
-                            <Progress value={percentage} />
+                            <Progress value={percentage} indicatorClassName={isCorrect ? "bg-green-500" : "bg-primary"} />
                         </div>
                     );
                 })}
@@ -153,18 +181,36 @@ function QuestionStats({ question, responses }: { question: QuizQuestion; respon
 
 // Final results view
 function QuizResultsView({ results, quiz }: { results: QuizResults; quiz: Quiz }) {
-    // This is a placeholder. A real implementation would have more detailed stats.
+    const totalQuestions = quiz.questions.length;
+    const scores = Object.values(results.scores);
+    const averageScore = scores.length > 0 ? scores.reduce((sum, s) => sum + s.score, 0) / scores.length : 0;
+    const participationRate = scores.length > 0 ? (Object.keys(results.responses).length / scores.length) * 100 : 0;
+
     return (
         <Card className="h-full w-full">
             <CardHeader>
-                <CardTitle>Résultats du Quiz: {quiz.title}</CardTitle>
+                <CardTitle>📊 Résultats du Quiz: {quiz.title}</CardTitle>
                 <CardDescription>Voici un résumé des résultats.</CardDescription>
             </CardHeader>
             <CardContent>
-                <p>La vue des résultats n'est pas encore implémentée.</p>
-                <pre className="mt-4 p-4 bg-muted rounded-md text-xs overflow-auto">
-                    {JSON.stringify(results, null, 2)}
-                </pre>
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                    <Card>
+                        <CardHeader><CardTitle>Score Moyen</CardTitle></CardHeader>
+                        <CardContent><p className="text-2xl font-bold">{averageScore.toFixed(1)} / {totalQuestions}</p></CardContent>
+                    </Card>
+                     <Card>
+                        <CardHeader><CardTitle>Participation</CardTitle></CardHeader>
+                        <CardContent><p className="text-2xl font-bold">{participationRate.toFixed(0)}%</p></CardContent>
+                    </Card>
+                </div>
+                
+                <h3 className="font-semibold mb-2">Détail par Question</h3>
+                <div className="space-y-4">
+                    {quiz.questions.map((q: QuizQuestion) => {
+                        const questionResponses = Object.values(results.responses).map(r => r.answers[q.id]);
+                        return <QuestionStats key={q.id} question={q} responses={new Map(Object.entries(results.responses))} />;
+                    })}
+                </div>
             </CardContent>
         </Card>
     );
