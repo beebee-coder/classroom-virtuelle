@@ -1,4 +1,6 @@
 // src/components/session/TeacherSessionView.tsx
+'use client';
+
 import React, { useState, type ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { User, Role } from '@prisma/client';
@@ -24,7 +26,7 @@ import { DocumentUploadSection } from './DocumentUploadSection';
 import { shareDocumentToStudents } from '@/lib/actions/session.actions';
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { motion, AnimatePresence } from 'framer-motion';
-import { QuizWorkspace } from './QuizWorkspace';
+import { QuizWorkspace } from './quiz/QuizWorkspace';
 import { BreakoutRoomsManager } from './breakout/BreakoutRoomsManager';
 
 
