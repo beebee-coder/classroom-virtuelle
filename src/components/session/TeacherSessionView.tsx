@@ -1,3 +1,4 @@
+// src/components/session/TeacherSessionView.tsx
 'use client';
 
 import React, { useState, type ReactNode, useEffect, useMemo, useCallback } from 'react';
