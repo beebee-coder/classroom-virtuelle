@@ -83,13 +83,12 @@ export function StudentSessionView({
         const intervalId = setInterval(() => {
             trackStudentActivity(ACTIVITY_INTERVAL_MS / 1000)
                 .then((result) => {
-                    // CORRECTION : Validation du résultat
-                    if (result && typeof result === 'object' && result.success) {
-                        console.log(`✨ [HEARTBEAT] +${result.pointsAwarded || 1} points attribués.`);
-                    } else if (result && typeof result.scores === 'object' && result.scores !== null) {
-                        console.log('✅ [HEARTBEAT] - Résultat de quiz reçu via heartbeat');
-                    } else {
-                        console.warn('⚠️ [HEARTBEAT] - Réponse invalide ou sans action:', result);
+                    // CORRECTION : Simplification de la vérification.
+                    // La fonction ne retourne que `success` et `pointsAwarded`.
+                    if (result && result.success && result.pointsAwarded > 0) {
+                        console.log(`✨ [HEARTBEAT] +${result.pointsAwarded} points attribués.`);
+                    } else if (result && result.success) {
+                        console.log('✅ [HEARTBEAT] - Activité enregistrée (0 points).');
                     }
                 })
                 .catch((error) => {
@@ -100,7 +99,7 @@ export function StudentSessionView({
         return () => {
             clearInterval(intervalId);
         };
-    }, [sessionId]);
+    }, [sessionId]); // Dépendance à sessionId pour redémarrer si la session change
 
     // CORRECTION : Handler lever/main avec validation
     const handleToggleHandRaise = useCallback(async (): Promise<void> => {
