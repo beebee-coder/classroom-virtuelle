@@ -280,7 +280,7 @@ export default function SessionClient({
             quizResponses={quizResponses} 
             quizResults={quizResults}
             onStartQuiz={(quiz) => startQuiz(sessionId, quiz)}
-            onEndQuiz={(quizId: string) => onEndQuiz(quizId, quizResponses)} 
+            onEndQuiz={(quizId: string) => endQuiz(sessionId, quizId, quizResponses)} 
             students={initialStudents}
           />
         ) : (
@@ -313,5 +313,3 @@ export default function SessionClient({
     </div>
   );
 }
-
-    

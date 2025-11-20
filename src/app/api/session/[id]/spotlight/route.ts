@@ -1,4 +1,3 @@
-
 // src/app/api/session/[id]/spotlight/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { spotlightParticipant } from '@/lib/actions/session.actions';
@@ -10,16 +9,17 @@ export async function POST(
   const sessionId = params.id;
   console.log(`🌟 [API SPOTLIGHT] - Requête reçue pour la session ${sessionId}`);
   try {
-    const body = await request.json();
-    const { participantId } = body;
+    const { searchParams } = new URL(request.url);
+    const participantId = searchParams.get('participantId');
+    
     console.log(`  Mise en vedette demandée pour: ${participantId}`);
 
     if (!participantId) {
-      console.error('❌ [API SPOTLIGHT] - participantId est requis.');
-      return new NextResponse('participantId is required', { status: 400 });
+      console.error('❌ [API SPOTLIGHT] - participantId est requis dans les paramètres URL.');
+      return new NextResponse('participantId is required in URL parameters', { status: 400 });
     }
 
-    // Utiliser l'action serveur existante pour déclencher l'événement Pusher
+    // Utiliser l'action serveur existante pour déclencher l'événement
     await spotlightParticipant(sessionId, participantId);
     
     console.log('✅ [API SPOTLIGHT] - Événement de mise en vedette diffusé.');
@@ -29,5 +29,3 @@ export async function POST(
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }
-
-    

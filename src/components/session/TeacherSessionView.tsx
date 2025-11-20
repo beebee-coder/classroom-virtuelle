@@ -18,7 +18,7 @@ import { Html5Whiteboard } from '@/components/Html5Whiteboard';
 import { AnimatedCard } from './AnimatedCard';
 import { useToast } from '@/hooks/use-toast';
 import { DocumentUploadSection } from './DocumentUploadSection';
-import { shareDocumentToStudents } from '@/lib/actions/session.actions';
+import { shareDocumentToStudents, spotlightParticipant } from '@/lib/actions/session.actions';
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { motion, AnimatePresence } from 'framer-motion';
 import { QuizWorkspace } from './quiz/QuizWorkspace';
@@ -229,11 +229,20 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
         return classroom.eleves.filter(student => classOnlineIds.includes(student.id) && !activeParticipantIds.includes(student.id)).length;
     }, [classOnlineIds, activeParticipantIds, classroom]);
 
-    const handleSpotlightAndSwitch = useCallback((participantId: string) => {
-        onSpotlightParticipant(participantId);
-        onToolChange('camera');
-        setTeacherView('content');
-    }, [onSpotlightParticipant, onToolChange]);
+    const handleSpotlightAndSwitch = useCallback(async (participantId: string) => {
+        try {
+            await spotlightParticipant(sessionId, participantId);
+            onToolChange('camera');
+            setTeacherView('content');
+        } catch (error) {
+            console.error('Failed to spotlight participant', error);
+            toast({
+                variant: "destructive",
+                title: "Erreur",
+                description: "Impossible de mettre le participant en vedette.",
+            });
+        }
+    }, [onToolChange, sessionId, toast]);
 
     const handleDocumentReshare = useCallback(async (doc: DocumentInHistory) => {
         try {
