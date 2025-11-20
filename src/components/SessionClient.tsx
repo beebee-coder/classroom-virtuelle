@@ -21,7 +21,7 @@ import type { CreateQuizData } from '@/lib/actions/ably-session.actions';
 import { useWebRTCConnection } from '@/hooks/session/useWebRTCConnection';
 import { useAblyCommunication } from '@/hooks/session/useAblyCommunication';
 import { useMediaManagement } from '@/hooks/session/useMediaManagement';
-import { useSessionState } from '@/hooks/session/useSessionState'; // NOUVEAU HOOK
+import { useSessionState } from '@/hooks/session/useSessionState';
 
 // Importation statique
 import { TeacherSessionView } from './session/TeacherSessionView';
@@ -65,7 +65,7 @@ export default function SessionClient({
     handleIncomingSignal
   } = useWebRTCConnection(sessionId, currentUserId, activeStream, isMountedRef.current);
   
-  // EXTRACTION DE L'ETAT LOCAL DANS UN HOOK DEDIE
+  // CORRECTION : Gestion d'état de session
   const {
     activeTool,
     documentUrl,
@@ -85,13 +85,22 @@ export default function SessionClient({
     handleNewQuizResponse,
   } = useSessionState({ initialDocumentHistory, initialActiveQuiz });
 
+  // CORRECTION : Handler de signal avec validation
   const handleSignalReceived = useCallback((fromUserId: string, signal: any) => {
     if (!isMountedRef.current) return;
     
-    console.log(`🔧 [SIGNAL HANDLER] - Traitement du signal de ${fromUserId}`);
+    console.log(`🔧 [SIGNAL HANDLER] - Traitement du signal de ${fromUserId} vers ${currentUserId}`);
+    
+    // CORRECTION : Validation du signal
+    if (!signal || typeof signal !== 'object') {
+      console.warn('⚠️ [SIGNAL HANDLER] - Signal invalide reçu');
+      return;
+    }
+    
     handleIncomingSignal(fromUserId, signal);
-  }, [handleIncomingSignal]);
+  }, [handleIncomingSignal, currentUserId]);
 
+  // CORRECTION : Hook de communication avec gestion d'erreur
   const {
     onlineUserIds,
     spotlightedParticipantId,
@@ -104,44 +113,70 @@ export default function SessionClient({
     sessionId,
     currentUserId,
     initialTeacherId: initialTeacher.id,
-    onSessionEnded: () => router.push(currentUserRole === Role.PROFESSEUR ? '/teacher/dashboard' : '/student/dashboard'),
+    onSessionEnded: () => {
+      console.log('🔚 [SESSION CLIENT] - Redirection après fin de session');
+      router.push(currentUserRole === Role.PROFESSEUR ? '/teacher/dashboard' : '/student/dashboard');
+    },
     onSignalReceived: handleSignalReceived,
-    // Passer les setters de l'état pour les mises à jour Ably
     setActiveTool,
     setDocumentUrl,
-    setActiveQuiz: handleStartQuiz, // Renommer pour clarifier
+    setActiveQuiz: handleStartQuiz,
     onNewQuizResponse: handleNewQuizResponse,
     onQuizEnded: handleEndQuiz,
   });
 
-  const { sendOperation, flushOperations } = useAblyWhiteboardSync(
+  // CORRECTION : Hook whiteboard avec gestion d'erreur
+  const { sendOperation, flushOperations, isInitialized: isWhiteboardInitialized } = useAblyWhiteboardSync(
     sessionId, 
     currentUserId, 
-    (ops) => setWhiteboardOperations(prev => [...prev, ...ops])
+    useCallback((ops: WhiteboardOperation[]) => {
+      console.log(`📥 [SESSION CLIENT] - Réception de ${ops.length} opérations whiteboard`);
+      setWhiteboardOperations(prev => [...prev, ...ops]);
+    }, [setWhiteboardOperations])
   );
 
+  // CORRECTION : Gestion du cycle de vie du composant
   useEffect(() => {
     isMountedRef.current = true;
-    return () => { isMountedRef.current = false; };
-  }, []);
+    console.log(`🎯 [SESSION CLIENT] - Initialisation pour ${currentUserRole}: ${currentUserId}`);
+    
+    return () => { 
+      isMountedRef.current = false;
+      console.log(`🧹 [SESSION CLIENT] - Nettoyage pour ${currentUserId}`);
+    };
+  }, [currentUserRole, currentUserId]);
 
+  // CORRECTION : Connexion WebRTC avec les utilisateurs en ligne
   useEffect(() => {
-    if (isMediaReady && activeStream) {
-        onlineUserIds.forEach(userId => {
-            if (userId !== currentUserId) {
-                createPeer(userId, true, activeStream);
-            }
-        });
+    if (!isMediaReady || !activeStream || !isMountedRef.current) {
+      return;
     }
+
+    console.log(`🔗 [SESSION CLIENT] - Connexion WebRTC avec ${onlineUserIds.length} utilisateurs en ligne`);
+    
+    onlineUserIds.forEach(userId => {
+      if (userId !== currentUserId) {
+        createPeer(userId, true, activeStream);
+      }
+    });
   }, [onlineUserIds, currentUserId, isMediaReady, activeStream, createPeer]);
 
+  // CORRECTION : Handler de fin de session avec gestion d'état
   const handleEndSession = useCallback(async () => {
-    if (currentUserRole === Role.PROFESSEUR) {
-      setIsEndingSession(true);
-      try { 
-        await endCoursSession(sessionId); 
-      } catch (error) {
-        console.error('❌ [SESSION END] - Erreur:', error);
+    if (currentUserRole !== Role.PROFESSEUR) {
+      return;
+    }
+
+    setIsEndingSession(true);
+    console.log('🔚 [SESSION CLIENT] - Début de la fin de session');
+    
+    try { 
+      await endCoursSession(sessionId);
+      console.log('✅ [SESSION CLIENT] - Session terminée avec succès');
+    } catch (error) {
+      console.error('❌ [SESSION CLIENT] - Erreur lors de la fin de session:', error);
+      
+      if (isMountedRef.current) {
         setIsEndingSession(false);
         toast({
           variant: 'destructive',
@@ -153,40 +188,86 @@ export default function SessionClient({
   }, [currentUserRole, sessionId, toast]);
 
   const handleLeaveSession = useCallback(() => {
+    console.log('🚪 [SESSION CLIENT] - Utilisateur quitte la session');
     router.push(currentUserRole === Role.PROFESSEUR ? '/teacher/dashboard' : '/student/dashboard');
   }, [router, currentUserRole]);
   
-  const handleToggleHandRaise = useCallback(async (isRaised: boolean) => { 
-    await updateStudentSessionStatus(sessionId, { isHandRaised: isRaised }); 
+  // CORRECTION : Handler lever/main avec gestion d'erreur
+  const handleToggleHandRaise = useCallback(async (isRaised: boolean) => {
+    try {
+      console.log(`✋ [SESSION CLIENT] - ${isRaised ? 'Lever' : 'Baisser'} la main`);
+      await updateStudentSessionStatus(sessionId, { isHandRaised: isRaised });
+    } catch (error) {
+      console.error('❌ [SESSION CLIENT] - Erreur lors du changement de statut main:', error);
+    }
   }, [sessionId]);
 
+  // CORRECTION : Handler reconnaissance de main avec validation
   const handleAcknowledgeNextHand = useCallback(async () => {
-    if (handRaiseQueue.length > 0) {
+    if (handRaiseQueue.length === 0) {
+      console.warn('⚠️ [SESSION CLIENT] - Aucune main à reconnaître');
+      return;
+    }
+
+    const nextUserId = handRaiseQueue[0];
+    console.log(`✅ [SESSION CLIENT] - Reconnaissance de la main de ${nextUserId}`);
+    
+    try {
       await ablyTrigger(getSessionChannelName(sessionId), AblyEvents.HAND_ACKNOWLEDGED, { 
-        userId: handRaiseQueue[0] 
+        userId: nextUserId 
       });
+    } catch (error) {
+      console.error('❌ [SESSION CLIENT] - Erreur lors de la reconnaissance de main:', error);
     }
   }, [sessionId, handRaiseQueue]);
 
+  // CORRECTION : Handler compréhension avec validation
   const handleUnderstandingChange = useCallback(async (status: ComprehensionLevel) => {
-    await updateStudentSessionStatus(sessionId, { understanding: status });
+    if (!Object.values(ComprehensionLevel).includes(status)) {
+      console.warn('⚠️ [SESSION CLIENT] - Statut de compréhension invalide:', status);
+      return;
+    }
+
+    console.log(`🧠 [SESSION CLIENT] - Changement de compréhension: ${status}`);
+    
+    try {
+      await updateStudentSessionStatus(sessionId, { understanding: status });
+    } catch (error) {
+      console.error('❌ [SESSION CLIENT] - Erreur lors du changement de compréhension:', error);
+    }
   }, [sessionId]);
 
-  const onToolChange = useCallback(async (tool: string) => { 
-    await broadcastActiveTool(sessionId, tool); 
+  // CORRECTION : Handler changement d'outil
+  const onToolChange = useCallback(async (tool: string) => {
+    console.log(`🛠️ [SESSION CLIENT] - Changement d'outil: ${tool}`);
+    
+    try {
+      await broadcastActiveTool(sessionId, tool);
+    } catch (error) {
+      console.error('❌ [SESSION CLIENT] - Erreur lors du changement d\'outil:', error);
+    }
   }, [sessionId]);
   
+  // CORRECTION : Handler contrôleur whiteboard avec validation des droits
   const handleWhiteboardControllerChange = useCallback(async (userId: string) => {
-    if (currentUserRole === Role.PROFESSEUR) {
-      const newControllerId = userId === whiteboardControllerId ? initialTeacher?.id || null : userId;
-      try {
-        await fetch(`/api/session/${sessionId}/whiteboard-controller`, { 
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ controllerId: newControllerId }) 
-        });
-      } catch (error) {
-        console.error('❌ [WHITEBOARD CONTROLLER] - Erreur:', error);
+    if (currentUserRole !== Role.PROFESSEUR) {
+      console.warn('⚠️ [SESSION CLIENT] - Seul le professeur peut changer le contrôleur');
+      return;
+    }
+
+    const newControllerId = userId === whiteboardControllerId ? initialTeacher?.id || null : userId;
+    console.log(`🎮 [SESSION CLIENT] - Changement contrôleur whiteboard: ${newControllerId}`);
+    
+    try {
+      await fetch(`/api/session/${sessionId}/whiteboard-controller`, { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ controllerId: newControllerId }) 
+      });
+    } catch (error) {
+      console.error('❌ [SESSION CLIENT] - Erreur lors du changement de contrôleur:', error);
+      
+      if (isMountedRef.current) {
         toast({
           variant: 'destructive',
           title: 'Erreur',
@@ -196,57 +277,110 @@ export default function SessionClient({
     }
   }, [sessionId, currentUserRole, whiteboardControllerId, initialTeacher?.id, toast]);
 
+  // CORRECTION : Handler upload document avec gestion d'état
   const handleOnUploadSuccess = useCallback(async (uploadedDoc: { name: string; url: string }) => {
+    console.log(`📄 [SESSION CLIENT] - Upload réussi: ${uploadedDoc.name}`);
+    
     try {
       const result = await saveAndShareDocument(sessionId, uploadedDoc);
+      
       if (result.success && isMountedRef.current) {
         handleUploadSuccess(result.document);
+        toast({
+          title: 'Succès',
+          description: 'Document partagé avec la classe'
+        });
       }
-      toast({
-        title: 'Succès',
-        description: 'Document partagé avec la classe'
-      });
     } catch (error) {
-      console.error('❌ [DOCUMENT UPLOAD] - Erreur:', error);
-      toast({ 
-        variant: 'destructive', 
-        title: 'Erreur',
-        description: 'Impossible de partager le document' 
-      });
+      console.error('❌ [SESSION CLIENT] - Erreur lors de l\'upload:', error);
+      
+      if (isMountedRef.current) {
+        toast({ 
+          variant: 'destructive', 
+          title: 'Erreur',
+          description: 'Impossible de partager le document' 
+        });
+      }
     }
   }, [sessionId, toast, handleUploadSuccess]);
   
+  // CORRECTION : Handler démarrage quiz avec validation
   const handleOnStartQuiz = useCallback(async (quizData: CreateQuizData) => {
+    console.log('❓ [SESSION CLIENT] - Démarrage du quiz');
+    
     const result = await startQuiz(sessionId, quizData);
-    if (!result.success) {
-      toast({ variant: 'destructive', title: 'Erreur', description: result.error || 'Impossible de lancer le quiz.' });
+    if (!result.success && isMountedRef.current) {
+      toast({ 
+        variant: 'destructive', 
+        title: 'Erreur', 
+        description: result.error || 'Impossible de lancer le quiz.' 
+      });
     }
     return result;
   }, [sessionId, toast]);
 
+  // CORRECTION : Handler réponse quiz
   const handleSubmitQuizResponse = useCallback(async (response: QuizResponse) => {
+    console.log(`📝 [SESSION CLIENT] - Soumission réponse quiz`);
+    
     const result = await submitQuizResponse(sessionId, response);
-    if (!result.success) {
-      toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible d\'envoyer vos réponses.' });
+    if (!result.success && isMountedRef.current) {
+      toast({ 
+        variant: 'destructive', 
+        title: 'Erreur', 
+        description: 'Impossible d\'envoyer vos réponses.' 
+      });
     }
     return result;
   }, [sessionId, toast]);
 
+  // CORRECTION : Handler fin quiz
   const handleOnEndQuiz = useCallback(async (quizId: string, responses: Map<string, QuizResponse>) => {
+    console.log(`🏁 [SESSION CLIENT] - Fin du quiz: ${quizId}`);
+    
     const result = await endQuiz(sessionId, quizId, responses);
     return result;
   }, [sessionId]);
 
-  const allSessionUsers = useMemo(() => [initialTeacher, ...initialStudents].filter(Boolean) as User[], [initialTeacher, initialStudents]);
-  const spotlightedUser = useMemo(() => allSessionUsers.find(u => u.id === spotlightedParticipantId), [allSessionUsers, spotlightedParticipantId]);
-  const spotlightedStream = useMemo(() => spotlightedParticipantId === currentUserId ? activeStream : remoteStreams.get(spotlightedParticipantId || '') || null, [spotlightedParticipantId, currentUserId, activeStream, remoteStreams]);
-  const remoteParticipants = useMemo(() => Array.from(remoteStreams.entries()).map(([id, stream]) => ({ id, stream })), [remoteStreams]);
-  const isHandRaised = handRaiseQueue.includes(currentUserId);
-  const raisedHandUsers = useMemo(() => handRaiseQueue.map(userId => allSessionUsers.find(u => u.id === userId)).filter(Boolean) as User[], [handRaiseQueue, allSessionUsers]);
+  // CORRECTION : Mémoization des données dérivées
+  const allSessionUsers = useMemo(() => 
+    [initialTeacher, ...initialStudents].filter(Boolean) as User[], 
+    [initialTeacher, initialStudents]
+  );
 
+  const spotlightedUser = useMemo(() => 
+    allSessionUsers.find(u => u.id === spotlightedParticipantId),
+    [allSessionUsers, spotlightedParticipantId]
+  );
+
+  const spotlightedStream = useMemo(() => 
+    spotlightedParticipantId === currentUserId 
+      ? activeStream 
+      : remoteStreams.get(spotlightedParticipantId || '') || null,
+    [spotlightedParticipantId, currentUserId, activeStream, remoteStreams]
+  );
+
+  const remoteParticipants = useMemo(() => 
+    Array.from(remoteStreams.entries()).map(([id, stream]) => ({ id, stream })),
+    [remoteStreams]
+  );
+
+  const isHandRaised = useMemo(() => 
+    handRaiseQueue.includes(currentUserId),
+    [handRaiseQueue, currentUserId]
+  );
+
+  const raisedHandUsers = useMemo(() => 
+    handRaiseQueue.map(userId => allSessionUsers.find(u => u.id === userId)).filter(Boolean) as User[],
+    [handRaiseQueue, allSessionUsers]
+  );
+
+  // CORRECTION : État de chargement amélioré
   if (isMediaLoading) {
     return <SessionLoading />;
   }
+
+  console.log(`🎯 [SESSION CLIENT] - Rendu pour ${currentUserRole}, whiteboard initialisé: ${isWhiteboardInitialized}`);
 
   return (
     <div className="flex flex-col h-full bg-background p-4">
