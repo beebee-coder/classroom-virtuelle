@@ -19,6 +19,7 @@ import { Html5Whiteboard } from '../Html5Whiteboard';
 import { AnimatedCard } from './AnimatedCard';
 import { useSession } from 'next-auth/react';
 import { QuizView } from './quiz/QuizView';
+import { trackStudentActivity } from '@/lib/actions/activity.actions'; // Ajout de l'import
 
 interface StudentSessionViewProps {
     sessionId: string;
@@ -74,6 +75,31 @@ export function StudentSessionView({
 
     const [isHandRaiseLoading, setIsHandRaiseLoading] = useState(false);
     const [isUnderstandingLoading, setIsUnderstandingLoading] = useState(false);
+    
+    // ✅ GAMIFICATION: Suivi de l'activité de l'élève
+    useEffect(() => {
+        const ACTIVITY_INTERVAL_MS = 30000; // Envoyer un ping toutes les 30 secondes
+        
+        console.log(`💓 [HEARTBEAT] Démarrage du suivi d'activité pour la session ${sessionId}`);
+
+        const intervalId = setInterval(() => {
+            trackStudentActivity(ACTIVITY_INTERVAL_MS / 1000)
+                .then(result => {
+                    if (result.success) {
+                        console.log(`✨ [HEARTBEAT] +${result.pointsAwarded} points attribués.`);
+                    }
+                })
+                .catch(error => {
+                    console.warn("⚠️ [HEARTBEAT] Échec du suivi d'activité:", error);
+                });
+        }, ACTIVITY_INTERVAL_MS);
+
+        return () => {
+            console.log(`🛑 [HEARTBEAT] Arrêt du suivi d'activité pour la session ${sessionId}`);
+            clearInterval(intervalId);
+        };
+    }, [sessionId]);
+
 
     // ✅ CORRECTION : Logs détaillés pour le debugging des streams
     useEffect(() => {
