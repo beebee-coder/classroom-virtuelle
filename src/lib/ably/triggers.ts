@@ -1,7 +1,7 @@
 // src/lib/ably/triggers.ts
 'use server';
 
-import { getServerAblyClient } from './server';
+import { getAblyChannel } from './server';
 import type { AblyEventName } from './events';
 
 interface AblyTriggerOptions {
@@ -10,12 +10,7 @@ interface AblyTriggerOptions {
 
 /**
  * Publishes an event to one or more Ably channels.
- *
- * @param channel The channel name or an array of channel names to publish to.
- * @param eventName The name of the event to publish.
- * @param data The payload for the event.
- * @param options Optional parameters, like a socket_id to exclude a client.
- * @returns A promise that resolves to true on success, false on failure.
+ * ✅ CORRECTION : Fonction Server Action pure
  */
 export async function ablyTrigger<T>(
   channel: string | string[],
@@ -30,24 +25,30 @@ export async function ablyTrigger<T>(
     return false;
   }
 
-  let ablyServer;
-  try {
-    ablyServer = getServerAblyClient();
-  } catch (error) {
-    console.error('❌ [ABLY TRIGGER] - Ably server client not available:', error);
-    return false;
-  }
-
   try {
     const channels = Array.isArray(channel) ? channel : [channel];
-    const publishPromises = channels.map(chName => {
-      const ch = ablyServer.channels.get(chName);
-      return ch.publish(eventName, data);
+    const publishPromises = channels.map(async (chName) => {
+      try {
+        const channelInstance = await getAblyChannel(chName);
+        await channelInstance.publish(eventName, data);
+        console.log(`✅ [ABLY TRIGGER] - Event '${eventName}' published to ${chName}`);
+        return true;
+      } catch (error) {
+        console.error(`❌ [ABLY TRIGGER] - Failed to publish to ${chName}:`, error);
+        return false;
+      }
     });
 
-    await Promise.all(publishPromises);
-    console.log(`✅ [ABLY TRIGGER] - Event '${eventName}' published successfully.`);
-    return true;
+    const results = await Promise.all(publishPromises);
+    const success = results.every(result => result === true);
+    
+    if (success) {
+      console.log(`✅ [ABLY TRIGGER] - All events published successfully`);
+    } else {
+      console.warn(`⚠️ [ABLY TRIGGER] - Some events failed to publish`);
+    }
+    
+    return success;
 
   } catch (error) {
     console.error(`🔴 [ABLY TRIGGER ERROR] - Failed to publish event '${eventName}':`, {

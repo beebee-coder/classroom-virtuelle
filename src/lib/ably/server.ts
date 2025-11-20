@@ -1,5 +1,6 @@
 // src/lib/ably/server.ts
-'use server';
+// ❌ SUPPRIMER 'use server' - Ce n'est pas une Server Action
+
 import Ably from 'ably';
 
 declare global {
@@ -9,78 +10,57 @@ declare global {
 
 const ablyApiKey = process.env.ABLY_API_KEY;
 
-// ✅ CORRECTION : Initialisation robuste avec gestion d'erreur améliorée
-let ablyServer: Ably.Rest | null = null;
+// ✅ CORRECTION : Fonction pure pour obtenir l'instance Ably
+export function initializeAblyServer(): Ably.Rest | null {
+  if (typeof window !== 'undefined') {
+    return null;
+  }
 
-// ✅ NOUVELLE FONCTION : Validation de la clé API
-const validateAblyApiKey = (key: string | undefined): boolean => {
-  if (!key) {
+  if (!ablyApiKey) {
     console.error('❌ [ABLY SERVER] ABLY_API_KEY environment variable is missing');
-    return false;
+    return null;
   }
-  
-  if (key.split('.').length !== 2) {
-    console.error('❌ [ABLY SERVER] ABLY_API_KEY format is invalid');
-    return false;
-  }
-  
-  return true;
-};
 
-// ✅ CORRECTION : Initialisation avec gestion d'erreur robuste
-if (typeof window === 'undefined') {
-  if (validateAblyApiKey(ablyApiKey)) {
-    try {
-      // ✅ CORRECTION : Configuration optimisée pour Vercel (sans erreurs TypeScript)
+  if (ablyApiKey.split('.').length !== 2) {
+    console.error('❌ [ABLY SERVER] ABLY_API_KEY format is invalid');
+    return null;
+  }
+
+  try {
+    // ✅ CORRECTION : Retourner une nouvelle instance ou l'existante
+    if (process.env.NODE_ENV === 'production' || !global.ablyServerInstance) {
       const clientOptions: Ably.Types.ClientOptions = {
-        key: ablyApiKey!,
-        logLevel: (process.env.NODE_ENV === 'development' ? 2 : 1) as any, // ✅ FIX: Type assertion
+        key: ablyApiKey,
+        logLevel: (process.env.NODE_ENV === 'development' ? 2 : 1) as any,
         tls: true,
-        httpMaxRetryCount: 5, // ✅ AUGMENTÉ : Plus de tentatives pour Vercel
-        httpOpenTimeout: 15000, // ✅ AJOUTÉ : Timeout étendu pour cold starts
-        httpRequestTimeout: 30000, // ✅ AJOUTÉ : Timeout long pour Vercel
-        fallbackHosts: ['a.ably-realtime.com', 'b.ably-realtime.com', 'c.ably-realtime.com'], // ✅ AJOUTÉ : Résilience
-        idempotentRestPublishing: true, // ✅ AJOUTÉ : Éviter les doublons
+        httpMaxRetryCount: 5,
+        httpOpenTimeout: 15000,
+        httpRequestTimeout: 30000,
+        fallbackHosts: ['a.ably-realtime.com', 'b.ably-realtime.com', 'c.ably-realtime.com'],
+        idempotentRestPublishing: true,
       };
 
-      if (process.env.NODE_ENV === 'production' || !global.ablyServerInstance) {
-        ablyServer = new Ably.Rest(clientOptions);
-        if (process.env.NODE_ENV !== 'production') {
-            global.ablyServerInstance = ablyServer;
-        }
-      } else {
-        ablyServer = global.ablyServerInstance;
+      const instance = new Ably.Rest(clientOptions);
+      
+      if (process.env.NODE_ENV !== 'production') {
+        global.ablyServerInstance = instance;
       }
-
-    } catch (error: any) { // ✅ CORRECTION : Type explicit pour error
-      console.error('❌ [ABLY SERVER] Critical error initializing Ably client:', error);
-      ablyServer = null;
+      
+      return instance;
+    } else {
+      return global.ablyServerInstance;
     }
-  } else {
-    console.error('❌ [ABLY SERVER] Ably API key validation failed');
+  } catch (error) {
+    console.error('❌ [ABLY SERVER] Critical error initializing Ably client:', error);
+    return null;
   }
 }
 
-// ✅ CORRECTION : Export sécurisé avec fonction helper améliorée
-export const getServerAblyClient = (): Ably.Rest => {
-  if (typeof window !== 'undefined') {
-    throw new Error('❌ [ABLY SERVER] Cannot use server Ably client in browser context');
-  }
-  
+// ✅ CORRECTION : Fonction helper pour les Server Actions
+export async function getAblyChannel(channelName: string) {
+  const ablyServer = initializeAblyServer();
   if (!ablyServer) {
-    if (validateAblyApiKey(ablyApiKey)) {
-        try {
-            ablyServer = new Ably.Rest({ key: ablyApiKey!, logLevel: 1 as any });
-        } catch (error) {
-            console.error('❌ [ABLY SERVER] Failed to reinitialize Ably client:', error);
-            throw new Error('❌ [ABLY SERVER] Server Ably client not initialized - check ABLY_API_KEY and server configuration');
-        }
-    } else {
-       throw new Error('❌ [ABLY SERVER] Server Ably client not initialized - check ABLY_API_KEY and server configuration');
-    }
+    throw new Error('❌ [ABLY SERVER] Ably client not initialized');
   }
-  
-  return ablyServer;
-};
-
-export default ablyServer;
+  return ablyServer.channels.get(channelName);
+}
