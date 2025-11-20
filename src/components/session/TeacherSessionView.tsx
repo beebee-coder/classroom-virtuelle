@@ -1,4 +1,4 @@
-// src/components/session/TeacherSessionView.tsx
+// src/components/session/TeacherSessionView.tsx - VERSION CORRIGÉE
 'use client';
 
 import React, { useState, type ReactNode, useEffect, useMemo, useCallback } from 'react';
@@ -207,7 +207,18 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
         return duration;
     }, [initialDuration]);
 
-    const remoteStreamsMap = useMemo(() => new Map(remoteParticipants.map(p => [p.id, p.stream])), [remoteParticipants]);
+    // CORRECTION : Création d'une map des streams distants avec validation
+    const remoteStreamsMap = useMemo(() => {
+        const map = new Map<string, MediaStream>();
+        remoteParticipants.forEach(p => {
+            if (p.stream && p.stream.active) {
+                map.set(p.id, p.stream);
+            }
+        });
+        console.log(`📹 [TEACHER VIEW] - ${map.size} streams distants valides`);
+        return map;
+    }, [remoteParticipants]);
+
     const teacher = useMemo(() => allSessionUsers.find(u => u.role === 'PROFESSEUR'), [allSessionUsers]);
 
     const activeParticipantIds = useMemo(() => {
@@ -224,6 +235,7 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
     }, [classOnlineIds, activeParticipantIds, classroom]);
 
     const handleSpotlightAndSwitch = useCallback(async (participantId: string) => {
+        console.log(`🔦 [TEACHER VIEW] - Spotlight participant: ${participantId}`);
         onSpotlightParticipant(participantId);
         onToolChange('camera');
         setTeacherView('content');
@@ -239,69 +251,259 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
         }
     }, [sessionId, onSelectDocument, toast]);
 
+    // CORRECTION : Fonction de rendu de participant avec gestion améliorée des streams
     const renderParticipant = useCallback((participant: SessionParticipant) => {
         if (!participant) return null;
-        const stream = participant.id === teacher?.id ? (isSharingScreen ? screenStream : localStream) : remoteStreamsMap.get(participant.id);
+        
+        // CORRECTION : Logique améliorée pour déterminer le stream
+        let stream: MediaStream | null = null;
+        
+        if (participant.id === currentUserId) {
+            // C'est le professeur
+            stream = isSharingScreen ? screenStream : localStream;
+            console.log(`👨‍🏫 [TEACHER VIEW] - Stream professeur: ${!!stream}, partage écran: ${isSharingScreen}`);
+        } else {
+            // C'est un étudiant
+            stream = remoteStreamsMap.get(participant.id) || null;
+            console.log(`👨‍🎓 [TEACHER VIEW] - Stream étudiant ${participant.id}: ${!!stream}`);
+        }
+
         const key = participant.id;
 
-        if (stream) {
+        if (stream && stream.active) {
             return (
                 <Participant
-                    key={key} stream={stream} isLocal={participant.id === currentUserId}
-                    isSpotlighted={participant.id === spotlightedUser?.id} isTeacher={true}
-                    participantUserId={participant.id} onSpotlightParticipant={handleSpotlightAndSwitch}
-                    displayName={participant.name ?? ''} isHandRaised={raisedHandQueue.some(u => u.id === participant.id)}
-                    onSetWhiteboardController={onWhiteboardControllerChange} isWhiteboardController={participant.id === whiteboardControllerId}
+                    key={key} 
+                    stream={stream} 
+                    isLocal={participant.id === currentUserId}
+                    isSpotlighted={participant.id === spotlightedUser?.id} 
+                    isTeacher={participant.role === Role.PROFESSEUR}
+                    participantUserId={participant.id} 
+                    onSpotlightParticipant={handleSpotlightAndSwitch}
+                    displayName={participant.name ?? ''} 
+                    isHandRaised={raisedHandQueue.some(u => u.id === participant.id)}
+                    onSetWhiteboardController={onWhiteboardControllerChange} 
+                    isWhiteboardController={participant.id === whiteboardControllerId}
                 />
             );
         }
         
+        // CORRECTION : Fallback pour les participants sans stream
         const studentData = allSessionUsers.find(u => u.id === participant.id) as User | undefined;
         if (!studentData) return null;
 
         return (
             <StudentPlaceholder
-                key={key} student={studentData} isOnline={classOnlineIds.includes(participant.id)}
-                onSpotlightParticipant={handleSpotlightAndSwitch} isHandRaised={raisedHandQueue.some(u => u.id === participant.id)}
+                key={key} 
+                student={studentData} 
+                isOnline={classOnlineIds.includes(participant.id)}
+                onSpotlightParticipant={handleSpotlightAndSwitch} 
+                isHandRaised={raisedHandQueue.some(u => u.id === participant.id)}
             />
         );
     }, [
-        teacher?.id, localStream, remoteStreamsMap, currentUserId, spotlightedUser?.id, handleSpotlightAndSwitch, 
-        raisedHandQueue, onWhiteboardControllerChange, whiteboardControllerId, classOnlineIds, isSharingScreen, screenStream, allSessionUsers
+        currentUserId, isSharingScreen, screenStream, localStream, remoteStreamsMap,
+        spotlightedUser?.id, handleSpotlightAndSwitch, raisedHandQueue, 
+        onWhiteboardControllerChange, whiteboardControllerId, classOnlineIds, allSessionUsers
     ]);
     
     const allGridParticipants = useMemo(() => {
         const participantMap = new Map<string, SessionParticipant>();
         if (teacher) participantMap.set(teacher.id, teacher);
-        if (classroom?.eleves) classroom.eleves.forEach(student => { if (!participantMap.has(student.id)) participantMap.set(student.id, student as SessionParticipant); });
+        if (classroom?.eleves) classroom.eleves.forEach(student => { 
+            if (!participantMap.has(student.id)) participantMap.set(student.id, student as SessionParticipant); 
+        });
+        console.log(`👥 [TEACHER VIEW] - ${participantMap.size} participants dans la grille`);
         return Array.from(participantMap.values());
     }, [teacher, classroom?.eleves]);
 
-    const renderActiveTool = useMemo(() => {
-        if (isSharingScreen && screenStream) {
-            return <div className="w-full h-full bg-black rounded-lg overflow-hidden"><Participant stream={screenStream} isLocal={true} isTeacher={true} participantUserId={currentUserId} displayName="Votre partage d'écran" /></div>;
+    // CORRECTION : Fonction pour obtenir le stream du spotlight avec logique améliorée
+    const getSpotlightStream = useCallback(() => {
+        if (!spotlightedUser) {
+            console.log(`🔦 [TEACHER VIEW] - Aucun utilisateur en spotlight`);
+            return null;
         }
-        const spotlightedStream = spotlightedUser?.id === currentUserId ? (isSharingScreen ? screenStream : localStream) : remoteStreamsMap.get(spotlightedUser?.id ?? '');
+
+        let stream: MediaStream | null = null;
+
+        if (spotlightedUser.id === currentUserId) {
+            // Le professeur est en spotlight
+            stream = isSharingScreen ? screenStream : localStream;
+            console.log(`🔦 [TEACHER VIEW] - Spotlight sur professeur, stream: ${!!stream}, partage écran: ${isSharingScreen}`);
+        } else {
+            // Un étudiant est en spotlight
+            stream = remoteStreamsMap.get(spotlightedUser.id) || null;
+            console.log(`🔦 [TEACHER VIEW] - Spotlight sur étudiant ${spotlightedUser.id}, stream: ${!!stream}`);
+        }
+
+        // CORRECTION : Validation du stream
+        if (stream && stream.active) {
+            const hasVideo = stream.getVideoTracks().some(track => track.readyState === 'live');
+            const hasAudio = stream.getAudioTracks().some(track => track.readyState === 'live');
+            console.log(`🔦 [TEACHER VIEW] - Stream spotlight valide, vidéo: ${hasVideo}, audio: ${hasAudio}`);
+            return stream;
+        }
+
+        console.log(`🔦 [TEACHER VIEW] - Stream spotlight invalide ou null`);
+        return null;
+    }, [spotlightedUser, currentUserId, isSharingScreen, screenStream, localStream, remoteStreamsMap]);
+
+    // CORRECTION : Rendu du contenu actif avec gestion améliorée du spotlight
+    const renderActiveTool = useMemo(() => {
+        console.log(`🎯 [TEACHER VIEW] - Rendu outil actif: ${activeTool}, spotlight: ${spotlightedUser?.id}`);
+
+        if (isSharingScreen && screenStream) {
+            return (
+                <div className="w-full h-full bg-black rounded-lg overflow-hidden">
+                    <Participant 
+                        stream={screenStream} 
+                        isLocal={true} 
+                        isTeacher={true} 
+                        participantUserId={currentUserId} 
+                        displayName="Votre partage d'écran" 
+                    />
+                </div>
+            );
+        }
+
         switch(activeTool) {
-            case 'document': return <div className="h-full w-full rounded-lg overflow-hidden"><DocumentViewer url={documentUrl} /></div>;
-            case 'whiteboard': return <div className="h-full w-full relative rounded-lg overflow-hidden"><div className="absolute top-2 left-2 z-10 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">👨‍🏫 Vous contrôlez le tableau</div><Html5Whiteboard sessionId={sessionId} userId={currentUserId} isController={currentUserId === whiteboardControllerId} operations={whiteboardOperations} onEvent={onWhiteboardEvent} flushOperations={flushWhiteboardOperations} /></div>;
-            case 'quiz': return <QuizWorkspace sessionId={sessionId} activeQuiz={activeQuiz} quizResponses={quizResponses} quizResults={quizResults} onStartQuiz={onStartQuiz} onEndQuiz={(quizId: string) => onEndQuiz(quizId, quizResponses)} students={students} />;
-            case 'chat': return <div className="h-full w-full rounded-lg overflow-hidden">{classroom?.id && teacher?.id && teacher.role && <ChatSheet classroomId={classroom.id} userId={teacher.id} userRole={teacher.role} />}</div>;
-            case 'breakout': return <BreakoutRoomsManager sessionId={sessionId} students={students.filter(s => allOnlineUserIds.includes(s.id))} />;
+            case 'document': 
+                return (
+                    <div className="h-full w-full rounded-lg overflow-hidden">
+                        <DocumentViewer url={documentUrl} />
+                    </div>
+                );
+                
+            case 'whiteboard': 
+                return (
+                    <div className="h-full w-full relative rounded-lg overflow-hidden">
+                        <div className="absolute top-2 left-2 z-10 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                            👨‍🏫 Vous contrôlez le tableau
+                        </div>
+                        <Html5Whiteboard 
+                            sessionId={sessionId} 
+                            userId={currentUserId} 
+                            isController={currentUserId === whiteboardControllerId} 
+                            operations={whiteboardOperations} 
+                            onEvent={onWhiteboardEvent} 
+                            flushOperations={flushWhiteboardOperations} 
+                        />
+                    </div>
+                );
+                
+            case 'quiz': 
+                return (
+                    <QuizWorkspace 
+                        sessionId={sessionId} 
+                        activeQuiz={activeQuiz} 
+                        quizResponses={quizResponses} 
+                        quizResults={quizResults} 
+                        onStartQuiz={onStartQuiz} 
+                        onEndQuiz={(quizId: string) => onEndQuiz(quizId, quizResponses)} 
+                        students={students} 
+                    />
+                );
+                
+            case 'chat': 
+                return (
+                    <div className="h-full w-full rounded-lg overflow-hidden">
+                        {classroom?.id && teacher?.id && teacher.role && (
+                            <ChatSheet classroomId={classroom.id} userId={teacher.id} userRole={teacher.role} />
+                        )}
+                    </div>
+                );
+                
+            case 'breakout': 
+                return (
+                    <BreakoutRoomsManager 
+                        sessionId={sessionId} 
+                        students={students.filter(s => allOnlineUserIds.includes(s.id))} 
+                    />
+                );
+                
             case 'camera':
-                if (!spotlightedUser) return <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/30 border-dashed rounded-lg"><CardContent className="text-center text-muted-foreground p-6"><Users className="h-10 w-10 mx-auto mb-4" /><h3 className="font-semibold text-xl">Aucun participant en vedette</h3><p className="text-sm mt-2">Sélectionnez un participant dans la liste pour le mettre en vedette.</p><Button variant="outline" onClick={() => setTeacherView('grid')} className="mt-4">Voir tous les participants</Button></CardContent></Card>;
-                if (!spotlightedStream) return <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/30 border-dashed rounded-lg"><CardContent className="text-center text-muted-foreground p-6"><Loader2 className="h-10 w-10 mx-auto mb-4 animate-spin" /><h3 className="font-semibold text-xl">Connexion à {spotlightedUser.name}...</h3></CardContent></Card>;
-                return <div className="w-full h-full bg-black rounded-lg overflow-hidden"><Participant stream={spotlightedStream} isLocal={spotlightedUser.id === currentUserId} isSpotlighted={true} isTeacher={true} participantUserId={spotlightedUser.id} onSpotlightParticipant={onSpotlightParticipant} displayName={spotlightedUser.name ?? ''} isHandRaised={raisedHandQueue.some(u => u.id === spotlightedUser.id)} onSetWhiteboardController={onWhiteboardControllerChange} isWhiteboardController={spotlightedUser.id === whiteboardControllerId} /></div>;
-            default: return <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/30 border-dashed rounded-lg"><CardContent className="text-center text-muted-foreground p-6"><File className="h-10 w-10 mx-auto mb-4" /><h3 className="font-semibold text-xl">Outils d'enseignement</h3><p className="text-sm mt-2">Utilisez le menu pour sélectionner un outil disponible.</p><div className="flex gap-2 mt-4"><Button variant="outline" onClick={() => onToolChange('document')}>Documents</Button><Button variant="outline" onClick={() => onToolChange('camera')}>Caméra</Button></div></CardContent></Card>;
+                const spotlightStream = getSpotlightStream();
+                
+                if (!spotlightedUser) {
+                    return (
+                        <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/30 border-dashed rounded-lg">
+                            <CardContent className="text-center text-muted-foreground p-6">
+                                <Users className="h-10 w-10 mx-auto mb-4" />
+                                <h3 className="font-semibold text-xl">Aucun participant en vedette</h3>
+                                <p className="text-sm mt-2">Sélectionnez un participant dans la liste pour le mettre en vedette.</p>
+                                <Button variant="outline" onClick={() => setTeacherView('grid')} className="mt-4">
+                                    Voir tous les participants
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    );
+                }
+                
+                if (!spotlightStream) {
+                    return (
+                        <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/30 border-dashed rounded-lg">
+                            <CardContent className="text-center text-muted-foreground p-6">
+                                <Loader2 className="h-10 w-10 mx-auto mb-4 animate-spin" />
+                                <h3 className="font-semibold text-xl">Connexion à {spotlightedUser.name}...</h3>
+                                <p className="text-sm mt-2">Établissement de la connexion WebRTC</p>
+                                <div className="text-xs text-gray-500 mt-2">
+                                    ID: {spotlightedUser.id}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    );
+                }
+                
+                return (
+                    <div className="w-full h-full bg-black rounded-lg overflow-hidden">
+                        <Participant 
+                            stream={spotlightStream} 
+                            isLocal={spotlightedUser.id === currentUserId} 
+                            isSpotlighted={true} 
+                            isTeacher={spotlightedUser.role === Role.PROFESSEUR} 
+                            participantUserId={spotlightedUser.id} 
+                            onSpotlightParticipant={onSpotlightParticipant} 
+                            displayName={spotlightedUser.name ?? ''} 
+                            isHandRaised={raisedHandQueue.some(u => u.id === spotlightedUser.id)} 
+                            onSetWhiteboardController={onWhiteboardControllerChange} 
+                            isWhiteboardController={spotlightedUser.id === whiteboardControllerId} 
+                        />
+                    </div>
+                );
+                
+            default: 
+                return (
+                    <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/30 border-dashed rounded-lg">
+                        <CardContent className="text-center text-muted-foreground p-6">
+                            <File className="h-10 w-10 mx-auto mb-4" />
+                            <h3 className="font-semibold text-xl">Outils d'enseignement</h3>
+                            <p className="text-sm mt-2">Utilisez le menu pour sélectionner un outil disponible.</p>
+                            <div className="flex gap-2 mt-4">
+                                <Button variant="outline" onClick={() => onToolChange('document')}>Documents</Button>
+                                <Button variant="outline" onClick={() => onToolChange('camera')}>Caméra</Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                );
         }
     }, [
-        activeTool, isSharingScreen, screenStream, currentUserId, documentUrl, onWhiteboardControllerChange, whiteboardControllerId, classroom?.id, 
-        teacher?.id, teacher?.role, onToolChange, spotlightedUser, localStream, remoteStreamsMap, onSpotlightParticipant, raisedHandQueue, 
-        sessionId, whiteboardOperations, onWhiteboardEvent, flushWhiteboardOperations, activeQuiz, quizResponses, quizResults, 
-        onStartQuiz, onEndQuiz, students, allOnlineUserIds
+        activeTool, isSharingScreen, screenStream, currentUserId, documentUrl, whiteboardControllerId,
+        classroom?.id, teacher?.id, teacher?.role, onToolChange, spotlightedUser, raisedHandQueue,
+        sessionId, whiteboardOperations, onWhiteboardEvent, flushWhiteboardOperations, activeQuiz, 
+        quizResponses, quizResults, onStartQuiz, onEndQuiz, students, allOnlineUserIds,
+        onSpotlightParticipant, onWhiteboardControllerChange, getSpotlightStream
     ]);
     
-    if (!currentUserId || !teacher) return <div className="flex-1 flex items-center justify-center"><div className="text-center"><Loader2 className="animate-spin h-8 w-8 mx-auto" /><p className="mt-2">Chargement de la session...</p></div></div>;
+    if (!currentUserId || !teacher) {
+        return (
+            <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
+                    <Loader2 className="animate-spin h-8 w-8 mx-auto" />
+                    <p className="mt-2">Chargement de la session...</p>
+                </div>
+            </div>
+        );
+    }
 
     const sidebarProps = {
         sessionId, onDocumentShared, documentHistory, onSelectDocument, handleDocumentReshare, currentUserId,
