@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Bell, Trophy, Users, KeyRound } from 'lucide-react';
-import { CareerSelector } from '@/components/CareerSelector';
+import { CareerSelector } from './CareerSelector';
 import { TaskBoard } from './TaskBoard';
 import { AnnouncementCarousel } from './AnnouncementCarousel';
 import type { User as PrismaUser, Metier as PrismaMetier, Announcement as PrismaAnnouncement, StudentProgress as PrismaStudentProgress, Task as PrismaTask, Classroom, EtatEleve } from '@prisma/client';
@@ -57,7 +57,7 @@ export default function StudentPageClient({
             enterPresence({
                 name: user.name || 'Élève',
                 role: user.role,
-                image: user.image,
+                image: user.image || null,
             });
         }
     }, [presenceConnected, user, classeId, isTeacherView, enterPresence]);
