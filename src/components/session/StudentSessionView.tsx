@@ -1,5 +1,4 @@
-
-// src/components/session/StudentSessionView.tsx - VERSION COMPLÈTE CORRIGÉE
+// src/components/session/StudentSessionView.tsx - VERSION CORRIGÉE
 'use client';
 
 import { useState, type ReactNode, useEffect, useMemo, useCallback } from 'react';
@@ -85,7 +84,7 @@ export function StudentSessionView({
             trackStudentActivity(ACTIVITY_INTERVAL_MS / 1000)
                 .then((result) => {
                     // CORRECTION : Validation du résultat
-                    if (result && typeof result === 'object' && result.success && result.pointsAwarded > 0) {
+                    if (result && result.success && result.pointsAwarded > 0) {
                         console.log(`✨ [HEARTBEAT] +${result.pointsAwarded} points attribués.`);
                     } else if (result && !result.success) {
                         console.warn('⚠️ [HEARTBEAT] - Échec du suivi d\'activité');
@@ -179,57 +178,13 @@ export function StudentSessionView({
         }
     }, [flushWhiteboardOperations]);
 
-    // CORRECTION : Fonctions de validation de stream améliorées
-    const isStreamValid = useCallback((stream: MediaStream | null): boolean => {
-        if (!stream) {
-            console.log(`📹 [STREAM VALIDATION] - Stream null`);
-            return false;
-        }
-        if (!stream.active) {
-            console.log(`📹 [STREAM VALIDATION] - Stream inactif`);
-            return false;
-        }
-        
-        const videoTracks = stream.getVideoTracks();
-        const audioTracks = stream.getAudioTracks();
-        
-        const hasValidVideoTracks = videoTracks.some(track => track.readyState === 'live');
-        const hasValidAudioTracks = audioTracks.some(track => track.readyState === 'live');
-        
-        const isValid = hasValidVideoTracks || hasValidAudioTracks;
-        console.log(`📹 [STREAM VALIDATION] - Stream valide: ${isValid}, vidéo: ${hasValidVideoTracks}, audio: ${hasValidAudioTracks}`);
-        
-        return isValid;
-    }, []);
-
-    // CORRECTION FINALE : Fonction canDisplayVideo améliorée avec vérification complète
-    const canDisplayVideo = useCallback((stream: MediaStream | null): boolean => {
-        if (!stream || !stream.active) {
-            console.log(`📹 [VIDEO DISPLAY] - Stream null ou inactif`);
-            return false;
-        }
-        
-        const videoTracks = stream.getVideoTracks();
-        
-        // CORRECTION : Vérification complète de l'état des tracks vidéo
-        const hasVideo = videoTracks.some(track => {
-            const isLive = track.readyState === 'live';
-            const isEnabled = track.enabled;
-            const isNotMuted = !track.muted;
-            const hasConstraints = Object.keys(track.getConstraints()).length > 0;
-            
-            console.log(`📹 [VIDEO TRACK] - ready: ${isLive}, enabled: ${isEnabled}, muted: ${track.muted}, constraints:`, track.getConstraints());
-            
-            return isLive && isEnabled && isNotMuted && hasConstraints;
-        });
-        
-        console.log(`📹 [VIDEO DISPLAY] - Peut afficher vidéo: ${hasVideo}, tracks: ${videoTracks.length}`);
-        return hasVideo;
-    }, []);
+    const isLocalStreamValid = useMemo(() => {
+        return !!localStream && localStream.active && (localStream.getAudioTracks().length > 0 || localStream.getVideoTracks().length > 0);
+    }, [localStream]);
 
     // CORRECTION : Fonction de rendu du contenu principal avec logs
     const renderMainContent = useCallback(() => {
-        console.log(`🎯 [STUDENT VIEW] - Rendu contenu principal, outil: ${activeTool}, spotlightUser: ${spotlightedUser?.id}, streamValide: ${isStreamValid(spotlightedStream)}`);
+        console.log(`🎯 [STUDENT VIEW] - Rendu contenu principal, outil: ${activeTool}, spotlightUser: ${spotlightedUser?.id}`);
         
         switch(activeTool) {
             case 'document':
@@ -277,27 +232,10 @@ export function StudentSessionView({
                 
             case 'camera':
             default:
-                const hasValidSpotlightedStream = isStreamValid(spotlightedStream);
-                const canDisplaySpotlightedVideo = canDisplayVideo(spotlightedStream);
-
-                console.log(`📹 [STUDENT VIEW] - Mode camera, spotlight: ${hasValidSpotlightedStream}, video: ${canDisplaySpotlightedVideo}`);
-
-                if (hasValidSpotlightedStream) {
+                if (spotlightedStream) {
                     return (
                         <div className="w-full h-full relative bg-black">
-                            <div className="absolute top-3 right-3 z-10">
-                                <div className="bg-black/70 text-white px-2 py-1 rounded-md text-xs flex items-center gap-1">
-                                    <Video className="h-3 w-3" />
-                                    <span>
-                                        {spotlightedUser ? `En direct - ${spotlightedUser.name}` : 'En direct - Professeur'}
-                                    </span>
-                                    {!canDisplaySpotlightedVideo && (
-                                        <span className="text-orange-300">(Audio seulement)</span>
-                                    )}
-                                </div>
-                            </div>
-                            
-                            <Participant 
+                             <Participant 
                                 stream={spotlightedStream}
                                 isLocal={false} 
                                 isSpotlighted={true}
@@ -340,7 +278,7 @@ export function StudentSessionView({
         activeTool, documentUrl, whiteboardControllerId, currentUserId, whiteboardOperations,
         spotlightedUser, spotlightedStream, isHandRaised, sessionId, isPresenceConnected,
         onlineMembersCount, handleWhiteboardEvent, handleFlushWhiteboardOperations,
-        isStreamValid, canDisplayVideo, localStream, activeQuiz, onSubmitQuizResponse, quizResults
+        activeQuiz, onSubmitQuizResponse, quizResults
     ]);
     
     const mainContent = useMemo(() => renderMainContent(), [renderMainContent]);
@@ -358,7 +296,7 @@ export function StudentSessionView({
                     <ScrollArea className="flex-1 pr-3 -mr-3">
                          <div className="space-y-4">
                              {/* CORRECTION : Affichage conditionnel du spotlight dans la sidebar */}
-                             {activeTool !== 'camera' && isStreamValid(spotlightedStream) && (
+                             {activeTool !== 'camera' && spotlightedStream && (
                                 <AnimatedCard title={spotlightedUser?.name || "Professeur"}>
                                     <div className="p-2">
                                          <Participant
@@ -376,7 +314,7 @@ export function StudentSessionView({
                              {/* CORRECTION : Affichage de la vidéo locale */}
                              <AnimatedCard title="Ma Vidéo">
                                 <div className="p-2">
-                                    {isStreamValid(localStream) ? (
+                                    {isLocalStreamValid ? (
                                         <Participant
                                             stream={localStream}
                                             isLocal={true}
