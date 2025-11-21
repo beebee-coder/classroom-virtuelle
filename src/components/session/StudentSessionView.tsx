@@ -1,3 +1,4 @@
+
 // src/components/session/StudentSessionView.tsx - VERSION COMPLÈTE CORRIGÉE
 'use client';
 
@@ -83,12 +84,11 @@ export function StudentSessionView({
         const intervalId = setInterval(() => {
             trackStudentActivity(ACTIVITY_INTERVAL_MS / 1000)
                 .then((result) => {
-                    // CORRECTION : Simplification de la vérification.
-                    // La fonction ne retourne que `success` et `pointsAwarded`.
-                    if (result && result.success && result.pointsAwarded > 0) {
+                    // CORRECTION : Validation du résultat
+                    if (result && typeof result === 'object' && result.success && result.pointsAwarded > 0) {
                         console.log(`✨ [HEARTBEAT] +${result.pointsAwarded} points attribués.`);
-                    } else if (result && result.success) {
-                        console.log('✅ [HEARTBEAT] - Activité enregistrée (0 points).');
+                    } else if (result && !result.success) {
+                        console.warn('⚠️ [HEARTBEAT] - Échec du suivi d\'activité');
                     }
                 })
                 .catch((error) => {
@@ -99,7 +99,7 @@ export function StudentSessionView({
         return () => {
             clearInterval(intervalId);
         };
-    }, [sessionId]); // Dépendance à sessionId pour redémarrer si la session change
+    }, [sessionId]);
 
     // CORRECTION : Handler lever/main avec validation
     const handleToggleHandRaise = useCallback(async (): Promise<void> => {
@@ -216,7 +216,7 @@ export function StudentSessionView({
             const isLive = track.readyState === 'live';
             const isEnabled = track.enabled;
             const isNotMuted = !track.muted;
-            const hasConstraints = track.getConstraints() !== {};
+            const hasConstraints = Object.keys(track.getConstraints()).length > 0;
             
             console.log(`📹 [VIDEO TRACK] - ready: ${isLive}, enabled: ${isEnabled}, muted: ${track.muted}, constraints:`, track.getConstraints());
             
