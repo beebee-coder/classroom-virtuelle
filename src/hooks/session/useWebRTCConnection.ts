@@ -217,8 +217,8 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
                 console.log(`🔗 [PEER CONNECT] - Connexion WebRTC établie avec ${targetUserId}`);
                 
                 peerStatesRef.current.set(targetUserId, { 
-                    isConnected: true, 
-                    isConnecting: false,
+                    isConnected: peerStatesRef.current.get(targetUserId)?.isConnected || false, // Ne pas écraser si déjà 'true' par 'stream'
+                    isConnecting: false, // La connexion n'est plus en cours
                     connectionAttempts: 0,
                     lastAttempt: Date.now(),
                     signalCount,
