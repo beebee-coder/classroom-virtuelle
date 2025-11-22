@@ -117,6 +117,20 @@ export async function broadcastTimerEvent(sessionId: string, event: 'timer-start
 
 // --- Quiz Actions ---
 
+export async function closeQuiz(sessionId: string): Promise<{ success: boolean }> {
+  console.log(`🚪 [ACTION] - Fermeture du quiz pour la session ${sessionId}`);
+  const session = await getServerSession(authOptions);
+  if (session?.user?.role !== Role.PROFESSEUR) {
+    throw new Error('Only teachers can close a quiz');
+  }
+
+  // Notifier tous les clients que le quiz est terminé et que l'UI doit être réinitialisée.
+  const channel = getSessionChannelName(sessionId);
+  await ablyTrigger(channel, AblyEvents.QUIZ_CLOSED, { sessionId });
+  
+  return { success: true };
+}
+
 export async function startQuiz(sessionId: string, quizData: CreateQuizData): Promise<{ success: boolean; error?: string }> {
   console.log(`🎯 [ACTION] - Lancement du quiz pour la session ${sessionId}`);
   const session = await getServerSession(authOptions);

@@ -37,6 +37,7 @@ interface AblyCommunicationProps {
   setActiveQuiz: (quiz: Quiz) => void;
   onNewQuizResponse: (response: QuizResponse) => void;
   onQuizEnded: (results: QuizResults) => void;
+  onQuizClosed: () => void; // Ajout de la nouvelle prop
 }
 
 export function useAblyCommunication({ 
@@ -49,7 +50,8 @@ export function useAblyCommunication({
   setDocumentUrl,
   setActiveQuiz,
   onNewQuizResponse,
-  onQuizEnded
+  onQuizEnded,
+  onQuizClosed, // Utiliser la nouvelle prop
 }: AblyCommunicationProps) {
   const { client: ablyClient, isConnected: isAblyConnected } = useAbly('useAblyCommunication');
   const { toast } = useToast();
@@ -185,14 +187,6 @@ export function useAblyCommunication({
     setUnderstandingStatus(prev => new Map(prev).set(userId, status));
   }, []);
 
-  // CORRECTION: Suppression de ce handler. La vue élève gère son propre état.
-  // const handleActiveToolChangeEvent = useCallback((message: AblyTypes.Message) => {
-  //   if (!isMountedRef.current) return;
-  //   const { tool } = message.data;
-  //   if (typeof tool !== 'string') return;
-  //   const validatedTool = validateActiveTool(tool);
-  //   setActiveTool(validatedTool);
-  // }, [setActiveTool]);
   const handleActiveToolChangeEvent = useCallback((message: AblyTypes.Message) => {
     if (isMountedRef.current) {
         const { tool } = message.data;
@@ -297,6 +291,12 @@ export function useAblyCommunication({
     onQuizEnded(results as QuizResults);
   }, [onQuizEnded]);
 
+  const handleQuizClosedEvent = useCallback(() => {
+    if (isMountedRef.current) {
+        onQuizClosed();
+    }
+  }, [onQuizClosed]);
+
   const enterPresence = useCallback(async (channel: AblyTypes.RealtimeChannelCallbacks, userData: any) => {
     try {
       await channel.presence.enter(userData);
@@ -340,6 +340,7 @@ export function useAblyCommunication({
       { event: AblyEvents.QUIZ_STARTED, handler: handleQuizStartedEvent },
       { event: AblyEvents.QUIZ_RESPONSE, handler: handleQuizResponseEvent },
       { event: AblyEvents.QUIZ_ENDED, handler: handleQuizEndedEvent },
+      { event: AblyEvents.QUIZ_CLOSED, handler: handleQuizClosedEvent }, // Ajout du listener
     ];
     
     subscriptions.forEach(({ event, handler }) => {
@@ -393,7 +394,8 @@ export function useAblyCommunication({
     handleTimerResetEvent,
     handleTimerStartedEvent,
     handleUnderstandingUpdateEvent,
-    handleWhiteboardControllerUpdateEvent
+    handleWhiteboardControllerUpdateEvent,
+    handleQuizClosedEvent, // Ajout aux dépendances
   ]);
 
   return {

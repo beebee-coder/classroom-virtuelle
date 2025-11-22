@@ -47,6 +47,7 @@ export const AblyEvents = {
     QUIZ_STARTED: 'quiz-started',
     QUIZ_RESPONSE: 'quiz-response',
     QUIZ_ENDED: 'quiz-ended',
+    QUIZ_CLOSED: 'quiz-closed', // Ajout de l'événement de fermeture
 
     // Breakout Rooms events
     BREAKOUT_ROOMS_STARTED: 'breakout-rooms-started',

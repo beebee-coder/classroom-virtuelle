@@ -44,7 +44,6 @@ export default function SessionClient({
   const isMountedRef = useRef(true);
   const [isEndingSession, setIsEndingSession] = useState<boolean>(false);
   
-  // CORRECTION : Gestion des médias avec validation
   const {
     localStream,
     screenStream,
@@ -60,14 +59,12 @@ export default function SessionClient({
 
   const activeStream = isSharingScreen ? screenStream : localStream;
   
-  // CORRECTION : Connexion WebRTC avec gestion d'erreur
   const {
     remoteStreams,
     createPeer,
     handleIncomingSignal
   } = useWebRTCConnection(sessionId, currentUserId, activeStream, isMountedRef.current);
   
-  // CORRECTION : Gestion d'état de session avec validation
   const {
     activeTool,
     documentUrl,
@@ -85,22 +82,20 @@ export default function SessionClient({
     handleStartQuiz,
     handleEndQuiz,
     handleNewQuizResponse,
-    handleCloseQuizResults, // ✅ CORRECTION: Récupérer la nouvelle fonction
-  } = useSessionState({ initialDocumentHistory, initialActiveQuiz });
+    handleCloseQuizResults,
+    handleQuizClosed,
+  } = useSessionState({ initialDocumentHistory, initialActiveQuiz, sessionId });
 
-  // CORRECTION : Handler de signal avec validation améliorée
   const handleSignalReceived = useCallback((fromUserId: string, signal: any) => {
     if (!isMountedRef.current) return;
     
     console.log(`🔧 [SIGNAL HANDLER] - Traitement du signal de ${fromUserId} vers ${currentUserId}`);
     
-    // CORRECTION : Validation robuste du signal
     if (!signal || typeof signal !== 'object' || !signal.type) {
       console.warn('⚠️ [SIGNAL HANDLER] - Signal invalide reçu:', signal);
       return;
     }
     
-    // CORRECTION : Validation des types de signal WebRTC
     const validSignalTypes = ['offer', 'answer', 'candidate'];
     if (!validSignalTypes.includes(signal.type)) {
       console.warn('⚠️ [SIGNAL HANDLER] - Type de signal invalide:', signal.type);
@@ -114,7 +109,6 @@ export default function SessionClient({
     }
   }, [handleIncomingSignal, currentUserId]);
 
-  // CORRECTION : Hook de communication avec gestion d'erreur améliorée
   const {
     onlineUserIds,
     spotlightedParticipantId,
@@ -137,9 +131,9 @@ export default function SessionClient({
     setActiveQuiz: handleStartQuiz,
     onNewQuizResponse: handleNewQuizResponse,
     onQuizEnded: handleEndQuiz,
+    onQuizClosed: handleQuizClosed, // Passer la fonction de reset
   });
 
-  // CORRECTION : Hook whiteboard avec gestion d'erreur
   const { sendOperation, flushOperations, isInitialized: isWhiteboardInitialized } = useAblyWhiteboardSync(
     sessionId, 
     currentUserId, 
@@ -151,7 +145,6 @@ export default function SessionClient({
     }, [setWhiteboardOperations])
   );
 
-  // CORRECTION : Gestion du cycle de vie du composant
   useEffect(() => {
     isMountedRef.current = true;
     console.log(`🎯 [SESSION CLIENT] - Initialisation pour ${currentUserRole}: ${currentUserId}`);
@@ -162,7 +155,6 @@ export default function SessionClient({
     };
   }, [currentUserRole, currentUserId]);
 
-  // CORRECTION : Connexion WebRTC avec les utilisateurs en ligne - Optimisée
   useEffect(() => {
     if (!isMediaReady || !activeStream || !isMountedRef.current || onlineUserIds.length === 0) {
       return;
@@ -170,7 +162,6 @@ export default function SessionClient({
 
     console.log(`🔗 [SESSION CLIENT] - Connexion WebRTC avec ${onlineUserIds.length} utilisateurs en ligne`);
     
-    // CORRECTION : Filtrer les utilisateurs déjà connectés
     const usersToConnect = onlineUserIds.filter(userId => 
       userId !== currentUserId && 
       !remoteStreams.has(userId)
@@ -183,7 +174,6 @@ export default function SessionClient({
     });
   }, [onlineUserIds, currentUserId, isMediaReady, activeStream, createPeer, remoteStreams]);
 
-  // CORRECTION : Handler de fin de session avec gestion d'état améliorée
   const handleEndSession = useCallback(async () => {
     if (currentUserRole !== Role.PROFESSEUR) {
       console.warn('⚠️ [SESSION CLIENT] - Tentative de fin de session par non-professeur');
@@ -233,7 +223,6 @@ export default function SessionClient({
     router.push(currentUserRole === Role.PROFESSEUR ? '/teacher/dashboard' : '/student/dashboard');
   }, [router, currentUserRole]);
   
-  // CORRECTION : Handler lever/main avec gestion d'erreur améliorée
   const handleToggleHandRaise = useCallback(async (isRaised: boolean) => {
     if (!isMountedRef.current) return;
     
@@ -253,7 +242,6 @@ export default function SessionClient({
     }
   }, [sessionId, toast]);
 
-  // CORRECTION : Handler reconnaissance de main avec validation améliorée
   const handleAcknowledgeNextHand = useCallback(async () => {
     if (handRaiseQueue.length === 0) {
       console.warn('⚠️ [SESSION CLIENT] - Aucune main à reconnaître');
@@ -296,7 +284,6 @@ export default function SessionClient({
     }
   }, [sessionId, handRaiseQueue, toast]);
 
-  // CORRECTION : Handler compréhension avec validation améliorée
   const handleUnderstandingChange = useCallback(async (status: ComprehensionLevel) => {
     if (!isMountedRef.current) return;
     
@@ -314,7 +301,6 @@ export default function SessionClient({
     }
   }, [sessionId]);
 
-  // CORRECTION : Handler changement d'outil avec validation
   const onToolChange = useCallback(async (tool: string) => {
     if (!isMountedRef.current) return;
     
@@ -327,7 +313,6 @@ export default function SessionClient({
     }
   }, [sessionId]);
   
-  // CORRECTION : Handler contrôleur whiteboard avec validation des droits améliorée
   const handleWhiteboardControllerChange = useCallback(async (userId: string) => {
     if (currentUserRole !== Role.PROFESSEUR) {
       console.warn('⚠️ [SESSION CLIENT] - Seul le professeur peut changer le contrôleur');
@@ -371,7 +356,6 @@ export default function SessionClient({
     }
   }, [sessionId, currentUserRole, whiteboardControllerId, initialTeacher?.id, toast]);
 
-  // CORRECTION : Handler upload document avec gestion d'état améliorée
   const handleOnUploadSuccess = useCallback(async (uploadedDoc: { name: string; url: string }) => {
     if (!isMountedRef.current) return;
     
@@ -404,7 +388,6 @@ export default function SessionClient({
     }
   }, [sessionId, toast, handleUploadSuccess]);
   
-  // CORRECTION : Handler démarrage quiz avec validation améliorée
   const handleOnStartQuiz = useCallback(async (quizData: CreateQuizData) => {
     if (!isMountedRef.current) {
       return { success: false, error: 'Composant non monté' };
@@ -437,7 +420,6 @@ export default function SessionClient({
     }
   }, [sessionId, toast]);
 
-  // CORRECTION : Handler réponse quiz avec gestion d'erreur
   const handleSubmitQuizResponse = useCallback(async (response: QuizResponse) => {
     if (!isMountedRef.current) {
       return { success: false, error: 'Composant non monté' };
@@ -470,7 +452,6 @@ export default function SessionClient({
     }
   }, [sessionId, toast]);
 
-  // CORRECTION : Handler fin quiz avec gestion d'erreur
   const handleOnEndQuiz = useCallback(async (quizId: string, responses: Map<string, QuizResponse>) => {
     if (!isMountedRef.current) {
       return { success: false, error: 'Composant non monté' };
@@ -487,48 +468,12 @@ export default function SessionClient({
     }
   }, [sessionId]);
 
-  // CORRECTION CRITIQUE : Calcul du spotlightedStream optimisé
- // CORRECTION CRITIQUE : Calcul du spotlightedStream pour l'affichage des caméras
-const spotlightedStream = useMemo(() => {
-  console.log(`🔦 [SPOTLIGHT STREAM] - Calcul pour participant: ${spotlightedParticipantId}, currentUser: ${currentUserId}`);
-  
-  if (!spotlightedParticipantId) {
-    console.log(`🔦 [SPOTLIGHT STREAM] - Aucun participant spotlighté`);
-    return null;
-  }
-  
-  // CORRECTION : Si c'est l'utilisateur courant, utiliser le stream local
-  if (spotlightedParticipantId === currentUserId) {
-    console.log(`🔦 [SPOTLIGHT STREAM] - Utilisation stream local: ${activeStream?.active ? 'actif' : 'inactif'}`);
-    return activeStream;
-  }
-  
-  // CORRECTION CRITIQUE : Recherche dans les streams distants avec validation IMMÉDIATE
-  const remoteStream = remoteStreams.get(spotlightedParticipantId);
-  
-  if (remoteStream) {
-    // CORRECTION : Validation IMMÉDIATE du stream distant sans délai
-    const isStreamActive = remoteStream.active;
-    const hasVideoTracks = remoteStream.getVideoTracks().length > 0;
-    const hasAudioTracks = remoteStream.getAudioTracks().length > 0;
-    
-    console.log(`🔦 [SPOTLIGHT STREAM] - Stream distant trouvé: actif=${isStreamActive}, vidéo=${hasVideoTracks}, audio=${hasAudioTracks}`);
-    
-    // CORRECTION : Retourner le stream IMMÉDIATEMENT s'il est actif
-    if (isStreamActive && (hasVideoTracks || hasAudioTracks)) {
-      console.log(`✅ [SPOTLIGHT STREAM] - Stream valide trouvé pour ${spotlightedParticipantId}`);
-      return remoteStream;
-    } else {
-      console.warn(`⚠️ [SPOTLIGHT STREAM] - Stream invalide pour ${spotlightedParticipantId}: actif=${isStreamActive}, vidéo=${hasVideoTracks}, audio=${hasAudioTracks}`);
-    }
-  } else {
-    console.log(`🔦 [SPOTLIGHT STREAM] - Aucun stream distant trouvé pour ${spotlightedParticipantId}`);
-  }
-  
-  console.log(`🔦 [SPOTLIGHT STREAM] - Aucun stream valide trouvé pour ${spotlightedParticipantId}`);
-  return null;
-}, [spotlightedParticipantId, currentUserId, activeStream, remoteStreams]);
-  // CORRECTION : Mémoization des données dérivées optimisée
+  const spotlightedStream = useMemo(() => {
+    if (!spotlightedParticipantId) return null;
+    if (spotlightedParticipantId === currentUserId) return activeStream;
+    return remoteStreams.get(spotlightedParticipantId) || null;
+  }, [spotlightedParticipantId, currentUserId, activeStream, remoteStreams]);
+
   const allSessionUsers = useMemo(() => 
     [initialTeacher, ...initialStudents].filter(Boolean) as User[], 
     [initialTeacher, initialStudents]
@@ -558,12 +503,10 @@ const spotlightedStream = useMemo(() => {
     [handRaiseQueue, allSessionUsers]
   );
 
-  // CORRECTION : État de chargement amélioré
   if (isMediaLoading) {
     return <SessionLoading />;
   }
 
-  // CORRECTION : Logs de débogage conditionnels (uniquement en développement)
   if (process.env.NODE_ENV === 'development') {
     console.log(`🔍 [DEBUG SPOTLIGHT] - spotlightedParticipantId: ${spotlightedParticipantId}`);
     console.log(`🔍 [DEBUG SPOTLIGHT] - currentUserId: ${currentUserId}`);
@@ -632,7 +575,7 @@ const spotlightedStream = useMemo(() => {
             quizResults={quizResults}
             onStartQuiz={handleOnStartQuiz}
             onEndQuiz={handleOnEndQuiz}
-            onCloseResults={handleCloseQuizResults} // ✅ CORRECTION: Passer la bonne fonction
+            onCloseResults={handleCloseQuizResults}
             students={initialStudents}
           />
         ) : (

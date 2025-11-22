@@ -3,15 +3,18 @@
 
 import { useState, useCallback } from 'react';
 import type { DocumentInHistory, WhiteboardOperation, Quiz, QuizResponse, QuizResults } from '@/types';
+import { closeQuiz } from '@/lib/actions/ably-session.actions'; // Importer l'action
 
 interface UseSessionStateProps {
     initialDocumentHistory?: DocumentInHistory[];
     initialActiveQuiz?: Quiz | null;
+    sessionId: string; // Ajouter sessionId aux props
 }
 
 export function useSessionState({
     initialDocumentHistory = [],
     initialActiveQuiz = null,
+    sessionId, // Utiliser sessionId
 }: UseSessionStateProps) {
     const [activeTool, setActiveTool] = useState('camera');
     const [documentUrl, setDocumentUrl] = useState<string | null>(null);
@@ -47,21 +50,30 @@ export function useSessionState({
 
     const handleEndQuiz = useCallback((results: QuizResults) => {
         setQuizResults(results);
-        // On ne change pas d'outil pour que le prof puisse voir les résultats.
-        // setActiveQuiz(null); // Le prof peut lancer un autre quiz plus tard
     }, []);
     
     const handleNewQuizResponse = useCallback((response: QuizResponse) => {
         setQuizResponses(prev => new Map(prev).set(response.userId, response));
     }, []);
 
-    // ✅ CORRECTION: Nouvelle fonction pour réinitialiser l'espace de travail du quiz
-    const handleCloseQuizResults = useCallback(() => {
+    const handleCloseQuizResults = useCallback(async () => {
+        // Appeler l'action serveur pour notifier les autres clients
+        await closeQuiz(sessionId);
+        
+        // Réinitialiser l'état local du professeur
         setActiveQuiz(null);
         setQuizResponses(new Map());
         setQuizResults(null);
-        // On ne change pas l'activeTool, on reste dans l'espace quiz
         console.log("🔄 [SESSION STATE] - Espace de travail du quiz réinitialisé.");
+    }, [sessionId]);
+
+    const handleQuizClosed = useCallback(() => {
+        // Cette fonction est appelée par le listener Ably pour l'élève
+        setActiveQuiz(null);
+        setQuizResponses(new Map());
+        setQuizResults(null);
+        setActiveTool('camera'); // Revenir à la vue par défaut pour l'élève
+        console.log("🔄 [SESSION STATE] - Vue Quiz réinitialisée pour l'élève.");
     }, []);
 
     return {
@@ -81,6 +93,7 @@ export function useSessionState({
         handleStartQuiz,
         handleEndQuiz,
         handleNewQuizResponse,
-        handleCloseQuizResults, // Exporter la nouvelle fonction
+        handleCloseQuizResults,
+        handleQuizClosed, // Exporter la nouvelle fonction de reset pour les élèves
     };
 }
