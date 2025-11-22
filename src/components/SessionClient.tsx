@@ -44,6 +44,7 @@ export default function SessionClient({
   const isMountedRef = useRef(true);
   const [isEndingSession, setIsEndingSession] = useState<boolean>(false);
   
+  // CORRECTION : Gestion des médias avec validation
   const {
     localStream,
     screenStream,
@@ -59,13 +60,14 @@ export default function SessionClient({
 
   const activeStream = isSharingScreen ? screenStream : localStream;
   
+  // CORRECTION : Connexion WebRTC avec gestion d'erreur
   const {
     remoteStreams,
     createPeer,
     handleIncomingSignal
   } = useWebRTCConnection(sessionId, currentUserId, activeStream, isMountedRef.current);
   
-  // CORRECTION : Gestion d'état de session
+  // CORRECTION : Gestion d'état de session avec validation
   const {
     activeTool,
     documentUrl,
@@ -85,22 +87,33 @@ export default function SessionClient({
     handleNewQuizResponse,
   } = useSessionState({ initialDocumentHistory, initialActiveQuiz });
 
-  // CORRECTION : Handler de signal avec validation
+  // CORRECTION : Handler de signal avec validation améliorée
   const handleSignalReceived = useCallback((fromUserId: string, signal: any) => {
     if (!isMountedRef.current) return;
     
     console.log(`🔧 [SIGNAL HANDLER] - Traitement du signal de ${fromUserId} vers ${currentUserId}`);
     
-    // CORRECTION : Validation du signal
-    if (!signal || typeof signal !== 'object') {
-      console.warn('⚠️ [SIGNAL HANDLER] - Signal invalide reçu');
+    // CORRECTION : Validation robuste du signal
+    if (!signal || typeof signal !== 'object' || !signal.type) {
+      console.warn('⚠️ [SIGNAL HANDLER] - Signal invalide reçu:', signal);
       return;
     }
     
-    handleIncomingSignal(fromUserId, signal);
+    // CORRECTION : Validation des types de signal WebRTC
+    const validSignalTypes = ['offer', 'answer', 'candidate'];
+    if (!validSignalTypes.includes(signal.type)) {
+      console.warn('⚠️ [SIGNAL HANDLER] - Type de signal invalide:', signal.type);
+      return;
+    }
+    
+    try {
+      handleIncomingSignal(fromUserId, signal);
+    } catch (error) {
+      console.error('❌ [SIGNAL HANDLER] - Erreur lors du traitement du signal:', error);
+    }
   }, [handleIncomingSignal, currentUserId]);
 
-  // CORRECTION : Hook de communication avec gestion d'erreur
+  // CORRECTION : Hook de communication avec gestion d'erreur améliorée
   const {
     onlineUserIds,
     spotlightedParticipantId,
@@ -130,6 +143,8 @@ export default function SessionClient({
     sessionId, 
     currentUserId, 
     useCallback((ops: WhiteboardOperation[]) => {
+      if (!isMountedRef.current) return;
+      
       console.log(`📥 [SESSION CLIENT] - Réception de ${ops.length} opérations whiteboard`);
       setWhiteboardOperations(prev => [...prev, ...ops]);
     }, [setWhiteboardOperations])
@@ -146,24 +161,36 @@ export default function SessionClient({
     };
   }, [currentUserRole, currentUserId]);
 
-  // CORRECTION : Connexion WebRTC avec les utilisateurs en ligne
+  // CORRECTION : Connexion WebRTC avec les utilisateurs en ligne - Optimisée
   useEffect(() => {
-    if (!isMediaReady || !activeStream || !isMountedRef.current) {
+    if (!isMediaReady || !activeStream || !isMountedRef.current || onlineUserIds.length === 0) {
       return;
     }
 
     console.log(`🔗 [SESSION CLIENT] - Connexion WebRTC avec ${onlineUserIds.length} utilisateurs en ligne`);
     
-    onlineUserIds.forEach(userId => {
-      if (userId !== currentUserId) {
-        createPeer(userId, true, activeStream);
-      }
+    // CORRECTION : Filtrer les utilisateurs déjà connectés
+    const usersToConnect = onlineUserIds.filter(userId => 
+      userId !== currentUserId && 
+      !remoteStreams.has(userId)
+    );
+    
+    console.log(`🔗 [SESSION CLIENT] - Nouveaux utilisateurs à connecter: ${usersToConnect.length}`);
+    
+    usersToConnect.forEach(userId => {
+      createPeer(userId, true, activeStream);
     });
-  }, [onlineUserIds, currentUserId, isMediaReady, activeStream, createPeer]);
+  }, [onlineUserIds, currentUserId, isMediaReady, activeStream, createPeer, remoteStreams]);
 
-  // CORRECTION : Handler de fin de session avec gestion d'état
+  // CORRECTION : Handler de fin de session avec gestion d'état améliorée
   const handleEndSession = useCallback(async () => {
     if (currentUserRole !== Role.PROFESSEUR) {
+      console.warn('⚠️ [SESSION CLIENT] - Tentative de fin de session par non-professeur');
+      return;
+    }
+
+    if (isEndingSession) {
+      console.log('⏳ [SESSION CLIENT] - Fin de session déjà en cours');
       return;
     }
 
@@ -171,8 +198,21 @@ export default function SessionClient({
     console.log('🔚 [SESSION CLIENT] - Début de la fin de session');
     
     try { 
-      await endCoursSession(sessionId);
+      const result = await endCoursSession(sessionId);
+      
+      if (!result.success) {
+        throw new Error('Erreur inconnue lors de la fin de session');
+      }
+
       console.log('✅ [SESSION CLIENT] - Session terminée avec succès');
+      
+      if (isMountedRef.current) {
+        toast({
+          title: 'Session terminée',
+          description: 'La session a été terminée avec succès'
+        });
+      }
+
     } catch (error) {
       console.error('❌ [SESSION CLIENT] - Erreur lors de la fin de session:', error);
       
@@ -185,27 +225,45 @@ export default function SessionClient({
         });
       }
     }
-  }, [currentUserRole, sessionId, toast]);
+  }, [currentUserRole, sessionId, toast, isEndingSession]);
 
   const handleLeaveSession = useCallback(() => {
     console.log('🚪 [SESSION CLIENT] - Utilisateur quitte la session');
     router.push(currentUserRole === Role.PROFESSEUR ? '/teacher/dashboard' : '/student/dashboard');
   }, [router, currentUserRole]);
   
-  // CORRECTION : Handler lever/main avec gestion d'erreur
+  // CORRECTION : Handler lever/main avec gestion d'erreur améliorée
   const handleToggleHandRaise = useCallback(async (isRaised: boolean) => {
+    if (!isMountedRef.current) return;
+    
     try {
       console.log(`✋ [SESSION CLIENT] - ${isRaised ? 'Lever' : 'Baisser'} la main`);
       await updateStudentSessionStatus(sessionId, { isHandRaised: isRaised });
     } catch (error) {
       console.error('❌ [SESSION CLIENT] - Erreur lors du changement de statut main:', error);
+      
+      if (isMountedRef.current) {
+        toast({
+          variant: 'destructive',
+          title: 'Erreur',
+          description: 'Impossible de changer le statut de la main'
+        });
+      }
     }
-  }, [sessionId]);
+  }, [sessionId, toast]);
 
-  // CORRECTION : Handler reconnaissance de main avec validation
+  // CORRECTION : Handler reconnaissance de main avec validation améliorée
   const handleAcknowledgeNextHand = useCallback(async () => {
     if (handRaiseQueue.length === 0) {
       console.warn('⚠️ [SESSION CLIENT] - Aucune main à reconnaître');
+      
+      if (isMountedRef.current) {
+        toast({
+          variant: 'destructive',
+          title: 'Aucune main levée',
+          description: 'Aucun étudiant n\'a levé la main'
+        });
+      }
       return;
     }
 
@@ -214,15 +272,33 @@ export default function SessionClient({
     
     try {
       await ablyTrigger(getSessionChannelName(sessionId), AblyEvents.HAND_ACKNOWLEDGED, { 
-        userId: nextUserId 
+        userId: nextUserId,
+        timestamp: Date.now()
       });
+      
+      if (isMountedRef.current) {
+        toast({
+          title: 'Main reconnue',
+          description: `Main de l'étudiant reconnue`
+        });
+      }
     } catch (error) {
       console.error('❌ [SESSION CLIENT] - Erreur lors de la reconnaissance de main:', error);
+      
+      if (isMountedRef.current) {
+        toast({
+          variant: 'destructive',
+          title: 'Erreur',
+          description: 'Impossible de reconnaître la main'
+        });
+      }
     }
-  }, [sessionId, handRaiseQueue]);
+  }, [sessionId, handRaiseQueue, toast]);
 
-  // CORRECTION : Handler compréhension avec validation
+  // CORRECTION : Handler compréhension avec validation améliorée
   const handleUnderstandingChange = useCallback(async (status: ComprehensionLevel) => {
+    if (!isMountedRef.current) return;
+    
     if (!Object.values(ComprehensionLevel).includes(status)) {
       console.warn('⚠️ [SESSION CLIENT] - Statut de compréhension invalide:', status);
       return;
@@ -237,8 +313,10 @@ export default function SessionClient({
     }
   }, [sessionId]);
 
-  // CORRECTION : Handler changement d'outil
+  // CORRECTION : Handler changement d'outil avec validation
   const onToolChange = useCallback(async (tool: string) => {
+    if (!isMountedRef.current) return;
+    
     console.log(`🛠️ [SESSION CLIENT] - Changement d'outil: ${tool}`);
     
     try {
@@ -248,10 +326,18 @@ export default function SessionClient({
     }
   }, [sessionId]);
   
-  // CORRECTION : Handler contrôleur whiteboard avec validation des droits
+  // CORRECTION : Handler contrôleur whiteboard avec validation des droits améliorée
   const handleWhiteboardControllerChange = useCallback(async (userId: string) => {
     if (currentUserRole !== Role.PROFESSEUR) {
       console.warn('⚠️ [SESSION CLIENT] - Seul le professeur peut changer le contrôleur');
+      
+      if (isMountedRef.current) {
+        toast({
+          variant: 'destructive',
+          title: 'Permission refusée',
+          description: 'Seul le professeur peut changer le contrôleur du tableau blanc'
+        });
+      }
       return;
     }
 
@@ -259,11 +345,18 @@ export default function SessionClient({
     console.log(`🎮 [SESSION CLIENT] - Changement contrôleur whiteboard: ${newControllerId}`);
     
     try {
-      await fetch(`/api/session/${sessionId}/whiteboard-controller`, { 
+      const response = await fetch(`/api/session/${sessionId}/whiteboard-controller`, { 
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ controllerId: newControllerId }) 
       });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      console.log('✅ [SESSION CLIENT] - Contrôleur whiteboard changé avec succès');
+      
     } catch (error) {
       console.error('❌ [SESSION CLIENT] - Erreur lors du changement de contrôleur:', error);
       
@@ -277,20 +370,26 @@ export default function SessionClient({
     }
   }, [sessionId, currentUserRole, whiteboardControllerId, initialTeacher?.id, toast]);
 
-  // CORRECTION : Handler upload document avec gestion d'état
+  // CORRECTION : Handler upload document avec gestion d'état améliorée
   const handleOnUploadSuccess = useCallback(async (uploadedDoc: { name: string; url: string }) => {
+    if (!isMountedRef.current) return;
+    
     console.log(`📄 [SESSION CLIENT] - Upload réussi: ${uploadedDoc.name}`);
     
     try {
       const result = await saveAndShareDocument(sessionId, uploadedDoc);
       
-      if (result.success && isMountedRef.current) {
-        handleUploadSuccess(result.document);
-        toast({
-          title: 'Succès',
-          description: 'Document partagé avec la classe'
-        });
+      if (!result.success) {
+        throw new Error('Erreur inconnue lors de l\'upload');
       }
+
+      if (isMountedRef.current) {
+          handleUploadSuccess(result.document);
+          toast({
+            title: 'Succès',
+            description: 'Document partagé avec la classe'
+          });
+        }
     } catch (error) {
       console.error('❌ [SESSION CLIENT] - Erreur lors de l\'upload:', error);
       
@@ -304,91 +403,127 @@ export default function SessionClient({
     }
   }, [sessionId, toast, handleUploadSuccess]);
   
-  // CORRECTION : Handler démarrage quiz avec validation
+  // CORRECTION : Handler démarrage quiz avec validation améliorée
   const handleOnStartQuiz = useCallback(async (quizData: CreateQuizData) => {
+    if (!isMountedRef.current) {
+      return { success: false, error: 'Composant non monté' };
+    }
+    
     console.log('❓ [SESSION CLIENT] - Démarrage du quiz');
     
-    const result = await startQuiz(sessionId, quizData);
-    if (!result.success && isMountedRef.current) {
-      toast({ 
-        variant: 'destructive', 
-        title: 'Erreur', 
-        description: result.error || 'Impossible de lancer le quiz.' 
-      });
+    try {
+      const result = await startQuiz(sessionId, quizData);
+      
+      if (!result.success && isMountedRef.current) {
+        toast({ 
+          variant: 'destructive', 
+          title: 'Erreur', 
+          description: result.error || 'Impossible de lancer le quiz.' 
+        });
+      }
+      return result;
+    } catch (error) {
+      console.error('❌ [SESSION CLIENT] - Erreur lors du démarrage du quiz:', error);
+      
+      if (isMountedRef.current) {
+        toast({ 
+          variant: 'destructive', 
+          title: 'Erreur', 
+          description: 'Erreur inattendue lors du lancement du quiz' 
+        });
+      }
+      return { success: false, error: 'Erreur inattendue' };
     }
-    return result;
   }, [sessionId, toast]);
 
-  // CORRECTION : Handler réponse quiz
+  // CORRECTION : Handler réponse quiz avec gestion d'erreur
   const handleSubmitQuizResponse = useCallback(async (response: QuizResponse) => {
+    if (!isMountedRef.current) {
+      return { success: false, error: 'Composant non monté' };
+    }
+    
     console.log(`📝 [SESSION CLIENT] - Soumission réponse quiz`);
     
-    const result = await submitQuizResponse(sessionId, response);
-    if (!result.success && isMountedRef.current) {
-      toast({ 
-        variant: 'destructive', 
-        title: 'Erreur', 
-        description: 'Impossible d\'envoyer vos réponses.' 
-      });
+    try {
+      const result = await submitQuizResponse(sessionId, response);
+      
+      if (!result.success && isMountedRef.current) {
+        toast({ 
+          variant: 'destructive', 
+          title: 'Erreur', 
+          description: 'Impossible d\'envoyer vos réponses.' 
+        });
+      }
+      return result;
+    } catch (error) {
+      console.error('❌ [SESSION CLIENT] - Erreur lors de la soumission du quiz:', error);
+      
+      if (isMountedRef.current) {
+        toast({ 
+          variant: 'destructive', 
+          title: 'Erreur', 
+          description: 'Erreur inattendue lors de l\'envoi des réponses' 
+        });
+      }
+      return { success: false, error: 'Erreur inattendue' };
     }
-    return result;
   }, [sessionId, toast]);
 
-  // CORRECTION : Handler fin quiz
+  // CORRECTION : Handler fin quiz avec gestion d'erreur
   const handleOnEndQuiz = useCallback(async (quizId: string, responses: Map<string, QuizResponse>) => {
+    if (!isMountedRef.current) {
+      return { success: false, error: 'Composant non monté' };
+    }
+    
     console.log(`🏁 [SESSION CLIENT] - Fin du quiz: ${quizId}`);
     
-    const result = await endQuiz(sessionId, quizId, responses);
-    return result;
+    try {
+      const result = await endQuiz(sessionId, quizId, responses);
+      return result;
+    } catch (error) {
+      console.error('❌ [SESSION CLIENT] - Erreur lors de la fin du quiz:', error);
+      return { success: false, error: 'Erreur inattendue' };
+    }
   }, [sessionId]);
 
-  // CORRECTION : Mémoization des données dérivées
+  // CORRECTION CRITIQUE : Calcul du spotlightedStream optimisé
+  const spotlightedStream = useMemo(() => {
+    if (!spotlightedParticipantId) {
+      return null;
+    }
+    
+    // CORRECTION : Si c'est l'utilisateur courant, utiliser le stream local
+    if (spotlightedParticipantId === currentUserId) {
+      return activeStream;
+    }
+    
+    // CORRECTION : Recherche dans les streams distants avec validation
+    const remoteStream = remoteStreams.get(spotlightedParticipantId);
+    
+    if (remoteStream && remoteStream.active) {
+      // CORRECTION : Validation que le stream a des tracks actifs
+      const hasActiveTracks = remoteStream.getTracks().some(track => track.readyState === 'live');
+      return hasActiveTracks ? remoteStream : null;
+    }
+    
+    return null;
+  }, [spotlightedParticipantId, currentUserId, activeStream, remoteStreams]);
+
+  // CORRECTION : Mémoization des données dérivées optimisée
   const allSessionUsers = useMemo(() => 
     [initialTeacher, ...initialStudents].filter(Boolean) as User[], 
     [initialTeacher, initialStudents]
   );
 
   const spotlightedUser = useMemo(() => 
-    allSessionUsers.find(u => u.id === spotlightedParticipantId),
+    spotlightedParticipantId ? allSessionUsers.find(u => u.id === spotlightedParticipantId) : undefined,
     [allSessionUsers, spotlightedParticipantId]
   );
 
- // CORRECTION CRITIQUE : Calcul du spotlightedStream amélioré
-const spotlightedStream = useMemo(() => {
-  console.log(`🔦 [SPOTLIGHT STREAM] - Calcul pour participant: ${spotlightedParticipantId}, currentUser: ${currentUserId}`);
-  
-
-  
-  if (!spotlightedParticipantId) {
-    console.log(`🔦 [SPOTLIGHT STREAM] - Aucun participant spotlighté`);
-    return null;
-  }
-  
-  // CORRECTION : Si c'est l'utilisateur courant, utiliser le stream local
-  if (spotlightedParticipantId === currentUserId) {
-    console.log(`🔦 [SPOTLIGHT STREAM] - Utilisation stream local: ${activeStream?.active ? 'actif' : 'inactif'}`);
-    return activeStream;
-  }
-  
-  // CORRECTION : Recherche dans les streams distants
-  const remoteStream = remoteStreams.get(spotlightedParticipantId);
-  console.log(`🔦 [SPOTLIGHT STREAM] - Stream distant trouvé: ${remoteStream ? 'oui' : 'non'}, actif: ${remoteStream?.active ? 'oui' : 'non'}`);
-  
-  if (remoteStream && remoteStream.active) {
-    // CORRECTION : Log détaillé du stream distant
-    const videoTracks = remoteStream.getVideoTracks();
-    const audioTracks = remoteStream.getAudioTracks();
-    console.log(`🔦 [SPOTLIGHT STREAM] - Tracks vidéo: ${videoTracks.length}, audio: ${audioTracks.length}`);
-    
-    return remoteStream;
-  }
-  
-  console.log(`🔦 [SPOTLIGHT STREAM] - Aucun stream valide trouvé pour ${spotlightedParticipantId}`);
-  return null;
-}, [spotlightedParticipantId, currentUserId, activeStream, remoteStreams]);
-
   const remoteParticipants = useMemo(() => 
-    Array.from(remoteStreams.entries()).map(([id, stream]) => ({ id, stream })),
+    Array.from(remoteStreams.entries())
+      .filter(([_, stream]) => stream && stream.active)
+      .map(([id, stream]) => ({ id, stream })),
     [remoteStreams]
   );
 
@@ -398,7 +533,9 @@ const spotlightedStream = useMemo(() => {
   );
 
   const raisedHandUsers = useMemo(() => 
-    handRaiseQueue.map(userId => allSessionUsers.find(u => u.id === userId)).filter(Boolean) as User[],
+    handRaiseQueue
+      .map(userId => allSessionUsers.find(u => u.id === userId))
+      .filter(Boolean) as User[],
     [handRaiseQueue, allSessionUsers]
   );
 
@@ -406,12 +543,16 @@ const spotlightedStream = useMemo(() => {
   if (isMediaLoading) {
     return <SessionLoading />;
   }
-// CORRECTION : Logs de débogage pour le spotlightedStream
-console.log(`🔍 [DEBUG SPOTLIGHT] - spotlightedParticipantId: ${spotlightedParticipantId}`);
-console.log(`🔍 [DEBUG SPOTLIGHT] - currentUserId: ${currentUserId}`);
-console.log(`🔍 [DEBUG SPOTLIGHT] - remoteStreams keys: ${Array.from(remoteStreams.keys())}`);
-console.log(`🔍 [DEBUG SPOTLIGHT] - spotlightedStream calculé:`, spotlightedStream);
-console.log(`🔍 [DEBUG SPOTLIGHT] - spotlightedStream actif: ${spotlightedStream?.active}`);
+
+  // CORRECTION : Logs de débogage conditionnels (uniquement en développement)
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`🔍 [DEBUG SPOTLIGHT] - spotlightedParticipantId: ${spotlightedParticipantId}`);
+    console.log(`🔍 [DEBUG SPOTLIGHT] - currentUserId: ${currentUserId}`);
+    console.log(`🔍 [DEBUG SPOTLIGHT] - remoteStreams keys: ${Array.from(remoteStreams.keys())}`);
+    console.log(`🔍 [DEBUG SPOTLIGHT] - spotlightedStream calculé:`, spotlightedStream);
+    console.log(`🔍 [DEBUG SPOTLIGHT] - spotlightedStream actif: ${spotlightedStream?.active}`);
+  }
+
   console.log(`🎯 [SESSION CLIENT] - Rendu pour ${currentUserRole}, whiteboard initialisé: ${isWhiteboardInitialized}`);
 
   return (

@@ -1,4 +1,4 @@
-// src/components/ui/AblyStatusIndicator.tsx
+// src/components/ui/AblyStatusIndicator.tsx - VERSION CORRIGÉE FINALE
 'use client';
 
 import { useAblyHealth, type AblyConnectionStatus } from '@/hooks/useAblyHealth';
@@ -18,6 +18,7 @@ const statusConfig: Record<AblyConnectionStatus, { color: string; label: string;
 };
 
 export function AblyStatusIndicator() {
+    // ✅ CORRECTION FINALE : S'assurer que le nom du composant est bien passé
     const { status, error } = useAblyHealth('AblyStatusIndicator');
     const config = statusConfig[status] || statusConfig.failed;
     const Icon = config.icon;

@@ -1,4 +1,4 @@
-// src/hooks/useAblyPresence.ts - VERSION CORRIGÉE SANS ERREURS TYPESCRIPT
+// src/hooks/useAblyPresence.ts - VERSION CORRIGÉE
 'use client';
 
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
@@ -7,7 +7,7 @@ import type { AblyPresenceMember } from '@/lib/ably/types';
 import { getClassChannelName } from '@/lib/ably/channels';
 import Ably from 'ably';
 import { Role } from '@prisma/client';
-import { useAblyHealth } from './useAblyHealth'; // Importation du hook de santé
+import { useAblyHealth } from './useAblyHealth';
 
 type AblyChannel = Ably.Types.RealtimeChannelCallbacks;
 type AblyChannelStateChange = Ably.Types.ChannelStateChange;
@@ -41,9 +41,19 @@ if (typeof globalThis.activePresenceChannels === 'undefined') {
 const PRESENCE_UPDATE_DELAY_MS = 2000;
 const MAX_PRESENCE_UPDATES_PER_MINUTE = 30;
 
-export const useAblyPresence = (channelId?: string, enabled: boolean = true, componentName: string = 'UnknownPresenceUser'): UseAblyPresenceReturn => {
-  const { client, connectionState } = useAbly(componentName);
-  const { isConnected: ablyConnected, error: healthError } = useAblyHealth(componentName); // Utilisation du hook de santé
+export const useAblyPresence = (
+  channelId?: string, 
+  enabled: boolean = true, 
+  componentName: string = 'UnknownPresenceComponent' // ✅ CORRECTION: Nom plus descriptif
+): UseAblyPresenceReturn => {
+  // ✅ CORRECTION: Vérification du nom du composant
+  const actualComponentName = componentName === 'UnknownPresenceComponent' 
+    ? `useAblyPresence-${channelId || 'no-channel'}` 
+    : componentName;
+
+  const { client, connectionState } = useAbly(actualComponentName); // ✅ CORRECTION: Utilisation du nom corrigé
+  const { isConnected: ablyConnected, error: healthError } = useAblyHealth(actualComponentName);
+  
   const [onlineMembers, setOnlineMembers] = useState<AblyPresenceMember[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +72,7 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true, com
     connectionState === 'initialized' || connectionState === 'connecting', 
     [connectionState]
   );
+
 
   const canUpdatePresence = useCallback(() => {
     const now = Date.now();
@@ -205,7 +216,7 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true, com
     const channelName = getClassChannelName(channelId);
     currentChannelNameRef.current = channelName;
 
-    console.log(`🎯 [PRESENCE HOOK] - Initialisation pour canal: ${channelName} (${componentIdRef.current})`);
+    console.log(`🎯 [PRESENCE HOOK] - Initialisation pour canal: ${channelName} (${actualComponentName})`); // ✅ CORRECTION: Utilisation du nom corrigé
 
     const initializePresence = async () => {
       if (!mountedRef.current) return;
@@ -365,7 +376,7 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true, com
         currentChannelNameRef.current = null;
       }
     };
-  }, [channelId, enabled, client, manageChannelRefCount, updateOnlineMembers, extractPresenceData]);
+  }, [channelId, enabled, client, manageChannelRefCount, updateOnlineMembers, extractPresenceData, actualComponentName]); // ✅ CORRECTION: Ajout de la dépendance
 
   const enterPresence = useCallback(async (userData: Omit<AblyPresenceMember, 'id'>) => {
     const channel = channelRef.current;

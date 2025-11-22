@@ -16,11 +16,13 @@ interface PeerState {
     lastAttempt: number;
     signalCount: number;
     hasReceivedStream: boolean;
+    lastSignalTime: number;
 }
 
 // --- Constantes de Configuration ---
 const WEBRTC_CONFIG = {
     MAX_SIGNALS: 25,
+    MAX_SIGNALS_PER_SECOND: 5,
     CONNECTION_TIMEOUT: 30000,
     RETRY_DELAY: 10000,
     MAX_CONNECTION_ATTEMPTS: 3,
@@ -40,16 +42,24 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
     const peersRef = useRef<Map<string, PeerInstance>>(new Map());
     const peerStatesRef = useRef<Map<string, PeerState>>(new Map());
     const pendingConnectionsRef = useRef<Set<string>>(new Set());
+    
+    // CORRECTION : Références pour le throttling des signaux
+    const signalTimestampsRef = useRef<Map<string, number[]>>(new Map());
+    const processedCandidatesRef = useRef<Map<string, Set<string>>>(new Map());
 
     // CORRECTION : Fonction de nettoyage améliorée
     const cleanupPeerConnection = useCallback((userId: string): void => {
+        console.log(`🧹 [PEER CLEANUP] - Nettoyage de la connexion pour: ${userId}`);
+        
         pendingConnectionsRef.current.delete(userId);
+        signalTimestampsRef.current.delete(userId);
+        processedCandidatesRef.current.delete(userId);
         
         const peer = peersRef.current.get(userId);
         if (peer && !peer.destroyed) {
-            console.log(`🧹 [PEER CLEANUP] - Destruction du peer pour: ${userId}`);
             try {
                 peer.destroy();
+                console.log(`✅ [PEER CLEANUP] - Peer détruit pour: ${userId}`);
             } catch (error) {
                 console.warn(`⚠️ [PEER CLEANUP] - Erreur lors de la destruction pour ${userId}:`, error);
             }
@@ -62,7 +72,11 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
             if (newMap.has(userId)) {
                 console.log(`📹 [STREAM CLEANUP] - Suppression du stream distant pour: ${userId}`);
                 const stream = newMap.get(userId);
-                stream?.getTracks().forEach(track => track.stop());
+                // CORRECTION : Arrêt propre de tous les tracks
+                stream?.getTracks().forEach(track => {
+                    track.stop();
+                    track.enabled = false;
+                });
                 newMap.delete(userId);
                 return newMap;
             }
@@ -70,21 +84,65 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
         });
     }, []);
 
-    // CORRECTION : Fonction d'envoi de signal via Ably direct
+    // CORRECTION : Fonction de vérification du taux de signaux
+    const canSendSignal = useCallback((targetUserId: string): boolean => {
+        const now = Date.now();
+        const oneSecondAgo = now - 1000;
+        
+        let timestamps = signalTimestampsRef.current.get(targetUserId) || [];
+        
+        // Nettoyer les timestamps anciens
+        timestamps = timestamps.filter(timestamp => timestamp > oneSecondAgo);
+        
+        // Vérifier la limite
+        if (timestamps.length >= WEBRTC_CONFIG.MAX_SIGNALS_PER_SECOND) {
+            console.warn(`⏸️ [SIGNAL THROTTLING] - Trop de signaux pour ${targetUserId} (${timestamps.length}/s), attente...`);
+            return false;
+        }
+        
+        // Ajouter le nouveau timestamp
+        timestamps.push(now);
+        signalTimestampsRef.current.set(targetUserId, timestamps);
+        return true;
+    }, []);
+
+    // CORRECTION : Fonction d'envoi de signal avec throttling
     const signalViaAbly = useCallback(async (targetUserId: string, signal: PeerSignalData, isReturnSignal: boolean = false) => {
+        if (!isMounted) {
+            console.warn('⚠️ [SIGNAL] - Composant non monté, envoi annulé');
+            return;
+        }
+
+        // CORRECTION : Vérification du taux de signaux
+        if (!canSendSignal(targetUserId)) {
+            return;
+        }
+
         try {
             const channelName = getSessionChannelName(sessionId);
             await ablyTrigger(channelName, AblyEvents.SIGNAL, {
                 userId: currentUserId,
                 target: targetUserId,
                 signal: signal,
-                isReturnSignal: isReturnSignal
+                isReturnSignal: isReturnSignal,
+                timestamp: Date.now()
             });
-            console.log(`📤 [SIGNAL] - Signal ${signal.type} envoyé à ${targetUserId}`);
+            
+            // CORRECTION : Mise à jour du compteur de signaux
+            const currentState = peerStatesRef.current.get(targetUserId);
+            if (currentState) {
+                peerStatesRef.current.set(targetUserId, {
+                    ...currentState,
+                    signalCount: currentState.signalCount + 1,
+                    lastSignalTime: Date.now()
+                });
+            }
+            
+            console.log(`📤 [SIGNAL] - Signal ${signal.type} envoyé à ${targetUserId} (total: ${currentState?.signalCount || 0})`);
         } catch (error) {
             console.error('❌ [SIGNAL] - Erreur d\'envoi du signal via Ably:', error);
         }
-    }, [sessionId, currentUserId]);
+    }, [sessionId, currentUserId, isMounted, canSendSignal]);
 
     // CORRECTION : Fonction de création de peer avec gestion d'erreur améliorée
     const createPeer = useCallback((targetUserId: string, initiator: boolean, stream: MediaStream | null): PeerInstance | undefined => {
@@ -118,21 +176,28 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
         try {
             pendingConnectionsRef.current.add(targetUserId);
             
+            // CORRECTION : Initialisation des sets de déduplication
+            if (!processedCandidatesRef.current.has(targetUserId)) {
+                processedCandidatesRef.current.set(targetUserId, new Set());
+            }
+            
             // CORRECTION : Mise à jour de l'état du peer
-            peerStatesRef.current.set(targetUserId, { 
+            const newPeerState: PeerState = { 
                 isConnected: false, 
                 isConnecting: true, 
                 connectionAttempts: (existingState?.connectionAttempts || 0) + 1,
                 lastAttempt: now, 
-                signalCount: 0, 
-                hasReceivedStream: false
-            });
+                signalCount: 0,
+                hasReceivedStream: false,
+                lastSignalTime: 0
+            };
+            peerStatesRef.current.set(targetUserId, newPeerState);
 
             console.log(`🎯 [PEER CREATION] - Création peer ${initiator ? 'initiateur' : 'répondeur'} pour ${targetUserId}`);
 
             const peer = new SimplePeer({
                 initiator,
-                trickle: true,
+                trickle: true, // CORRECTION : ICE trickling activé pour meilleure performance
                 stream: stream || undefined,
                 config: { 
                     iceServers: WEBRTC_CONFIG.ICE_SERVERS,
@@ -145,32 +210,34 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
                 }
             });
 
-            let signalCount = 0;
-            const processedCandidates = new Set<string>();
-
-            // CORRECTION : Gestion des signaux avec délais optimisés
+            // CORRECTION : Gestion des signaux avec déduplication et throttling
             peer.on('signal', (signal: PeerSignalData) => {
                 if (!isMounted || peer.destroyed) return;
                 
-                signalCount++;
-                
-                // CORRECTION : Limite de signaux pour éviter le spam
-                if (signalCount > WEBRTC_CONFIG.MAX_SIGNALS) {
-                    console.warn(`⚠️ [SIGNAL] - Trop de signaux pour ${targetUserId} (${signalCount}), arrêt`);
+                const peerState = peerStatesRef.current.get(targetUserId);
+                if (!peerState) return;
+
+                // CORRECTION : Vérification de la limite de signaux
+                if (peerState.signalCount >= WEBRTC_CONFIG.MAX_SIGNALS) {
+                    console.warn(`⚠️ [SIGNAL] - Trop de signaux pour ${targetUserId} (${peerState.signalCount}), arrêt`);
                     return;
                 }
                 
-                // CORRECTION : Éviter les doublons de candidats ICE
+                // CORRECTION : Déduplication des candidats ICE
                 if (signal.type === 'candidate') {
-                    const candidateKey = JSON.stringify(signal);
-                    if (processedCandidates.has(candidateKey)) {
+                    const candidateKey = JSON.stringify(signal.candidate);
+                    const processedCandidates = processedCandidatesRef.current.get(targetUserId);
+                    
+                    if (processedCandidates?.has(candidateKey)) {
+                        console.log(`⏭️ [SIGNAL] - Candidat ICE déjà traité pour ${targetUserId}`);
                         return;
                     }
-                    processedCandidates.add(candidateKey);
+                    processedCandidates?.add(candidateKey);
                 }
                 
                 // CORRECTION : Délai progressif pour les candidats ICE
-                const delay = signal.type === 'candidate' ? Math.min(signalCount * 50, 500) : 0;
+                const delay = signal.type === 'candidate' ? 
+                    Math.min(peerState.signalCount * 50, 500) : 0;
                 
                 setTimeout(() => {
                     if (isMounted && !peer.destroyed) {
@@ -196,14 +263,16 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
                     });
                     
                     // CORRECTION : Mise à jour de l'état avec succès
-                    peerStatesRef.current.set(targetUserId, { 
-                        isConnected: true, 
-                        isConnecting: false,
-                        connectionAttempts: 0,
-                        lastAttempt: Date.now(),
-                        signalCount,
-                        hasReceivedStream: true
-                    });
+                    const updatedState = peerStatesRef.current.get(targetUserId);
+                    if (updatedState) {
+                        peerStatesRef.current.set(targetUserId, { 
+                            ...updatedState,
+                            isConnected: true, 
+                            isConnecting: false,
+                            connectionAttempts: 0,
+                            hasReceivedStream: true
+                        });
+                    }
                     
                     pendingConnectionsRef.current.delete(targetUserId);
                     console.log(`✅ [PEER CONNECTED] - Connexion établie avec ${targetUserId}`);
@@ -216,14 +285,13 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
             peer.on('connect', () => {
                 console.log(`🔗 [PEER CONNECT] - Connexion WebRTC établie avec ${targetUserId}`);
                 
-                peerStatesRef.current.set(targetUserId, { 
-                    isConnected: peerStatesRef.current.get(targetUserId)?.isConnected || false, // Ne pas écraser si déjà 'true' par 'stream'
-                    isConnecting: false, // La connexion n'est plus en cours
-                    connectionAttempts: 0,
-                    lastAttempt: Date.now(),
-                    signalCount,
-                    hasReceivedStream: peerStatesRef.current.get(targetUserId)?.hasReceivedStream || false
-                });
+                const currentPeerState = peerStatesRef.current.get(targetUserId);
+                if (currentPeerState) {
+                    peerStatesRef.current.set(targetUserId, { 
+                        ...currentPeerState,
+                        isConnecting: false
+                    });
+                }
                 
                 pendingConnectionsRef.current.delete(targetUserId);
             });
@@ -232,25 +300,23 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
             peer.on('error', (err: Error) => {
                 console.error(`❌ [PEER ERROR] - Erreur avec ${targetUserId}:`, err);
                 
-                const currentState = peerStatesRef.current.get(targetUserId);
+                const errorState = peerStatesRef.current.get(targetUserId);
+                if (!errorState) return;
                 
-                if (!currentState?.hasReceivedStream) {
+                if (!errorState.hasReceivedStream) {
                     peerStatesRef.current.set(targetUserId, { 
+                        ...errorState,
                         isConnected: false, 
-                        isConnecting: false,
-                        connectionAttempts: currentState?.connectionAttempts || 1,
-                        lastAttempt: Date.now(),
-                        signalCount,
-                        hasReceivedStream: false
+                        isConnecting: false
                     });
                     
-                    // CORRECTION : Nettoyage après erreur
+                    // CORRECTION : Nettoyage après erreur avec délai
                     setTimeout(() => {
                         if (isMounted && !peerStatesRef.current.get(targetUserId)?.hasReceivedStream) {
                             console.log(`🔄 [PEER RETRY] - Nettoyage après erreur pour ${targetUserId}`);
                             cleanupPeerConnection(targetUserId);
                         }
-                    }, 3000);
+                    }, 5000);
                 }
                 
                 pendingConnectionsRef.current.delete(targetUserId);
@@ -260,15 +326,12 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
             peer.on('close', () => {
                 console.log(`🔒 [PEER CLOSE] - Connexion fermée avec ${targetUserId}`);
                 
-                const currentState = peerStatesRef.current.get(targetUserId);
-                if (!currentState?.hasReceivedStream) {
+                const closeState = peerStatesRef.current.get(targetUserId);
+                if (closeState && !closeState.hasReceivedStream) {
                     peerStatesRef.current.set(targetUserId, { 
+                        ...closeState,
                         isConnected: false, 
-                        isConnecting: false,
-                        connectionAttempts: 0,
-                        lastAttempt: Date.now(),
-                        signalCount,
-                        hasReceivedStream: false
+                        isConnecting: false
                     });
                 }
                 
@@ -279,6 +342,7 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
             const existingPeer = peersRef.current.get(targetUserId);
             if (existingPeer && !existingPeer.destroyed) {
                 try {
+                    console.log(`🔄 [PEER CLEANUP] - Destruction de l'ancien peer pour ${targetUserId}`);
                     existingPeer.destroy();
                 } catch (error) {
                     console.warn(`⚠️ [PEER CLEANUP] - Erreur lors de la destruction de l'ancien peer:`, error);
@@ -293,13 +357,15 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
             
             pendingConnectionsRef.current.delete(targetUserId);
             
+            const errorExistingState = peerStatesRef.current.get(targetUserId);
             peerStatesRef.current.set(targetUserId, { 
                 isConnected: false, 
                 isConnecting: false,
-                connectionAttempts: (existingState?.connectionAttempts || 0) + 1,
+                connectionAttempts: (errorExistingState?.connectionAttempts || 0) + 1,
                 lastAttempt: Date.now(),
                 signalCount: 0,
-                hasReceivedStream: false
+                hasReceivedStream: false,
+                lastSignalTime: 0
             });
             return undefined;
         }
@@ -374,6 +440,8 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
         return () => {
             console.log(`🧹 [WEBRTC CLEANUP] - Nettoyage de toutes les connexions WebRTC`);
             Array.from(peersRef.current.keys()).forEach(cleanupPeerConnection);
+            signalTimestampsRef.current.clear();
+            processedCandidatesRef.current.clear();
         };
     }, [cleanupPeerConnection]);
 

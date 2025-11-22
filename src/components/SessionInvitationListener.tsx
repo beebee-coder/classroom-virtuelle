@@ -1,4 +1,4 @@
-// src/components/SessionInvitationListener.tsx - VERSION CORRIGÉE SANS BOUCLES
+// src/components/SessionInvitationListener.tsx - VERSION CORRIGÉE FINALE
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -33,7 +33,8 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
   const router = useRouter();
   const { toast } = useToast();
   
-  const { client: ablyClient, isConnected: ablyConnected } = useAbly();
+  // ✅ CORRECTION FINALE : Ajout du nom du composant pour éliminer les logs "Unknown"
+  const { client: ablyClient, isConnected: ablyConnected } = useAbly('SessionInvitationListener');
   
   // ✅ CORRECTION : Références stabilisées et simplifiées
   const processedInvitationsRef = useRef<Set<string>>(new Set());
