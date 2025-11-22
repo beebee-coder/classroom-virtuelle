@@ -21,7 +21,7 @@ interface AblyHealthState {
  * @returns The current connection status and a user-friendly error message if any.
  */
 export function useAblyHealth(): AblyHealthState {
-    const { client, connectionState, connectionError, isConnected } = useAbly();
+    const { client, connectionState, connectionError, isConnected } = useAbly('useAblyHealth');
     
     const [error, setError] = useState<string | null>(null);
     

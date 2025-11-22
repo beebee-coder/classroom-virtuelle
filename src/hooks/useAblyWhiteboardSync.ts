@@ -19,7 +19,7 @@ export const useAblyWhiteboardSync = (
     userId: string,
     onIncomingOperations: (operations: WhiteboardOperation[]) => void
 ) => {
-    const { client, isConnected, connectionState } = useAbly();
+    const { client, isConnected, connectionState } = useAbly('useAblyWhiteboardSync');
     const isLoading = connectionState === 'initialized' || connectionState === 'connecting';
     
     const [isSyncing, setIsSyncing] = useState(false);

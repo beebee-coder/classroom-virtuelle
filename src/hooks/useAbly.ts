@@ -1,124 +1,142 @@
-// src/hooks/useAbly.ts - VERSION CORRIGÉE POUR STABILITÉ
+// src/hooks/useAbly.ts - VERSION FINALE AVEC DÉBOGAGE AVANCÉ
 'use client';
 
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { getAblyClient, getAblyClientUsage } from '@/lib/ably/client';
 import Ably, { type Types } from 'ably';
-import { getAblyClient } from '@/lib/ably/client';
 
 interface UseAblyReturn {
-    client: Ably.Realtime | null;
-    connectionError: Types.ErrorInfo | null;
-    isConnected: boolean;
-    connectionState: Types.ConnectionState;
+  client: Ably.Realtime;
+  connectionState: Types.ConnectionState;
+  isConnected: boolean;
+  connectionError: Types.ErrorInfo | null;
 }
 
-/**
- * A React hook to get a memoized, authenticated Ably client instance.
- * This is the SINGLE source of truth for the Ably client in the app.
- * Optimized for stability and multiple component usage.
- */
-export function useAbly(): UseAblyReturn {
-    const [client, setClient] = useState<Ably.Realtime | null>(null);
-    const [connectionError, setConnectionError] = useState<Types.ErrorInfo | null>(null);
-    const [connectionState, setConnectionState] = useState<Types.ConnectionState>('initialized');
+// ✅ Singleton pour partager l'état entre toutes les instances du hook
+let globalConnectionState: Types.ConnectionState = 'initialized';
+let globalIsConnected = false;
+let globalConnectionError: Types.ErrorInfo | null = null;
+let globalListeners: Set<(state: Types.ConnectionState, isConnected: boolean, error: Types.ErrorInfo | null) => void> = new Set();
+
+// ✅ Stack trace pour debugger les composants utilisateurs
+const componentStack = new Map<symbol, string>();
+
+// ✅ Fonction pour mettre à jour tous les listeners
+const updateAllListeners = (state: Types.ConnectionState, isConnected: boolean, error: Types.ErrorInfo | null) => {
+  globalConnectionState = state;
+  globalIsConnected = isConnected;
+  globalConnectionError = error;
+  
+  globalListeners.forEach(listener => {
+    listener(state, isConnected, error);
+  });
+};
+
+export const useAbly = (componentName: string = 'Unknown'): UseAblyReturn => {
+  const [connectionState, setConnectionState] = useState<Types.ConnectionState>(globalConnectionState);
+  const [isConnected, setIsConnected] = useState<boolean>(globalIsConnected);
+  const [connectionError, setConnectionError] = useState<Types.ErrorInfo | null>(globalConnectionError);
+  
+  const listenerIdRef = useRef<symbol>(Symbol(`useAbly-${componentName}`));
+
+  // ✅ CORRECTION : Utiliser useMemo pour une instance STABLE du client
+  const ablyClient = useMemo(() => {
+    console.log(`🎯 [USE ABLY HOOK] ${componentName} - Creating/getting Ably client instance`);
+    const client = getAblyClient();
     
-    // ✅ CORRECTION : Références uniques par instance de hook
-    const isMountedRef = useRef(true);
-    const connectionHandlerIdRef = useRef<string | null>(null);
-
-    useEffect(() => {
-        isMountedRef.current = true;
-        
-        const ablyClient = getAblyClient();
-        setClient(ablyClient);
-
-        // ✅ CORRECTION : Handler unique avec gestion d'état cohérente
-        const connectionHandler = (stateChange: Types.ConnectionStateChange) => {
-            if (!isMountedRef.current) return;
-            
-            const newState = stateChange.current;
-            setConnectionState(newState);
-            
-            // ✅ CORRECTION : Logique d'erreur améliorée
-            if (stateChange.reason) {
-                console.error(`❌ [ABLY HOOK] Connection error:`, stateChange.reason);
-                setConnectionError(stateChange.reason);
-            } else if (newState === 'connected') {
-                setConnectionError(null);
-            }
-        };
-
-        // ✅ CORRECTION : Stocker l'ID du handler pour un nettoyage précis
-        ablyClient.connection.on(connectionHandler);
-        connectionHandlerIdRef.current = 'connection_state_handler';
-
-        // Définir l'état initial
-        if (isMountedRef.current) {
-            setConnectionState(ablyClient.connection.state);
-            if (ablyClient.connection.errorReason) {
-                setConnectionError(ablyClient.connection.errorReason);
-            }
-        }
-
-        // ✅ CORRECTION : Nettoyage sécurisé uniquement pour ce composant
-        return () => {
-            isMountedRef.current = false;
-            if (connectionHandlerIdRef.current) {
-                ablyClient.connection.off(connectionHandler);
-                connectionHandlerIdRef.current = null;
-            }
-        };
-    }, []); // ✅ Dépendances vides - effet unique
-
-    const isConnected = connectionState === 'connected';
-
-    // ✅ CORRECTION : Mémoisation optimisée
-    return useMemo(() => ({ 
-        client, 
-        connectionError, 
-        isConnected,
-        connectionState 
-    }), [client, connectionError, isConnected, connectionState]);
-}
-
-// ✅ CORRECTION : Hook spécialisé avec gestion d'état améliorée
-export function useAblyForSession(sessionId?: string) {
-    const { client, connectionError, isConnected, connectionState } = useAbly();
-    const [sessionReady, setSessionReady] = useState(false);
-    const sessionReadyRef = useRef(false);
+    // ✅ Vérifier l'état actuel immédiatement
+    const currentState = client.connection.state;
+    if (currentState !== globalConnectionState) {
+      updateAllListeners(currentState, currentState === 'connected', null);
+    }
     
-    useEffect(() => {
-        if (!sessionId || !client) {
-            setSessionReady(false);
-            sessionReadyRef.current = false;
-            return;
-        }
-        
-        // ✅ CORRECTION : Logique de sessionReady plus robuste
-        const shouldBeReady = isConnected && !connectionError && !!sessionId;
-        
-        if (shouldBeReady && !sessionReadyRef.current) {
-            console.log(`🎯 [ABLY SESSION] - Client ready for session: ${sessionId}`);
-            setSessionReady(true);
-            sessionReadyRef.current = true;
-        } else if (!shouldBeReady && sessionReadyRef.current) {
-            console.warn(`⚠️ [ABLY SESSION] - Session ${sessionId} no longer ready`);
-            setSessionReady(false);
-            sessionReadyRef.current = false;
-        }
-    }, [sessionId, client, isConnected, connectionError]);
-    
-    // ✅ CORRECTION : États de chargement plus précis
-    const isLoading = connectionState === 'initialized' || connectionState === 'connecting';
-    const hasConnectionError = !!connectionError;
-    
-    return useMemo(() => ({
-        client,
-        connectionError,
-        isConnected,
-        connectionState,
-        sessionReady: sessionReady && isConnected && !connectionError,
-        isLoading,
-        hasConnectionError
-    }), [client, connectionError, isConnected, connectionState, sessionReady, isLoading]);
-}
+    return client;
+  }, [componentName]); // ✅ Ajout du componentName pour le debug
+
+  useEffect(() => {
+    const listenerId = listenerIdRef.current;
+    let isMounted = true;
+
+    // ✅ Enregistrer le composant pour le debug
+    componentStack.set(listenerId, componentName);
+
+    // ✅ CORRECTION : Définir le handler UNE FOIS par instance de composant
+    const connectionStateHandler = (stateChange: Types.ConnectionStateChange) => {
+      if (!isMounted) return;
+      
+      const newState = stateChange.current;
+      const newIsConnected = newState === 'connected';
+      const newError = stateChange.reason || null;
+      
+      // ✅ Mettre à jour l'état global pour tous les composants
+      updateAllListeners(newState, newIsConnected, newError);
+    };
+
+    // ✅ S'abonner aux changements d'état globaux
+    const globalStateListener = (state: Types.ConnectionState, connected: boolean, error: Types.ErrorInfo | null) => {
+      if (isMounted) {
+        setConnectionState(state);
+        setIsConnected(connected);
+        setConnectionError(error);
+      }
+    };
+
+    // ✅ Ajouter ce composant aux listeners globaux
+    globalListeners.add(globalStateListener);
+
+    // ✅ S'abonner aux événements de connexion du client
+    ablyClient.connection.on(connectionStateHandler);
+
+    // ✅ Log de debug pour tracer les instances
+    const activeComponents = Array.from(componentStack.values());
+    console.log(`🔧 [USE ABLY HOOK] ${componentName} monté -`, {
+      listeners: globalListeners.size,
+      refCount: getAblyClientUsage().refCount,
+      activeComponents,
+      totalComponents: activeComponents.length
+    });
+
+    return () => {
+      isMounted = false;
+      
+      // ✅ Nettoyer les listeners
+      globalListeners.delete(globalStateListener);
+      componentStack.delete(listenerId);
+      ablyClient.connection.off(connectionStateHandler);
+      
+      console.log(`🧹 [USE ABLY HOOK] ${componentName} démonté - Listeners restants: ${globalListeners.size}`);
+    };
+  }, [ablyClient, componentName]); // ✅ Ajout du componentName
+
+  return {
+    client: ablyClient,
+    connectionState,
+    isConnected,
+    connectionError
+  };
+};
+
+// ✅ FONCTION DE DÉBOGAGE AMÉLIORÉE
+export const getUseAblyStats = () => {
+  const activeComponents = Array.from(componentStack.values());
+  return {
+    globalListenersCount: globalListeners.size,
+    globalConnectionState,
+    globalIsConnected,
+    globalConnectionError: globalConnectionError?.message || null,
+    clientUsage: getAblyClientUsage(),
+    activeComponents,
+    componentCount: activeComponents.length
+  };
+};
+
+// ✅ FONCTION : Log détaillé pour debug
+export const logUseAblyDetails = () => {
+  const stats = getUseAblyStats();
+  console.group('🔍 [USE ABLY HOOK] Détails comports');
+  console.log('📊 Statistiques:', stats);
+  console.log('🧩 Composants actifs:', stats.activeComponents);
+  console.log('🔗 État client:', stats.clientUsage);
+  console.groupEnd();
+  return stats;
+};

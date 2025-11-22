@@ -51,7 +51,7 @@ export function useAblyCommunication({
   onNewQuizResponse,
   onQuizEnded
 }: AblyCommunicationProps) {
-  const { client: ablyClient, isConnected: isAblyConnected } = useAbly();
+  const { client: ablyClient, isConnected: isAblyConnected } = useAbly('useAblyCommunication');
   const { toast } = useToast();
 
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
@@ -427,7 +427,22 @@ export function useAblyCommunication({
     // CORRECTION : Réduction des dépendances aux callbacks stables
     handlePresenceUpdate,
     enterPresence, 
-    leavePresence
+    leavePresence,
+    handleActiveToolChangeEvent,
+    handleDocumentSharedEvent,
+    handleHandAcknowledgedEvent,
+    handleHandRaiseUpdateEvent,
+    handleQuizEndedEvent,
+    handleQuizResponseEvent,
+    handleQuizStartedEvent,
+    handleSessionEndedEvent,
+    handleSignalEvent,
+    handleSpotlightEvent,
+    handleTimerPausedEvent,
+    handleTimerResetEvent,
+    handleTimerStartedEvent,
+    handleUnderstandingUpdateEvent,
+    handleWhiteboardControllerUpdateEvent
   ]);
 
   return {

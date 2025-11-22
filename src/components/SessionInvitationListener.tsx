@@ -1,5 +1,4 @@
-
-// src/components/SessionInvitationListener.tsx - VERSION CORRIGÉE SANS ERREURS SYNTAXE
+// src/components/SessionInvitationListener.tsx - VERSION CORRIGÉE SANS BOUCLES
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -36,23 +35,17 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
   
   const { client: ablyClient, isConnected: ablyConnected } = useAbly();
   
-  // ✅ CORRECTION : Références stabilisées
+  // ✅ CORRECTION : Références stabilisées et simplifiées
   const processedInvitationsRef = useRef<Set<string>>(new Set());
   const mountedRef = useRef(true);
   const channelRef = useRef<AblyTypes.RealtimeChannelCallbacks | null>(null);
-  const hasInitializedRef = useRef<string | false>(false);
-  const studentIdRef = useRef(studentId);
-  const hasCheckedPendingRef = useRef(false);
+  const initializationStateRef = useRef({
+    hasInitialized: false,
+    hasCheckedPending: false,
+    currentStudentId: ''
+  });
 
-  // ✅ CORRECTION : Mettre à jour la ref
-  useEffect(() => {
-    studentIdRef.current = studentId;
-    // Reset quand studentId change
-    hasCheckedPendingRef.current = false;
-    hasInitializedRef.current = false;
-  }, [studentId]);
-
-  // ✅ CORRECTION : Fonction handleInvitation stabilisée
+  // ✅ CORRECTION : Fonction handleInvitation stabilisée avec useCallback fixe
   const handleInvitation = useCallback((data: SessionInvitation) => {
     if (!mountedRef.current) return;
     
@@ -75,14 +68,13 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
     });
   }, [toast]);
 
-  // ✅ CORRECTION : Fonction checkPendingInvitations avec prévention des appels multiples
-  const checkPendingInvitations = useCallback(async () => {
-    const currentStudentId = studentIdRef.current;
-    if (!currentStudentId || !mountedRef.current || hasCheckedPendingRef.current) {
+  // ✅ CORRECTION : Fonction checkPendingInvitations DÉPLACÉE dans l'effet pour éviter les dépendances circulaires
+  const checkPendingInvitations = useCallback(async (currentStudentId: string) => {
+    if (!currentStudentId || !mountedRef.current || initializationStateRef.current.hasCheckedPending) {
       return;
     }
 
-    hasCheckedPendingRef.current = true;
+    initializationStateRef.current.hasCheckedPending = true;
     
     try {
       console.log(`🔍 [INVITE LISTENER] - Vérification des invitations en attente pour: ${currentStudentId}`);
@@ -114,23 +106,23 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
     } catch (error) {
       console.error('❌ [INVITE LISTENER] - Erreur vérification invitations:', error);
       // Reset en cas d'erreur pour permettre une nouvelle tentative
-      hasCheckedPendingRef.current = false;
+      initializationStateRef.current.hasCheckedPending = false;
     }
-  }, [handleInvitation]);
+  }, [handleInvitation]); // ✅ CORRECTION : Dépendance unique
 
-  // ✅ CORRECTION : Effet UNIQUE et SIMPLIFIÉ
+  // ✅ CORRECTION : Effet UNIQUE avec gestion d'état centralisée
   useEffect(() => {
     mountedRef.current = true;
     let channel: AblyTypes.RealtimeChannelCallbacks | null = null;
 
     const initializeListener = async () => {
-      const currentStudentId = studentIdRef.current;
+      const currentStudentId = studentId;
       if (!currentStudentId || !ablyClient || !ablyConnected || !mountedRef.current) {
         return;
       }
 
-      // ✅ CORRECTION : Éviter les réinitialisations inutiles
-      if (hasInitializedRef.current === currentStudentId) {
+      // ✅ CORRECTION : Éviter les réinitialisations inutiles avec état centralisé
+      if (initializationStateRef.current.hasInitialized && initializationStateRef.current.currentStudentId === currentStudentId) {
         console.log(`🔁 [INVITE LISTENER] - Déjà initialisé pour ${currentStudentId}`);
         return;
       }
@@ -142,11 +134,7 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
         channel = ablyClient.channels.get(channelName);
         channelRef.current = channel;
         
-        if (channel.state !== 'attached') {
-          await channel.attach();
-        }
-        
-        // ✅ CORRECTION : Handler défini une seule fois
+        // ✅ CORRECTION : Handler défini une seule fois avec référence stable
         const invitationHandler = (message: AblyTypes.Message) => {
           if (mountedRef.current && message.name === AblyEvents.SESSION_INVITATION) {
             console.log(`📨 [INVITE LISTENER] - Invitation temps réel: ${message.data.sessionId}`);
@@ -154,29 +142,41 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
           }
         };
         
+        // ✅ CORRECTION : Attendre l'attachement du canal
+        if (channel.state !== 'attached' && channel.state !== 'attaching') {
+          await channel.attach();
+        }
+        
         channel.subscribe(AblyEvents.SESSION_INVITATION, invitationHandler);
         
-        hasInitializedRef.current = currentStudentId;
+        // ✅ CORRECTION : Mise à jour de l'état centralisé
+        initializationStateRef.current = {
+          hasInitialized: true,
+          hasCheckedPending: initializationStateRef.current.hasCheckedPending,
+          currentStudentId
+        };
+        
         console.log(`✅ [INVITE LISTENER] - Abonnement réussi: ${channelName}`);
         
-        // ✅ CORRECTION : Vérifier les invitations UNE SEULE FOIS
-        if (!hasCheckedPendingRef.current) {
-          await checkPendingInvitations();
+        // ✅ CORRECTION : Vérifier les invitations UNE SEULE FOIS avec paramètre
+        if (!initializationStateRef.current.hasCheckedPending) {
+          await checkPendingInvitations(currentStudentId);
         }
         
       } catch (error) {
         console.error('❌ [INVITE LISTENER] - Erreur configuration Ably:', error);
-        hasInitializedRef.current = false;
-        hasCheckedPendingRef.current = false;
+        // ✅ CORRECTION : Reset partiel en cas d'erreur
+        initializationStateRef.current.hasInitialized = false;
       }
     };
 
-    // ✅ CORRECTION : Initialisation unique
-    initializeListener();
-
-    // ✅ CORRECTION : Nettoyage simple
+    // ✅ CORRECTION : Initialisation unique avec timeout pour éviter les conflits
+    const timeoutId = setTimeout(initializeListener, 100);
+    
+    // ✅ CORRECTION : Nettoyage complet
     return () => {
       mountedRef.current = false;
+      clearTimeout(timeoutId);
       
       if (channel) {
         try {
@@ -185,14 +185,13 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
         } catch (error) {
           console.warn('⚠️ [INVITE LISTENER] - Erreur lors du nettoyage:', error);
         }
+        channelRef.current = null;
       }
     };
-  // ✅ CORRECTION CRITIQUE : Dépendances MINIMALES
-  }, [ablyClient, ablyConnected, checkPendingInvitations, handleInvitation, studentId]);
+  // ✅ CORRECTION CRITIQUE : Dépendances MINIMALES et STABLES
+  }, [studentId, ablyClient, ablyConnected, checkPendingInvitations, handleInvitation]);
 
-  // ✅ SUPPRESSION de l'effet de reconnexion séparé - CAUSAIT LA BOUCLE
-
-  // ✅ Les fonctions restent identiques...
+  // ✅ CORRECTION : Fonction d'acceptation avec gestion d'erreur améliorée
   const handleAcceptInvitation = useCallback(async (invitation: SessionInvitation) => {
     if (!mountedRef.current) return;
     
@@ -206,7 +205,7 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sessionId: invitation.sessionId,
-          studentId: studentIdRef.current
+          studentId: studentId
         })
       });
       
@@ -226,14 +225,10 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
         
         console.log(`🔄 [INVITE LISTENER] - Navigation vers session: ${invitation.sessionId}`);
         
+        // ✅ CORRECTION : Navigation simplifiée
         setTimeout(() => {
           if (mountedRef.current) {
-            try {
-              window.location.href = `/session/${invitation.sessionId}`;
-            } catch (navError) {
-              console.error('❌ [INVITE LISTENER] - Erreur navigation:', navError);
-              router.push(`/session/${invitation.sessionId}`);
-            }
+            router.push(`/session/${invitation.sessionId}`);
           }
         }, 500);
       }
@@ -248,27 +243,32 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
         setIsJoiningSession(false);
       }
     }
-  }, [toast, router]);
+  }, [toast, router, studentId]);
 
-  const handleDeclineInvitation = useCallback(() => {
+  // ✅ CORRECTION : Fonction de refus avec dépendances correctes
+  const handleDeclineInvitation = useCallback(async () => {
     if (!mountedRef.current || !sessionInvitation) return;
     
     processedInvitationsRef.current.add(sessionInvitation.sessionId);
     
-    fetch('/api/session/decline-invitation', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sessionId: sessionInvitation.sessionId,
-        studentId: studentIdRef.current
-      })
-    }).catch(console.error);
+    try {
+      await fetch('/api/session/decline-invitation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: sessionInvitation.sessionId,
+          studentId: studentId
+        })
+      });
+    } catch (error) {
+      console.error('❌ [INVITE LISTENER] - Erreur refus invitation:', error);
+    }
     
     if (mountedRef.current) {
       setSessionInvitation(null);
       toast({ title: 'Invitation refusée' });
     }
-  }, [toast, sessionInvitation]);
+  }, [toast, sessionInvitation, studentId]);
 
   const handleCloseInvitation = useCallback(() => {
     if (mountedRef.current) {

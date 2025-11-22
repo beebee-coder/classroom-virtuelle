@@ -183,104 +183,122 @@ export function StudentSessionView({
     }, [localStream]);
 
     // CORRECTION : Fonction de rendu du contenu principal avec logs
-    const renderMainContent = useCallback(() => {
-        console.log(`🎯 [STUDENT VIEW] - Rendu contenu principal, outil: ${activeTool}, spotlightUser: ${spotlightedUser?.id}`);
-        
-        switch(activeTool) {
-            case 'document':
-                console.log(`📄 [STUDENT VIEW] - Affichage document: ${documentUrl}`);
-                return <DocumentViewer url={documentUrl} />;
-                
-            case 'whiteboard':
-                console.log(`🎨 [STUDENT VIEW] - Affichage whiteboard, contrôleur: ${whiteboardControllerId}`);
-                return (
-                    <div className="h-full w-full relative">
-                        <div className={`absolute top-2 left-2 z-10 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            isPresenceConnected 
-                                ? 'bg-green-100 text-green-800 border border-green-200' 
-                                : 'bg-yellow-100 text-yellow-800 border border-yellow-200'
-                        }`}>
-                            {isPresenceConnected 
-                                ? `✅ Connecté (${onlineMembersCount} en ligne)` 
-                                : '⏳ Connexion...'
-                            }
-                        </div>
-                        
-                        <Html5Whiteboard
-                            sessionId={sessionId}
-                            userId={currentUserId}
-                            isController={currentUserId === whiteboardControllerId}
-                            operations={whiteboardOperations}
-                            onEvent={handleWhiteboardEvent}
-                            flushOperations={handleFlushWhiteboardOperations}
-                        />
-                    </div>
-                );
-                
-            case 'quiz':
-                console.log(`❓ [STUDENT VIEW] - Affichage quiz: ${activeQuiz?.id}`);
-                return (
-                    <div className="h-full w-full flex items-center justify-center p-4">
-                        <QuizView
-                            quiz={activeQuiz!}
-                            isTeacherView={false}
-                            onSubmitResponse={onSubmitQuizResponse}
-                            results={quizResults}
-                        />
-                    </div>
-                );
-                
-            case 'camera':
-            default:
-                if (spotlightedStream) {
-                    return (
-                        <div className="w-full h-full relative bg-black">
-                             <Participant 
-                                stream={spotlightedStream}
-                                isLocal={false} 
-                                isSpotlighted={true}
-                                isTeacher={spotlightedUser?.role === Role.PROFESSEUR || !spotlightedUser}
-                                participantUserId={spotlightedUser?.id ?? 'professor'}
-                                displayName={spotlightedUser?.name ?? 'Professeur'}
-                                isHandRaised={isHandRaised}
-                            />
-                        </div>
-                    );
-                }
-
-                // CORRECTION : Affichage d'attente amélioré
-                return (
-                    <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/30 border-dashed">
-                        <CardContent className="text-center text-muted-foreground p-6">
-                            <div className="flex flex-col items-center gap-3">
-                                <VideoOff className="h-12 w-12 mx-auto text-orange-500" />
-                                <div>
-                                    <h3 className="font-semibold text-xl mb-2">
-                                        {spotlightedUser ? `${spotlightedUser.name} se connecte` : 'En attente du professeur...'}
-                                    </h3>
-                                    <p className="text-sm text-muted-foreground">
-                                        {spotlightedUser ? 'Connexion vidéo en cours...' : 'Le professeur rejoindra bientôt la session'}
-                                    </p>
-                                </div>
-                                <div className="flex items-center gap-2 text-xs text-orange-600">
-                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                    <span>Établissement de la connexion WebRTC</span>
-                                </div>
-                                <div className="text-xs text-gray-500 mt-2">
-                                    {spotlightedUser?.id ? `ID: ${spotlightedUser.id}` : 'En attente...'}
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                );
-        }
-    }, [
-        activeTool, documentUrl, whiteboardControllerId, currentUserId, whiteboardOperations,
-        spotlightedUser, spotlightedStream, isHandRaised, sessionId, isPresenceConnected,
-        onlineMembersCount, handleWhiteboardEvent, handleFlushWhiteboardOperations,
-        activeQuiz, onSubmitQuizResponse, quizResults
-    ]);
+   // CORRECTION : Fonction de rendu du contenu principal avec logs DÉTAILLÉS
+const renderMainContent = useCallback(() => {
+    // CORRECTION : Logs de débogage détaillés
+    console.log(`🔍 [STUDENT DEBUG] - spotlightedStream:`, spotlightedStream);
+    console.log(`🔍 [STUDENT DEBUG] - spotlightedStream actif: ${spotlightedStream?.active}`);
+    console.log(`🔍 [STUDENT DEBUG] - tracks vidéo: ${spotlightedStream?.getVideoTracks().length || 0}`);
+    console.log(`🔍 [STUDENT DEBUG] - tracks audio: ${spotlightedStream?.getAudioTracks().length || 0}`);
     
+    console.log(`🎯 [STUDENT VIEW] - Rendu contenu principal, outil: ${activeTool}, spotlightUser: ${spotlightedUser?.id}`);
+
+    switch(activeTool) {
+        case 'document':
+            console.log(`📄 [STUDENT VIEW] - Affichage document: ${documentUrl}`);
+            return <DocumentViewer url={documentUrl} />;
+            
+        case 'whiteboard':
+            console.log(`🎨 [STUDENT VIEW] - Affichage whiteboard, contrôleur: ${whiteboardControllerId}`);
+            return (
+                <div className="h-full w-full relative">
+                    <div className={`absolute top-2 left-2 z-10 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        isPresenceConnected 
+                            ? 'bg-green-100 text-green-800 border border-green-200' 
+                            : 'bg-yellow-100 text-yellow-800 border border-yellow-200'
+                    }`}>
+                        {isPresenceConnected 
+                            ? `✅ Connecté (${onlineMembersCount} en ligne)` 
+                            : '⏳ Connexion...'
+                        }
+                    </div>
+                    
+                    <Html5Whiteboard
+                        sessionId={sessionId}
+                        userId={currentUserId}
+                        isController={currentUserId === whiteboardControllerId}
+                        operations={whiteboardOperations}
+                        onEvent={handleWhiteboardEvent}
+                        flushOperations={handleFlushWhiteboardOperations}
+                    />
+                </div>
+            );
+            
+        case 'quiz':
+            console.log(`❓ [STUDENT VIEW] - Affichage quiz: ${activeQuiz?.id}`);
+            return (
+                <div className="h-full w-full flex items-center justify-center p-4">
+                    <QuizView
+                        quiz={activeQuiz!}
+                        isTeacherView={false}
+                        onSubmitResponse={onSubmitQuizResponse}
+                        results={quizResults}
+                    />
+                </div>
+            );
+            
+        case 'camera':
+        default:
+            console.log(`📹 [STUDENT VIEW] - Mode camera, spotlightStream: ${!!spotlightedStream}, actif: ${spotlightedStream?.active}`);
+            
+            if (spotlightedStream && spotlightedStream.active) {
+                console.log(`✅ [STUDENT VIEW] - Affichage du stream spotlight`);
+                return (
+                    <div className="w-full h-full relative bg-black">
+                         <Participant 
+                            stream={spotlightedStream}
+                            isLocal={false} 
+                            isSpotlighted={true}
+                            isTeacher={spotlightedUser?.role === Role.PROFESSEUR || !spotlightedUser}
+                            participantUserId={spotlightedUser?.id ?? 'professor'}
+                            displayName={spotlightedUser?.name ?? 'Professeur'}
+                            isHandRaised={isHandRaised}
+                        />
+                    </div>
+                );
+            }
+
+            // CORRECTION : Affichage d'attente amélioré avec infos de débogage
+            console.log(`⚠️ [STUDENT VIEW] - Aucun stream spotlight valide`);
+            return (
+                <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/30 border-dashed">
+                    <CardContent className="text-center text-muted-foreground p-6">
+                        <div className="flex flex-col items-center gap-3">
+                            <VideoOff className="h-12 w-12 mx-auto text-orange-500" />
+                            <div>
+                                <h3 className="font-semibold text-xl mb-2">
+                                    {spotlightedUser ? `${spotlightedUser.name} se connecte` : 'En attente du professeur...'}
+                                </h3>
+                                <p className="text-sm text-muted-foreground">
+                                    {spotlightedUser ? 'Connexion vidéo en cours...' : 'Le professeur rejoindra bientôt la session'}
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-orange-600">
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                <span>Établissement de la connexion WebRTC</span>
+                            </div>
+                            <div className="text-xs text-gray-500 mt-2">
+                                {spotlightedUser?.id ? `ID: ${spotlightedUser.id}` : 'En attente...'}
+                            </div>
+                            {/* CORRECTION : Informations de débogage détaillées */}
+                            <div className="text-xs text-gray-400 mt-4 p-2 bg-gray-100 rounded">
+                                <div>Stream reçu: {spotlightedStream ? 'Oui' : 'Non'}</div>
+                                <div>Stream actif: {spotlightedStream?.active ? 'Oui' : 'Non'}</div>
+                                <div>Tracks vidéo: {spotlightedStream?.getVideoTracks().length || 0}</div>
+                                <div>Tracks audio: {spotlightedStream?.getAudioTracks().length || 0}</div>
+                                <div>Spotlight User ID: {spotlightedUser?.id || 'Non défini'}</div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            );
+    }
+}, [
+    activeTool, documentUrl, whiteboardControllerId, currentUserId, whiteboardOperations,
+    spotlightedUser, spotlightedStream, isHandRaised, sessionId, isPresenceConnected,
+    onlineMembersCount, handleWhiteboardEvent, handleFlushWhiteboardOperations,
+    activeQuiz, onSubmitQuizResponse, quizResults
+]);
     const mainContent = useMemo(() => renderMainContent(), [renderMainContent]);
     
     return (

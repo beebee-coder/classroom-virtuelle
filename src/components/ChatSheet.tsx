@@ -48,10 +48,12 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
   const channelRef = useRef<Ably.Types.RealtimeChannelCallbacks | null>(null);
   const listenersRef = useRef<Map<string, (message: Ably.Types.Message) => void>>(new Map());
   const isMountedRef = useRef(true);
-  const hasInitializedRef = useRef(false);
 
-  const { client: ablyClient, isConnected: ablyConnected, connectionState } = useAbly();
+  const { client: ablyClient, isConnected: ablyConnected, connectionState } = useAbly('ChatSheet');
+  
+  // ✅ CORRECTION : Logique de chargement améliorée
   const ablyLoading = connectionState === 'initialized' || connectionState === 'connecting';
+  const ablyReady = ablyClient && ablyConnected && !ablyLoading;
 
   // ✅ CORRECTION : Fonction de récupération des messages avec gestion d'erreur améliorée
   const fetchMessages = useCallback(async () => {
@@ -84,22 +86,21 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
     }
   }, [classroomId, toast]);
 
-  // ✅ CORRECTION : Effet simplifié pour charger les messages
+  // ✅ CORRECTION : Effet simplifié pour charger les messages - SUPPRIME hasInitializedRef
   useEffect(() => {
-    if (isOpen && classroomId && !hasInitializedRef.current) {
-      hasInitializedRef.current = true;
+    if (isOpen && classroomId) {
       fetchMessages();
     }
   }, [isOpen, classroomId, fetchMessages]);
 
-  // ✅ CORRECTION : Gestion du cycle de vie avec reset
+  // ✅ CORRECTION : Gestion du cycle de vie simplifiée
   useEffect(() => {
     isMountedRef.current = true;
-    hasInitializedRef.current = false;
     
     return () => {
       isMountedRef.current = false;
-      hasInitializedRef.current = false;
+      // ✅ CORRECTION : Nettoyage à la fermeture du composant
+      cleanupAbly();
     };
   }, []);
 
@@ -122,9 +123,10 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
     }
   }, []);
 
-  // ✅ CORRECTION : Configuration Ably robuste avec gestion d'état
+  // ✅ CORRECTION : Configuration Ably robuste avec gestion d'état AMÉLIORÉE
   useEffect(() => {
-    if (!classroomId || !isOpen || !ablyClient || ablyLoading || !ablyConnected) {
+    // ✅ CORRECTION : Conditions simplifiées et plus permissives
+    if (!classroomId || !isOpen || !ablyReady) {
       console.log(`⏳ [CHAT] - Configuration Ably différée:`, {
         hasClassroomId: !!classroomId,
         isOpen,
@@ -237,7 +239,7 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
     }
 
     return cleanupAbly;
-  }, [classroomId, isOpen, toast, ablyClient, ablyLoading, ablyConnected, cleanupAbly]);
+  }, [classroomId, isOpen, toast, ablyClient, ablyReady, cleanupAbly, ablyLoading, ablyConnected]);
 
   // ✅ CORRECTION : Auto-scroll optimisé
   useEffect(() => {

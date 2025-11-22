@@ -353,12 +353,39 @@ export default function SessionClient({
     [allSessionUsers, spotlightedParticipantId]
   );
 
-  const spotlightedStream = useMemo(() => 
-    spotlightedParticipantId === currentUserId 
-      ? activeStream 
-      : remoteStreams.get(spotlightedParticipantId || '') || null,
-    [spotlightedParticipantId, currentUserId, activeStream, remoteStreams]
-  );
+ // CORRECTION CRITIQUE : Calcul du spotlightedStream amélioré
+const spotlightedStream = useMemo(() => {
+  console.log(`🔦 [SPOTLIGHT STREAM] - Calcul pour participant: ${spotlightedParticipantId}, currentUser: ${currentUserId}`);
+  
+
+  
+  if (!spotlightedParticipantId) {
+    console.log(`🔦 [SPOTLIGHT STREAM] - Aucun participant spotlighté`);
+    return null;
+  }
+  
+  // CORRECTION : Si c'est l'utilisateur courant, utiliser le stream local
+  if (spotlightedParticipantId === currentUserId) {
+    console.log(`🔦 [SPOTLIGHT STREAM] - Utilisation stream local: ${activeStream?.active ? 'actif' : 'inactif'}`);
+    return activeStream;
+  }
+  
+  // CORRECTION : Recherche dans les streams distants
+  const remoteStream = remoteStreams.get(spotlightedParticipantId);
+  console.log(`🔦 [SPOTLIGHT STREAM] - Stream distant trouvé: ${remoteStream ? 'oui' : 'non'}, actif: ${remoteStream?.active ? 'oui' : 'non'}`);
+  
+  if (remoteStream && remoteStream.active) {
+    // CORRECTION : Log détaillé du stream distant
+    const videoTracks = remoteStream.getVideoTracks();
+    const audioTracks = remoteStream.getAudioTracks();
+    console.log(`🔦 [SPOTLIGHT STREAM] - Tracks vidéo: ${videoTracks.length}, audio: ${audioTracks.length}`);
+    
+    return remoteStream;
+  }
+  
+  console.log(`🔦 [SPOTLIGHT STREAM] - Aucun stream valide trouvé pour ${spotlightedParticipantId}`);
+  return null;
+}, [spotlightedParticipantId, currentUserId, activeStream, remoteStreams]);
 
   const remoteParticipants = useMemo(() => 
     Array.from(remoteStreams.entries()).map(([id, stream]) => ({ id, stream })),
@@ -379,7 +406,12 @@ export default function SessionClient({
   if (isMediaLoading) {
     return <SessionLoading />;
   }
-
+// CORRECTION : Logs de débogage pour le spotlightedStream
+console.log(`🔍 [DEBUG SPOTLIGHT] - spotlightedParticipantId: ${spotlightedParticipantId}`);
+console.log(`🔍 [DEBUG SPOTLIGHT] - currentUserId: ${currentUserId}`);
+console.log(`🔍 [DEBUG SPOTLIGHT] - remoteStreams keys: ${Array.from(remoteStreams.keys())}`);
+console.log(`🔍 [DEBUG SPOTLIGHT] - spotlightedStream calculé:`, spotlightedStream);
+console.log(`🔍 [DEBUG SPOTLIGHT] - spotlightedStream actif: ${spotlightedStream?.active}`);
   console.log(`🎯 [SESSION CLIENT] - Rendu pour ${currentUserRole}, whiteboard initialisé: ${isWhiteboardInitialized}`);
 
   return (
