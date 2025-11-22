@@ -58,7 +58,7 @@ export function StudentSessionView({
     onLeaveSession,
     currentUnderstanding,
     currentUserId,
-    activeTool,
+    activeTool, // Reçu mais sera peut-être géré localement
     documentUrl,
     whiteboardControllerId,
     timerTimeLeft,
@@ -74,21 +74,32 @@ export function StudentSessionView({
     const { toast } = useToast();
     const { data: session } = useSession();
 
+    // CORRECTION : État local pour gérer la vue principale de l'élève
+    const [mainView, setMainView] = useState<'spotlight' | 'whiteboard' | 'document' | 'quiz' | 'chat'>('spotlight');
+
     const [isHandRaiseLoading, setIsHandRaiseLoading] = useState(false);
     const [isUnderstandingLoading, setIsUnderstandingLoading] = useState(false);
     const [debugInfo, setDebugInfo] = useState<string>('');
     
-    // CORRECTION : Référence pour éviter les effets excessifs
     const debugInfoRef = useRef<string>('');
     
-    // CORRECTION : Heartbeat avec gestion d'erreur robuste
+    // CORRECTION : Mettre à jour la vue de l'élève en fonction de l'outil actif envoyé par le prof
+    useEffect(() => {
+        if (activeTool === 'whiteboard' || activeTool === 'document' || activeTool === 'chat') {
+            setMainView(activeTool);
+        } else if (activeQuiz) {
+            setMainView('quiz');
+        } else {
+            setMainView('spotlight');
+        }
+    }, [activeTool, activeQuiz]);
+
     useEffect(() => {
         const ACTIVITY_INTERVAL_MS = 30000;
         
         const intervalId = setInterval(() => {
             trackStudentActivity(ACTIVITY_INTERVAL_MS / 1000)
                 .then((result) => {
-                    // CORRECTION : Validation du résultat
                     if (result && result.success && result.pointsAwarded > 0) {
                         console.log(`✨ [HEARTBEAT] +${result.pointsAwarded} points attribués.`);
                     } else if (result && !result.success) {
@@ -105,10 +116,8 @@ export function StudentSessionView({
         };
     }, [sessionId]);
 
-    // CORRECTION : Handler lever/main avec validation améliorée
     const handleToggleHandRaise = useCallback(async (): Promise<void> => {
         if (isHandRaiseLoading) {
-            console.log('⏳ [STUDENT VIEW] - Déjà en train de traiter la main');
             return;
         }
         
@@ -117,9 +126,6 @@ export function StudentSessionView({
         
         const previousHandRaiseState = isHandRaised;
         
-        console.log(`✋ [STUDENT VIEW] - ${newHandRaiseState ? 'Lever' : 'Baisser'} la main`);
-        
-        // Mettre à jour l'état local immédiatement pour un feedback visuel rapide
         onToggleHandRaise(newHandRaiseState);
         
         try {
@@ -128,9 +134,7 @@ export function StudentSessionView({
                 understanding: currentUnderstanding
             });
             
-            if (result.success) {
-                console.log(`✅ [STUDENT VIEW] - Statut main mis à jour: ${newHandRaiseState}`);
-            } else {
+            if (!result.success) {
                 throw new Error('Erreur inconnue lors de la mise à jour du statut');
             }
         } catch (error) {
@@ -140,17 +144,14 @@ export function StudentSessionView({
                 title: 'Erreur', 
                 description: 'Impossible de mettre à jour le statut de la main levée.'
             });
-            // Revenir à l'état précédent en cas d'erreur
             onToggleHandRaise(previousHandRaiseState);
         } finally {
             setIsHandRaiseLoading(false);
         }
     }, [isHandRaiseLoading, isHandRaised, sessionId, currentUnderstanding, onToggleHandRaise, toast]);
     
-    // CORRECTION : Handler compréhension avec validation améliorée
     const handleUnderstandingUpdate = useCallback(async (status: ComprehensionLevel): Promise<void> => {
         if (isUnderstandingLoading) {
-            console.log('⏳ [STUDENT VIEW] - Déjà en train de traiter la compréhension');
             return;
         }
         
@@ -159,9 +160,6 @@ export function StudentSessionView({
         
         const previousStatus = currentUnderstanding;
         
-        console.log(`🧠 [STUDENT VIEW] - Changement compréhension: ${newStatus}`);
-        
-        // Mettre à jour l'état local immédiatement
         onUnderstandingChange(newStatus);
         
         try {
@@ -170,9 +168,7 @@ export function StudentSessionView({
                 isHandRaised
             });
             
-            if (result.success) {
-                console.log(`✅ [STUDENT VIEW] - Statut compréhension mis à jour: ${newStatus}`);
-            } else {
+            if (!result.success) {
                 throw new Error('Erreur inconnue lors de la mise à jour de la compréhension');
             }
         } catch (error) {
@@ -182,54 +178,37 @@ export function StudentSessionView({
                 title: 'Erreur', 
                 description: 'Impossible de mettre à jour le statut de compréhension.'
             });
-            // Revenir à l'état précédent en cas d'erreur
             onUnderstandingChange(previousStatus);
         } finally {
             setIsUnderstandingLoading(false);
         }
     }, [isUnderstandingLoading, currentUnderstanding, sessionId, isHandRaised, onUnderstandingChange, toast]);
 
-    // CORRECTION : Handler whiteboard avec validation
     const handleWhiteboardEvent = useCallback((operations: WhiteboardOperation[]) => {
         if (!operations || !Array.isArray(operations)) {
-            console.warn('⚠️ [STUDENT VIEW] - Opérations whiteboard invalides:', operations);
             return;
         }
-        
-        console.log(`🎨 [STUDENT VIEW] - ${operations.length} opérations whiteboard`);
         onWhiteboardEvent(operations);
     }, [onWhiteboardEvent]);
 
-    // CORRECTION : Handler flush avec validation
     const handleFlushWhiteboardOperations = useCallback(() => {
-        console.log(`🔄 [STUDENT VIEW] - Flush des opérations whiteboard`);
         if (flushWhiteboardOperations && typeof flushWhiteboardOperations === 'function') {
             flushWhiteboardOperations();
-        } else {
-            console.warn('⚠️ [STUDENT VIEW] - Fonction flushWhiteboardOperations non disponible');
         }
     }, [flushWhiteboardOperations]);
 
-    // CORRECTION : Validation du stream local optimisée
     const isLocalStreamValid = useMemo(() => {
-        const isValid = !!localStream && 
-                      localStream.active && 
-                      (localStream.getAudioTracks().length > 0 || localStream.getVideoTracks().length > 0);
-        
-        console.log(`📹 [STUDENT VIEW] - Stream local valide: ${isValid}`);
-        return isValid;
+        return !!localStream && 
+               localStream.active && 
+               (localStream.getAudioTracks().length > 0 || localStream.getVideoTracks().length > 0);
     }, [localStream]);
 
-    // CORRECTION : Validation du stream spotlight optimisée
     const isSpotlightStreamValid = useMemo(() => {
-        if (!spotlightedStream) {
-            return false;
-        }
+        if (!spotlightedStream) return false;
         
         const isValid = spotlightedStream.active && 
                        (spotlightedStream.getVideoTracks().length > 0 || spotlightedStream.getAudioTracks().length > 0);
         
-        // CORRECTION : Vérification supplémentaire des tracks
         const videoTracks = spotlightedStream.getVideoTracks();
         const audioTracks = spotlightedStream.getAudioTracks();
         const hasActiveTracks = videoTracks.some(track => track.readyState === 'live') || 
@@ -237,7 +216,6 @@ export function StudentSessionView({
         
         const finalValid = isValid && hasActiveTracks;
         
-        // CORRECTION : Mise à jour des infos de débogage
         if (process.env.NODE_ENV === 'development') {
             const newDebugInfo = `Stream: ${spotlightedStream ? 'Oui' : 'Non'}, Actif: ${spotlightedStream?.active}, ` +
                                `Vidéo: ${videoTracks.length}, Audio: ${audioTracks.length}, ` +
@@ -252,22 +230,13 @@ export function StudentSessionView({
         return finalValid;
     }, [spotlightedStream]);
 
-    // CORRECTION : Fonction de rendu du contenu principal OPTIMISÉE
     const renderMainContent = useCallback((): ReactNode => {
-        // CORRECTION : Logs de débogage conditionnels (uniquement en développement)
-        if (process.env.NODE_ENV === 'development') {
-            console.log(`🎯 [STUDENT VIEW] - Rendu contenu principal, outil: ${activeTool}, spotlightUser: ${spotlightedUser?.id}`);
-            console.log(`🔍 [STUDENT DEBUG] - spotlightedStream valide: ${isSpotlightStreamValid}`);
-            console.log(`🔍 [STUDENT DEBUG] - ${debugInfo}`);
-        }
-
-        switch(activeTool) {
+        // CORRECTION : Utiliser l'état local `mainView`
+        switch(mainView) {
             case 'document':
-                console.log(`📄 [STUDENT VIEW] - Affichage document: ${documentUrl ? 'Oui' : 'Non'}`);
                 return <DocumentViewer url={documentUrl} />;
                 
             case 'whiteboard':
-                console.log(`🎨 [STUDENT VIEW] - Affichage whiteboard, contrôleur: ${whiteboardControllerId}`);
                 return (
                     <div className="h-full w-full relative">
                         <div className={`absolute top-2 left-2 z-10 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
@@ -307,17 +276,14 @@ export function StudentSessionView({
                 return <p>Impossible de charger le chat.</p>;
                 
             case 'quiz':
-                console.log(`❓ [STUDENT VIEW] - Affichage quiz: ${activeQuiz?.id || 'Aucun'}`);
-                
                 if (!activeQuiz) {
                     return (
-                        <div className="h-full w-full flex items-center justify-center p-4">
-                            <Card className="p-6 text-center">
-                                <CardContent>
-                                    <p className="text-muted-foreground">Aucun quiz actif</p>
-                                </CardContent>
-                            </Card>
-                        </div>
+                        <Card className="h-full w-full flex flex-col items-center justify-center">
+                            <CardContent className="text-center text-muted-foreground p-6">
+                                <Loader2 className="h-10 w-10 mx-auto mb-4 animate-spin" />
+                                <h3 className="font-semibold">En attente du quiz...</h3>
+                            </CardContent>
+                        </Card>
                     );
                 }
                 
@@ -332,12 +298,9 @@ export function StudentSessionView({
                     </div>
                 );
                 
-            case 'camera':
+            case 'spotlight':
             default:
-                console.log(`📹 [STUDENT VIEW] - Mode camera, spotlightStream valide: ${isSpotlightStreamValid}`);
-                
                 if (isSpotlightStreamValid) {
-                    console.log(`✅ [STUDENT VIEW] - Affichage du stream spotlight`);
                     return (
                         <div className="w-full h-full relative bg-black rounded-lg overflow-hidden">
                             <Participant 
@@ -353,8 +316,6 @@ export function StudentSessionView({
                     );
                 }
 
-                // CORRECTION : Affichage d'attente amélioré avec infos contextuelles
-                console.log(`⚠️ [STUDENT VIEW] - Aucun stream spotlight valide`);
                 return (
                     <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/30 border-dashed">
                         <CardContent className="text-center text-muted-foreground p-6">
@@ -371,34 +332,17 @@ export function StudentSessionView({
                                         }
                                     </p>
                                 </div>
-                                
-                                {/* CORRECTION : Indicateur de statut de connexion */}
                                 <div className="flex items-center gap-2 text-xs text-orange-600">
                                     <Loader2 className="h-3 w-3 animate-spin" />
                                     <span>Connexion WebRTC en cours...</span>
                                 </div>
-                                
-                                {/* CORRECTION : Informations de débogage conditionnelles */}
-                                {process.env.NODE_ENV === 'development' && (
-                                    <div className="text-xs text-gray-400 mt-4 p-2 bg-gray-100 rounded max-w-md">
-                                        <div className="font-medium mb-1">Informations de débogage:</div>
-                                        <div className="text-left space-y-1">
-                                            <div>• Stream reçu: {spotlightedStream ? 'Oui' : 'Non'}</div>
-                                            <div>• Stream actif: {spotlightedStream?.active ? 'Oui' : 'Non'}</div>
-                                            <div>• Tracks vidéo: {spotlightedStream?.getVideoTracks().length || 0}</div>
-                                            <div>• Tracks audio: {spotlightedStream?.getAudioTracks().length || 0}</div>
-                                            <div>• Utilisateur spotlight: {spotlightedUser?.id || 'Non défini'}</div>
-                                            <div>• Validation finale: {isSpotlightStreamValid ? 'Valide' : 'Invalide'}</div>
-                                        </div>
-                                    </div>
-                                )}
                             </div>
                         </CardContent>
                     </Card>
                 );
         }
     }, [
-        activeTool,
+        mainView, // CORRECTION : Dépendance à l'état de vue local
         documentUrl,
         whiteboardControllerId,
         currentUserId,
@@ -419,17 +363,15 @@ export function StudentSessionView({
         debugInfo
     ]);
 
-    // CORRECTION : Mémoization du contenu principal
     const mainContent = useMemo(() => renderMainContent(), [renderMainContent]);
     
     return (
         <div className="flex flex-row flex-1 min-h-0 gap-4">
-            {/* CORRECTION : Contenu principal */}
             <div className="flex-1 flex flex-col min-w-0">
                 <div className="w-full h-full relative rounded-lg overflow-hidden border bg-card">
                     <AnimatePresence mode="wait">
                         <motion.div
-                            key={activeTool}
+                            key={mainView} // CORRECTION : Utiliser `mainView` comme clé
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.95 }}
@@ -442,13 +384,11 @@ export function StudentSessionView({
                 </div>
             </div>
 
-            {/* CORRECTION : Sidebar avec contenu conditionnel */}
             <div className="w-60 flex-shrink-0 flex flex-col">
                 <motion.div layout className="h-full flex flex-col gap-1">
                     <ScrollArea className="flex-1 pr-3 -mr-3">
                          <div className="space-y-4">
-                             {/* CORRECTION : Affichage conditionnel du spotlight dans la sidebar */}
-                             {activeTool !== 'camera' && isSpotlightStreamValid && (
+                             {mainView !== 'spotlight' && isSpotlightStreamValid && (
                                 <AnimatedCard title={spotlightedUser?.name || "Professeur"}>
                                     <div className="p-2">
                                          <Participant
@@ -463,7 +403,6 @@ export function StudentSessionView({
                                 </AnimatedCard>
                              )}
                              
-                             {/* CORRECTION : Affichage de la vidéo locale */}
                              <AnimatedCard title="Ma Vidéo">
                                 <div className="p-2">
                                     {isLocalStreamValid ? (
@@ -485,7 +424,6 @@ export function StudentSessionView({
                                 </div>
                             </AnimatedCard>
                              
-                             {/* CORRECTION : Minuteur */}
                              <AnimatedCard title="Minuteur">
                                  <SessionTimer
                                     isTeacher={false}
@@ -499,7 +437,6 @@ export function StudentSessionView({
                                 />
                              </AnimatedCard>
                              
-                             {/* CORRECTION : Contrôles étudiants */}
                              <AnimatedCard title="Mes Outils">
                                  <StudentSessionControls
                                     isHandRaised={isHandRaised}
@@ -510,8 +447,7 @@ export function StudentSessionView({
                                 />
                             </AnimatedCard>
                             
-                            {/* CORRECTION : Statut whiteboard conditionnel */}
-                            {activeTool === 'whiteboard' && (
+                            {mainView === 'whiteboard' && (
                                 <AnimatedCard title="Contrôle Tableau">
                                     <div className="p-2 text-center">
                                         <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
