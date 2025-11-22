@@ -1,4 +1,3 @@
-
 // src/app/student/class/[id]/page.tsx - VERSION CORRIGÉE
 import { notFound, redirect } from 'next/navigation';
 import { getServerSession } from "next-auth";
@@ -7,6 +6,7 @@ import { Header } from '@/components/Header';
 import { StudentClassView } from '@/components/StudentClassView';
 import type { User, Classroom, EtatEleve } from '@prisma/client';
 import prisma from '@/lib/prisma';
+import { ChatSheet } from '@/components/ChatSheet';
 
 export type ClassroomWithStudents = Classroom & {
     eleves: (User & {
@@ -48,16 +48,6 @@ export default async function StudentClassPage({ params }: { params: { id: strin
   // CORRECTION: Récupérer l'utilisateur complet depuis la base de données
   const currentUser = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      image: true,
-      role: true,
-      points: true,
-      classeId: true,
-      // Ajouter d'autres champs nécessaires pour StudentClassView
-    }
   });
 
   if (!currentUser) {
@@ -65,15 +55,17 @@ export default async function StudentClassPage({ params }: { params: { id: strin
   }
 
   return (
-    <>
-      <Header user={session.user} />
+    <div className="flex flex-col min-h-screen">
+      <Header user={session.user}>
+        {currentUser.classeId && currentUser.role && (
+          <ChatSheet classroomId={currentUser.classeId} userId={currentUser.id} userRole={currentUser.role} />
+        )}
+      </Header>
       {/* CORRECTION: Passage de l'utilisateur complet avec le bon type */}
       <StudentClassView 
         classroom={classroom as ClassroomWithStudents} 
         currentUser={currentUser as User}
       />
-    </>
+    </div>
   );
 }
-
-    

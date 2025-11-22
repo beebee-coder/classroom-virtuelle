@@ -19,7 +19,7 @@ interface StudentClassViewProps {
 
 export function StudentClassView({ classroom, currentUser }: StudentClassViewProps) {
     const { data: session } = useSession();
-    const { onlineMembers, isConnected, enterPresence, isLoading } = useAblyPresence(classroom.id, true);
+    const { onlineMembers, isConnected, enterPresence, isLoading } = useAblyPresence(classroom.id, true, 'StudentClassView');
     const [hasEnteredPresence, setHasEnteredPresence] = useState(false);
 
     // CORRECTION PRODUCTION: L'étudiant entre en présence quand le canal est prêt

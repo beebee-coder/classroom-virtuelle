@@ -49,7 +49,8 @@ export default function StudentPageClient({
 
     const { enterPresence, isConnected: presenceConnected } = useAblyPresence(
         classeId,
-        !isTeacherView && !!classeId && !!user
+        !isTeacherView && !!classeId && !!user,
+        'StudentPageClient'
     );
 
     useEffect(() => {

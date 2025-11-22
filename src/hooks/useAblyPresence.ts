@@ -41,9 +41,9 @@ if (typeof globalThis.activePresenceChannels === 'undefined') {
 const PRESENCE_UPDATE_DELAY_MS = 2000;
 const MAX_PRESENCE_UPDATES_PER_MINUTE = 30;
 
-export const useAblyPresence = (channelId?: string, enabled: boolean = true): UseAblyPresenceReturn => {
-  const { client, connectionState } = useAbly('useAblyPresence');
-  const { isConnected: ablyConnected, error: healthError } = useAblyHealth('useAblyPresence'); // Utilisation du hook de santé
+export const useAblyPresence = (channelId?: string, enabled: boolean = true, componentName: string = 'UnknownPresenceUser'): UseAblyPresenceReturn => {
+  const { client, connectionState } = useAbly(componentName);
+  const { isConnected: ablyConnected, error: healthError } = useAblyHealth(componentName); // Utilisation du hook de santé
   const [onlineMembers, setOnlineMembers] = useState<AblyPresenceMember[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);

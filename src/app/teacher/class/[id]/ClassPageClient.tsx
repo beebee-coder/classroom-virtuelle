@@ -1,4 +1,3 @@
-
 // src/app/teacher/class/[id]/ClassPageClient.tsx - VERSION CORRIGÉE POUR LA PRÉSENCE
 'use client';
 
@@ -36,7 +35,8 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
         isLoading 
     } = useAblyPresence(
         classroom?.id,
-        !!classroom?.id
+        !!classroom?.id,
+        'ClassPageClient'
     );
 
     // ✅ CORRECTION : Entrer dans la présence avec gestion robuste des erreurs
@@ -286,5 +286,3 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
         </main>
     );
 }
-
-    
