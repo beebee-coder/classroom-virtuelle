@@ -18,14 +18,14 @@ interface AblyHealthState {
 /**
  * A hook to monitor the health and status of the Ably connection.
  * Uses the shared Ably client instance for consistency.
+ * @param componentName The name of the component using the hook, for debugging.
  * @returns The current connection status and a user-friendly error message if any.
  */
-export function useAblyHealth(): AblyHealthState {
-    const { client, connectionState, connectionError, isConnected } = useAbly('useAblyHealth');
+export function useAblyHealth(componentName: string = 'UnknownHealthUser'): AblyHealthState {
+    const { client, connectionState, connectionError, isConnected } = useAbly(componentName);
     
     const [error, setError] = useState<string | null>(null);
     
-    // CORRECTION: Utiliser directement les valeurs de useAbly sans duplication d'état
     const status = (connectionState || 'initialized') as AblyConnectionStatus;
     const isLoading = connectionState === 'initialized' || connectionState === 'connecting';
 
@@ -40,7 +40,6 @@ export function useAblyHealth(): AblyHealthState {
         const handleStateChange = (stateChange: Ably.Types.ConnectionStateChange) => {
             console.log(`[useAblyHealth] - Ably connection state change: ${stateChange.previous} -> ${stateChange.current}`);
             
-            // CORRECTION: Ne pas dupliquer l'état, laisser useAbly gérer
             if (stateChange.reason) {
                 console.error('[useAblyHealth] - Connection error reason:', stateChange.reason);
                 const friendlyError = getFriendlyErrorMessage(stateChange.reason);
@@ -50,7 +49,6 @@ export function useAblyHealth(): AblyHealthState {
                     console.error(`[useAblyHealth] - Critical connection error: ${friendlyError}`);
                 }
             } else {
-                // CORRECTION: Effacer l'erreur lors de la reconnexion
                 if (stateChange.current === 'connected') {
                     setError(null);
                 }
@@ -65,7 +63,6 @@ export function useAblyHealth(): AblyHealthState {
         };
     }, [client, connectionState]);
 
-    // CORRECTION: Gestion centralisée des erreurs
     useEffect(() => {
         if (connectionError) {
             console.error('[useAblyHealth] - Connection error from useAbly hook:', connectionError);

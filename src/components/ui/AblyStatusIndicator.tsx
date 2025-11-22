@@ -18,7 +18,7 @@ const statusConfig: Record<AblyConnectionStatus, { color: string; label: string;
 };
 
 export function AblyStatusIndicator() {
-    const { status, error } = useAblyHealth();
+    const { status, error } = useAblyHealth('AblyStatusIndicator');
     const config = statusConfig[status] || statusConfig.failed;
     const Icon = config.icon;
 

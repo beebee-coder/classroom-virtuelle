@@ -7,6 +7,7 @@ import type { AblyPresenceMember } from '@/lib/ably/types';
 import { getClassChannelName } from '@/lib/ably/channels';
 import Ably from 'ably';
 import { Role } from '@prisma/client';
+import { useAblyHealth } from './useAblyHealth'; // Importation du hook de santé
 
 type AblyChannel = Ably.Types.RealtimeChannelCallbacks;
 type AblyChannelStateChange = Ably.Types.ChannelStateChange;
@@ -37,12 +38,12 @@ if (typeof globalThis.activePresenceChannels === 'undefined') {
   globalThis.activePresenceChannels = new Map();
 }
 
-// ✅ CORRECTION : Constantes pour le rate limiting
 const PRESENCE_UPDATE_DELAY_MS = 2000;
 const MAX_PRESENCE_UPDATES_PER_MINUTE = 30;
 
 export const useAblyPresence = (channelId?: string, enabled: boolean = true): UseAblyPresenceReturn => {
-  const { client, connectionError, isConnected: ablyConnected, connectionState } = useAbly('useAblyPresence');
+  const { client, connectionState } = useAbly('useAblyPresence');
+  const { isConnected: ablyConnected, error: healthError } = useAblyHealth('useAblyPresence'); // Utilisation du hook de santé
   const [onlineMembers, setOnlineMembers] = useState<AblyPresenceMember[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<AblyErrorInfo | null>(null);
@@ -53,7 +54,6 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
   const currentChannelNameRef = useRef<string | null>(null);
   const componentIdRef = useRef(`presence_${Math.random().toString(36).substring(2, 8)}`);
   
-  // ✅ CORRECTION : Système de rate limiting simplifié
   const lastPresenceUpdateRef = useRef<number>(0);
   const presenceUpdateCountRef = useRef<number>(0);
   const presenceUpdateResetTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -63,11 +63,9 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
     [connectionState]
   );
 
-  // ✅ CORRECTION : Fonction de vérification du rate limiting simplifiée
   const canUpdatePresence = useCallback(() => {
     const now = Date.now();
     
-    // Réinitialiser le compteur toutes les minutes
     if (presenceUpdateResetTimeoutRef.current === null) {
       presenceUpdateResetTimeoutRef.current = setTimeout(() => {
         presenceUpdateCountRef.current = 0;
@@ -75,13 +73,11 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
       }, 60000);
     }
     
-    // Vérifier la limite par minute
     if (presenceUpdateCountRef.current >= MAX_PRESENCE_UPDATES_PER_MINUTE) {
       console.warn(`⏸️ [PRESENCE HOOK] - Rate limiting: ${presenceUpdateCountRef.current} updates cette minute`);
       return false;
     }
     
-    // Vérifier le délai minimum entre les updates
     if (now - lastPresenceUpdateRef.current < PRESENCE_UPDATE_DELAY_MS) {
       console.warn(`⏸️ [PRESENCE HOOK] - Délai trop court depuis dernière update: ${now - lastPresenceUpdateRef.current}ms`);
       return false;
@@ -90,12 +86,10 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
     return true;
   }, []);
 
-  // ✅ CORRECTION : Fonction utilitaire pour valider les rôles
   const isValidRole = useCallback((role: any): role is Role => {
     return Object.values(Role).includes(role);
   }, []);
 
-  // ✅ CORRECTION : Fonction améliorée pour extraire les données de présence
   const extractPresenceData = useCallback((message: AblyPresenceMessage): AblyPresenceMember | null => {
     if (!message.clientId) {
       console.warn('⚠️ [PRESENCE HOOK] - Message de présence sans clientId:', message);
@@ -155,7 +149,6 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
     }
   }, [isValidRole]);
 
-  // ✅ CORRECTION : Mise à jour des membres en ligne avec debouncing
   const updateOnlineMembers = useCallback(() => {
     if (!mountedRef.current) return;
     
@@ -171,7 +164,6 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
     }
   }, []);
 
-  // ✅ CORRECTION : Gestion robuste du compteur de références
   const manageChannelRefCount = useCallback((channelName: string, increment: boolean) => {
     if (!mountedRef.current) return;
 
@@ -203,7 +195,6 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
     }
   }, []);
 
-  // ✅ CORRECTION : Effet principal SIMPLIFIÉ et unifié
   useEffect(() => {
     mountedRef.current = true;
 
@@ -237,7 +228,6 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
           };
           globalThis.activePresenceChannels.set(channelName, channelInfo);
           
-          // ✅ CORRECTION : Configuration UNIQUE des handlers
           const stateHandler = (stateChange: AblyChannelStateChange) => {
             if (!mountedRef.current) return;
             
@@ -249,7 +239,6 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
               
               channelInfo!.lastPresenceUpdate = Date.now();
               
-              // ✅ CORRECTION : Initialisation différée sécurisée
               setTimeout(() => {
                 if (mountedRef.current && channel.state === 'attached') {
                   initializePresenceData(channel, channelInfo!);
@@ -289,7 +278,6 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
             setTimeout(updateOnlineMembers, 100);
           };
 
-          // ✅ CORRECTION : Fonction d'initialisation avec vérification de null-safety
           const initializePresenceData = (targetChannel: AblyChannel, targetChannelInfo: { 
             refCount: number; 
             channel: AblyChannel;
@@ -332,7 +320,6 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
             }
           };
 
-          // ✅ CORRECTION : Attacher les handlers UNE SEULE FOIS
           channel.on(stateHandler);
           channel.presence.subscribe(onPresenceUpdate);
 
@@ -360,13 +347,11 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
       }
     };
 
-    // ✅ CORRECTION : Délai d'initialisation pour étaler les connexions
     setTimeout(initializePresence, Math.random() * 1000);
 
     return () => {
       mountedRef.current = false;
       
-      // ✅ CORRECTION : Nettoyage des timeouts
       if (presenceUpdateResetTimeoutRef.current) {
         clearTimeout(presenceUpdateResetTimeoutRef.current);
         presenceUpdateResetTimeoutRef.current = null;
@@ -382,7 +367,6 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
     };
   }, [channelId, enabled, client, manageChannelRefCount, updateOnlineMembers, extractPresenceData]);
 
-  // ✅ CORRECTION : Fonctions de présence avec rate limiting
   const enterPresence = useCallback(async (userData: Omit<AblyPresenceMember, 'id'>) => {
     const channel = channelRef.current;
     if (!channel || !isConnected || isEnteringRef.current) {
@@ -390,7 +374,6 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
       throw new Error('Canal de présence non disponible');
     }
     
-    // ✅ CORRECTION : Vérification du rate limiting
     if (!canUpdatePresence()) {
       console.warn('⏸️ [PRESENCE HOOK] - Rate limiting activé, report de l\'entrée en présence');
       throw new Error('Rate limiting: trop de mises à jour de présence');
@@ -407,13 +390,11 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
         data: userData.data || {}
       };
       
-      // ✅ CORRECTION : Mettre à jour les trackers de rate limiting
       lastPresenceUpdateRef.current = Date.now();
       presenceUpdateCountRef.current++;
       
       await channel.presence.enter(presenceData);
       
-      // ✅ CORRECTION : Mettre à jour le timestamp global
       const channelName = currentChannelNameRef.current;
       if (channelName) {
         const channelInfo = globalThis.activePresenceChannels.get(channelName);
@@ -452,20 +433,17 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
       return;
     }
     
-    // ✅ CORRECTION : Vérification du rate limiting
     if (!canUpdatePresence()) {
       console.warn('⏸️ [PRESENCE HOOK] - Rate limiting activé, report de la mise à jour');
       return;
     }
     
     try {
-      // ✅ CORRECTION : Mettre à jour les trackers de rate limiting
       lastPresenceUpdateRef.current = Date.now();
       presenceUpdateCountRef.current++;
       
       await channel.presence.update(userData);
       
-      // ✅ CORRECTION : Mettre à jour le timestamp global
       const channelName = currentChannelNameRef.current;
       if (channelName) {
         const channelInfo = globalThis.activePresenceChannels.get(channelName);
@@ -479,13 +457,12 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
     }
   }, [isConnected, canUpdatePresence]);
 
-  // ✅ CORRECTION : Effets de synchronisation simplifiés
   useEffect(() => {
-    if (connectionError) {
-      setError(connectionError);
+    if (healthError) {
+      setError(healthError as AblyErrorInfo);
       setIsConnected(false);
     }
-  }, [connectionError]);
+  }, [healthError]);
 
   useEffect(() => {
     if (!ablyConnected) {
