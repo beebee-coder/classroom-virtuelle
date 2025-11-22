@@ -10,8 +10,8 @@ import { useAblyPresence } from "@/hooks/useAblyPresence";
 import { cn } from "@/lib/utils";
 import { useEffect, useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
-import { Role } from '@prisma/client'; // CORRECTION: Importer le type Role
-import { ChatSheet } from "../ChatSheet";
+import { Role } from '@prisma/client'; 
+import { ChatSheet } from "./ChatSheet";
 
 interface StudentClassViewProps {
   classroom: ClassroomWithStudents;
@@ -23,7 +23,7 @@ export function StudentClassView({ classroom, currentUser }: StudentClassViewPro
     const { onlineMembers, isConnected, enterPresence, isLoading } = useAblyPresence(classroom.id, true, 'StudentClassView');
     const [hasEnteredPresence, setHasEnteredPresence] = useState(false);
 
-    // CORRECTION PRODUCTION: L'étudiant entre en présence quand le canal est prêt
+    // L'étudiant entre en présence quand le canal est prêt
     useEffect(() => {
         if (isConnected && currentUser && !hasEnteredPresence && !isLoading) {
             console.log('👨‍🎓 [ETUDIANT] - Élève entre dans la présence', { 
@@ -45,7 +45,7 @@ export function StudentClassView({ classroom, currentUser }: StudentClassViewPro
                     setHasEnteredPresence(true);
                     console.log(`✅ [ETUDIANT] - ${currentUser.name} est maintenant en présence`);
                 } catch (error) {
-                    console.error('❌ [ETUDIANT] - Erreur lors de l'entrée en présence:', error);
+                    console.error('❌ [ETUDIANT] - Erreur lors de l\'entrée en présence:', error);
                     // Réessayer après un délai avec backoff exponentiel
                     setTimeout(() => {
                         setHasEnteredPresence(false);
@@ -57,14 +57,13 @@ export function StudentClassView({ classroom, currentUser }: StudentClassViewPro
         }
     }, [isConnected, currentUser, enterPresence, isLoading, hasEnteredPresence]);
 
-    // CORRECTION PRODUCTION: Logique de mapping robuste avec vérifications de sécurité
+    // Logique de mapping robuste avec vérifications de sécurité
     const onlineStudentIds = useMemo(() => {
         if (!onlineMembers.length) return [];
 
         const onlineIds: string[] = [];
         
         onlineMembers.forEach(member => {
-            // CORRECTION: Vérifications de sécurité pour member.data
             // Priorité 1: Mapping via userId dans data
             if (member.data?.userId) {
                 const studentExists = classroom.eleves.some(student => student.id === member.data!.userId);
@@ -74,7 +73,6 @@ export function StudentClassView({ classroom, currentUser }: StudentClassViewPro
                 }
             }
             
-            // CORRECTION: Vérifications de sécurité pour member.data
             // Priorité 2: Mapping via email (plus fiable que le nom)
             if (member.data?.email) {
                 const matchingStudent = classroom.eleves.find(student => 
@@ -106,7 +104,7 @@ export function StudentClassView({ classroom, currentUser }: StudentClassViewPro
         return uniqueIds;
     }, [onlineMembers, classroom.eleves]);
 
-    // CORRECTION PRODUCTION: Gestion du nettoyage de la présence
+    // Gestion du nettoyage de la présence
     useEffect(() => {
         return () => {
             // Le hook useAblyPresence gère automatiquement le leave via le cleanup
