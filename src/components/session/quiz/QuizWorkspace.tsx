@@ -15,6 +15,7 @@ interface QuizWorkspaceProps {
     quizResults: QuizResults | null;
     onStartQuiz: (quiz: CreateQuizData) => Promise<{ success: boolean; error?: string; }>;
     onEndQuiz: (quizId: string, responses: Map<string, QuizResponse>) => Promise<{ success: boolean; }>;
+    onCloseResults: () => void;
     students: User[];
 }
 
@@ -25,6 +26,7 @@ export function QuizWorkspace({
     quizResults,
     onStartQuiz,
     onEndQuiz,
+    onCloseResults,
     students,
 }: QuizWorkspaceProps) {
     console.log("🛠️ [QUIZ WORKSPACE] - Affichage de l'espace de travail du quiz", { hasActiveQuiz: !!activeQuiz, hasResults: !!quizResults });
@@ -44,6 +46,7 @@ export function QuizWorkspace({
                 responses={quizResponses}
                 results={quizResults}
                 onEndQuiz={onEndQuiz}
+                onCloseResults={onCloseResults}
                 studentsInSession={students}
                 isTeacherView={true}
             />
