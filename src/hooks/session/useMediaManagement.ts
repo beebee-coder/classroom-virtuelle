@@ -80,20 +80,22 @@ export function useMediaManagement() {
     }, [screenStream]);
 
     const toggleMute = useCallback(() => {
-        if (!localStream) return;
-        localStream.getAudioTracks().forEach(track => {
+        // CORRECTION: Utiliser la référence pour s'assurer de modifier le bon flux
+        if (!localStreamRef.current) return;
+        localStreamRef.current.getAudioTracks().forEach(track => {
             track.enabled = !track.enabled;
         });
         setIsMuted(prev => !prev);
-    }, [localStream]);
+    }, []);
 
     const toggleVideo = useCallback(() => {
-        if (!localStream) return;
-        localStream.getVideoTracks().forEach(track => {
+        // CORRECTION: Utiliser la référence pour s'assurer de modifier le bon flux
+        if (!localStreamRef.current) return;
+        localStreamRef.current.getVideoTracks().forEach(track => {
             track.enabled = !track.enabled;
         });
         setIsVideoOff(prev => !prev);
-    }, [localStream]);
+    }, []);
 
     const toggleScreenShare = useCallback(async () => {
         if (isSharingScreen) {
