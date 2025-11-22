@@ -17,7 +17,7 @@ type AblyErrorInfo = Ably.Types.ErrorInfo;
 interface UseAblyPresenceReturn {
   onlineMembers: AblyPresenceMember[];
   isConnected: boolean;
-  error: AblyErrorInfo | null;
+  error: string | null;
   isLoading: boolean;
   enterPresence: (userData: Omit<AblyPresenceMember, 'id'>) => Promise<void>;
   leavePresence: () => Promise<void>;
@@ -46,7 +46,7 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
   const { isConnected: ablyConnected, error: healthError } = useAblyHealth('useAblyPresence'); // Utilisation du hook de santé
   const [onlineMembers, setOnlineMembers] = useState<AblyPresenceMember[]>([]);
   const [isConnected, setIsConnected] = useState(false);
-  const [error, setError] = useState<AblyErrorInfo | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const channelRef = useRef<AblyChannel | null>(null);
   const isEnteringRef = useRef(false);
@@ -247,7 +247,7 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
             } else if (['detached', 'failed', 'suspended'].includes(stateChange.current)) {
               setIsConnected(false);
               if (stateChange.reason) {
-                setError(stateChange.reason);
+                setError(stateChange.reason.message);
                 console.error(`❌ [PRESENCE HOOK] - Erreur de canal ${channelName}:`, stateChange.reason);
               }
             }
@@ -341,7 +341,7 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
       } catch (err) {
         if (mountedRef.current) {
           console.error(`❌ [PRESENCE HOOK] - Échec initialisation pour ${channelName}:`, err);
-          setError(err as AblyErrorInfo);
+          setError((err as AblyErrorInfo).message);
           setIsConnected(false);
         }
       }
@@ -404,7 +404,7 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
       }
     } catch (err) {
       console.error('❌ [PRESENCE HOOK] - Erreur d\'entrée en présence:', err);
-      setError(err as AblyErrorInfo);
+      setError((err as AblyErrorInfo).message);
       throw err;
     } finally {
       isEnteringRef.current = false;
@@ -453,13 +453,13 @@ export const useAblyPresence = (channelId?: string, enabled: boolean = true): Us
       }
     } catch (err) {
       console.error('❌ [PRESENCE HOOK] - Erreur de mise à jour:', err);
-      setError(err as AblyErrorInfo);
+      setError((err as AblyErrorInfo).message);
     }
   }, [isConnected, canUpdatePresence]);
 
   useEffect(() => {
     if (healthError) {
-      setError(healthError as AblyErrorInfo);
+      setError(healthError);
       setIsConnected(false);
     }
   }, [healthError]);
