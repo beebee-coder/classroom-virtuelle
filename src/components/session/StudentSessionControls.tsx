@@ -52,7 +52,6 @@ interface StudentSessionControlsProps {
   onComprehensionUpdate: (level: ComprehensionLevel) => void;
   currentComprehension?: ComprehensionLevel;
   onOpenChat?: () => void;
-  onSettings?: () => void;
   isLoading?: boolean;
 }
 
@@ -62,11 +61,8 @@ export function StudentSessionControls({
   onComprehensionUpdate,
   currentComprehension = ComprehensionLevel.NONE,
   onOpenChat,
-  onSettings,
   isLoading = false,
 }: StudentSessionControlsProps) {
-  const [audioEnabled, setAudioEnabled] = useState(true);
-  const [videoEnabled, setVideoEnabled] = useState(true);
 
   return (
     <Accordion type="multiple" defaultValue={['comprehension', 'interaction']} className="w-full space-y-4">
@@ -157,55 +153,6 @@ export function StudentSessionControls({
         </AccordionItem>
       </Card>
       
-      {/* Contrôles média */}
-       <Card className="bg-background/80">
-        <AccordionItem value="media" className="border-b-0">
-            <AccordionTrigger className="p-6">
-                <CardTitle className="text-lg flex items-center gap-2">
-                    <Settings className="h-5 w-5" />
-                    Paramètres Média
-                </CardTitle>
-            </AccordionTrigger>
-             <AccordionContent>
-                <CardContent className="space-y-2 pt-0">
-                     <div className="flex gap-2">
-                        <Button
-                        variant={audioEnabled ? "outline" : "secondary"}
-                        className="flex-1 gap-2"
-                        size="sm"
-                        onClick={() => setAudioEnabled(!audioEnabled)}
-                        >
-                        <Headphones className="h-4 w-4" />
-                        {audioEnabled ? 'Audio ON' : 'Audio OFF'}
-                        </Button>
-                        
-                        <Button
-                        variant={videoEnabled ? "outline" : "secondary"}
-                        className="flex-1 gap-2"
-                        size="sm"
-                        onClick={() => setVideoEnabled(!videoEnabled)}
-                        >
-                        <Monitor className="h-4 w-4" />
-                        {videoEnabled ? 'Vidéo ON' : 'Vidéo OFF'}
-                        </Button>
-                    </div>
-
-                    {onSettings && (
-                        <Button
-                        onClick={onSettings}
-                        variant="ghost"
-                        className="w-full gap-2"
-                        size="sm"
-                        >
-                        <Settings className="h-4 w-4" />
-                        Paramètres avancés
-                        </Button>
-                    )}
-                </CardContent>
-            </AccordionContent>
-        </AccordionItem>
-      </Card>
-
     </Accordion>
   );
 }

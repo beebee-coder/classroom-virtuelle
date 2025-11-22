@@ -87,7 +87,8 @@ export function SessionHeader({
                             />
                         ))}
                     </ul>
-                    {isTeacher && <div className="h-8 border-l mx-2"></div>}
+                    {/* Le séparateur n'est affiché que si le prof a des outils */}
+                    {isTeacher && teacherTools.length > 0 && <div className="h-8 border-l mx-2"></div>}
                      <VideoControls 
                         isMuted={isMuted}
                         onToggleMute={onToggleMute}
