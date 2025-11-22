@@ -1,11 +1,10 @@
-// src/components/session/QuizWorkspace.tsx
+// src/components/session/quiz/QuizWorkspace.tsx
 'use client';
 
 import React from 'react';
-import { Card, CardContent } from '../ui/card';
 import { Award } from 'lucide-react';
-import { QuizLauncher } from './quiz/QuizLauncher';
-import { QuizView } from './quiz/QuizView';
+import { QuizLauncher } from './QuizLauncher';
+import { QuizView } from './QuizView';
 import type { Quiz, QuizResponse, QuizResults, User } from '@/types';
 import type { CreateQuizData } from '@/lib/actions/ably-session.actions';
 
@@ -16,6 +15,7 @@ interface QuizWorkspaceProps {
     quizResults: QuizResults | null;
     onStartQuiz: (quiz: CreateQuizData) => Promise<{ success: boolean; error?: string; }>;
     onEndQuiz: (quizId: string, responses: Map<string, QuizResponse>) => Promise<{ success: boolean; }>;
+    onCloseResults: () => void; // Ajout de la nouvelle prop
     students: User[];
 }
 
@@ -26,6 +26,7 @@ export function QuizWorkspace({
     quizResults,
     onStartQuiz,
     onEndQuiz,
+    onCloseResults, // Passer la nouvelle prop
     students,
 }: QuizWorkspaceProps) {
     console.log("🛠️ [QUIZ WORKSPACE] - Affichage de l'espace de travail du quiz", { hasActiveQuiz: !!activeQuiz, hasResults: !!quizResults });
@@ -45,6 +46,7 @@ export function QuizWorkspace({
                 responses={quizResponses}
                 results={quizResults}
                 onEndQuiz={onEndQuiz}
+                onCloseResults={onCloseResults} // Passer à QuizView
                 studentsInSession={students}
                 isTeacherView={true}
             />

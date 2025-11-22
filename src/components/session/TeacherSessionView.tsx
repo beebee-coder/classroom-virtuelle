@@ -374,7 +374,8 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
                         quizResponses={quizResponses} 
                         quizResults={quizResults} 
                         onStartQuiz={onStartQuiz} 
-                        onEndQuiz={(quizId: string) => onEndQuiz(quizId, quizResponses)} 
+                        onEndQuiz={(quizId: string) => onEndQuiz(quizId, quizResponses)}
+                        onCloseResults={() => onToolChange('camera')}
                         students={students} 
                     />
                 );

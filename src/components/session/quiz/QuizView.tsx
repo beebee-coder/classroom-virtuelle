@@ -11,18 +11,20 @@ import { BarChart, Users, CheckCircle, XCircle, Loader2, Info } from 'lucide-rea
 import type { Quiz, QuizResponse, QuizResults, User, QuizQuestion, QuizOption } from '@/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { QuizResultsView } from './QuizResultsView';
 
 interface QuizViewProps {
     quiz: Quiz | null;
     isTeacherView: boolean;
     onSubmitResponse?: (response: QuizResponse) => Promise<{ success: boolean; }>;
     onEndQuiz?: (quizId: string, responses: Map<string, QuizResponse>) => Promise<{ success: boolean; }>;
+    onCloseResults?: () => void; // Nouvelle prop pour fermer les résultats
     responses?: Map<string, QuizResponse>;
     results?: QuizResults | null;
     studentsInSession?: User[];
 }
 
-export function QuizView({ quiz, isTeacherView, onSubmitResponse, onEndQuiz, responses = new Map(), results, studentsInSession = [] }: QuizViewProps) {
+export function QuizView({ quiz, isTeacherView, onSubmitResponse, onEndQuiz, onCloseResults, responses = new Map(), results, studentsInSession = [] }: QuizViewProps) {
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
     const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
     const [isSubmitting, startSubmitting] = useTransition();
@@ -69,8 +71,8 @@ export function QuizView({ quiz, isTeacherView, onSubmitResponse, onEndQuiz, res
         }
     };
     
-    if (results) {
-        return <QuizResultsView results={results} quiz={quiz} />;
+    if (results && onCloseResults) {
+        return <QuizResultsView results={results} quiz={quiz} onClose={onCloseResults} />;
     }
 
     if (isTeacherView) {
@@ -183,48 +185,11 @@ function QuestionStats({ question, responses }: { question: QuizQuestion; respon
                                 </span>
                                 <span>{count} vote(s)</span>
                             </div>
-                            <Progress value={percentage} className={isCorrect ? "bg-green-500" : "bg-primary"} />
+                            <Progress value={percentage} className={cn(isCorrect ? "bg-green-500" : "bg-primary")} />
                         </div>
                     );
                 })}
             </div>
         </div>
-    );
-}
-
-// Final results view
-function QuizResultsView({ results, quiz }: { results: QuizResults; quiz: Quiz }) {
-    const totalQuestions = quiz.questions.length;
-    const scores = Object.values(results.scores);
-    const averageScore = scores.length > 0 ? scores.reduce((sum, s) => sum + s.score, 0) / scores.length : 0;
-    const participationRate = scores.length > 0 ? (Object.keys(results.responses).length / scores.length) * 100 : 0;
-
-    return (
-        <Card className="h-full w-full">
-            <CardHeader>
-                <CardTitle>📊 Résultats du Quiz: {quiz.title}</CardTitle>
-                <CardDescription>Voici un résumé des résultats.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                    <Card>
-                        <CardHeader><CardTitle>Score Moyen</CardTitle></CardHeader>
-                        <CardContent><p className="text-2xl font-bold">{averageScore.toFixed(1)} / {totalQuestions}</p></CardContent>
-                    </Card>
-                     <Card>
-                        <CardHeader><CardTitle>Participation</CardTitle></CardHeader>
-                        <CardContent><p className="text-2xl font-bold">{participationRate.toFixed(0)}%</p></CardContent>
-                    </Card>
-                </div>
-                
-                <h3 className="font-semibold mb-2">Détail par Question</h3>
-                <div className="space-y-4">
-                    {quiz.questions.map((q: QuizQuestion) => {
-                        const questionResponses = Object.values(results.responses).map(r => r.answers[q.id]);
-                        return <QuestionStats key={q.id} question={q} responses={new Map(Object.entries(results.responses))} />;
-                    })}
-                </div>
-            </CardContent>
-        </Card>
     );
 }
