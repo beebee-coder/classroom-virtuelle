@@ -13,7 +13,7 @@ import { Loader2, UploadCloud, File, Trash2, Share2, Award, Users, Grid, Present
 import { Button } from '../ui/button';
 import { SessionStatus } from './SessionStatus';
 import { cn } from '@/lib/utils';
-import { ChatSheet } from '../ChatSheet';
+import { ChatWorkspace } from './ChatWorkspace';
 import { Html5Whiteboard } from '@/components/Html5Whiteboard';
 import { AnimatedCard } from './AnimatedCard';
 import { useToast } from '@/hooks/use-toast';
@@ -119,13 +119,6 @@ const TeacherSidebar: React.FC<{
 }> = (props) => (
     <ScrollArea className="h-full pr-3 -mr-3">
         <div className="space-y-4">
-            <AnimatedCard title="Discussion de Classe">
-              <div className="p-2">
-                 {props.classroom?.id && props.currentUserId && (
-                    <ChatSheet classroomId={props.classroom.id} userId={props.currentUserId} userRole={Role.PROFESSEUR} />
-                )}
-              </div>
-            </AnimatedCard>
             <AnimatedCard title="Partage de Document">
                 <div className='p-4 space-y-3'>
                     <DocumentUploadSection sessionId={props.sessionId} onUploadSuccess={props.onDocumentShared} />
@@ -214,7 +207,6 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
         return duration;
     }, [initialDuration]);
 
-    // CORRECTION : Création d'une map des streams distants avec validation
     const remoteStreamsMap = useMemo(() => {
         const map = new Map<string, MediaStream>();
         remoteParticipants.forEach(p => {
@@ -258,21 +250,15 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
         }
     }, [sessionId, onSelectDocument, toast]);
 
-    // CORRECTION : Fonction de rendu de participant avec gestion améliorée des streams
     const renderParticipant = useCallback((participant: SessionParticipant) => {
         if (!participant) return null;
         
-        // CORRECTION : Logique améliorée pour déterminer le stream
         let stream: MediaStream | null = null;
         
         if (participant.id === currentUserId) {
-            // C'est le professeur
             stream = isSharingScreen ? screenStream : localStream;
-            console.log(`👨‍🏫 [TEACHER VIEW] - Stream professeur: ${!!stream}, partage écran: ${isSharingScreen}`);
         } else {
-            // C'est un étudiant
             stream = remoteStreamsMap.get(participant.id) || null;
-            console.log(`👨‍🎓 [TEACHER VIEW] - Stream étudiant ${participant.id}: ${!!stream}`);
         }
 
         const key = participant.id;
@@ -295,7 +281,6 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
             );
         }
         
-        // CORRECTION : Fallback pour les participants sans stream
         const studentData = allSessionUsers.find(u => u.id === participant.id) as User | undefined;
         if (!studentData) return null;
 
@@ -320,45 +305,28 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
         if (classroom?.eleves) classroom.eleves.forEach(student => { 
             if (!participantMap.has(student.id)) participantMap.set(student.id, student as SessionParticipant); 
         });
-        console.log(`👥 [TEACHER VIEW] - ${participantMap.size} participants dans la grille`);
         return Array.from(participantMap.values());
     }, [teacher, classroom?.eleves]);
 
-    // CORRECTION : Fonction pour obtenir le stream du spotlight avec logique améliorée
     const getSpotlightStream = useCallback(() => {
-        if (!spotlightedUser) {
-            console.log(`🔦 [TEACHER VIEW] - Aucun utilisateur en spotlight`);
-            return null;
-        }
+        if (!spotlightedUser) return null;
 
         let stream: MediaStream | null = null;
 
         if (spotlightedUser.id === currentUserId) {
-            // Le professeur est en spotlight
             stream = isSharingScreen ? screenStream : localStream;
-            console.log(`🔦 [TEACHER VIEW] - Spotlight sur professeur, stream: ${!!stream}, partage écran: ${isSharingScreen}`);
         } else {
-            // Un étudiant est en spotlight
             stream = remoteStreamsMap.get(spotlightedUser.id) || null;
-            console.log(`🔦 [TEACHER VIEW] - Spotlight sur étudiant ${spotlightedUser.id}, stream: ${!!stream}`);
         }
 
-        // CORRECTION : Validation du stream
         if (stream && stream.active) {
-            const hasVideo = stream.getVideoTracks().some(track => track.readyState === 'live');
-            const hasAudio = stream.getAudioTracks().some(track => track.readyState === 'live');
-            console.log(`🔦 [TEACHER VIEW] - Stream spotlight valide, vidéo: ${hasVideo}, audio: ${hasAudio}`);
             return stream;
         }
 
-        console.log(`🔦 [TEACHER VIEW] - Stream spotlight invalide ou null`);
         return null;
     }, [spotlightedUser, currentUserId, isSharingScreen, screenStream, localStream, remoteStreamsMap]);
 
-    // CORRECTION : Rendu du contenu actif avec gestion améliorée du spotlight
     const renderActiveTool = useMemo(() => {
-        console.log(`🎯 [TEACHER VIEW] - Rendu outil actif: ${activeTool}, spotlight: ${spotlightedUser?.id}`);
-
         if (isSharingScreen && screenStream) {
             return (
                 <div className="w-full h-full bg-black rounded-lg overflow-hidden">
@@ -415,7 +383,7 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
                 return (
                     <div className="h-full w-full rounded-lg overflow-hidden">
                         {classroom?.id && teacher?.id && teacher.role && (
-                            <ChatSheet classroomId={classroom.id} userId={teacher.id} userRole={teacher.role} />
+                            <ChatWorkspace classroomId={classroom.id} userId={teacher.id} userRole={teacher.role} />
                         )}
                     </div>
                 );
@@ -453,9 +421,6 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
                                 <Loader2 className="h-10 w-10 mx-auto mb-4 animate-spin" />
                                 <h3 className="font-semibold text-xl">Connexion à {spotlightedUser.name}...</h3>
                                 <p className="text-sm mt-2">Établissement de la connexion WebRTC</p>
-                                <div className="text-xs text-gray-500 mt-2">
-                                    ID: {spotlightedUser.id}
-                                </div>
                             </CardContent>
                         </Card>
                     );
