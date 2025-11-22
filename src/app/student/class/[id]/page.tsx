@@ -56,11 +56,7 @@ export default async function StudentClassPage({ params }: { params: { id: strin
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Header user={session.user}>
-        {currentUser.classeId && currentUser.role && (
-          <ChatSheet classroomId={currentUser.classeId} userId={currentUser.id} userRole={currentUser.role} />
-        )}
-      </Header>
+      <Header user={session.user} />
       {/* CORRECTION: Passage de l'utilisateur complet avec le bon type */}
       <StudentClassView 
         classroom={classroom as ClassroomWithStudents} 

@@ -119,6 +119,13 @@ const TeacherSidebar: React.FC<{
 }> = (props) => (
     <ScrollArea className="h-full pr-3 -mr-3">
         <div className="space-y-4">
+            <AnimatedCard title="Discussion de Classe">
+              <div className="p-2">
+                 {props.classroom?.id && props.currentUserId && (
+                    <ChatSheet classroomId={props.classroom.id} userId={props.currentUserId} userRole={Role.PROFESSEUR} />
+                )}
+              </div>
+            </AnimatedCard>
             <AnimatedCard title="Partage de Document">
                 <div className='p-4 space-y-3'>
                     <DocumentUploadSection sessionId={props.sessionId} onUploadSuccess={props.onDocumentShared} />

@@ -69,13 +69,11 @@ export default function StudentPageClient({
 
     return (
         <div className="container mx-auto p-6 space-y-6">
-            {!isTeacherView && (
-                 <div className='flex items-center justify-end'>
-                    {classeId && user.role === 'ELEVE' && (
-                        <ChatSheet classroomId={classeId} userId={user.id} userRole={user.role} />
-                    )}
-                </div>
-            )}
+            <div className='flex items-center justify-end'>
+                {classeId && user.role === 'ELEVE' && (
+                    <ChatSheet classroomId={classeId} userId={user.id} userRole={user.role} />
+                )}
+            </div>
             
             <Card>
                 <CardContent className="p-6">

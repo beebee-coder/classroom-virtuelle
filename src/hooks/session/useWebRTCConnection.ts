@@ -247,39 +247,29 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
             });
 
             // CORRECTION : Gestion du stream distant avec validation
-            peer.on('stream', (remoteStream: MediaStream) => {
-                if (!isMounted) return;
-                
-                const hasVideo = remoteStream.getVideoTracks().length > 0;
-                const hasAudio = remoteStream.getAudioTracks().length > 0;
-                
-                console.log(`📥 [STREAM] - Stream reçu de ${targetUserId}, vidéo: ${hasVideo}, audio: ${hasAudio}`);
-                
-                if (hasVideo || hasAudio) {
-                    setRemoteStreams(prev => {
-                        const newMap = new Map(prev);
-                        newMap.set(targetUserId, remoteStream);
-                        return newMap;
-                    });
-                    
-                    // CORRECTION : Mise à jour de l'état avec succès
-                    const updatedState = peerStatesRef.current.get(targetUserId);
-                    if (updatedState) {
-                        peerStatesRef.current.set(targetUserId, { 
-                            ...updatedState,
-                            isConnected: true, 
-                            isConnecting: false,
-                            connectionAttempts: 0,
-                            hasReceivedStream: true
-                        });
-                    }
-                    
-                    pendingConnectionsRef.current.delete(targetUserId);
-                    console.log(`✅ [PEER CONNECTED] - Connexion établie avec ${targetUserId}`);
-                } else {
-                    console.warn(`⚠️ [STREAM] - Stream vide reçu de ${targetUserId}`);
-                }
-            });
+           // Dans useWebRTCConnection.ts - handler 'stream'
+peer.on('stream', (remoteStream: MediaStream) => {
+    if (!isMounted) return;
+    
+    // CORRECTION : Validation basique pour ajout IMMÉDIAT
+    const hasVideo = remoteStream.getVideoTracks().length > 0;
+    const hasAudio = remoteStream.getAudioTracks().length > 0;
+    const isStreamActive = remoteStream.active;
+    
+    console.log(`📥 [STREAM] - Stream reçu de ${targetUserId}, actif: ${isStreamActive}, vidéo: ${hasVideo}, audio: ${hasAudio}`);
+    
+    // CORRECTION : Ajouter le stream IMMÉDIATEMENT s'il est actif
+    if (isStreamActive && (hasVideo || hasAudio)) {
+      setRemoteStreams(prev => {
+        const newMap = new Map(prev);
+        newMap.set(targetUserId, remoteStream);
+        console.log(`✅ [STREAM ADDED] - Stream ajouté pour ${targetUserId}`);
+        return newMap;
+      });
+    } else {
+      console.warn(`⚠️ [STREAM] - Stream reçu mais invalide de ${targetUserId}`);
+    }
+  });
 
             // CORRECTION : Gestion de la connexion
             peer.on('connect', () => {

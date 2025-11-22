@@ -1,4 +1,3 @@
-
 // src/app/teacher/layout.tsx
 import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
@@ -9,7 +8,6 @@ import Link from 'next/link';
 import { Header } from '@/components/Header';
 import Menu from '@/components/Menu';
 import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
-import { ChatSheet } from '@/components/ChatSheet';
 import { Role } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
@@ -58,13 +56,6 @@ export default async function TeacherLayout({
           <Header user={session.user}>
             <div className="flex items-center gap-2">
               <SidebarTrigger />
-              {firstClassroomId && session.user.role && (
-                <ChatSheet 
-                  classroomId={firstClassroomId} 
-                  userId={session.user.id} 
-                  userRole={session.user.role as Role} 
-                />
-              )}
             </div>
           </Header>
           <div className="flex flex-1 ">
@@ -109,5 +100,3 @@ export default async function TeacherLayout({
     );
   }
 }
-
-    

@@ -487,28 +487,46 @@ export default function SessionClient({
   }, [sessionId]);
 
   // CORRECTION CRITIQUE : Calcul du spotlightedStream optimisé
-  const spotlightedStream = useMemo(() => {
-    if (!spotlightedParticipantId) {
-      return null;
-    }
-    
-    // CORRECTION : Si c'est l'utilisateur courant, utiliser le stream local
-    if (spotlightedParticipantId === currentUserId) {
-      return activeStream;
-    }
-    
-    // CORRECTION : Recherche dans les streams distants avec validation
-    const remoteStream = remoteStreams.get(spotlightedParticipantId);
-    
-    if (remoteStream && remoteStream.active) {
-      // CORRECTION : Validation que le stream a des tracks actifs
-      const hasActiveTracks = remoteStream.getTracks().some(track => track.readyState === 'live');
-      return hasActiveTracks ? remoteStream : null;
-    }
-    
+ // CORRECTION CRITIQUE : Calcul du spotlightedStream pour l'affichage des caméras
+const spotlightedStream = useMemo(() => {
+  console.log(`🔦 [SPOTLIGHT STREAM] - Calcul pour participant: ${spotlightedParticipantId}, currentUser: ${currentUserId}`);
+  
+  if (!spotlightedParticipantId) {
+    console.log(`🔦 [SPOTLIGHT STREAM] - Aucun participant spotlighté`);
     return null;
-  }, [spotlightedParticipantId, currentUserId, activeStream, remoteStreams]);
-
+  }
+  
+  // CORRECTION : Si c'est l'utilisateur courant, utiliser le stream local
+  if (spotlightedParticipantId === currentUserId) {
+    console.log(`🔦 [SPOTLIGHT STREAM] - Utilisation stream local: ${activeStream?.active ? 'actif' : 'inactif'}`);
+    return activeStream;
+  }
+  
+  // CORRECTION CRITIQUE : Recherche dans les streams distants avec validation IMMÉDIATE
+  const remoteStream = remoteStreams.get(spotlightedParticipantId);
+  
+  if (remoteStream) {
+    // CORRECTION : Validation IMMÉDIATE du stream distant sans délai
+    const isStreamActive = remoteStream.active;
+    const hasVideoTracks = remoteStream.getVideoTracks().length > 0;
+    const hasAudioTracks = remoteStream.getAudioTracks().length > 0;
+    
+    console.log(`🔦 [SPOTLIGHT STREAM] - Stream distant trouvé: actif=${isStreamActive}, vidéo=${hasVideoTracks}, audio=${hasAudioTracks}`);
+    
+    // CORRECTION : Retourner le stream IMMÉDIATEMENT s'il est actif
+    if (isStreamActive && (hasVideoTracks || hasAudioTracks)) {
+      console.log(`✅ [SPOTLIGHT STREAM] - Stream valide trouvé pour ${spotlightedParticipantId}`);
+      return remoteStream;
+    } else {
+      console.warn(`⚠️ [SPOTLIGHT STREAM] - Stream invalide pour ${spotlightedParticipantId}: actif=${isStreamActive}, vidéo=${hasVideoTracks}, audio=${hasAudioTracks}`);
+    }
+  } else {
+    console.log(`🔦 [SPOTLIGHT STREAM] - Aucun stream distant trouvé pour ${spotlightedParticipantId}`);
+  }
+  
+  console.log(`🔦 [SPOTLIGHT STREAM] - Aucun stream valide trouvé pour ${spotlightedParticipantId}`);
+  return null;
+}, [spotlightedParticipantId, currentUserId, activeStream, remoteStreams]);
   // CORRECTION : Mémoization des données dérivées optimisée
   const allSessionUsers = useMemo(() => 
     [initialTeacher, ...initialStudents].filter(Boolean) as User[], 

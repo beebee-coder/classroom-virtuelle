@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { useEffect, useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { Role } from '@prisma/client'; // CORRECTION: Importer le type Role
+import { ChatSheet } from "../ChatSheet";
 
 interface StudentClassViewProps {
   classroom: ClassroomWithStudents;
@@ -44,7 +45,7 @@ export function StudentClassView({ classroom, currentUser }: StudentClassViewPro
                     setHasEnteredPresence(true);
                     console.log(`✅ [ETUDIANT] - ${currentUser.name} est maintenant en présence`);
                 } catch (error) {
-                    console.error('❌ [ETUDIANT] - Erreur lors de l\'entrée en présence:', error);
+                    console.error('❌ [ETUDIANT] - Erreur lors de l'entrée en présence:', error);
                     // Réessayer après un délai avec backoff exponentiel
                     setTimeout(() => {
                         setHasEnteredPresence(false);
@@ -157,6 +158,9 @@ export function StudentClassView({ classroom, currentUser }: StudentClassViewPro
                         )}
                     </p>
                 </div>
+                 {currentUser.classeId && currentUser.role && (
+                  <ChatSheet classroomId={currentUser.classeId} userId={currentUser.id} userRole={currentUser.role} />
+                )}
             </div>
 
             {/* Grille des étudiants */}
@@ -271,7 +275,7 @@ export function StudentClassView({ classroom, currentUser }: StudentClassViewPro
             {sortedStudents.length === 0 && (
                 <div className="text-center py-12">
                     <div className="text-muted-foreground">
-                        <Crown className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <Crown className="h-12 w-12 mx-auto mb-2 opacity-50" />
                         <p className="text-lg">Aucun élève dans cette classe</p>
                         <p className="text-sm mt-2">Les élèves apparaîtront ici une fois ajoutés à la classe</p>
                     </div>

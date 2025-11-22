@@ -148,4 +148,3 @@ const allCareersData = allCareersResult.status === 'fulfilled'
         );
     }
 }
-
