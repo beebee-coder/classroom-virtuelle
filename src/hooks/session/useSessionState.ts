@@ -55,6 +55,15 @@ export function useSessionState({
         setQuizResponses(prev => new Map(prev).set(response.userId, response));
     }, []);
 
+    // ✅ CORRECTION: Nouvelle fonction pour réinitialiser l'espace de travail du quiz
+    const handleCloseQuizResults = useCallback(() => {
+        setActiveQuiz(null);
+        setQuizResponses(new Map());
+        setQuizResults(null);
+        // On ne change pas l'activeTool, on reste dans l'espace quiz
+        console.log("🔄 [SESSION STATE] - Espace de travail du quiz réinitialisé.");
+    }, []);
+
     return {
         activeTool,
         documentUrl,
@@ -72,5 +81,6 @@ export function useSessionState({
         handleStartQuiz,
         handleEndQuiz,
         handleNewQuizResponse,
+        handleCloseQuizResults, // Exporter la nouvelle fonction
     };
 }

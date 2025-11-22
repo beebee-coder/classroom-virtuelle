@@ -67,6 +67,7 @@ interface TeacherSessionViewProps {
     quizResults: QuizResults | null;
     onStartQuiz: (quiz: CreateQuizData) => Promise<{ success: boolean; error?: string; }>;
     onEndQuiz: (quizId: string, responses: Map<string, QuizResponse>) => Promise<{ success: boolean; }>;
+    onCloseResults: () => void; // ✅ CORRECTION: S'assurer que la prop est bien ici
     students: User[];
 }
 
@@ -188,7 +189,7 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
         onSelectDocument, whiteboardControllerId, onWhiteboardControllerChange, initialDuration, timerTimeLeft, 
         isTimerRunning, onStartTimer, onPauseTimer, onResetTimer, onWhiteboardEvent, whiteboardOperations, 
         flushWhiteboardOperations, documentHistory, onDocumentShared, activeQuiz, quizResponses, quizResults, 
-        onStartQuiz, onEndQuiz, students
+        onStartQuiz, onEndQuiz, onCloseResults, students
     } = props;
 
     const validatedTimerTimeLeft = useMemo(() => {
@@ -375,7 +376,7 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
                         quizResults={quizResults} 
                         onStartQuiz={onStartQuiz} 
                         onEndQuiz={(quizId) => onEndQuiz(quizId, quizResponses)}
-                        onCloseResults={() => onToolChange('camera')}
+                        onCloseResults={onCloseResults}
                         students={students} 
                     />
                 );
@@ -463,7 +464,7 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
         activeTool, isSharingScreen, screenStream, currentUserId, documentUrl, whiteboardControllerId,
         classroom?.id, teacher?.id, teacher?.role, onToolChange, spotlightedUser, raisedHandQueue,
         sessionId, whiteboardOperations, onWhiteboardEvent, flushWhiteboardOperations, activeQuiz, 
-        quizResponses, quizResults, onStartQuiz, onEndQuiz, students, allOnlineUserIds,
+        quizResponses, quizResults, onStartQuiz, onEndQuiz, onCloseResults, students, allOnlineUserIds,
         onSpotlightParticipant, onWhiteboardControllerChange, getSpotlightStream
     ]);
     

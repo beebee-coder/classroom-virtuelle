@@ -85,6 +85,7 @@ export default function SessionClient({
     handleStartQuiz,
     handleEndQuiz,
     handleNewQuizResponse,
+    handleCloseQuizResults, // ✅ CORRECTION: Récupérer la nouvelle fonction
   } = useSessionState({ initialDocumentHistory, initialActiveQuiz });
 
   // CORRECTION : Handler de signal avec validation améliorée
@@ -630,7 +631,8 @@ const spotlightedStream = useMemo(() => {
             quizResponses={quizResponses} 
             quizResults={quizResults}
             onStartQuiz={handleOnStartQuiz}
-            onEndQuiz={handleOnEndQuiz} 
+            onEndQuiz={handleOnEndQuiz}
+            onCloseResults={handleCloseQuizResults} // ✅ CORRECTION: Passer la bonne fonction
             students={initialStudents}
           />
         ) : (

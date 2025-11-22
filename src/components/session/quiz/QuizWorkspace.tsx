@@ -31,25 +31,45 @@ export function QuizWorkspace({
 }: QuizWorkspaceProps) {
     console.log("🛠️ [QUIZ WORKSPACE] - Affichage de l'espace de travail du quiz", { hasActiveQuiz: !!activeQuiz, hasResults: !!quizResults });
 
-    if (!activeQuiz) {
-        return (
-            <div className="h-full w-full flex items-center justify-center p-4">
-                <QuizLauncher onStartQuiz={onStartQuiz} />
+    // ✅ CORRECTION: Si les résultats sont affichés, on ne doit pas pouvoir lancer un nouveau quiz.
+    // La logique de réinitialisation est gérée par onCloseResults.
+    if (quizResults) {
+         return (
+            <div className="h-full w-full p-4">
+                <QuizView
+                    quiz={activeQuiz!} // Si on a des résultats, on a forcément un quiz
+                    responses={quizResponses}
+                    results={quizResults}
+                    onEndQuiz={onEndQuiz}
+                    onCloseResults={onCloseResults}
+                    studentsInSession={students}
+                    isTeacherView={true}
+                />
             </div>
         );
     }
     
+    // S'il y a un quiz actif mais pas encore de résultats, on montre le dashboard du quiz
+    if (activeQuiz) {
+        return (
+            <div className="h-full w-full p-4">
+                <QuizView
+                    quiz={activeQuiz}
+                    responses={quizResponses}
+                    results={null} // Pas de résultats pour l'instant
+                    onEndQuiz={onEndQuiz}
+                    onCloseResults={onCloseResults}
+                    studentsInSession={students}
+                    isTeacherView={true}
+                />
+            </div>
+        );
+    }
+
+    // Sinon, on montre le lanceur pour créer un nouveau quiz.
     return (
-        <div className="h-full w-full p-4">
-            <QuizView
-                quiz={activeQuiz}
-                responses={quizResponses}
-                results={quizResults}
-                onEndQuiz={onEndQuiz}
-                onCloseResults={onCloseResults}
-                studentsInSession={students}
-                isTeacherView={true}
-            />
+        <div className="h-full w-full flex items-center justify-center p-4">
+            <QuizLauncher onStartQuiz={onStartQuiz} />
         </div>
     );
 }
