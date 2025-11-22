@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAbly } from '@/hooks/useAbly';
 import { getSessionChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
-import { ComprehensionLevel, WhiteboardOperation, Quiz, QuizResponse, QuizResults } from '@/types';
+import { ComprehensionLevel, Quiz, QuizResponse, QuizResults } from '@/types';
 import type { Types as AblyTypes } from 'ably';
 import { useToast } from '../use-toast';
 import { useRouter } from 'next/navigation';
@@ -76,6 +76,32 @@ export function useAblyCommunication({
   useEffect(() => {
     onSessionEndedRef.current = onSessionEnded;
   }, [onSessionEnded]);
+
+    // ✅ CORRECTION: Ajout du useEffect pour gérer le décompte du minuteur
+    useEffect(() => {
+        let timerInterval: NodeJS.Timeout | null = null;
+    
+        if (isTimerRunning && timerTimeLeft > 0) {
+          console.log('⏱️ [TIMER] - Démarrage du décompte');
+          timerInterval = setInterval(() => {
+            setTimerTimeLeft((prevTime) => {
+              if (prevTime <= 1) {
+                if (timerInterval) clearInterval(timerInterval);
+                setIsTimerRunning(false);
+                return 0;
+              }
+              return prevTime - 1;
+            });
+          }, 1000);
+        }
+    
+        return () => {
+          if (timerInterval) {
+            console.log('⏱️ [TIMER] - Nettoyage de l\'intervalle du minuteur');
+            clearInterval(timerInterval);
+          }
+        };
+      }, [isTimerRunning, timerTimeLeft]);
 
   // CORRECTION : Handler pour les signaux WebRTC avec validation améliorée
   const handleSignalEvent = useCallback((message: AblyTypes.Message) => {
