@@ -35,7 +35,7 @@ export function StudentClassView({ classroom, currentUser }: StudentClassViewPro
                     await enterPresence({
                         name: currentUser.name || 'Élève',
                         role: Role.ELEVE,
-                        image: currentUser.image || undefined,
+                        image: currentUser.image || null,
                         data: {
                             userId: currentUser.id,
                             email: currentUser.email || undefined
