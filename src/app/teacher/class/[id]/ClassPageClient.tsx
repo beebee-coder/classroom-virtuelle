@@ -200,7 +200,7 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
             console.error('❌ [CLIENT CLASSE] - Erreur de connexion temps réel Ably:', presenceError);
             
             // Tentative de récupération automatique
-            if (presenceError.message?.includes('disconnected') || presenceError.message?.includes('timeout')) {
+            if (presenceError?.includes('disconnected') || presenceError?.includes('timeout')) {
                 console.log('🔄 [CLIENT CLASSE] - Tentative de récupération de la connexion...');
                 // La reconnexion sera gérée automatiquement par useAblyPresence
             }
