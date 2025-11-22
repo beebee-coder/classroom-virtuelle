@@ -20,6 +20,7 @@ import { AnimatedCard } from './AnimatedCard';
 import { useSession } from 'next-auth/react';
 import { QuizView } from './quiz/QuizView';
 import { trackStudentActivity } from '@/lib/actions/activity.actions';
+import { ChatWorkspace } from './ChatWorkspace'; // Importation du composant de chat
 
 interface StudentSessionViewProps {
     sessionId: string;
@@ -290,6 +291,20 @@ export function StudentSessionView({
                         />
                     </div>
                 );
+            
+            case 'chat':
+                if (session?.user.classeId && session?.user.role) {
+                    return (
+                        <div className="h-full w-full">
+                            <ChatWorkspace
+                                classroomId={session.user.classeId}
+                                userId={currentUserId}
+                                userRole={session.user.role}
+                            />
+                        </div>
+                    );
+                }
+                return <p>Impossible de charger le chat.</p>;
                 
             case 'quiz':
                 console.log(`❓ [STUDENT VIEW] - Affichage quiz: ${activeQuiz?.id || 'Aucun'}`);
@@ -392,6 +407,7 @@ export function StudentSessionView({
         spotlightedStream,
         isHandRaised,
         sessionId,
+        session,
         isPresenceConnected,
         onlineMembersCount,
         handleWhiteboardEvent,
