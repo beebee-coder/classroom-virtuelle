@@ -1,40 +1,92 @@
-/* --- Neumorphic Button Style --- */
+/* src/components/Menu.module.css */
+
+/* --- Styles pour les titres de groupe --- */
+.titleFrame {
+  position: relative;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.titleBackground {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 1px;
+  width: 100%;
+  background-color: hsl(var(--sidebar-border));
+}
+
+.titleBorder {
+  position: absolute;
+  left: 8px; /* Marge à gauche */
+  top: 50%;
+  transform: translateY(-50%);
+  height: 24px;
+  width: calc(100% - 16px); /* Marge des deux côtés */
+  border-left: 1px solid hsl(var(--sidebar-border));
+  border-right: 1px solid hsl(var(--sidebar-border));
+  background: transparent;
+  pointer-events: none;
+}
+
+.titleText {
+  position: relative;
+  z-index: 1;
+  padding: 0 12px; /* Espacement autour du texte */
+  font-size: 0.75rem; /* 12px */
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: hsl(var(--sidebar-foreground) / 0.6);
+  background-color: hsl(var(--sidebar-background)); /* Masque la ligne derrière le texte */
+  max-width: fit-content;
+}
+
+
+/* --- Styles pour les boutons (Neumorphic) --- */
 .button {
   width: 100%;
   height: 50px;
   cursor: pointer;
-  background: #333;
-  margin: 10px 0;
+  background: #333; /* Fallback */
+  background: hsl(var(--sidebar-background));
+  margin: 2px 0; /* Marge légère */
   border: none;
   border-radius: 10px;
-  box-shadow: -5px -5px 15px #444, 5px 5px 15px #222, inset 5px 5px 10px #444, inset -5px -5px 10px #222;
-  color: #ccc;
+  box-shadow: -5px -5px 15px hsl(var(--sidebar-background) / 0.5), 
+              5px 5px 15px hsl(0 0% 0% / 0.2), 
+              inset 5px 5px 10px hsl(var(--sidebar-background) / 0.5), 
+              inset -5px -5px 10px hsl(0 0% 0% / 0.2);
+  color: hsl(var(--sidebar-foreground) / 0.8);
   font-size: 16px;
   display: flex;
   align-items: center;
   justify-content: flex-start;
   padding: 0 1rem;
   gap: 1rem;
-  transition: 500ms;
+  transition: all 500ms;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  -khtml-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
   user-select: none;
 }
 
 .button:hover {
-  box-shadow: -5px -5px 15px #444, 5px 5px 15px #222, inset 5px 5px 10px #222, inset -5px -5px 10px #444;
-  font-size: 16px;
-  color: #fff;
+  box-shadow: -5px -5px 15px hsl(var(--sidebar-background) / 0.5), 
+              5px 5px 15px hsl(0 0% 0% / 0.2), 
+              inset 5px 5px 10px hsl(0 0% 0% / 0.2), 
+              inset -5px -5px 10px hsl(var(--sidebar-background) / 0.5);
+  color: hsl(var(--sidebar-foreground));
 }
 
 .button:focus {
   outline: none;
 }
 
+
+/* --- Couleurs des icônes au survol --- */
 .red:hover {
   color: #f07171;
   text-shadow: 0px 0px 10px #f07171;
