@@ -38,7 +38,7 @@ export default function TeacherDashboardClient({
 
   return (
     // ✅ CORRECTION : Supprimer "container mx-auto" et ajuster le padding
-    <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
+    <div className="w-full px-4 sm:px-6 lg:px-8 py-8  ">
       {/* En-tête */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
         <div className="min-w-0 flex-1"> {/* ✅ CORRECTION : Gestion du texte long */}

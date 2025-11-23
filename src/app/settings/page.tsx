@@ -30,11 +30,11 @@ export default async function SettingsPage() {
 
   return (
     <SidebarProvider>
-      <div className="flex flex-col min-h-screen w-full"> {/* ✅ CORRECTION: ajout de w-full */}
+      <div className="flex flex-col min-h-screen w-full "> {/* ✅ CORRECTION: ajout de w-full */}
         <Header user={user}>
           {isTeacher && <SidebarTrigger />}
         </Header>
-        <div className="flex flex-1 w-full overflow-hidden"> {/* ✅ CORRECTION: ajout de w-full */}
+        <div className="flex flex-1 w-full overflow-hidden bg-blue-900"> {/* ✅ CORRECTION: ajout de w-full */}
           {isTeacher && (
             <Sidebar className="min-w-[280px] w-[280px]"> {/* ✅ CORRECTION: largeur fixe */}
               <SidebarContent>
@@ -48,7 +48,7 @@ export default async function SettingsPage() {
                 <div className="flex items-center gap-4 mb-8">
                   <BackButton />
                   <div className="min-w-0 flex-1"> {/* ✅ CORRECTION: gestion du texte long */}
-                    <h1 className="text-3xl font-bold tracking-tight truncate">Paramètres</h1>
+                    <h1 className="text-3xl font-bold tracking-tight truncate ">Paramètres</h1>
                     <p className="text-muted-foreground truncate">
                       Gérez les informations de votre compte et vos préférences.
                     </p>

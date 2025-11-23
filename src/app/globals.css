@@ -8,8 +8,11 @@
 @import "../styles/cube.css";
 @import "../styles/student-card.css";
 
+
 body {
-  font-family: Arial, Helvetica, sans-serif;
+  width:max-content;
+  min-height: 100vh;
+    font-family: Arial, Helvetica, sans-serif;
 }
 
 @layer base {
@@ -122,5 +125,3 @@ body {
     animation: zoom-in 60s infinite alternate ease-in-out;
   }
 }
-
-    

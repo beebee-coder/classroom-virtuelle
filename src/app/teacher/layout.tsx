@@ -63,7 +63,7 @@ export default async function TeacherLayout({
 
     return (
       <SidebarProvider>
-        <div className="flex flex-col min-h-screen bg-background">
+        <div className="flex flex-col min-h-screen bg-background w-full bg-yellow-600">
           <Header user={session.user}>
             <div className="flex items-center gap-4">
               <SidebarTrigger className="h-9 w-9" />
