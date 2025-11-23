@@ -1,20 +1,20 @@
-/* --- Neumorphic Button Style - VERSION CORRIGÉE --- */
+/* --- Neumorphic Button Style --- */
 .button {
   width: 100%;
-  min-height: 50px; /* ✅ CORRECTION: height -> min-height */
+  height: 50px;
   cursor: pointer;
   background: #333;
-  margin: 5px 0;
+  margin: 10px 0;
   border: none;
   border-radius: 10px;
   box-shadow: -5px -5px 15px #444, 5px 5px 15px #222, inset 5px 5px 10px #444, inset -5px -5px 10px #222;
   color: #ccc;
-  font-size: 14px; /* ✅ CORRECTION: Taille réduite pour plus d'espace */
+  font-size: 16px;
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  padding: 0.75rem 1rem; /* ✅ CORRECTION: Padding vertical réduit */
-  gap: 0.75rem; /* ✅ CORRECTION: Gap réduit */
+  padding: 0 1rem;
+  gap: 1rem;
   transition: 500ms;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
@@ -23,36 +23,11 @@
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
-  /* ✅ CORRECTION AJOUTÉE: Gestion du texte long */
-  overflow: hidden;
-}
-
-/* ✅ CORRECTION AJOUTÉE: Container pour le texte */
-.buttonText {
-  flex: 1;
-  min-width: 0; /* Essential pour le truncate */
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-align: left;
-  font-weight: 500;
-}
-
-/* ✅ CORRECTION: Version avec retour à la ligne pour les écrans larges */
-@media (min-width: 768px) {
-  .buttonText {
-    white-space: normal;
-    line-height: 1.3;
-  }
-  
-  .button {
-    min-height: 55px; /* Un peu plus haut sur desktop */
-  }
 }
 
 .button:hover {
   box-shadow: -5px -5px 15px #444, 5px 5px 15px #222, inset 5px 5px 10px #222, inset -5px -5px 10px #444;
-  font-size: 14px; /* ✅ CORRECTION: Garde la même taille au hover */
+  font-size: 16px;
   color: #fff;
 }
 
@@ -60,7 +35,6 @@
   outline: none;
 }
 
-/* ✅ CORRECTION: Couleurs de hover améliorées */
 .red:hover {
   color: #f07171;
   text-shadow: 0px 0px 10px #f07171;

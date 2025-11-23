@@ -1,4 +1,4 @@
-// src/components/Menu.tsx - VERSION CORRIGÉE
+// src/components/Menu.tsx
 "use client";
 
 import Link from "next/link";
@@ -99,8 +99,7 @@ const Menu: React.FC<MenuProps> = ({ user, classrooms = [], validationCount = 0 
                         )}
                       >
                         {Icon && <Icon className="w-5 h-5 flex-shrink-0" />}
-                        {/* ✅ CORRECTION : Remplacer truncate par la classe CSS */}
-                        <span className={styles.buttonText}>{item.label}</span>
+                        <span className="truncate">{item.label}</span>
                       </button>
                     );
                     return <Component key={item.label} {...compProps} />;
@@ -124,8 +123,7 @@ const Menu: React.FC<MenuProps> = ({ user, classrooms = [], validationCount = 0 
                       )}
                     >
                       <Icon className="w-5 h-5 flex-shrink-0" />
-                      {/* ✅ CORRECTION : Remplacer truncate par la classe CSS */}
-                      <span className={styles.buttonText}>{item.label}</span>
+                      <span className="truncate">{item.label}</span>
                       
                       {item.label === 'Validations' && validationCount > 0 && (
                         <span className="ml-auto inline-flex items-center justify-center min-w-[20px] h-5 px-1 text-xs font-bold leading-none text-white bg-red-500 rounded-full flex-shrink-0">
