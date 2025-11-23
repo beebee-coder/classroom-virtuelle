@@ -1,4 +1,4 @@
-// src/hooks/session/useWebRTCConnection.ts - VERSION CORRIGÉE
+// src/hooks/session/useWebRTCConnection.ts - VERSION FINALE CORRIGÉE
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
@@ -19,10 +19,10 @@ interface PeerState {
     lastSignalTime: number;
 }
 
-// --- Constantes de Configuration ---
+// --- Constantes de Configuration OPTIMISÉES ---
 const WEBRTC_CONFIG = {
-    MAX_SIGNALS: 25,
-    MAX_SIGNALS_PER_SECOND: 5,
+    MAX_SIGNALS: 100, // ✅ AUGMENTÉ pour WebRTC
+    MAX_SIGNALS_PER_SECOND: 30, // ✅ DOUBLÉ pour les candidats ICE
     CONNECTION_TIMEOUT: 30000,
     RETRY_DELAY: 10000,
     MAX_CONNECTION_ATTEMPTS: 3,
@@ -72,7 +72,6 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
             if (newMap.has(userId)) {
                 console.log(`📹 [STREAM CLEANUP] - Suppression du stream distant pour: ${userId}`);
                 const stream = newMap.get(userId);
-                // CORRECTION : Arrêt propre de tous les tracks
                 stream?.getTracks().forEach(track => {
                     track.stop();
                     track.enabled = false;
@@ -84,8 +83,8 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
         });
     }, []);
 
-    // CORRECTION : Fonction de vérification du taux de signaux
-    const canSendSignal = useCallback((targetUserId: string): boolean => {
+    // CORRECTION : Fonction de vérification du taux de signaux OPTIMISÉE
+    const canSendSignal = useCallback((targetUserId: string, signalType?: string): boolean => {
         const now = Date.now();
         const oneSecondAgo = now - 1000;
         
@@ -94,9 +93,20 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
         // Nettoyer les timestamps anciens
         timestamps = timestamps.filter(timestamp => timestamp > oneSecondAgo);
         
+        // ✅ CORRECTION FINALE : Pas de throttling pour les candidats ICE une fois connecté
+        const peerState = peerStatesRef.current.get(targetUserId);
+        if (peerState?.hasReceivedStream && signalType === 'candidate') {
+            return true; // ✅ Pas de limite une fois le stream reçu
+        }
+        
+        // ✅ Limite très permissive pour les candidats ICE
+        const maxSignals = signalType === 'candidate' ? 
+            WEBRTC_CONFIG.MAX_SIGNALS_PER_SECOND * 3 : // Triple pour ICE
+            WEBRTC_CONFIG.MAX_SIGNALS_PER_SECOND;
+        
         // Vérifier la limite
-        if (timestamps.length >= WEBRTC_CONFIG.MAX_SIGNALS_PER_SECOND) {
-            console.warn(`⏸️ [SIGNAL THROTTLING] - Trop de signaux pour ${targetUserId} (${timestamps.length}/s), attente...`);
+        if (timestamps.length >= maxSignals) {
+            console.warn(`⏸️ [SIGNAL THROTTLING] - Trop de signaux pour ${targetUserId} (${timestamps.length}/${maxSignals}s), attente...`);
             return false;
         }
         
@@ -106,15 +116,25 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
         return true;
     }, []);
 
-    // CORRECTION : Fonction d'envoi de signal avec throttling
+    // CORRECTION : Fonction d'envoi de signal avec throttling OPTIMISÉ
     const signalViaAbly = useCallback(async (targetUserId: string, signal: PeerSignalData, isReturnSignal: boolean = false) => {
         if (!isMounted) {
             console.warn('⚠️ [SIGNAL] - Composant non monté, envoi annulé');
             return;
         }
 
-        // CORRECTION : Vérification du taux de signaux
-        if (!canSendSignal(targetUserId)) {
+        // ✅ CORRECTION : Vérification du taux de signaux avec type de signal
+        if (!canSendSignal(targetUserId, signal.type)) {
+            // ✅ CORRECTION : Pour les candidats ICE critiques, on relâche le throttling
+            if (signal.type === 'candidate') {
+                console.log(`🔄 [SIGNAL] - Candidat ICE throttlé mais critique, réessai...`);
+                // Réessayer après un court délai
+                setTimeout(() => {
+                    if (isMounted) {
+                        signalViaAbly(targetUserId, signal, isReturnSignal);
+                    }
+                }, 50); // ✅ Délai réduit
+            }
             return;
         }
 
@@ -197,7 +217,7 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
 
             const peer = new SimplePeer({
                 initiator,
-                trickle: true, // CORRECTION : ICE trickling activé pour meilleure performance
+                trickle: true,
                 stream: stream || undefined,
                 config: { 
                     iceServers: WEBRTC_CONFIG.ICE_SERVERS,
@@ -210,17 +230,18 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
                 }
             });
 
-            // CORRECTION : Gestion des signaux avec déduplication et throttling
+            // CORRECTION : Gestion des signaux avec déduplication et throttling OPTIMISÉ
             peer.on('signal', (signal: PeerSignalData) => {
                 if (!isMounted || peer.destroyed) return;
                 
                 const peerState = peerStatesRef.current.get(targetUserId);
                 if (!peerState) return;
 
-                // CORRECTION : Vérification de la limite de signaux
+                // ✅ CORRECTION : Limite augmentée pour les signaux
                 if (peerState.signalCount >= WEBRTC_CONFIG.MAX_SIGNALS) {
-                    console.warn(`⚠️ [SIGNAL] - Trop de signaux pour ${targetUserId} (${peerState.signalCount}), arrêt`);
-                    return;
+                    console.warn(`⚠️ [SIGNAL] - Trop de signaux pour ${targetUserId} (${peerState.signalCount}), mais continuation pour ICE`);
+                    // On continue quand même pour les candidats ICE critiques
+                    if (signal.type !== 'candidate') return;
                 }
                 
                 // CORRECTION : Déduplication des candidats ICE
@@ -235,9 +256,9 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
                     processedCandidates?.add(candidateKey);
                 }
                 
-                // CORRECTION : Délai progressif pour les candidats ICE
+                // ✅ CORRECTION : Délai réduit pour les candidats ICE
                 const delay = signal.type === 'candidate' ? 
-                    Math.min(peerState.signalCount * 50, 500) : 0;
+                    Math.min(peerState.signalCount * 10, 100) : 0; // ✅ Délai encore réduit
                 
                 setTimeout(() => {
                     if (isMounted && !peer.destroyed) {
@@ -246,30 +267,41 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
                 }, delay);
             });
 
-            // CORRECTION : Gestion du stream distant avec validation
-           // Dans useWebRTCConnection.ts - handler 'stream'
-peer.on('stream', (remoteStream: MediaStream) => {
-    if (!isMounted) return;
-    
-    // CORRECTION : Validation basique pour ajout IMMÉDIAT
-    const hasVideo = remoteStream.getVideoTracks().length > 0;
-    const hasAudio = remoteStream.getAudioTracks().length > 0;
-    const isStreamActive = remoteStream.active;
-    
-    console.log(`📥 [STREAM] - Stream reçu de ${targetUserId}, actif: ${isStreamActive}, vidéo: ${hasVideo}, audio: ${hasAudio}`);
-    
-    // CORRECTION : Ajouter le stream IMMÉDIATEMENT s'il est actif
-    if (isStreamActive && (hasVideo || hasAudio)) {
-      setRemoteStreams(prev => {
-        const newMap = new Map(prev);
-        newMap.set(targetUserId, remoteStream);
-        console.log(`✅ [STREAM ADDED] - Stream ajouté pour ${targetUserId}`);
-        return newMap;
-      });
-    } else {
-      console.warn(`⚠️ [STREAM] - Stream reçu mais invalide de ${targetUserId}`);
-    }
-  });
+            // CORRECTION : Gestion du stream distant
+            peer.on('stream', (remoteStream: MediaStream) => {
+                if (!isMounted) return;
+                
+                const hasVideo = remoteStream.getVideoTracks().length > 0;
+                const hasAudio = remoteStream.getAudioTracks().length > 0;
+                const isStreamActive = remoteStream.active;
+                
+                console.log(`📥 [STREAM] - Stream reçu de ${targetUserId}, actif: ${isStreamActive}, vidéo: ${hasVideo}, audio: ${hasAudio}`);
+                
+                if (isStreamActive) {
+                    setRemoteStreams(prev => {
+                        const newMap = new Map(prev);
+                        newMap.set(targetUserId, remoteStream);
+                        
+                        // CORRECTION : Mise à jour de l'état pour indiquer la réception du stream
+                        const currentState = peerStatesRef.current.get(targetUserId);
+                        if (currentState) {
+                            peerStatesRef.current.set(targetUserId, {
+                                ...currentState,
+                                hasReceivedStream: true,
+                                isConnected: true,
+                                isConnecting: false
+                            });
+                        }
+                        
+                        console.log(`✅ [STREAM ADDED] - Stream ajouté pour ${targetUserId} (vidéo: ${hasVideo}, audio: ${hasAudio})`);
+                        return newMap;
+                    });
+                    
+                    pendingConnectionsRef.current.delete(targetUserId);
+                } else {
+                    console.warn(`⚠️ [STREAM] - Stream inactif reçu de ${targetUserId}`);
+                }
+            });
 
             // CORRECTION : Gestion de la connexion
             peer.on('connect', () => {
@@ -279,6 +311,7 @@ peer.on('stream', (remoteStream: MediaStream) => {
                 if (currentPeerState) {
                     peerStatesRef.current.set(targetUserId, { 
                         ...currentPeerState,
+                        isConnected: true,
                         isConnecting: false
                     });
                 }
@@ -379,7 +412,6 @@ peer.on('stream', (remoteStream: MediaStream) => {
         let peer = peersRef.current.get(fromUserId);
         
         if (!peer || peer.destroyed) {
-            // CORRECTION : Créer un nouveau peer en mode répondeur
             console.log(`🔄 [SIGNAL IN] - Création nouveau peer répondeur pour ${fromUserId}`);
             peer = createPeer(fromUserId, false, localStream);
             
@@ -388,7 +420,6 @@ peer.on('stream', (remoteStream: MediaStream) => {
                 return;
             }
             
-            // CORRECTION : Appliquer le signal après un court délai
             setTimeout(() => {
                 if (isMounted && peer && !peer.destroyed) {
                     try {
@@ -400,14 +431,12 @@ peer.on('stream', (remoteStream: MediaStream) => {
                 }
             }, 100);
         } else {
-            // CORRECTION : Appliquer le signal au peer existant
             try {
                 console.log(`🔄 [SIGNAL IN] - Application du signal au peer existant pour ${fromUserId}`);
                 peer.signal(signal);
             } catch (error) {
                 console.error(`❌ [SIGNAL IN] - Erreur avec peer existant, recréation pour ${fromUserId}:`, error);
                 
-                // CORRECTION : Recréer le peer en cas d'erreur
                 cleanupPeerConnection(fromUserId);
                 const newPeer = createPeer(fromUserId, false, localStream);
                 if (newPeer) {

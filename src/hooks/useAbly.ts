@@ -1,4 +1,4 @@
-// src/hooks/useAbly.ts - VERSION FINALE AVEC DÉBOGAGE AVANCÉ
+// src/hooks/useAbly.ts - VERSION CORRIGÉE
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
@@ -32,16 +32,58 @@ const updateAllListeners = (state: Types.ConnectionState, isConnected: boolean, 
   });
 };
 
-export const useAbly = (componentName: string = 'Unknown'): UseAblyReturn => {
+// ✅ CORRECTION : Fonction utilitaire pour obtenir le nom du composant appelant
+const getCallingComponentName = (): string => {
+  try {
+    // Tentative de récupération du nom du composant via Error stack
+    const error = new Error();
+    const stackLines = error.stack?.split('\n') || [];
+    
+    // Chercher la ligne qui contient le composant React
+    for (let i = 3; i < stackLines.length && i < 8; i++) {
+      const line = stackLines[i].trim();
+      
+      // Patterns typiques des composants React/Next.js
+      if (line.includes('at ') && !line.includes('useAbly')) {
+        // Extraire le nom du composant
+        const match = line.match(/at (\w+)/) || line.match(/at ([\w.]+)/);
+        if (match && match[1]) {
+          const componentName = match[1];
+          // Filtrer les noms génériques
+          if (!['Object', 'Function', 'eval'].includes(componentName)) {
+            return componentName;
+          }
+        }
+        
+        // Alternative: extraire depuis le chemin de fichier
+        const fileMatch = line.match(/\/([\w-]+)\.(tsx|ts|jsx|js)/);
+        if (fileMatch && fileMatch[1]) {
+          return fileMatch[1];
+        }
+      }
+    }
+  } catch (error) {
+    // Fallback silencieux en cas d'erreur
+  }
+  
+  return 'UnknownComponent';
+};
+
+export const useAbly = (componentName?: string): UseAblyReturn => {
+  // ✅ CORRECTION : Déterminer automatiquement le nom du composant si non fourni
+  const resolvedComponentName = useMemo(() => {
+    return componentName || getCallingComponentName();
+  }, [componentName]);
+
   const [connectionState, setConnectionState] = useState<Types.ConnectionState>(globalConnectionState);
   const [isConnected, setIsConnected] = useState<boolean>(globalIsConnected);
   const [connectionError, setConnectionError] = useState<Types.ErrorInfo | null>(globalConnectionError);
   
-  const listenerIdRef = useRef<symbol>(Symbol(`useAbly-${componentName}`));
+  const listenerIdRef = useRef<symbol>(Symbol(`useAbly-${resolvedComponentName}`));
 
   // ✅ CORRECTION : Utiliser useMemo pour une instance STABLE du client
   const ablyClient = useMemo(() => {
-    console.log(`🎯 [USE ABLY HOOK] ${componentName} - Creating/getting Ably client instance`);
+    console.log(`🎯 [USE ABLY HOOK] ${resolvedComponentName} - Creating/getting Ably client instance`);
     const client = getAblyClient();
     
     // ✅ Vérifier l'état actuel immédiatement
@@ -51,14 +93,14 @@ export const useAbly = (componentName: string = 'Unknown'): UseAblyReturn => {
     }
     
     return client;
-  }, [componentName]); // ✅ Ajout du componentName pour le debug
+  }, [resolvedComponentName]);
 
   useEffect(() => {
     const listenerId = listenerIdRef.current;
     let isMounted = true;
 
     // ✅ Enregistrer le composant pour le debug
-    componentStack.set(listenerId, componentName);
+    componentStack.set(listenerId, resolvedComponentName);
 
     // ✅ CORRECTION : Définir le handler UNE FOIS par instance de composant
     const connectionStateHandler = (stateChange: Types.ConnectionStateChange) => {
@@ -89,7 +131,7 @@ export const useAbly = (componentName: string = 'Unknown'): UseAblyReturn => {
 
     // ✅ Log de debug pour tracer les instances
     const activeComponents = Array.from(componentStack.values());
-    console.log(`🔧 [USE ABLY HOOK] ${componentName} monté -`, {
+    console.log(`🔧 [USE ABLY HOOK] ${resolvedComponentName} monté -`, {
       listeners: globalListeners.size,
       refCount: getAblyClientUsage().refCount,
       activeComponents,
@@ -104,9 +146,9 @@ export const useAbly = (componentName: string = 'Unknown'): UseAblyReturn => {
       componentStack.delete(listenerId);
       ablyClient.connection.off(connectionStateHandler);
       
-      console.log(`🧹 [USE ABLY HOOK] ${componentName} démonté - Listeners restants: ${globalListeners.size}`);
+      console.log(`🧹 [USE ABLY HOOK] ${resolvedComponentName} démonté - Listeners restants: ${globalListeners.size}`);
     };
-  }, [ablyClient, componentName]); // ✅ Ajout du componentName
+  }, [ablyClient, resolvedComponentName]);
 
   return {
     client: ablyClient,

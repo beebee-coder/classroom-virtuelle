@@ -1,4 +1,4 @@
-// src/components/SessionClient.tsx - VERSION FINALE CORRIGÉE
+// src/components/SessionClient.tsx - VERSION CORRIGÉE
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -131,7 +131,7 @@ export default function SessionClient({
     setActiveQuiz: handleStartQuiz,
     onNewQuizResponse: handleNewQuizResponse,
     onQuizEnded: handleEndQuiz,
-    onQuizClosed: handleQuizClosed, // Passer la fonction de reset
+    onQuizClosed: handleQuizClosed,
   });
 
   const { sendOperation, flushOperations, isInitialized: isWhiteboardInitialized } = useAblyWhiteboardSync(
@@ -173,6 +173,56 @@ export default function SessionClient({
       createPeer(userId, true, activeStream);
     });
   }, [onlineUserIds, currentUserId, isMediaReady, activeStream, createPeer, remoteStreams]);
+
+  // CORRECTION : Logique améliorée pour spotlightedStream
+  const spotlightedStream = useMemo(() => {
+    if (!spotlightedParticipantId) {
+      console.log('🔍 [SPOTLIGHT DEBUG] - Aucun participant spotlighté');
+      return null;
+    }
+
+    // Si l'utilisateur courant est spotlighté, utiliser son stream actif
+    if (spotlightedParticipantId === currentUserId) {
+      const stream = activeStream;
+      console.log(`🔍 [SPOTLIGHT DEBUG] - Utilisateur courant spotlighté: ${currentUserId}, stream:`, stream?.active);
+      return stream;
+    }
+
+    // Sinon, chercher dans les streams distants
+    const remoteStream = remoteStreams.get(spotlightedParticipantId);
+    console.log(`🔍 [SPOTLIGHT DEBUG] - Participant distant spotlighté: ${spotlightedParticipantId}, stream trouvé:`, remoteStream?.active);
+    
+    return remoteStream || null;
+  }, [spotlightedParticipantId, currentUserId, activeStream, remoteStreams]);
+
+  const allSessionUsers = useMemo(() => 
+    [initialTeacher, ...initialStudents].filter(Boolean) as User[], 
+    [initialTeacher, initialStudents]
+  );
+
+  const spotlightedUser = useMemo(() => 
+    spotlightedParticipantId ? allSessionUsers.find(u => u.id === spotlightedParticipantId) : undefined,
+    [allSessionUsers, spotlightedParticipantId]
+  );
+
+  const remoteParticipants = useMemo(() => 
+    Array.from(remoteStreams.entries())
+      .filter(([_, stream]) => stream && stream.active)
+      .map(([id, stream]) => ({ id, stream })),
+    [remoteStreams]
+  );
+
+  const isHandRaised = useMemo(() => 
+    handRaiseQueue.includes(currentUserId),
+    [handRaiseQueue, currentUserId]
+  );
+
+  const raisedHandUsers = useMemo(() => 
+    handRaiseQueue
+      .map(userId => allSessionUsers.find(u => u.id === userId))
+      .filter(Boolean) as User[],
+    [handRaiseQueue, allSessionUsers]
+  );
 
   const handleEndSession = useCallback(async () => {
     if (currentUserRole !== Role.PROFESSEUR) {
@@ -468,51 +518,18 @@ export default function SessionClient({
     }
   }, [sessionId]);
 
-  const spotlightedStream = useMemo(() => {
-    if (!spotlightedParticipantId) return null;
-    if (spotlightedParticipantId === currentUserId) return activeStream;
-    return remoteStreams.get(spotlightedParticipantId) || null;
-  }, [spotlightedParticipantId, currentUserId, activeStream, remoteStreams]);
-
-  const allSessionUsers = useMemo(() => 
-    [initialTeacher, ...initialStudents].filter(Boolean) as User[], 
-    [initialTeacher, initialStudents]
-  );
-
-  const spotlightedUser = useMemo(() => 
-    spotlightedParticipantId ? allSessionUsers.find(u => u.id === spotlightedParticipantId) : undefined,
-    [allSessionUsers, spotlightedParticipantId]
-  );
-
-  const remoteParticipants = useMemo(() => 
-    Array.from(remoteStreams.entries())
-      .filter(([_, stream]) => stream && stream.active)
-      .map(([id, stream]) => ({ id, stream })),
-    [remoteStreams]
-  );
-
-  const isHandRaised = useMemo(() => 
-    handRaiseQueue.includes(currentUserId),
-    [handRaiseQueue, currentUserId]
-  );
-
-  const raisedHandUsers = useMemo(() => 
-    handRaiseQueue
-      .map(userId => allSessionUsers.find(u => u.id === userId))
-      .filter(Boolean) as User[],
-    [handRaiseQueue, allSessionUsers]
-  );
-
   if (isMediaLoading) {
     return <SessionLoading />;
   }
 
+  // DEBUG amélioré pour le spotlight
   if (process.env.NODE_ENV === 'development') {
     console.log(`🔍 [DEBUG SPOTLIGHT] - spotlightedParticipantId: ${spotlightedParticipantId}`);
     console.log(`🔍 [DEBUG SPOTLIGHT] - currentUserId: ${currentUserId}`);
     console.log(`🔍 [DEBUG SPOTLIGHT] - remoteStreams keys: ${Array.from(remoteStreams.keys())}`);
     console.log(`🔍 [DEBUG SPOTLIGHT] - spotlightedStream calculé:`, spotlightedStream);
     console.log(`🔍 [DEBUG SPOTLIGHT] - spotlightedStream actif: ${spotlightedStream?.active}`);
+    console.log(`🔍 [DEBUG SPOTLIGHT] - remoteStream pour spotlight:`, remoteStreams.get(spotlightedParticipantId || ''));
   }
 
   console.log(`🎯 [SESSION CLIENT] - Rendu pour ${currentUserRole}, whiteboard initialisé: ${isWhiteboardInitialized}`);
