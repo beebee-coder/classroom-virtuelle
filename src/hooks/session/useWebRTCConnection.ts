@@ -1,4 +1,3 @@
-
 // src/hooks/session/useWebRTCConnection.ts - VERSION COMPLÈTE CORRIGÉE
 'use client';
 
@@ -62,7 +61,7 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
                                (remoteStream.getVideoTracks().some(t => t.readyState === 'live') || 
                                 remoteStream.getAudioTracks().some(t => t.readyState === 'live'));
         
-        const isPeerConnected = peer ? !peer.destroyed && peer.connected : false;
+        const isPeerConnected = peer ? !peer.destroyed && !!peer.connected : false;
         
         return peerState.isConnected && isStreamActive && isPeerConnected;
     }, [remoteStreams]);
