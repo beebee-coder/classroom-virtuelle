@@ -522,16 +522,18 @@ export default function SessionClient({
     return <SessionLoading />;
   }
 
-  // DEBUG amélioré pour le spotlight
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`🔍 [DEBUG SPOTLIGHT] - spotlightedParticipantId: ${spotlightedParticipantId}`);
-    console.log(`🔍 [DEBUG SPOTLIGHT] - currentUserId: ${currentUserId}`);
-    console.log(`🔍 [DEBUG SPOTLIGHT] - remoteStreams keys: ${Array.from(remoteStreams.keys())}`);
-    console.log(`🔍 [DEBUG SPOTLIGHT] - spotlightedStream calculé:`, spotlightedStream);
-    console.log(`🔍 [DEBUG SPOTLIGHT] - spotlightedStream actif: ${spotlightedStream?.active}`);
-    console.log(`🔍 [DEBUG SPOTLIGHT] - remoteStream pour spotlight:`, remoteStreams.get(spotlightedParticipantId || ''));
-  }
-
+  // ✅ CORRECTION : DEBUG amélioré pour le spotlight - VERSION CORRIGÉE
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🔍 [DEBUG SPOTLIGHT] - spotlightedParticipantId: ${spotlightedParticipantId}`);
+      console.log(`🔍 [DEBUG SPOTLIGHT] - currentUserId: ${currentUserId}`);
+      console.log(`🔍 [DEBUG SPOTLIGHT] - remoteStreams keys: ${Array.from(remoteStreams.keys())}`);
+      
+      // La variable 'spotlightedStream' n'est plus dans la portée ici,
+      // mais les logs ci-dessus sont suffisants pour le debug.
+    }
+  }, [spotlightedParticipantId, currentUserId, remoteStreams, activeStream, currentUserRole]);
+  
   console.log(`🎯 [SESSION CLIENT] - Rendu pour ${currentUserRole}, whiteboard initialisé: ${isWhiteboardInitialized}`);
 
   return (

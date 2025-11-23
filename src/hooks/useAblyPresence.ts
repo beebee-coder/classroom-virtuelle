@@ -84,11 +84,6 @@ export const useAblyPresence = (
       }, 60000);
     }
     
-    if (presenceUpdateCountRef.current >= MAX_PRESENCE_UPDATES_PER_MINUTE) {
-      console.warn(`⏸️ [PRESENCE HOOK] - Rate limiting: ${presenceUpdateCountRef.current} updates cette minute`);
-      return false;
-    }
-    
     if (now - lastPresenceUpdateRef.current < PRESENCE_UPDATE_DELAY_MS) {
       console.warn(`⏸️ [PRESENCE HOOK] - Délai trop court depuis dernière update: ${now - lastPresenceUpdateRef.current}ms`);
       return false;
@@ -387,7 +382,8 @@ export const useAblyPresence = (
     
     if (!canUpdatePresence()) {
       console.warn('⏸️ [PRESENCE HOOK] - Rate limiting activé, report de l\'entrée en présence');
-      throw new Error('Rate limiting: trop de mises à jour de présence');
+      // On ne lance pas d'erreur pour permettre à la logique de continuer sans bloquer l'UI
+      return;
     }
     
     isEnteringRef.current = true;
