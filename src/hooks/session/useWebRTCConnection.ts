@@ -1,3 +1,4 @@
+
 // src/hooks/session/useWebRTCConnection.ts - VERSION COMPLÈTE CORRIGÉE
 'use client';
 
@@ -53,16 +54,19 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
         const peerState = peerStatesRef.current.get(userId);
         if (!peerState) return false;
         
-        // ✅ CORRECTION : Vérifier si le stream est réellement actif
         const remoteStream = remoteStreams.get(userId);
-        const hasActiveStream = remoteStream?.active === true;
-        
-        // ✅ CORRECTION : Vérifier si le peer est toujours valide
         const peer = peersRef.current.get(userId);
-        const peerIsValid = peer ? !peer.destroyed && peer.connected : false;
         
-        return peerState.isConnected && hasActiveStream && peerIsValid;
+        // ✅ CORRECTION : Rendre la vérification plus stricte
+        const isStreamActive = remoteStream?.active && 
+                               (remoteStream.getVideoTracks().some(t => t.readyState === 'live') || 
+                                remoteStream.getAudioTracks().some(t => t.readyState === 'live'));
+        
+        const isPeerConnected = peer ? !peer.destroyed && peer.connected : false;
+        
+        return peerState.isConnected && isStreamActive && isPeerConnected;
     }, [remoteStreams]);
+
 
     // CORRECTION : Fonction de nettoyage améliorée
     const cleanupPeerConnection = useCallback((userId: string): void => {
