@@ -1,3 +1,4 @@
+
 // src/app/settings/page.tsx - VERSION CORRIGÉE
 import { redirect } from 'next/navigation';
 import { getServerSession } from "next-auth";
@@ -30,24 +31,24 @@ export default async function SettingsPage() {
 
   return (
     <SidebarProvider>
-      <div className="flex flex-col min-h-screen w-full "> {/* ✅ CORRECTION: ajout de w-full */}
+      <div className="flex flex-col min-h-screen w-full">
         <Header user={user}>
           {isTeacher && <SidebarTrigger />}
         </Header>
-        <div className="flex flex-1 w-full overflow-hidden bg-blue-900"> {/* ✅ CORRECTION: ajout de w-full */}
+        <div className="flex flex-1 overflow-hidden min-w-0">
           {isTeacher && (
-            <Sidebar className="min-w-[280px] w-[280px]"> {/* ✅ CORRECTION: largeur fixe */}
+            <Sidebar className="min-w-[280px] w-[280px]">
               <SidebarContent>
                 <Menu user={user} />
               </SidebarContent>
             </Sidebar>
           )}
-          <SidebarInset className="flex-1 min-w-0"> {/* ✅ CORRECTION: min-w-0 pour permettre le rétrécissement */}
-            <div className="h-full overflow-auto w-full"> {/* ✅ CORRECTION: w-full */}
-              <main className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8"> {/* ✅ CORRECTION: max-width limité */}
+          <SidebarInset>
+            <main className="h-full overflow-auto">
+              <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-w-0">
                 <div className="flex items-center gap-4 mb-8">
                   <BackButton />
-                  <div className="min-w-0 flex-1"> {/* ✅ CORRECTION: gestion du texte long */}
+                  <div className="min-w-0 flex-1">
                     <h1 className="text-3xl font-bold tracking-tight truncate ">Paramètres</h1>
                     <p className="text-muted-foreground truncate">
                       Gérez les informations de votre compte et vos préférences.
@@ -55,12 +56,11 @@ export default async function SettingsPage() {
                   </div>
                 </div>
                 
-                {/* ✅ CORRECTION: Container avec hauteur et défilement contrôlés */}
                 <div className="bg-card rounded-lg border shadow-sm">
                   <SettingsClient user={user} />
                 </div>
-              </main>
-            </div>
+              </div>
+            </main>
           </SidebarInset>
         </div>
       </div>

@@ -38,11 +38,13 @@ export default async function TeacherDashboardPage() {
     console.log(`✅ [DASHBOARD] ${validationCount} tâches à valider`);
 
     return (
-      <TeacherDashboardClient
-        user={session.user}
-        classrooms={classroomsData}
-        validationCount={validationCount}
-      />
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-w-0">
+        <TeacherDashboardClient
+          user={session.user}
+          classrooms={classroomsData}
+          validationCount={validationCount}
+        />
+      </div>
     );
 
   } catch (error) {
@@ -66,5 +68,3 @@ export default async function TeacherDashboardPage() {
     );
   }
 }
-
-    

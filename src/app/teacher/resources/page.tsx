@@ -1,3 +1,4 @@
+
 // src/app/teacher/resources/page.tsx
 import { redirect } from 'next/navigation';
 import { getServerSession } from "next-auth";
@@ -24,7 +25,7 @@ export default async function TeacherResourcesPage() {
     console.log(`✅ [PAGE] Found ${documents.length} documents for the library.`);
 
     return (
-        <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-w-0">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
                 <div className="flex items-center gap-4">
                     <BackButton />
@@ -76,6 +77,6 @@ export default async function TeacherResourcesPage() {
                     ))}
                 </div>
             )}
-        </main>
+        </div>
     );
 }

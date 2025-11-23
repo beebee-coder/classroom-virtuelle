@@ -1,4 +1,5 @@
 
+
 import { TaskEditor } from "@/components/TaskEditor";
 import { BackButton } from "@/components/BackButton";
 import { getServerSession } from "next-auth";
@@ -23,8 +24,7 @@ export default async function TasksPage() {
   });
 
   return (
-    <div className="container flex w-full px-4 sm:px-6 lg:px-8 py-8 gap-6">
-
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-w-0">
       <div className="flex items-center gap-4 mb-8">
         <BackButton />
         <div>
@@ -40,5 +40,3 @@ export default async function TasksPage() {
 
   );
 }
-
-    

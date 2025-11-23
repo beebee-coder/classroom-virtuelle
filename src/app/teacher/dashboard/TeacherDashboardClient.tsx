@@ -1,3 +1,4 @@
+
 // src/app/teacher/dashboard/TeacherDashboardClient.tsx - VERSION CORRIGÉE
 'use client';
 
@@ -37,11 +38,10 @@ export default function TeacherDashboardClient({
   }, [user?.name, classrooms.length, validationCount]);
 
   return (
-    // ✅ CORRECTION : Supprimer "container mx-auto" et ajuster le padding
-    <div className="w-full px-4 sm:px-6 lg:px-8 py-8  ">
+    <>
       {/* En-tête */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-        <div className="min-w-0 flex-1"> {/* ✅ CORRECTION : Gestion du texte long */}
+        <div className="min-w-0 flex-1">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight truncate">
             Tableau de bord du professeur
           </h1>
@@ -56,13 +56,13 @@ export default function TeacherDashboardClient({
         
         {/* Carte: Gérer les classes */}
         <Link href="/teacher/classes" className="group block">
-          <Card className="transition-all duration-300 hover:shadow-lg hover:-translate-y-1 h-full border-2 border-transparent hover:border-primary/20 min-w-0"> {/* ✅ CORRECTION : min-w-0 */}
+          <Card className="transition-all duration-300 hover:shadow-lg hover:-translate-y-1 h-full border-2 border-transparent hover:border-primary/20 min-w-0">
             <CardHeader className="pb-3">
               <div className="flex items-center gap-4 min-w-0">
                 <div className="p-3 bg-primary/10 rounded-full group-hover:bg-primary/20 transition-colors flex-shrink-0">
                   <Users className="h-6 w-6 text-primary" />
                 </div>
-                <div className="min-w-0 flex-1"> {/* ✅ CORRECTION : Gestion texte long */}
+                <div className="min-w-0 flex-1">
                   <CardTitle className="text-lg truncate">Gérer les Classes</CardTitle>
                   <CardDescription className="mt-1 truncate">
                     {classrooms.length > 0 
@@ -74,7 +74,7 @@ export default function TeacherDashboardClient({
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground line-clamp-2"> {/* ✅ CORRECTION : line-clamp */}
+              <p className="text-sm text-muted-foreground line-clamp-2">
                 Accédez à vos listes d'élèves, démarrez des sessions et suivez leur progression.
               </p>
             </CardContent>
@@ -196,6 +196,6 @@ export default function TeacherDashboardClient({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

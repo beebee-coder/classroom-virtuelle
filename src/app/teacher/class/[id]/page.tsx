@@ -1,4 +1,5 @@
 
+
 // src/app/teacher/class/[id]/page.tsx
 import { notFound, redirect } from 'next/navigation';
 import ClassPageClient from './ClassPageClient';
@@ -55,7 +56,9 @@ export default async function ClassPage({ params }: { params: { id: string } }) 
 
   const announcements = await getClassAnnouncements(classroom.id) as AnnouncementWithAuthor[];
   
-  return <ClassPageClient classroom={classroom as ClassroomWithDetails} teacher={teacher} announcements={announcements} />;
+  return (
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-w-0">
+      <ClassPageClient classroom={classroom as ClassroomWithDetails} teacher={teacher} announcements={announcements} />
+    </div>
+  );
 }
-
-    

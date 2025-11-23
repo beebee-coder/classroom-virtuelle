@@ -42,7 +42,7 @@ export default async function TeacherClassesPage() {
     }));
 
     return (
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-w-0">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
           <div className="flex items-center gap-4">
             <BackButton />
@@ -70,7 +70,7 @@ export default async function TeacherClassesPage() {
             {classroomsWithCount.map(classroom => (
               <Link 
                 href={`/teacher/class/${classroom.id}`} 
-                className="group" 
+                className="group block" 
                 key={classroom.id}
               >
                 <Card className="transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
@@ -97,13 +97,13 @@ export default async function TeacherClassesPage() {
             ))}
           </div>
         )}
-      </main>
+      </div>
     );
   } catch (error) {
     console.error('Erreur lors du chargement des classes:', error);
     
     return (
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-w-0">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
           <div className="flex items-center gap-4">
             <BackButton />
@@ -123,9 +123,7 @@ export default async function TeacherClassesPage() {
             </CardDescription>
           </CardHeader>
         </Card>
-      </main>
+      </div>
     );
   }
 }
-
-    

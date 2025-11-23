@@ -1,3 +1,4 @@
+
 // src/app/teacher/layout.tsx - VERSION CORRIGÉE
 import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
@@ -63,7 +64,7 @@ export default async function TeacherLayout({
 
     return (
       <SidebarProvider>
-        <div className="flex flex-col min-h-screen bg-background w-full">
+        <div className="flex flex-col min-h-screen w-full">
           <Header user={session.user}>
             <div className="flex items-center gap-4">
               <SidebarTrigger className="h-9 w-9" />
@@ -114,9 +115,7 @@ export default async function TeacherLayout({
             
             <SidebarInset>
               <main className="h-full overflow-auto">
-                <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 max-w-7xl">
-                  {children}
-                </div>
+                {children}
               </main>
             </SidebarInset>
           </div>

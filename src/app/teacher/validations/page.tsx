@@ -1,4 +1,5 @@
 
+
 // src/app/teacher/validations/page.tsx
 import { BackButton } from "@/components/BackButton";
 import { getServerSession } from "next-auth";
@@ -20,9 +21,7 @@ export default async function ProfessorValidationPage() {
   const tasksToValidate = await getTasksForProfessorValidation(session.user.id);
 
   return (
-    <main className="container flex mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
-     
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-w-0">
       <div className=" flex items-center gap-4 mb-8">
         <BackButton />
         <div>
@@ -45,10 +44,6 @@ export default async function ProfessorValidationPage() {
               <ValidationConsoleClient initialTasks={tasksToValidate} />
           </CardContent>
       </Card>
-     
- 
-      </main>
+    </div>
   );
 }
-
-    
