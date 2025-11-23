@@ -195,10 +195,10 @@ export default function SessionClient({
     return remoteStream || null;
   }, [spotlightedParticipantId, currentUserId, activeStream, remoteStreams]);
 
-  const allSessionUsers = useMemo(() => 
-    [initialTeacher, ...initialStudents].filter(Boolean) as User[], 
-    [initialTeacher, initialStudents]
-  );
+    const allSessionUsers = useMemo(
+        () => [initialTeacher, ...(initialStudents || [])].filter(Boolean) as User[],
+        [initialTeacher, initialStudents]
+    );
 
   const spotlightedUser = useMemo(() => 
     spotlightedParticipantId ? allSessionUsers.find(u => u.id === spotlightedParticipantId) : undefined,
