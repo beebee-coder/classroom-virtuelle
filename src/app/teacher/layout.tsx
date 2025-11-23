@@ -63,7 +63,7 @@ export default async function TeacherLayout({
 
     return (
       <SidebarProvider>
-        <div className="flex flex-col min-h-screen bg-background w-full bg-yellow-600">
+        <div className="flex flex-col min-h-screen bg-background w-full">
           <Header user={session.user}>
             <div className="flex items-center gap-4">
               <SidebarTrigger className="h-9 w-9" />
@@ -78,7 +78,7 @@ export default async function TeacherLayout({
             </div>
           </Header>
           
-          <div className="flex flex-1 overflow-hidden">
+          <div className="flex flex-1 overflow-hidden min-w-0">
             <Sidebar 
               variant="inset" 
               className="border-r bg-sidebar"
@@ -137,7 +137,7 @@ export default async function TeacherLayout({
             Erreur de chargement
           </h1>
           <p className="text-muted-foreground mb-6 text-sm">
-            Une erreur est survenue lors du chargement de l&apos;interface enseignant.
+            Une erreur est survenue lors du chargement de l'interface enseignant.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Button asChild variant="default">
