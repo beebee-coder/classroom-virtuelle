@@ -1,4 +1,4 @@
-// src/components/Menu.tsx
+// src/components/Menu.tsx - VERSION CORRIGÉE
 "use client";
 
 import Link from "next/link";
@@ -16,15 +16,19 @@ interface MenuProps {
   validationCount?: number;
 }
 
-// Type pour les éléments de menu avec toutes les propriétés possibles
-interface MenuItem {
+interface MenuItemType {
   label: string;
-  roles: string[]; // Use string[] for Role
+  roles: string[];
   condition?: (user: Session['user']) => boolean;
-  component?: React.ElementType;
+  component?: React.ComponentType<any>;
   href?: string | ((user: Session['user']) => string);
-  icon?: React.ElementType;
+  icon?: React.ComponentType<any>;
   isDialog?: boolean;
+}
+
+interface MenuGroupType {
+  title: string;
+  items: MenuItemType[];
 }
 
 const Menu: React.FC<MenuProps> = ({ user, classrooms = [], validationCount = 0 }) => {
@@ -34,9 +38,12 @@ const Menu: React.FC<MenuProps> = ({ user, classrooms = [], validationCount = 0 
 
   const colorClasses = [
     styles.red,
-    styles.green,
+    styles.green, 
     styles.blue,
     styles.purple,
+    styles.orange,
+    styles.pink,
+    styles.cyan,
   ];
 
   return (
@@ -48,75 +55,93 @@ const Menu: React.FC<MenuProps> = ({ user, classrooms = [], validationCount = 0 
         </filter>
       </svg>
       
-      {menuItems.map((group) => {
-        // Type assertion pour les éléments de menu
-        const items = group.items as MenuItem[];
-        
-        // Filter items based on user role and conditions
-        const visibleItems = items.filter(item => 
-          item.roles.includes(user.role as string) &&
-          (!item.condition || item.condition(user))
-        );
+      {(menuItems as MenuGroupType[]).map((group) => {
+        const visibleItems = group.items.filter(item => {
+          try {
+            const hasRole = item.roles.includes(user.role as string);
+            const passesCondition = !item.condition || item.condition(user);
+            return hasRole && passesCondition;
+          } catch (error) {
+            console.warn(`Erreur dans le filtre du menu item "${item.label}":`, error);
+            return false;
+          }
+        });
         
         if (visibleItems.length === 0) return null;
         
         return (
-          <div className="flex flex-col gap-1 mb-4" key={group.title}>
+          <div className="flex flex-col gap-2 mb-6" key={group.title}>
             <div className={styles.titleFrame}>
               <span className={styles.titleBackground}></span>
               <span className={styles.titleBorder}></span>
-              <span className={styles.titleText}>{group.title}</span>
+              <span className={cn(styles.titleText, "whitespace-nowrap")}>{group.title}</span>
             </div>
 
-            {visibleItems.map((item, index) => {
-               const Icon = item.icon;
-               const colorClass = colorClasses[index % colorClasses.length];
+            <div className="flex flex-col gap-1">
+              {visibleItems.map((item, index) => {
+                const Icon = item.icon;
+                const colorClass = colorClasses[index % colorClasses.length];
 
-               if (item.component) {
-                 const Comp = item.component;
-                 const compProps: {classrooms?: any, children?: React.ReactNode, className?: string} = {};
+                if (item.component) {
+                  const Component = item.component;
+                  const compProps: any = {};
 
-                 if (item.label === "Créer une Annonce") {
+                  if (item.label === "Créer une Annonce") {
                     compProps.classrooms = classrooms;
-                 }
+                  }
 
-                 // Pour les dialogues, on passe le bouton comme `children`
-                 if (item.isDialog) {
+                  if (item.isDialog) {
                     compProps.children = (
-                      <button className={cn(styles.button, colorClass)}>
-                        {Icon && <Icon />}
-                        <span>{item.label}</span>
+                      <button 
+                        className={cn(
+                          styles.button, 
+                          colorClass
+                        )}
+                      >
+                        {Icon && <Icon className="w-5 h-5 flex-shrink-0" />}
+                        {/* ✅ CORRECTION : Remplacer truncate par la classe CSS */}
+                        <span className={styles.buttonText}>{item.label}</span>
                       </button>
                     );
-                    return <Comp key={item.label} {...compProps} />;
-                 }
-              }
-              
-              if (item.href && Icon) {
-                const href = typeof item.href === 'function' ? item.href(user) : item.href;
-                const isActive = pathname === href;
+                    return <Component key={item.label} {...compProps} />;
+                  }
+                  
+                  return <Component key={item.label} {...compProps} />;
+                }
                 
-                return (
-                  <Link
-                    href={href}
-                    key={item.label}
-                    className={cn(styles.button, colorClass, isActive && "ring-2 ring-accent")}
-                  >
-                    <Icon />
-                    <span>{item.label}</span>
-                    {item.label === 'Validations' && validationCount > 0 && (
-                      <span className="ml-auto inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-500 rounded-full">
-                        {validationCount}
-                      </span>
-                    )}
-                  </Link>
-                );
-              }
-              
-              return null;
-            })}
+                if (item.href && Icon) {
+                  const href = typeof item.href === 'function' ? item.href(user) : item.href;
+                  const isActive = pathname === href || pathname?.startsWith(href + '/');
+                  
+                  return (
+                    <Link
+                      href={href}
+                      key={item.label}
+                      className={cn(
+                        styles.button, 
+                        colorClass,
+                        isActive && "ring-2 ring-accent bg-accent/10"
+                      )}
+                    >
+                      <Icon className="w-5 h-5 flex-shrink-0" />
+                      {/* ✅ CORRECTION : Remplacer truncate par la classe CSS */}
+                      <span className={styles.buttonText}>{item.label}</span>
+                      
+                      {item.label === 'Validations' && validationCount > 0 && (
+                        <span className="ml-auto inline-flex items-center justify-center min-w-[20px] h-5 px-1 text-xs font-bold leading-none text-white bg-red-500 rounded-full flex-shrink-0">
+                          {validationCount > 99 ? '99+' : validationCount}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                }
+                
+                console.warn(`Item de menu invalide: ${item.label}`);
+                return null;
+              })}
+            </div>
           </div>
-        )
+        );
       })}
     </div>
   );

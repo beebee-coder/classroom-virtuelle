@@ -35,7 +35,7 @@ export default async function SettingsPage() {
         <Header user={user}>
           {isTeacher && <SidebarTrigger />}
         </Header>
-        <div className="flex flex-1">
+        <div className="flex flex-1 overflow-hidden">
           {isTeacher && (
             <Sidebar>
               <SidebarContent>
@@ -44,23 +44,23 @@ export default async function SettingsPage() {
             </Sidebar>
           )}
           <SidebarInset>
-            <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-              <div className="flex items-center gap-4 mb-8">
-                <BackButton />
-                <div>
-                  <h1 className="text-3xl font-bold tracking-tight">Paramètres</h1>
-                  <p className="text-muted-foreground">
-                    Gérez les informations de votre compte et vos préférences.
-                  </p>
+            <div className="h-full overflow-auto">
+                <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div className="flex items-center gap-4 mb-8">
+                    <BackButton />
+                    <div>
+                    <h1 className="text-3xl font-bold tracking-tight">Paramètres</h1>
+                    <p className="text-muted-foreground">
+                        Gérez les informations de votre compte et vos préférences.
+                    </p>
+                    </div>
                 </div>
-              </div>
-              <SettingsClient user={user} />
-            </main>
+                <SettingsClient user={user} />
+                </main>
+            </div>
           </SidebarInset>
         </div>
       </div>
     </SidebarProvider>
   );
 }
-
-    

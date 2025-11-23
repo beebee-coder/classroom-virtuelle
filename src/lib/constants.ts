@@ -1,4 +1,4 @@
-// src/lib/constants.ts
+// src/lib/constants.ts - VERSION CORRIGÉE
 import {
     LayoutDashboard,
     Users,
@@ -23,17 +23,33 @@ import {
     Feather,
     Atom,
     Palette,
-    Network, // Ajout de l'icône pour les groupes
-    Folder, // Ajout de l'icône pour la bibliothèque
+    Network,
+    Folder,
 } from 'lucide-react';
 import type { Classroom } from '@prisma/client';
-import { TaskCategory } from '@prisma/client'; // CORRECTION : Importation ajoutée
+import { TaskCategory, Role } from '@prisma/client';
 import { CreateAnnouncementForm } from '@/components/CreateAnnouncementForm';
 import { ResetButton } from '@/components/ResetButton';
 import type { Session } from "next-auth";
 
-// Définition des éléments de menu pour une configuration centralisée
-export const menuItems = [
+// ✅ CORRECTION : Interface améliorée pour les items de menu
+export interface MenuItem {
+    label: string;
+    href?: string;
+    component?: React.ComponentType<any>;
+    icon: React.ComponentType<any>;
+    roles: Role[];
+    isDialog?: boolean;
+    condition?: (user: Session['user']) => boolean;
+}
+
+export interface MenuSection {
+    title: string;
+    items: MenuItem[];
+}
+
+// ✅ CORRECTION : Définition des éléments de menu avec typage correct
+export const menuItems: MenuSection[] = [
     {
         title: "Principal",
         items: [
@@ -41,48 +57,48 @@ export const menuItems = [
                 label: "Tableau de Bord", 
                 href: "/teacher/dashboard", 
                 icon: LayoutDashboard,
-                roles: ['PROFESSEUR'],
+                roles: [Role.PROFESSEUR],
             },
             { 
                 label: "Gérer les Classes", 
                 href: "/teacher/classes", 
                 icon: Users,
-                roles: ['PROFESSEUR'],
+                roles: [Role.PROFESSEUR],
             },
             { 
                 label: "Validations", 
                 href: "/teacher/validations", 
                 icon: CheckCircle,
-                roles: ['PROFESSEUR'],
+                roles: [Role.PROFESSEUR],
             },
-             { 
+            { 
                 label: "Bibliothèque", 
                 href: "/teacher/resources", 
                 icon: Folder,
-                roles: ['PROFESSEUR'],
+                roles: [Role.PROFESSEUR],
             },
             { 
                 label: "Gérer les Tâches", 
                 href: "/teacher/tasks", 
                 icon: Edit,
-                roles: ['PROFESSEUR'],
+                roles: [Role.PROFESSEUR],
             },
-             { 
+            { 
                 label: "Classe du Futur", 
                 href: "/teacher/future-classroom", 
                 icon: Rocket,
-                roles: ['PROFESSEUR'],
+                roles: [Role.PROFESSEUR],
             },
         ],
     },
     {
         title: "Outils IA",
         items: [
-             { 
+            { 
                 label: "Assistant Pédagogique", 
                 href: "/assistant", 
                 icon: Bot,
-                roles: ['PROFESSEUR', 'ELEVE'],
+                roles: [Role.PROFESSEUR, Role.ELEVE],
             },
         ]
     },
@@ -93,14 +109,14 @@ export const menuItems = [
                 label: "Créer une Annonce", 
                 component: CreateAnnouncementForm,
                 icon: Megaphone,
-                roles: ['PROFESSEUR'],
+                roles: [Role.PROFESSEUR],
                 isDialog: true,
             },
             {
                 label: "Remise à zéro",
                 component: ResetButton,
                 icon: RefreshCw,
-                roles: ['PROFESSEUR'],
+                roles: [Role.PROFESSEUR],
                 isDialog: true,
             }
         ]
@@ -110,10 +126,9 @@ export const menuItems = [
         items: [
             {
                 label: "Ma Classe",
-                href: (user: Session['user']) => `/student/class/${user?.classeId}`,
+                href: "/student/class", // ✅ CORRECTION : Lien simplifié
                 icon: Users,
-                roles: ['ELEVE'],
-                condition: (user: Session['user']) => !!user?.classeId,
+                roles: [Role.ELEVE],
             },
         ],
     },
@@ -122,10 +137,9 @@ export const menuItems = [
         items: [
             {
                 label: "Espace Parental",
-                href: (user: Session['user']) => `/student/${user?.id}/parent`,
+                href: "/student/parent", // ✅ CORRECTION : Lien simplifié
                 icon: KeyRound,
-                roles: ['ELEVE'],
-                condition: (user: Session['user']) => !!user?.id,
+                roles: [Role.ELEVE],
             },
         ]
     },
@@ -134,58 +148,92 @@ export const menuItems = [
         items: [
             { 
                 label: "Profil", 
-                href: (user: Session['user']) => user?.role === 'PROFESSEUR' ? '/teacher/profile' : `/student/dashboard`, 
+                href: "/profile", // ✅ CORRECTION : Lien générique
                 icon: UserCircle,
-                roles: ['PROFESSEUR', 'ELEVE'],
-                condition: (user: Session['user']) => !!user?.id,
+                roles: [Role.PROFESSEUR, Role.ELEVE],
             },
             { 
                 label: "Paramètres", 
-                href: "/settings", // Lien générique pour les paramètres
+                href: "/settings", 
                 icon: Settings,
-                roles: ['PROFESSEUR', 'ELEVE'],
+                roles: [Role.PROFESSEUR, Role.ELEVE],
             },
         ],
     },
 ];
 
+// ✅ CORRECTION : Interface pour les outils
+export interface ToolItem {
+    id: string;
+    name: string;
+    icon: React.ComponentType<any>;
+    colors: [string, string];
+}
 
-// --- Préréglages des Outils de Session ---
-
-const defaultTools = [
-    { id: 'camera', name: 'Caméras', icon: Camera, colors: ['#80FF72', '#7EE8FA'] as [string, string] },
-    { id: 'whiteboard', name: 'Tableau', icon: Square, colors: ['#a955ff', '#ea51ff'] as [string, string] },
-    { id: 'document', name: 'Document', icon: FileText, colors: ['#3b82f6', '#2563eb'] as [string, string] },
-    { id: 'chat', name: 'Chat', icon: MessageSquare, colors: ['#22d3ee', '#06b6d4'] as [string, string] },
-    { id: 'breakout', name: 'Groupes', icon: Network, colors: ['#f472b6', '#ec4899'] as [string, string] },
-    { id: 'quiz', name: 'Quiz', icon: Award, colors: ['#f59e0b', '#d97706'] as [string, string] },
+const defaultTools: ToolItem[] = [
+    { id: 'camera', name: 'Caméras', icon: Camera, colors: ['#80FF72', '#7EE8FA'] },
+    { id: 'whiteboard', name: 'Tableau', icon: Square, colors: ['#a955ff', '#ea51ff'] },
+    { id: 'document', name: 'Document', icon: FileText, colors: ['#3b82f6', '#2563eb'] },
+    { id: 'chat', name: 'Chat', icon: MessageSquare, colors: ['#22d3ee', '#06b6d4'] },
+    { id: 'breakout', name: 'Groupes', icon: Network, colors: ['#f472b6', '#ec4899'] },
+    { id: 'quiz', name: 'Quiz', icon: Award, colors: ['#f59e0b', '#d97706'] },
 ];
 
-export const toolPresets: Record<string, typeof defaultTools> = {
+// ✅ CORRECTION : Correction des couleurs et typage
+export const toolPresets: Record<string, ToolItem[]> = {
     DEFAULT: defaultTools,
     [TaskCategory.MATH]: [
-        { id: 'whiteboard', name: 'Tableau', icon: Square, colors: ['#a955ff', '#ea51ff'] as [string,string] },
-        { id: 'quiz', name: 'Quiz', icon: Award, colors: ['#f59e0b', '#d97706'] as [string,string] },
-        { id: 'camera', name: 'Caméras', icon: Camera, colors: ['#80FF72', '#7EE8FA'] as [string, string] },
-        { id: 'chat', name: 'Chat', icon: MessageSquare, colors: ['#22d3ee', '#06b6d4'] as [string, string] },
+        { id: 'whiteboard', name: 'Tableau', icon: Square, colors: ['#a955ff', '#ea51ff'] },
+        { id: 'quiz', name: 'Quiz', icon: Award, colors: ['#f59e0b', '#d97706'] },
+        { id: 'camera', name: 'Caméras', icon: Camera, colors: ['#80FF72', '#7EE8FA'] },
+        { id: 'chat', name: 'Chat', icon: MessageSquare, colors: ['#22d3ee', '#06b6d4'] },
     ],
     [TaskCategory.LANGUAGE]: [
-        { id: 'document', name: 'Document', icon: FileText, colors: ['#3b82f6', '#2563eb'] as [string, string] },
-        { id: 'whiteboard', name: 'Tableau', icon: Square, colors: ['#a955ff', '#ea51ff'] as [string,string] },
-        { id: 'chat', name: 'Chat', icon: MessageSquare, colors: ['#22d3ee', '#06b6d4'] as [string, string] },
-        { id: 'camera', name: 'Caméras', icon: Camera, colors: ['#80FF72', '#7EE8FA'] as [string, string] },
+        { id: 'document', name: 'Document', icon: FileText, colors: ['#3b82f6', '#2563eb'] },
+        { id: 'whiteboard', name: 'Tableau', icon: Square, colors: ['#a955ff', '#ea51ff'] },
+        { id: 'chat', name: 'Chat', icon: MessageSquare, colors: ['#22d3ee', '#06b6d4'] },
+        { id: 'camera', name: 'Caméras', icon: Camera, colors: ['#80FF72', '#7EE8FA'] },
     ],
     [TaskCategory.SCIENCE]: [
-        { id: 'whiteboard', name: 'Tableau', icon: Square, colors: ['#a955ff', '#ea5f1ff'] as [string,string] },
-        { id: 'document', name: 'Document', icon: FileText, colors: ['#3b82f6', '#2563eb'] as [string, string] },
-        { id: 'quiz', name: 'Quiz', icon: Award, colors: ['#f59e0b', '#d97706'] as [string,string] },
-        { id: 'camera', name: 'Caméras', icon: Camera, colors: ['#80FF72', '#7EE8FA'] as [string, string] },
+        { id: 'whiteboard', name: 'Tableau', icon: Square, colors: ['#a955ff', '#ea51ff'] }, // ✅ CORRECTION : Couleur fixée
+        { id: 'document', name: 'Document', icon: FileText, colors: ['#3b82f6', '#2563eb'] },
+        { id: 'quiz', name: 'Quiz', icon: Award, colors: ['#f59e0b', '#d97706'] },
+        { id: 'camera', name: 'Caméras', icon: Camera, colors: ['#80FF72', '#7EE8FA'] },
     ],
     [TaskCategory.ART]: [
-        { id: 'whiteboard', name: 'Tableau', icon: Palette, colors: ['#a955ff', '#ea51ff'] as [string, string] },
-        { id: 'document', name: 'Modèles', icon: FileText, colors: ['#3b82f6', '#2563eb'] as [string, string] },
-        { id: 'camera', name: 'Caméras', icon: Camera, colors: ['#80FF72', '#7EE8FA'] as [string, string] },
-        { id: 'chat', name: 'Chat', icon: MessageSquare, colors: ['#22d3ee', '#06b6d4'] as [string, string] },
+        { id: 'whiteboard', name: 'Tableau', icon: Palette, colors: ['#a955ff', '#ea51ff'] },
+        { id: 'document', name: 'Modèles', icon: FileText, colors: ['#3b82f6', '#2563eb'] },
+        { id: 'camera', name: 'Caméras', icon: Camera, colors: ['#80FF72', '#7EE8FA'] },
+        { id: 'chat', name: 'Chat', icon: MessageSquare, colors: ['#22d3ee', '#06b6d4'] },
     ],
-    // Vous pouvez ajouter d'autres catégories ici
+};
+
+// ✅ CORRECTION : Export des rôles pour une utilisation cohérente
+export const USER_ROLES = {
+    PROFESSEUR: Role.PROFESSEUR,
+    ELEVE: Role.ELEVE,
+};
+
+// ✅ CORRECTION : Constantes pour les chemins d'URL
+export const APP_PATHS = {
+    TEACHER: {
+        DASHBOARD: '/teacher/dashboard',
+        CLASSES: '/teacher/classes',
+        VALIDATIONS: '/teacher/validations',
+        RESOURCES: '/teacher/resources',
+        TASKS: '/teacher/tasks',
+        FUTURE_CLASSROOM: '/teacher/future-classroom',
+        PROFILE: '/teacher/profile',
+    },
+    STUDENT: {
+        DASHBOARD: '/student/dashboard',
+        CLASS: '/student/class',
+        PARENT: '/student/parent',
+        PROFILE: '/student/profile',
+    },
+    SHARED: {
+        ASSISTANT: '/assistant',
+        SETTINGS: '/settings',
+        PROFILE: '/profile',
+    }
 };
