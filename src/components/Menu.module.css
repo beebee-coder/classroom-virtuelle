@@ -1,123 +1,128 @@
-/* src/components/Menu.module.css */
-
-/* --- Styles pour les titres de groupe --- */
-.titleFrame {
-  position: relative;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.titleBackground {
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  height: 1px;
-  width: 100%;
-  background-color: hsl(var(--sidebar-border));
-}
-
-.titleBorder {
-  position: absolute;
-  left: 8px; /* Marge à gauche */
-  top: 50%;
-  transform: translateY(-50%);
-  height: 24px;
-  width: calc(100% - 16px); /* Marge des deux côtés */
-  border-left: 1px solid hsl(var(--sidebar-border));
-  border-right: 1px solid hsl(var(--sidebar-border));
-  background: transparent;
-  pointer-events: none;
-}
-
-.titleText {
-  position: relative;
-  z-index: 1;
-  padding: 0 12px; /* Espacement autour du texte */
-  font-size: 0.75rem; /* 12px */
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: hsl(var(--sidebar-foreground) / 0.6);
-  background-color: hsl(var(--sidebar-background)); /* Masque la ligne derrière le texte */
-  max-width: fit-content;
-}
-
-
-/* --- Styles pour les boutons (Neumorphic) --- */
+/* --- Neumorphic Button Style --- */
 .button {
   width: 100%;
-  height: 50px;
-  cursor: pointer;
-  background: #333; /* Fallback */
-  background: hsl(var(--sidebar-background));
-  margin: 2px 0; /* Marge légère */
-  border: none;
-  border-radius: 10px;
-  box-shadow: -5px -5px 15px hsl(var(--sidebar-background) / 0.5), 
-              5px 5px 15px hsl(0 0% 0% / 0.2), 
-              inset 5px 5px 10px hsl(var(--sidebar-background) / 0.5), 
-              inset -5px -5px 10px hsl(0 0% 0% / 0.2);
-  color: hsl(var(--sidebar-foreground) / 0.8);
-  font-size: 16px;
+	height: 50px;
+	cursor: pointer;
+	background: #333;
+	margin: 5px 0;
+	border: none;
+	border-radius: 10px;
+	box-shadow: -5px -5px 15px #444, 5px 5px 15px #222, inset 5px 5px 10px #444, inset -5px -5px 10px #222;
+	color: #ccc;
+	font-size: 16px;
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  padding: 0 1rem;
+  padding-left: 1rem;
   gap: 1rem;
-  transition: all 500ms;
+  transition: 500ms;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
   user-select: none;
 }
 
 .button:hover {
-  box-shadow: -5px -5px 15px hsl(var(--sidebar-background) / 0.5), 
-              5px 5px 15px hsl(0 0% 0% / 0.2), 
-              inset 5px 5px 10px hsl(0 0% 0% / 0.2), 
-              inset -5px -5px 10px hsl(var(--sidebar-background) / 0.5);
-  color: hsl(var(--sidebar-foreground));
+	box-shadow: -5px -5px 15px #444, 5px 5px 15px #222, inset 5px 5px 10px #222, inset -5px -5px 10px #444;
+	font-size: 15px;
+	color: #fff;
 }
 
 .button:focus {
-  outline: none;
+	outline: none;
 }
 
-
-/* --- Couleurs des icônes au survol --- */
 .red:hover {
-  color: #f07171;
-  text-shadow: 0px 0px 10px #f07171;
+	color: #f07171;
+	text-shadow: 0px 0px 10px #f07171;
 }
 
 .green:hover {
-  color: #93f071;
-  text-shadow: 0px 0px 10px #93f071;
+	color: #93f071;
+	text-shadow: 0px 0px 10px #93f071;
 }
 
 .blue:hover {
-  color: #71b7f0;
-  text-shadow: 0px 0px 10px #71b7f0;
+	color: #71b7f0;
+	text-shadow: 0px 0px 10px #71b7f0;
 }
 
 .purple:hover {
-  color: #b971f0;
-  text-shadow: 0px 0px 10px #b971f0;
+	color: #b971f0;
+	text-shadow: 0px 0px 10px #b971f0;
 }
 
-.orange:hover {
-  color: #ffa726;
-  text-shadow: 0px 0px 10px #ffa726;
+/* --- Baldur's Gate Title Style --- */
+.titleFrame {
+  touch-action: manipulation;
+  background: none;
+  position: relative;
+  border-width: 4px 12px;
+  border-style: solid;
+  border-color: transparent;
+  padding: 8px 16px; /* Adjusted padding */
+  text-align: center;
+  color: #fff;
+  width: 100%;
+  margin-bottom: 8px; /* Added margin */
 }
 
-.pink:hover {
-  color: #f48fb1;
-  text-shadow: 0px 0px 10px #f48fb1;
+.titleBackground {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  clip-path: polygon(12px 0, calc(100% - 12px) 0%, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0% calc(100% - 12px), 0% 12px);
+  background-color: saddlebrown;
+  background-image: radial-gradient(transparent, rgba(0, 0, 0, 0.8)), linear-gradient(to bottom, #af6a65, calc(12.5% - 1px), #cfa381, #88312b calc(12.5% + 1px) 50%, #601d2c 50% calc(87.5% - 1px), #994021, #341227 calc(87.5% + 1px));
 }
 
-.cyan:hover {
-  color: #80deea;
-  text-shadow: 0px 0px 10px #80deea;
+.titleText {
+  background: linear-gradient(180deg, #FFE5C2 1%, #CDAF87 100%), #FFFFFF;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  z-index: 3;
+  position: relative;
+  font-size: 0.75rem; /* 12px */
+  text-transform: uppercase;
+  font-weight: 300; /* Lighter font weight */
+}
+
+.titleBorder {
+  position: absolute;
+  z-index: 1;
+  inset: -4px -12px;
+}
+
+@supports (-webkit-mask-box-image: inherit) or (mask-border: inherit) {
+  .titleBorder {
+    background-image: linear-gradient(to bottom, #bb9d7a 50%, #806d56 50%);
+    -webkit-mask-box-image-source: url("https://csspro.com/css-3d-buttons/buttons-img/baldurs-gate-3-border.svg");
+    -webkit-mask-box-image-slice: 15 23;
+    -webkit-mask-box-image-width: 15px 23px;
+    -webkit-mask-box-image-repeat: repeat;
+    mask-border-source: url("https://csspro.com/css-3d-buttons/buttons-img/baldurs-gate-3-border.svg");
+    mask-border-slice: 15 23;
+    mask-border-width: 15px 23px;
+    mask-border-repeat: repeat;
+  }
+}
+
+@supports not ((-webkit-mask-box-image: inherit) or (mask-border: inherit)) {
+  .titleBorder {
+    border-width: 15px 23px;
+    border-style: solid;
+    border-color: transparent;
+    border-image-source: url("https://csspro.com/css-3d-buttons/buttons-img/baldurs-gate-3-border-inverted.svg");
+    border-image-slice: 15 23;
+    border-image-width: 15px 23px;
+    border-image-repeat: repeat;
+    background-image: linear-gradient(#000, #000), linear-gradient(to bottom, #bb9d7a 50%, #806d56 50%);
+    background-origin: content-box, border-box;
+    background-repeat: no-repeat;
+    filter: url("#remove-black-button-13");
+  }
 }
