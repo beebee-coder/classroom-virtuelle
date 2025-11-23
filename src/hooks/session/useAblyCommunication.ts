@@ -206,7 +206,7 @@ export function useAblyCommunication({
     
     const { userId, status } = message.data;
     
-    if (typeof userId !== 'string' || !['low', 'medium', 'high', 'none'].includes(status)) {
+    if (typeof userId !== 'string' || !Object.values(ComprehensionLevel).includes(status)) {
         return;
     }
     
