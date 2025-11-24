@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { useAbly } from '@/hooks/useAbly';
+import { useNamedAbly } from '@/hooks/useNamedAbly'; // ✅ CORRECTION: Utilisation du hook nommé
 import { getUserChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
 import type { Types as AblyTypes } from 'ably';
@@ -33,8 +33,8 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
   const router = useRouter();
   const { toast } = useToast();
   
-  // ✅ CORRECTION FINALE : Ajout du nom du composant pour éliminer les logs "Unknown"
-  const { client: ablyClient, isConnected: ablyConnected } = useAbly('SessionInvitationListener');
+  // ✅ CORRECTION: Utilisation du hook nommé
+  const { client: ablyClient, isConnected: ablyConnected } = useNamedAbly('SessionInvitationListener');
   
   // ✅ CORRECTION : Références stabilisées et simplifiées
   const processedInvitationsRef = useRef<Set<string>>(new Set());

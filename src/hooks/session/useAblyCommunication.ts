@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useAbly } from '@/hooks/useAbly';
+import { useNamedAbly } from '@/hooks/useNamedAbly'; // ✅ CORRECTION: Utilisation du hook nommé
 import { getSessionChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
 import { ComprehensionLevel, Quiz, QuizResponse, QuizResults } from '@/types';
@@ -53,7 +53,8 @@ export function useAblyCommunication({
   onQuizEnded,
   onQuizClosed, // Utiliser la nouvelle prop
 }: AblyCommunicationProps) {
-  const { client: ablyClient, isConnected: isAblyConnected } = useAbly('useAblyCommunication');
+  // ✅ CORRECTION: Utilisation du hook nommé
+  const { client: ablyClient, isConnected: isAblyConnected } = useNamedAbly('useAblyCommunication');
   const { toast } = useToast();
 
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);

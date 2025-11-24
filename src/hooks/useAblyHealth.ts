@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import Ably from 'ably';
-import { useAbly } from './useAbly';
+import { useNamedAbly } from './useNamedAbly'; // ✅ CORRECTION: Utilisation du hook nommé
 import { getFriendlyErrorMessage } from '@/lib/ably/error-handling';
 
 export type AblyConnectionStatus = 'initialized' | 'connecting' | 'connected' | 'disconnected' | 'suspended' | 'closing' | 'closed' | 'failed';
@@ -21,8 +21,9 @@ interface AblyHealthState {
  * @param componentName The name of the component using the hook, for debugging.
  * @returns The current connection status and a user-friendly error message if any.
  */
-export function useAblyHealth(componentName: string = 'UnknownHealthUser'): AblyHealthState {
-    const { client, connectionState, connectionError, isConnected } = useAbly(componentName);
+export function useAblyHealth(componentName: string): AblyHealthState {
+    // ✅ CORRECTION: Utilisation du hook nommé avec propagation du nom
+    const { client, connectionState, connectionError, isConnected } = useNamedAbly(componentName);
     
     const [error, setError] = useState<string | null>(null);
     
@@ -31,22 +32,22 @@ export function useAblyHealth(componentName: string = 'UnknownHealthUser'): Ably
 
     useEffect(() => {
         if (!client) {
-            console.log(`[useAblyHealth] - No client available, using connectionState: ${connectionState}`);
+            console.log(`[useAblyHealth - ${componentName}] - No client available, using connectionState: ${connectionState}`);
             return;
         }
 
-        console.log(`[useAblyHealth] - Setting up health monitoring for shared Ably client, current state: ${connectionState}`);
+        console.log(`[useAblyHealth - ${componentName}] - Setting up health monitoring, current state: ${connectionState}`);
 
         const handleStateChange = (stateChange: Ably.Types.ConnectionStateChange) => {
-            console.log(`[useAblyHealth] - Ably connection state change: ${stateChange.previous} -> ${stateChange.current}`);
+            console.log(`[useAblyHealth - ${componentName}] - Ably state change: ${stateChange.previous} -> ${stateChange.current}`);
             
             if (stateChange.reason) {
-                console.error('[useAblyHealth] - Connection error reason:', stateChange.reason);
+                console.error(`[useAblyHealth - ${componentName}] - Connection error reason:`, stateChange.reason);
                 const friendlyError = getFriendlyErrorMessage(stateChange.reason);
                 setError(friendlyError);
                 
                 if (stateChange.current === 'failed' || stateChange.current === 'suspended') {
-                    console.error(`[useAblyHealth] - Critical connection error: ${friendlyError}`);
+                    console.error(`[useAblyHealth - ${componentName}] - Critical connection error: ${friendlyError}`);
                 }
             } else {
                 if (stateChange.current === 'connected') {
@@ -58,20 +59,20 @@ export function useAblyHealth(componentName: string = 'UnknownHealthUser'): Ably
         client.connection.on(handleStateChange);
         
         return () => {
-            console.log(`[useAblyHealth] - Cleaning up health monitoring`);
+            console.log(`[useAblyHealth - ${componentName}] - Cleaning up health monitoring`);
             client.connection.off(handleStateChange);
         };
-    }, [client, connectionState]);
+    }, [client, connectionState, componentName]);
 
     useEffect(() => {
         if (connectionError) {
-            console.error('[useAblyHealth] - Connection error from useAbly hook:', connectionError);
+            console.error(`[useAblyHealth - ${componentName}] - Connection error from hook:`, connectionError);
             const friendlyError = getFriendlyErrorMessage(connectionError);
             setError(friendlyError);
         } else if (status === 'connected') {
             setError(null);
         }
-    }, [connectionError, status]);
+    }, [connectionError, status, componentName]);
 
     return { 
         status, 

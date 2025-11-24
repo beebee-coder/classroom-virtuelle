@@ -3,7 +3,7 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import type { WhiteboardOperation } from '@/types';
-import { useAbly } from './useAbly';
+import { useNamedAbly } from './useNamedAbly'; // ✅ CORRECTION: Utilisation du hook nommé
 import { getSessionChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
 import Ably from 'ably';
@@ -19,7 +19,8 @@ export const useAblyWhiteboardSync = (
     userId: string,
     onIncomingOperations: (operations: WhiteboardOperation[]) => void
 ) => {
-    const { client, isConnected, connectionState } = useAbly('useAblyWhiteboardSync');
+    // ✅ CORRECTION: Utilisation du hook nommé
+    const { client, isConnected, connectionState } = useNamedAbly('useAblyWhiteboardSync');
     const isLoading = connectionState === 'initialized' || connectionState === 'connecting';
     
     const [isSyncing, setIsSyncing] = useState(false);

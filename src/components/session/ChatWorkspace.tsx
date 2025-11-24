@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
 import type { Message, Reaction, User, Role } from '@prisma/client';
-import { useAbly } from '@/hooks/useAbly';
+import { useNamedAbly } from '@/hooks/useNamedAbly'; // ✅ CORRECTION: Utilisation du hook nommé
 import { getClassChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
 import Ably from 'ably';
@@ -46,7 +46,8 @@ export function ChatWorkspace({ classroomId, userId, userRole }: ChatWorkspacePr
   const listenersRef = useRef<Map<string, (message: Ably.Types.Message) => void>>(new Map());
   const isMountedRef = useRef(true);
 
-  const { client: ablyClient, isConnected: ablyConnected, connectionState } = useAbly('ChatWorkspace');
+  // ✅ CORRECTION: Utilisation du hook nommé
+  const { client: ablyClient, isConnected: ablyConnected, connectionState } = useNamedAbly('ChatWorkspace');
   
   const ablyLoading = connectionState === 'initialized' || connectionState === 'connecting';
   const ablyReady = ablyClient && ablyConnected && !ablyLoading;

@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { useAbly } from './useAbly';
+import { useNamedAbly } from './useNamedAbly'; // ✅ CORRECTION: Utilisation du hook nommé
 import type { AblyPresenceMember } from '@/lib/ably/types';
 import { getClassChannelName } from '@/lib/ably/channels';
 import Ably from 'ably';
@@ -50,7 +50,8 @@ export const useAblyPresence = (
     ? `useAblyPresence-${channelId || 'no-channel'}` 
     : componentName;
 
-  const { client, connectionState } = useAbly(actualComponentName);
+  // ✅ CORRECTION: Utilisation des hooks nommés
+  const { client, connectionState } = useNamedAbly(actualComponentName);
   const { isConnected: ablyConnected, error: healthError } = useAblyHealth(actualComponentName);
   
   const [onlineMembers, setOnlineMembers] = useState<AblyPresenceMember[]>([]);
@@ -456,7 +457,7 @@ export const useAblyPresence = (
           channelInfo.lastPresenceUpdate = Date.now();
         }
       }
-    } catch (err) {
+    } catch (err) => {
       console.error('❌ [PRESENCE HOOK] - Erreur de mise à jour:', err);
       setError((err as AblyErrorInfo).message);
     }
