@@ -48,7 +48,7 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
     const signalTimestampsRef = useRef<Map<string, number[]>>(new Map());
     const processedCandidatesRef = useRef<Map<string, Set<string>>>(new Map());
 
-    // CORRECTION : Fonction de vérification d'état de connexion améliorée avec typage correct
+    // ✅ CORRECTION : Fonction de vérification d'état de connexion améliorée avec typage correct
     const isConnectionReallyEstablished = useCallback((userId: string): boolean => {
         const peerState = peerStatesRef.current.get(userId);
         if (!peerState) return false;
@@ -61,13 +61,12 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
                                (remoteStream.getVideoTracks().some(t => t.readyState === 'live') || 
                                 remoteStream.getAudioTracks().some(t => t.readyState === 'live'));
         
-        const isPeerConnected = peer ? !peer.destroyed && !!peer.connected : false;
+        const isPeerConnected = peer ? !peer.destroyed && (peer.connected === true) : false;
         
-        return peerState.isConnected && isStreamActive && isPeerConnected;
+        return peerState.isConnected && !!isStreamActive && isPeerConnected;
     }, [remoteStreams]);
 
-
-    // CORRECTION : Fonction de nettoyage améliorée
+    // ✅ CORRECTION : Fonction de nettoyage améliorée
     const cleanupPeerConnection = useCallback((userId: string): void => {
         console.log(`🧹 [PEER CLEANUP] - Nettoyage de la connexion pour: ${userId}`);
         
@@ -103,7 +102,7 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
         });
     }, []);
 
-    // CORRECTION : Fonction de vérification du taux de signaux OPTIMISÉE
+    // ✅ CORRECTION : Fonction de vérification du taux de signaux OPTIMISÉE
     const canSendSignal = useCallback((targetUserId: string, signalType?: string): boolean => {
         const now = Date.now();
         const oneSecondAgo = now - 1000;
@@ -131,7 +130,7 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
         return true;
     }, []);
 
-    // CORRECTION : Fonction d'envoi de signal avec throttling OPTIMISÉ
+    // ✅ CORRECTION : Fonction d'envoi de signal avec throttling OPTIMISÉ
     const signalViaAbly = useCallback(async (targetUserId: string, signal: PeerSignalData, isReturnSignal: boolean = false) => {
         if (!isMounted) {
             console.warn('⚠️ [SIGNAL] - Composant non monté, envoi annulé');
@@ -175,7 +174,7 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
         }
     }, [sessionId, currentUserId, isMounted, canSendSignal]);
 
-    // CORRECTION : Fonction de création de peer avec gestion d'erreur améliorée
+    // ✅ CORRECTION : Fonction de création de peer avec gestion d'erreur améliorée
     const createPeer = useCallback((targetUserId: string, initiator: boolean, stream: MediaStream | null): PeerInstance | undefined => {
         if (!isMounted) {
             console.warn(`⚠️ [PEER CREATION] - Composant non monté, création annulée pour ${targetUserId}`);
@@ -512,7 +511,7 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
         return () => clearInterval(interval);
     }, [remoteStreams, cleanupPeerConnection, isMounted]);
 
-    // CORRECTION : Nettoyage complet lors du démontage
+    // ✅ CORRECTION : Nettoyage complet lors du démontage
     useEffect(() => {
         return () => {
             console.log(`🧹 [WEBRTC CLEANUP] - Nettoyage de toutes les connexions WebRTC`);

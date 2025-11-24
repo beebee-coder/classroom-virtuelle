@@ -1,7 +1,7 @@
-// src/components/session/ChatWorkspace.tsx
+// src/components/session/ChatWorkspace.tsx - VERSION CORRIGÉE
 'use client';
 
-import { useState, useEffect, useRef, useTransition, useCallback } from 'react';
+import { useState, useEffect, useRef, useTransition, useCallback, useMemo } from 'react'; // ✅ CORRECTION: Ajout de useMemo
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { ScrollArea } from '../ui/scroll-area';
@@ -92,75 +92,100 @@ export function ChatWorkspace({ classroomId, userId, userRole }: ChatWorkspacePr
     };
   }, []);
 
+  // ✅ CORRECTION: Déplacer cleanupAbly AVANT le useEffect qui l'utilise
   const cleanupAbly = useCallback(() => {
     if (channelRef.current) {
       listenersRef.current.forEach((handler, eventName) => {
         try {
           channelRef.current?.unsubscribe(eventName, handler);
-        } catch (error) {}
+        } catch (error) {
+          console.warn(`❌ [CHAT WORKSPACE] Erreur désabonnement ${eventName}:`, error);
+        }
       });
       listenersRef.current.clear();
+      
+      try {
+        channelRef.current.detach();
+      } catch (error) {
+        console.warn('❌ [CHAT WORKSPACE] Erreur détachement channel:', error);
+      }
+      
       channelRef.current = null;
     }
   }, []);
 
+  // ✅ CORRECTION: Mémorisation des handlers pour éviter récréation
+  const messageHandler = useCallback((message: Ably.Types.Message) => {
+    if (!isMountedRef.current) return;
+    const data = message.data as MessageWithReactions;
+    setMessages((prev) => prev.some(msg => msg.id === data.id) ? prev : [...prev, data]);
+  }, []);
+
+  const reactionHandler = useCallback((message: Ably.Types.Message) => {
+    if (!isMountedRef.current) return;
+    const data = message.data as { messageId: string; reaction: ReactionWithUser; action: 'added' | 'removed'; };
+    setMessages(prev => prev.map(msg => {
+      if (msg.id === data.messageId) {
+        let newReactions = [...msg.reactions];
+        if (data.action === 'added') {
+          if (newReactions.findIndex(r => r.emoji === data.reaction.emoji && r.userId === data.reaction.userId) === -1) {
+            newReactions.push(data.reaction);
+          }
+        } else {
+          newReactions = newReactions.filter(r => !(r.emoji === data.reaction.emoji && r.userId === data.reaction.userId));
+        }
+        return { ...msg, reactions: newReactions };
+      }
+      return msg;
+    }));
+  }, []);
+
+  const historyHandler = useCallback(() => {
+    if (!isMountedRef.current) return;
+    setMessages([]);
+    toast({ title: "Historique effacé", description: "Le professeur a effacé l'historique de la conversation." });
+  }, [toast]);
+
+  // ✅ CORRECTION: Mémorisation des handlers dans un objet stable
+  const eventHandlers = useMemo(() => ({
+    [AblyEvents.NEW_MESSAGE]: messageHandler,
+    [AblyEvents.REACTION_UPDATE]: reactionHandler,
+    [AblyEvents.HISTORY_CLEARED]: historyHandler,
+  }), [messageHandler, reactionHandler, historyHandler]);
+
+  // ✅ CORRECTION: useEffect principal avec gestion correcte des dépendances
   useEffect(() => {
     if (!classroomId || !ablyReady) {
       return;
     }
 
     const channelName = getClassChannelName(classroomId);
-    if (channelRef.current?.name === channelName) return;
+    
+    // Éviter les réinitialisations inutiles si le channel est le même
+    if (channelRef.current?.name === channelName) {
+      return;
+    }
 
+    // Nettoyer l'ancien channel
     cleanupAbly();
 
     const channel = ablyClient.channels.get(channelName);
     channelRef.current = channel;
-    
-    const createMessageHandler = () => (message: Ably.Types.Message) => {
-      if (!isMountedRef.current) return;
-      const data = message.data as MessageWithReactions;
-      setMessages((prev) => prev.some(msg => msg.id === data.id) ? prev : [...prev, data]);
-    };
 
-    const createReactionHandler = () => (message: Ably.Types.Message) => {
-      if (!isMountedRef.current) return;
-      const data = message.data as { messageId: string; reaction: ReactionWithUser; action: 'added' | 'removed'; };
-      setMessages(prev => prev.map(msg => {
-        if (msg.id === data.messageId) {
-          let newReactions = [...msg.reactions];
-          if (data.action === 'added') {
-            if (newReactions.findIndex(r => r.emoji === data.reaction.emoji && r.userId === data.reaction.userId) === -1) {
-              newReactions.push(data.reaction);
-            }
-          } else {
-            newReactions = newReactions.filter(r => !(r.emoji === data.reaction.emoji && r.userId === data.reaction.userId));
-          }
-          return { ...msg, reactions: newReactions };
-        }
-        return msg;
-      }));
-    };
-    
-    const createHistoryHandler = () => () => {
-      if (!isMountedRef.current) return;
-      setMessages([]);
-      toast({ title: "Historique effacé", description: "Le professeur a effacé l'historique de la conversation." });
-    };
-
-    const handlers = {
-        [AblyEvents.NEW_MESSAGE]: createMessageHandler(),
-        [AblyEvents.REACTION_UPDATE]: createReactionHandler(),
-        [AblyEvents.HISTORY_CLEARED]: createHistoryHandler(),
-    };
-
-    Object.entries(handlers).forEach(([event, handler]) => {
-        channel.subscribe(event, handler);
-        listenersRef.current.set(event, handler);
+    // S'abonner aux événements
+    Object.entries(eventHandlers).forEach(([event, handler]) => {
+      channel.subscribe(event, handler);
+      listenersRef.current.set(event, handler);
     });
 
-    return cleanupAbly;
-  }, [classroomId, ablyClient, ablyReady, cleanupAbly, toast]);
+    console.log(`🔔 [CHAT WORKSPACE] Abonné au channel: ${channelName}`);
+
+    // ✅ CORRECTION: Nettoyage avec référence stable
+    return () => {
+      console.log(`🧹 [CHAT WORKSPACE] Nettoyage channel: ${channelName}`);
+      cleanupAbly();
+    };
+  }, [classroomId, ablyReady, ablyClient, eventHandlers, cleanupAbly]); // ✅ Dépendances correctes
 
   useEffect(() => {
     if (scrollAreaRef.current && messages.length > 0 && isMountedRef.current) {

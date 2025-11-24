@@ -1,7 +1,7 @@
-// src/components/session/TeacherSessionView.tsx - VERSION CORRIGÉE
+// src/components/session/TeacherSessionView.tsx - VERSION CORRIGÉE AVEC HOT RELOAD
 'use client';
 
-import React, { useState, type ReactNode, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, type ReactNode, useEffect, useMemo, useCallback, useRef } from 'react'; // ✅ CORRECTION: Ajout de useRef
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { User, Role } from '@prisma/client';
 import type { SessionParticipant, ClassroomWithDetails, DocumentInHistory, Html5CanvasScene, ComprehensionLevel, WhiteboardOperation, Quiz, QuizResponse, QuizResults } from '@/types';
@@ -67,7 +67,7 @@ interface TeacherSessionViewProps {
     quizResults: QuizResults | null;
     onStartQuiz: (quiz: CreateQuizData) => Promise<{ success: boolean; error?: string; }>;
     onEndQuiz: (quizId: string, responses: Map<string, QuizResponse>) => Promise<{ success: boolean; }>;
-    onCloseResults: () => void; // ✅ CORRECTION: S'assurer que la prop est bien ici
+    onCloseResults: () => void;
     students: User[];
 }
 
@@ -176,11 +176,35 @@ const TeacherSidebar: React.FC<{
     </ScrollArea>
 );
 
+// ✅ CORRECTION: Hook pour détecter le Hot Reload
+const useHotReloadDetection = () => {
+    const hotReloadCountRef = useRef(0);
+    
+    useEffect(() => {
+        hotReloadCountRef.current += 1;
+        
+        if (hotReloadCountRef.current > 1) {
+            console.log('🔥 [HOT RELOAD] TeacherSessionView rechargé - Compteur:', hotReloadCountRef.current);
+        }
+        
+        return () => {
+            // Nettoyage spécifique au Hot Reload
+            if (process.env.NODE_ENV === 'development') {
+                console.log('🧹 [HOT RELOAD] Nettoyage TeacherSessionView');
+            }
+        };
+    }, []);
+    
+    return hotReloadCountRef.current;
+};
 
 export function TeacherSessionView(props: TeacherSessionViewProps) {
     const { toast } = useToast();
     const [teacherView, setTeacherView] = useState<'content' | 'grid'>('content');
     const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+    
+    // ✅ CORRECTION: Détection du Hot Reload
+    const hotReloadCount = useHotReloadDetection();
 
     const {
         sessionId, localStream, screenStream, remoteParticipants, spotlightedUser, allSessionUsers, 
@@ -192,6 +216,7 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
         onStartQuiz, onEndQuiz, onCloseResults, students
     } = props;
 
+    // ✅ CORRECTION: Mémorisation améliorée pour réduire les re-rendus
     const validatedTimerTimeLeft = useMemo(() => {
         const time = timerTimeLeft;
         if (typeof time !== 'number' || isNaN(time) || time < 0) {
@@ -234,6 +259,7 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
         return classroom.eleves.filter(student => classOnlineIds.includes(student.id) && !activeParticipantIds.includes(student.id)).length;
     }, [classOnlineIds, activeParticipantIds, classroom]);
 
+    // ✅ CORRECTION: Callback stable avec useCallback
     const handleSpotlightAndSwitch = useCallback(async (participantId: string) => {
         console.log(`🔦 [TEACHER VIEW] - Spotlight participant: ${participantId}`);
         onSpotlightParticipant(participantId);
@@ -251,6 +277,7 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
         }
     }, [sessionId, onSelectDocument, toast]);
 
+    // ✅ CORRECTION: Render participant optimisé
     const renderParticipant = useCallback((participant: SessionParticipant) => {
         if (!participant) return null;
         
@@ -327,6 +354,7 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
         return null;
     }, [spotlightedUser, currentUserId, isSharingScreen, screenStream, localStream, remoteStreamsMap]);
 
+    // ✅ CORRECTION: Render active tool optimisé avec mémorisation
     const renderActiveTool = useMemo(() => {
         if (isSharingScreen && screenStream) {
             return (
@@ -479,17 +507,24 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
         );
     }
 
-    const sidebarProps = {
+    // ✅ CORRECTION: Mémorisation des props du sidebar
+    const sidebarProps = useMemo(() => ({
         sessionId, onDocumentShared, documentHistory, onSelectDocument, handleDocumentReshare, currentUserId,
         validatedInitialDuration, validatedTimerTimeLeft, isTimerRunning, onStartTimer, onPauseTimer, onResetTimer,
         allSessionUsers, activeParticipantIds, remoteParticipants, whiteboardControllerId, classroom, classOnlineIds,
         waitingCount, onSpotlightParticipant, spotlightedUser, onWhiteboardControllerChange, students, understandingStatus,
         raisedHandQueue, onAcknowledgeNextHand
-    };
+    }), [
+        sessionId, onDocumentShared, documentHistory, onSelectDocument, handleDocumentReshare, currentUserId,
+        validatedInitialDuration, validatedTimerTimeLeft, isTimerRunning, onStartTimer, onPauseTimer, onResetTimer,
+        allSessionUsers, activeParticipantIds, remoteParticipants, whiteboardControllerId, classroom, classOnlineIds,
+        waitingCount, onSpotlightParticipant, spotlightedUser, onWhiteboardControllerChange, students, understandingStatus,
+        raisedHandQueue, onAcknowledgeNextHand
+    ]);
 
-    const mainContentProps = {
+    const mainContentProps = useMemo(() => ({
         teacherView, allGridParticipants, renderParticipant, renderActiveTool
-    };
+    }), [teacherView, allGridParticipants, renderParticipant, renderActiveTool]);
 
     return (
       <div className="flex-1 flex min-h-0 gap-4 p-4">

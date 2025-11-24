@@ -20,12 +20,13 @@ import { AnimatedCard } from './AnimatedCard';
 import { useSession } from 'next-auth/react';
 import { QuizView } from './quiz/QuizView';
 import { trackStudentActivity } from '@/lib/actions/activity.actions';
-import { ChatWorkspace } from './ChatWorkspace'; // Importation du composant de chat
+import { ChatWorkspace } from './ChatWorkspace';
 
+// ✅ CORRECTION : Interface mise à jour pour permettre undefined
 interface StudentSessionViewProps {
     sessionId: string;
     localStream: MediaStream | null;
-    spotlightedStream: MediaStream | null;
+    spotlightedStream: MediaStream | null | undefined; // ✅ CORRECTION : Ajout de undefined
     spotlightedUser: SessionParticipant | null | undefined;
     isHandRaised: boolean;
     onToggleHandRaise: (isRaised: boolean) => void;
@@ -58,7 +59,7 @@ export function StudentSessionView({
     onLeaveSession,
     currentUnderstanding,
     currentUserId,
-    activeTool, // Reçu mais sera peut-être géré localement
+    activeTool,
     documentUrl,
     whiteboardControllerId,
     timerTimeLeft,
@@ -74,16 +75,13 @@ export function StudentSessionView({
     const { toast } = useToast();
     const { data: session } = useSession();
 
-    // CORRECTION : État local pour gérer la vue principale de l'élève
     const [mainView, setMainView] = useState<'spotlight' | 'whiteboard' | 'document' | 'quiz' | 'chat'>('spotlight');
-
     const [isHandRaiseLoading, setIsHandRaiseLoading] = useState(false);
     const [isUnderstandingLoading, setIsUnderstandingLoading] = useState(false);
     const [debugInfo, setDebugInfo] = useState<string>('');
     
     const debugInfoRef = useRef<string>('');
     
-    // CORRECTION : Mettre à jour la vue de l'élève en fonction de l'outil actif envoyé par le prof
     useEffect(() => {
         if (activeTool === 'whiteboard' || activeTool === 'document' || activeTool === 'chat') {
             setMainView(activeTool);
@@ -203,6 +201,7 @@ export function StudentSessionView({
                (localStream.getAudioTracks().length > 0 || localStream.getVideoTracks().length > 0);
     }, [localStream]);
 
+    // ✅ CORRECTION : Gestion robuste de spotlightedStream qui peut être undefined
     const isSpotlightStreamValid = useMemo(() => {
         if (!spotlightedStream) return false;
         
@@ -231,7 +230,6 @@ export function StudentSessionView({
     }, [spotlightedStream]);
 
     const renderMainContent = useCallback((): ReactNode => {
-        // CORRECTION : Utiliser l'état local `mainView`
         switch(mainView) {
             case 'document':
                 return <DocumentViewer url={documentUrl} />;
@@ -300,11 +298,12 @@ export function StudentSessionView({
                 
             case 'spotlight':
             default:
-                if (isSpotlightStreamValid) {
+                // ✅ CORRECTION : Vérification robuste avec gestion de undefined
+                if (isSpotlightStreamValid && spotlightedStream) {
                     return (
                         <div className="w-full h-full relative bg-black rounded-lg overflow-hidden">
                             <Participant 
-                                stream={spotlightedStream!}
+                                stream={spotlightedStream}
                                 isLocal={false} 
                                 isSpotlighted={true}
                                 isTeacher={spotlightedUser?.role === Role.PROFESSEUR || !spotlightedUser}
@@ -342,13 +341,13 @@ export function StudentSessionView({
                 );
         }
     }, [
-        mainView, // CORRECTION : Dépendance à l'état de vue local
+        mainView,
         documentUrl,
         whiteboardControllerId,
         currentUserId,
         whiteboardOperations,
         spotlightedUser,
-        spotlightedStream,
+        spotlightedStream, // ✅ CORRECTION : Maintenant compatible avec undefined
         isHandRaised,
         sessionId,
         session,
@@ -371,7 +370,7 @@ export function StudentSessionView({
                 <div className="w-full h-full relative rounded-lg overflow-hidden border bg-card">
                     <AnimatePresence mode="wait">
                         <motion.div
-                            key={mainView} // CORRECTION : Utiliser `mainView` comme clé
+                            key={mainView}
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.95 }}
@@ -388,11 +387,11 @@ export function StudentSessionView({
                 <motion.div layout className="h-full flex flex-col gap-1">
                     <ScrollArea className="flex-1 pr-3 -mr-3">
                          <div className="space-y-4">
-                             {mainView !== 'spotlight' && isSpotlightStreamValid && (
+                             {mainView !== 'spotlight' && isSpotlightStreamValid && spotlightedStream && (
                                 <AnimatedCard title={spotlightedUser?.name || "Professeur"}>
                                     <div className="p-2">
                                          <Participant
-                                            stream={spotlightedStream!}
+                                            stream={spotlightedStream}
                                             isLocal={false} 
                                             isSpotlighted={false}
                                             isTeacher={spotlightedUser?.role === Role.PROFESSEUR || !spotlightedUser}

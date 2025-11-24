@@ -1,4 +1,4 @@
-// src/components/session/QuickPollResults.tsx
+// src/components/session/QuickPollResults.tsx - VERSION CORRIGÉE
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +9,7 @@ import { User } from '@prisma/client';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '../ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react'; // ✅ CORRECTION: Ajout de useMemo
 import { ComprehensionLevel } from '@/types';
 
 interface QuickPollResultsProps {
@@ -29,14 +29,22 @@ export function QuickPollResults({ students, understandingStatus }: QuickPollRes
   const [hasNewStatus, setHasNewStatus] = useState(false);
   const prevStatusRef = useRef<Map<string, ComprehensionLevel>>();
 
+  // ✅ CORRECTION: Mémorisation des étudiants pour éviter les recalculs inutiles
+  const memoizedStudents = useMemo(() => students, [students]);
+
+  // ✅ CORRECTION: Effet optimisé avec comparaison de référence
   useEffect(() => {
-    console.log('🤔 [TRACKER] - Mise à jour du statut de compréhension reçue.');
-    if (accordionValue === undefined && prevStatusRef.current && prevStatusRef.current !== understandingStatus) {
+    // Vérifier si le Map a réellement changé
+    if (prevStatusRef.current !== understandingStatus) {
+      console.log('🤔 [TRACKER] - Mise à jour du statut de compréhension reçue.');
+      
+      if (accordionValue === undefined && prevStatusRef.current) {
         console.log('✨ [TRACKER] - Nouveau statut détecté, affichage de la notification.');
         setHasNewStatus(true);
+      }
+      prevStatusRef.current = understandingStatus;
     }
-    prevStatusRef.current = understandingStatus;
-  }, [understandingStatus, accordionValue]);
+  }, [understandingStatus, accordionValue]); // ✅ Dépendances correctes
 
   const handleAccordionChange = (value?: string) => {
     setAccordionValue(value);
@@ -46,23 +54,37 @@ export function QuickPollResults({ students, understandingStatus }: QuickPollRes
     }
   };
 
-  const getStatusCounts = () => {
+  // ✅ CORRECTION: Mémorisation des compteurs
+  const counts = useMemo(() => {
     const counts: Record<ComprehensionLevel, number> = { 
         [ComprehensionLevel.UNDERSTOOD]: 0, 
         [ComprehensionLevel.CONFUSED]: 0, 
         [ComprehensionLevel.LOST]: 0, 
         [ComprehensionLevel.NONE]: 0 
     };
-    students.forEach(student => {
+    
+    memoizedStudents.forEach(student => {
       const status = understandingStatus.get(student.id) || ComprehensionLevel.NONE;
       if (counts[status] !== undefined) {
         counts[status]++;
       }
     });
+    
     return counts;
-  };
+  }, [memoizedStudents, understandingStatus]);
 
-  const counts = getStatusCounts();
+  // ✅ CORRECTION: Mémorisation des étudiants avec statuts pour éviter les recalculs
+  const studentsWithStatus = useMemo(() => {
+    return memoizedStudents.map(student => {
+      const status = understandingStatus.get(student.id) || ComprehensionLevel.NONE;
+      const config = statusConfig[status];
+      return {
+        student,
+        status,
+        config
+      };
+    });
+  }, [memoizedStudents, understandingStatus]);
 
   return (
     <Card className='bg-background/80'>
@@ -95,9 +117,7 @@ export function QuickPollResults({ students, understandingStatus }: QuickPollRes
                         <ScrollArea className="h-48">
                         <div className="space-y-2 pr-4">
                             <TooltipProvider>
-                            {students.map(student => {
-                                const status = understandingStatus.get(student.id) || ComprehensionLevel.NONE;
-                                const config = statusConfig[status];
+                            {studentsWithStatus.map(({ student, status, config }) => {
                                 if (!config) return null;
                                 const Icon = config.icon;
 

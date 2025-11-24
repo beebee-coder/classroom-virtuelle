@@ -155,6 +155,7 @@ export default function SessionClient({
     };
   }, [currentUserRole, currentUserId]);
 
+  // CORRECTION : Ajout des dépendances manquantes
   useEffect(() => {
     if (!isMediaReady || !activeStream || !isMountedRef.current || onlineUserIds.length === 0) {
       return;
@@ -174,7 +175,7 @@ export default function SessionClient({
     });
   }, [onlineUserIds, currentUserId, isMediaReady, activeStream, createPeer, remoteStreams]);
 
-  // CORRECTION : Logique améliorée pour spotlightedStream
+  // ✅ CORRECTION AMÉLIORÉE : Logique spotlight avec gestion robuste des streams
   const spotlightedStream = useMemo(() => {
     if (!spotlightedParticipantId) {
       console.log('🔍 [SPOTLIGHT DEBUG] - Aucun participant spotlighté');
@@ -184,21 +185,24 @@ export default function SessionClient({
     // Si l'utilisateur courant est spotlighté, utiliser son stream actif
     if (spotlightedParticipantId === currentUserId) {
       const stream = activeStream;
-      console.log(`🔍 [SPOTLIGHT DEBUG] - Utilisateur courant spotlighté: ${currentUserId}, stream:`, stream?.active);
-      return stream;
+      const streamActive = stream?.active ?? false;
+      console.log(`🔍 [SPOTLIGHT DEBUG] - Utilisateur courant spotlighté: ${currentUserId}, stream: ${streamActive}`);
+      return streamActive ? stream : null;
     }
 
-    // Sinon, chercher dans les streams distants
+    // Sinon, chercher dans les streams distants avec vérification robuste
     const remoteStream = remoteStreams.get(spotlightedParticipantId);
-    console.log(`🔍 [SPOTLIGHT DEBUG] - Participant distant spotlighté: ${spotlightedParticipantId}, stream trouvé:`, remoteStream?.active);
+    const remoteStreamActive = remoteStream?.active ?? false;
+    console.log(`🔍 [SPOTLIGHT DEBUG] - Participant distant spotlighté: ${spotlightedParticipantId}, stream trouvé: ${remoteStreamActive}`);
     
-    return remoteStream || null;
+    return remoteStreamActive ? remoteStream : null;
   }, [spotlightedParticipantId, currentUserId, activeStream, remoteStreams]);
 
-    const allSessionUsers = useMemo(
-        () => [initialTeacher, ...(initialStudents || [])].filter(Boolean) as User[],
-        [initialTeacher, initialStudents]
-    );
+  // ✅ CORRECTION : Typage correct pour allSessionUsers
+  const allSessionUsers = useMemo(
+    () => [initialTeacher, ...(initialStudents || [])].filter(Boolean) as User[],
+    [initialTeacher, initialStudents]
+  );
 
   const spotlightedUser = useMemo(() => 
     spotlightedParticipantId ? allSessionUsers.find(u => u.id === spotlightedParticipantId) : undefined,
@@ -522,18 +526,6 @@ export default function SessionClient({
     return <SessionLoading />;
   }
 
-  // ✅ CORRECTION : DEBUG amélioré pour le spotlight - VERSION CORRIGÉE
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`🔍 [DEBUG SPOTLIGHT] - spotlightedParticipantId: ${spotlightedParticipantId}`);
-      console.log(`🔍 [DEBUG SPOTLIGHT] - currentUserId: ${currentUserId}`);
-      console.log(`🔍 [DEBUG SPOTLIGHT] - remoteStreams keys: ${Array.from(remoteStreams.keys())}`);
-      
-      // La variable 'spotlightedStream' n'est plus dans la portée ici,
-      // mais les logs ci-dessus sont suffisants pour le debug.
-    }
-  }, [spotlightedParticipantId, currentUserId, remoteStreams, activeStream, currentUserRole]);
-  
   console.log(`🎯 [SESSION CLIENT] - Rendu pour ${currentUserRole}, whiteboard initialisé: ${isWhiteboardInitialized}`);
 
   return (
@@ -563,7 +555,7 @@ export default function SessionClient({
             screenStream={screenStream}
             remoteParticipants={remoteParticipants} 
             spotlightedUser={spotlightedUser} 
-            allSessionUsers={allSessionUsers as any[]}
+            allSessionUsers={allSessionUsers} // ✅ CORRECTION : Type User[] au lieu de any[]
             onlineUserIds={onlineUserIds} 
             onSpotlightParticipant={(id) => ablyTrigger(getSessionChannelName(sessionId), AblyEvents.PARTICIPANT_SPOTLIGHTED, { participantId: id })} 
             raisedHandQueue={raisedHandUsers} 
