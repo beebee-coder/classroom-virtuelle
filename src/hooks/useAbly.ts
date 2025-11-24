@@ -1,7 +1,7 @@
-// src/hooks/useAbly.ts - VERSION CORRIGÉE
+// src/hooks/useAbly.ts - VERSION CORRIGÉE POUR STABILITÉ AVANCÉE
 'use client';
 
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { getAblyClient, getAblyClientUsage } from '@/lib/ably/client';
 import Ably, { type Types } from 'ably';
 
@@ -12,12 +12,10 @@ interface UseAblyReturn {
   connectionError: Types.ErrorInfo | null;
 }
 
-// ✅ CORRECTION : Singleton amélioré avec gestion de mémoire
 let globalConnectionState: Types.ConnectionState = 'initialized';
 let globalIsConnected = false;
 let globalConnectionError: Types.ErrorInfo | null = null;
 
-// ✅ CORRECTION : Interface pour les listeners avec gestion de cycle de vie
 interface GlobalListener {
   id: symbol;
   callback: (state: Types.ConnectionState, isConnected: boolean, error: Types.ErrorInfo | null) => void;
@@ -25,30 +23,24 @@ interface GlobalListener {
 }
 
 let globalListeners: Map<symbol, GlobalListener> = new Map();
-
-// ✅ CORRECTION : Stack trace améliorée avec nettoyage automatique
 const componentStack = new Map<symbol, string>();
 
-// ✅ CORRECTION : Fonction pour mettre à jour tous les listeners avec gestion d'erreurs
 const updateAllListeners = (state: Types.ConnectionState, isConnected: boolean, error: Types.ErrorInfo | null) => {
   globalConnectionState = state;
   globalIsConnected = isConnected;
   globalConnectionError = error;
   
-  // ✅ CORRECTION : Parcourir avec gestion d'erreurs pour chaque listener
   globalListeners.forEach((listener, id) => {
     try {
       listener.callback(state, isConnected, error);
     } catch (error) {
       console.error(`❌ [USE ABLY HOOK] Erreur dans le listener de ${listener.componentName}:`, error);
-      // Nettoyer le listener problématique
       globalListeners.delete(id);
       componentStack.delete(id);
     }
   });
 };
 
-// ✅ CORRECTION : Fonction utilitaire améliorée pour obtenir le nom du composant
 const getCallingComponentName = (): string => {
   try {
     const error = new Error();
@@ -79,37 +71,17 @@ const getCallingComponentName = (): string => {
   return 'UnknownComponent';
 };
 
-
-
-
 export const useAbly = (componentName?: string): UseAblyReturn => {
-  // ✅ CORRECTION : useMemo pour nom de composant stable
-  const resolvedComponentName = useMemo(() => {
-    return componentName || getCallingComponentName();
-  }, [componentName]);
+  const resolvedComponentName = useRef(componentName || getCallingComponentName());
 
   const [connectionState, setConnectionState] = useState<Types.ConnectionState>(globalConnectionState);
   const [isConnected, setIsConnected] = useState<boolean>(globalIsConnected);
   const [connectionError, setConnectionError] = useState<Types.ErrorInfo | null>(globalConnectionError);
   
-  // ✅ CORRECTION : useRef pour ID stable
-  const listenerIdRef = useRef<symbol>(Symbol(`useAbly-${resolvedComponentName}`));
+  const listenerIdRef = useRef<symbol>(Symbol(`useAbly-${resolvedComponentName.current}`));
 
-  // ✅ CORRECTION : useMemo pour client Ably stable avec vérification d'état
-  const ablyClient = useMemo(() => {
-    console.log(`🎯 [USE ABLY HOOK] ${resolvedComponentName} - Creating/getting Ably client instance`);
-    const client = getAblyClient();
-    
-    // Vérifier l'état actuel immédiatement
-    const currentState = client.connection.state;
-    if (currentState !== globalConnectionState) {
-      updateAllListeners(currentState, currentState === 'connected', null);
-    }
-    
-    return client;
-  }, [resolvedComponentName]);
+  const ablyClient = useRef(getAblyClient());
 
-  // ✅ CORRECTION : Callback stable pour les mises à jour d'état
   const handleGlobalStateUpdate = useCallback((
     state: Types.ConnectionState, 
     connected: boolean, 
@@ -120,7 +92,6 @@ export const useAbly = (componentName?: string): UseAblyReturn => {
     setConnectionError(error);
   }, []);
 
-  // ✅ CORRECTION : Callback stable pour les changements d'état de connexion
   const handleConnectionStateChange = useCallback((stateChange: Types.ConnectionStateChange) => {
     const newState = stateChange.current;
     const newIsConnected = newState === 'connected';
@@ -128,111 +99,51 @@ export const useAbly = (componentName?: string): UseAblyReturn => {
     
     updateAllListeners(newState, newIsConnected, newError);
   }, []);
-
-  // Dans useAbly.ts - Debug amélioré
-useEffect(() => {
-  const listenerId = listenerIdRef.current;
-  let isMounted = true;
-
-  componentStack.set(listenerId, resolvedComponentName);
-
-  // ✅ DEBUG CRITIQUE : Identifier les composants sans nom
-  if (resolvedComponentName.includes('mountMemo') || resolvedComponentName.includes('useMemo')) {
-    console.error('🚨 [ABLY DEBUG] Composant sans nom détecté:', {
-      resolvedComponentName,
-      stack: new Error().stack
-    });
-  }
-
-  // ... reste du code
-}, [ablyClient, resolvedComponentName, handleGlobalStateUpdate, handleConnectionStateChange]);
-// Dans useAbly.ts - Ajouter ce debug
-
-
-
-
-useEffect(() => {
-  const listenerId = listenerIdRef.current;
-  let isMounted = true;
-
-  componentStack.set(listenerId, resolvedComponentName);
-
-  // ✅ DEBUG: Log tous les composants Ably actifs
-  const activeComponents = Array.from(componentStack.values());
-  console.log('🔍 [ABLY GLOBAL DEBUG] Composants actifs:', activeComponents);
   
-  // ... reste du code
-}, [ablyClient, resolvedComponentName, handleGlobalStateUpdate, handleConnectionStateChange]);
-
   useEffect(() => {
     const listenerId = listenerIdRef.current;
-    let isMounted = true;
-
-    // ✅ CORRECTION : Enregistrement du composant
-    componentStack.set(listenerId, resolvedComponentName);
-
-    // ✅ CORRECTION : Création du listener global avec référence stable
+    const client = ablyClient.current;
+    
+    componentStack.set(listenerId, resolvedComponentName.current);
+    
     const globalListener: GlobalListener = {
       id: listenerId,
       callback: handleGlobalStateUpdate,
-      componentName: resolvedComponentName
+      componentName: resolvedComponentName.current
     };
-
-    // ✅ CORRECTION : Ajout au Map global
+    
     globalListeners.set(listenerId, globalListener);
+    client.connection.on(handleConnectionStateChange);
 
-    // ✅ CORRECTION : Abonnement aux événements avec référence stable
-    ablyClient.connection.on(handleConnectionStateChange);
-
-    // ✅ CORRECTION : Mise à jour initiale de l'état
-    const currentState = ablyClient.connection.state;
+    const currentState = client.connection.state;
     if (currentState !== globalConnectionState) {
       updateAllListeners(currentState, currentState === 'connected', null);
     }
 
-    // Log de debug
     const activeComponents = Array.from(componentStack.values());
-    console.log(`🔧 [USE ABLY HOOK] ${resolvedComponentName} monté -`, {
+    console.log(`🔧 [USE ABLY HOOK] ${resolvedComponentName.current} monté -`, {
       listeners: globalListeners.size,
       refCount: getAblyClientUsage().refCount,
-      activeComponents,
-      totalComponents: activeComponents.length
+      activeComponents: activeComponents.length,
     });
 
-    // ✅ CORRECTION : Nettoyage COMPLET et ROBUSTE
     return () => {
-      isMounted = false;
-      
-      // Nettoyer le listener global
       globalListeners.delete(listenerId);
       componentStack.delete(listenerId);
+      client.connection.off(handleConnectionStateChange);
       
-      // ✅ CORRECTION IMPORTANTE : Désabonnement explicite avec la même référence
-      ablyClient.connection.off(handleConnectionStateChange);
-      
-      console.log(`🧹 [USE ABLY HOOK] ${resolvedComponentName} démonté - Listeners restants: ${globalListeners.size}`);
-      
-      // ✅ CORRECTION : Log détaillé en développement pour debugger les fuites
-      if (process.env.NODE_ENV === 'development' && globalListeners.size === 0) {
-        console.log('✅ [USE ABLY HOOK] Tous les listeners nettoyés - Aucune fuite mémoire');
-      }
+      console.log(`🧹 [USE ABLY HOOK] ${resolvedComponentName.current} démonté - Listeners restants: ${globalListeners.size}`);
     };
-  }, [
-    ablyClient, 
-    resolvedComponentName, 
-    handleGlobalStateUpdate, 
-    handleConnectionStateChange // ✅ CORRECTION : Dépendance ajoutée
-  ]);
+  }, [handleGlobalStateUpdate, handleConnectionStateChange]);
 
   return {
-    client: ablyClient,
+    client: ablyClient.current,
     connectionState,
     isConnected,
     connectionError
   };
 };
 
-// ✅ FONCTION DE DÉBOGAGE AMÉLIORÉE
 export const getUseAblyStats = () => {
   const activeComponents = Array.from(componentStack.values());
   const listenersInfo = Array.from(globalListeners.values()).map(l => ({
@@ -252,7 +163,6 @@ export const getUseAblyStats = () => {
   };
 };
 
-// ✅ FONCTION : Log détaillé pour debug
 export const logUseAblyDetails = () => {
   const stats = getUseAblyStats();
   console.group('🔍 [USE ABLY HOOK] Détails composants');
@@ -264,7 +174,6 @@ export const logUseAblyDetails = () => {
   return stats;
 };
 
-// ✅ FONCTION : Nettoyage d'urgence pour les tests
 export const emergencyCleanup = () => {
   const previousSize = globalListeners.size;
   globalListeners.clear();

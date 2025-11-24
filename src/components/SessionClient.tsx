@@ -155,7 +155,6 @@ export default function SessionClient({
     };
   }, [currentUserRole, currentUserId]);
 
-  // CORRECTION : Ajout des dépendances manquantes
   useEffect(() => {
     if (!isMediaReady || !activeStream || !isMountedRef.current || onlineUserIds.length === 0) {
       return;
@@ -175,39 +174,21 @@ export default function SessionClient({
     });
   }, [onlineUserIds, currentUserId, isMediaReady, activeStream, createPeer, remoteStreams]);
 
-  // ✅ CORRECTION AMÉLIORÉE : Logique spotlight avec gestion robuste des streams
-  const spotlightedStream = useMemo(() => {
-    if (!spotlightedParticipantId) {
-      console.log('🔍 [SPOTLIGHT DEBUG] - Aucun participant spotlighté');
-      return null;
-    }
-
-    // Si l'utilisateur courant est spotlighté, utiliser son stream actif
-    if (spotlightedParticipantId === currentUserId) {
-      const stream = activeStream;
-      const streamActive = stream?.active ?? false;
-      console.log(`🔍 [SPOTLIGHT DEBUG] - Utilisateur courant spotlighté: ${currentUserId}, stream: ${streamActive}`);
-      return streamActive ? stream : null;
-    }
-
-    // Sinon, chercher dans les streams distants avec vérification robuste
-    const remoteStream = remoteStreams.get(spotlightedParticipantId);
-    const remoteStreamActive = remoteStream?.active ?? false;
-    console.log(`🔍 [SPOTLIGHT DEBUG] - Participant distant spotlighté: ${spotlightedParticipantId}, stream trouvé: ${remoteStreamActive}`);
-    
-    return remoteStreamActive ? remoteStream : null;
-  }, [spotlightedParticipantId, currentUserId, activeStream, remoteStreams]);
-
-  // ✅ CORRECTION : Typage correct pour allSessionUsers
   const allSessionUsers = useMemo(
     () => [initialTeacher, ...(initialStudents || [])].filter(Boolean) as User[],
     [initialTeacher, initialStudents]
   );
-
+  
   const spotlightedUser = useMemo(() => 
     spotlightedParticipantId ? allSessionUsers.find(u => u.id === spotlightedParticipantId) : undefined,
     [allSessionUsers, spotlightedParticipantId]
   );
+
+  const spotlightedStream = useMemo(() => {
+    if (!spotlightedParticipantId) return null;
+    if (spotlightedParticipantId === currentUserId) return activeStream;
+    return remoteStreams.get(spotlightedParticipantId) || null;
+  }, [spotlightedParticipantId, currentUserId, activeStream, remoteStreams]);
 
   const remoteParticipants = useMemo(() => 
     Array.from(remoteStreams.entries())
@@ -229,304 +210,143 @@ export default function SessionClient({
   );
 
   const handleEndSession = useCallback(async () => {
-    if (currentUserRole !== Role.PROFESSEUR) {
-      console.warn('⚠️ [SESSION CLIENT] - Tentative de fin de session par non-professeur');
-      return;
-    }
-
-    if (isEndingSession) {
-      console.log('⏳ [SESSION CLIENT] - Fin de session déjà en cours');
-      return;
-    }
+    if (currentUserRole !== Role.PROFESSEUR || isEndingSession) return;
 
     setIsEndingSession(true);
-    console.log('🔚 [SESSION CLIENT] - Début de la fin de session');
-    
     try { 
-      const result = await endCoursSession(sessionId);
-      
-      if (!result.success) {
-        throw new Error('Erreur inconnue lors de la fin de session');
-      }
-
-      console.log('✅ [SESSION CLIENT] - Session terminée avec succès');
-      
+      await endCoursSession(sessionId);
       if (isMountedRef.current) {
-        toast({
-          title: 'Session terminée',
-          description: 'La session a été terminée avec succès'
-        });
+        toast({ title: 'Session terminée' });
       }
-
     } catch (error) {
-      console.error('❌ [SESSION CLIENT] - Erreur lors de la fin de session:', error);
-      
       if (isMountedRef.current) {
         setIsEndingSession(false);
-        toast({
-          variant: 'destructive',
-          title: 'Erreur',
-          description: 'Impossible de terminer la session'
-        });
+        toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de terminer la session' });
       }
     }
   }, [currentUserRole, sessionId, toast, isEndingSession]);
 
   const handleLeaveSession = useCallback(() => {
-    console.log('🚪 [SESSION CLIENT] - Utilisateur quitte la session');
     router.push(currentUserRole === Role.PROFESSEUR ? '/teacher/dashboard' : '/student/dashboard');
   }, [router, currentUserRole]);
   
   const handleToggleHandRaise = useCallback(async (isRaised: boolean) => {
     if (!isMountedRef.current) return;
-    
     try {
-      console.log(`✋ [SESSION CLIENT] - ${isRaised ? 'Lever' : 'Baisser'} la main`);
       await updateStudentSessionStatus(sessionId, { isHandRaised: isRaised });
     } catch (error) {
-      console.error('❌ [SESSION CLIENT] - Erreur lors du changement de statut main:', error);
-      
       if (isMountedRef.current) {
-        toast({
-          variant: 'destructive',
-          title: 'Erreur',
-          description: 'Impossible de changer le statut de la main'
-        });
+        toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de changer le statut de la main' });
       }
     }
   }, [sessionId, toast]);
 
   const handleAcknowledgeNextHand = useCallback(async () => {
-    if (handRaiseQueue.length === 0) {
-      console.warn('⚠️ [SESSION CLIENT] - Aucune main à reconnaître');
-      
-      if (isMountedRef.current) {
-        toast({
-          variant: 'destructive',
-          title: 'Aucune main levée',
-          description: 'Aucun étudiant n\'a levé la main'
-        });
-      }
-      return;
-    }
-
+    if (handRaiseQueue.length === 0) return;
     const nextUserId = handRaiseQueue[0];
-    console.log(`✅ [SESSION CLIENT] - Reconnaissance de la main de ${nextUserId}`);
-    
     try {
-      await ablyTrigger(getSessionChannelName(sessionId), AblyEvents.HAND_ACKNOWLEDGED, { 
-        userId: nextUserId,
-        timestamp: Date.now()
-      });
-      
-      if (isMountedRef.current) {
-        toast({
-          title: 'Main reconnue',
-          description: `Main de l'étudiant reconnue`
-        });
-      }
+      await ablyTrigger(getSessionChannelName(sessionId), AblyEvents.HAND_ACKNOWLEDGED, { userId: nextUserId, timestamp: Date.now() });
     } catch (error) {
-      console.error('❌ [SESSION CLIENT] - Erreur lors de la reconnaissance de main:', error);
-      
       if (isMountedRef.current) {
-        toast({
-          variant: 'destructive',
-          title: 'Erreur',
-          description: 'Impossible de reconnaître la main'
-        });
+        toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de reconnaître la main' });
       }
     }
   }, [sessionId, handRaiseQueue, toast]);
 
   const handleUnderstandingChange = useCallback(async (status: ComprehensionLevel) => {
     if (!isMountedRef.current) return;
-    
-    if (!Object.values(ComprehensionLevel).includes(status)) {
-      console.warn('⚠️ [SESSION CLIENT] - Statut de compréhension invalide:', status);
-      return;
-    }
-
-    console.log(`🧠 [SESSION CLIENT] - Changement de compréhension: ${status}`);
-    
     try {
       await updateStudentSessionStatus(sessionId, { understanding: status });
     } catch (error) {
-      console.error('❌ [SESSION CLIENT] - Erreur lors du changement de compréhension:', error);
+      // Gérer l'erreur
     }
   }, [sessionId]);
 
   const onToolChange = useCallback(async (tool: string) => {
     if (!isMountedRef.current) return;
-    
-    console.log(`🛠️ [SESSION CLIENT] - Changement d'outil: ${tool}`);
-    
     try {
       await broadcastActiveTool(sessionId, tool);
     } catch (error) {
-      console.error('❌ [SESSION CLIENT] - Erreur lors du changement d\'outil:', error);
+      // Gérer l'erreur
     }
   }, [sessionId]);
   
   const handleWhiteboardControllerChange = useCallback(async (userId: string) => {
-    if (currentUserRole !== Role.PROFESSEUR) {
-      console.warn('⚠️ [SESSION CLIENT] - Seul le professeur peut changer le contrôleur');
-      
-      if (isMountedRef.current) {
-        toast({
-          variant: 'destructive',
-          title: 'Permission refusée',
-          description: 'Seul le professeur peut changer le contrôleur du tableau blanc'
-        });
-      }
-      return;
-    }
+    if (currentUserRole !== Role.PROFESSEUR) return;
 
     const newControllerId = userId === whiteboardControllerId ? initialTeacher?.id || null : userId;
-    console.log(`🎮 [SESSION CLIENT] - Changement contrôleur whiteboard: ${newControllerId}`);
-    
     try {
       const response = await fetch(`/api/session/${sessionId}/whiteboard-controller`, { 
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ controllerId: newControllerId }) 
       });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      console.log('✅ [SESSION CLIENT] - Contrôleur whiteboard changé avec succès');
-      
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     } catch (error) {
-      console.error('❌ [SESSION CLIENT] - Erreur lors du changement de contrôleur:', error);
-      
       if (isMountedRef.current) {
-        toast({
-          variant: 'destructive',
-          title: 'Erreur',
-          description: 'Impossible de changer le contrôleur du tableau blanc'
-        });
+        toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de changer le contrôleur' });
       }
     }
   }, [sessionId, currentUserRole, whiteboardControllerId, initialTeacher?.id, toast]);
 
   const handleOnUploadSuccess = useCallback(async (uploadedDoc: { name: string; url: string }) => {
     if (!isMountedRef.current) return;
-    
-    console.log(`📄 [SESSION CLIENT] - Upload réussi: ${uploadedDoc.name}`);
-    
     try {
       const result = await saveAndShareDocument(sessionId, uploadedDoc);
-      
-      if (!result.success) {
-        throw new Error('Erreur inconnue lors de l\'upload');
+      if (!result.success) throw new Error('Erreur inconnue');
+      if (isMountedRef.current) {
+        handleUploadSuccess(result.document);
+        toast({ title: 'Succès', description: 'Document partagé' });
       }
-
-      if (isMountedRef.current) {
-          handleUploadSuccess(result.document);
-          toast({
-            title: 'Succès',
-            description: 'Document partagé avec la classe'
-          });
-        }
     } catch (error) {
-      console.error('❌ [SESSION CLIENT] - Erreur lors de l\'upload:', error);
-      
       if (isMountedRef.current) {
-        toast({ 
-          variant: 'destructive', 
-          title: 'Erreur',
-          description: 'Impossible de partager le document' 
-        });
+        toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de partager' });
       }
     }
   }, [sessionId, toast, handleUploadSuccess]);
   
   const handleOnStartQuiz = useCallback(async (quizData: CreateQuizData) => {
-    if (!isMountedRef.current) {
-      return { success: false, error: 'Composant non monté' };
-    }
-    
-    console.log('❓ [SESSION CLIENT] - Démarrage du quiz');
-    
+    if (!isMountedRef.current) return { success: false, error: 'Composant non monté' };
     try {
       const result = await startQuiz(sessionId, quizData);
-      
       if (!result.success && isMountedRef.current) {
-        toast({ 
-          variant: 'destructive', 
-          title: 'Erreur', 
-          description: result.error || 'Impossible de lancer le quiz.' 
-        });
+        toast({ variant: 'destructive', title: 'Erreur', description: result.error || 'Impossible de lancer le quiz.' });
       }
       return result;
     } catch (error) {
-      console.error('❌ [SESSION CLIENT] - Erreur lors du démarrage du quiz:', error);
-      
       if (isMountedRef.current) {
-        toast({ 
-          variant: 'destructive', 
-          title: 'Erreur', 
-          description: 'Erreur inattendue lors du lancement du quiz' 
-        });
+        toast({ variant: 'destructive', title: 'Erreur', description: 'Erreur inattendue' });
       }
       return { success: false, error: 'Erreur inattendue' };
     }
   }, [sessionId, toast]);
 
   const handleSubmitQuizResponse = useCallback(async (response: QuizResponse) => {
-    if (!isMountedRef.current) {
-      return { success: false, error: 'Composant non monté' };
-    }
-    
-    console.log(`📝 [SESSION CLIENT] - Soumission réponse quiz`);
-    
+    if (!isMountedRef.current) return { success: false, error: 'Composant non monté' };
     try {
       const result = await submitQuizResponse(sessionId, response);
-      
       if (!result.success && isMountedRef.current) {
-        toast({ 
-          variant: 'destructive', 
-          title: 'Erreur', 
-          description: 'Impossible d\'envoyer vos réponses.' 
-        });
+        toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible d\'envoyer vos réponses.' });
       }
       return result;
     } catch (error) {
-      console.error('❌ [SESSION CLIENT] - Erreur lors de la soumission du quiz:', error);
-      
       if (isMountedRef.current) {
-        toast({ 
-          variant: 'destructive', 
-          title: 'Erreur', 
-          description: 'Erreur inattendue lors de l\'envoi des réponses' 
-        });
+        toast({ variant: 'destructive', title: 'Erreur', description: 'Erreur inattendue' });
       }
       return { success: false, error: 'Erreur inattendue' };
     }
   }, [sessionId, toast]);
 
   const handleOnEndQuiz = useCallback(async (quizId: string, responses: Map<string, QuizResponse>) => {
-    if (!isMountedRef.current) {
-      return { success: false, error: 'Composant non monté' };
-    }
-    
-    console.log(`🏁 [SESSION CLIENT] - Fin du quiz: ${quizId}`);
-    
+    if (!isMountedRef.current) return { success: false, error: 'Composant non monté' };
     try {
-      const result = await endQuiz(sessionId, quizId, responses);
-      return result;
+      return await endQuiz(sessionId, quizId, responses);
     } catch (error) {
-      console.error('❌ [SESSION CLIENT] - Erreur lors de la fin du quiz:', error);
       return { success: false, error: 'Erreur inattendue' };
     }
   }, [sessionId]);
 
-  if (isMediaLoading) {
-    return <SessionLoading />;
-  }
-
-  console.log(`🎯 [SESSION CLIENT] - Rendu pour ${currentUserRole}, whiteboard initialisé: ${isWhiteboardInitialized}`);
+  if (isMediaLoading) return <SessionLoading />;
 
   return (
     <div className="flex flex-col h-full bg-background p-4">
@@ -555,7 +375,7 @@ export default function SessionClient({
             screenStream={screenStream}
             remoteParticipants={remoteParticipants} 
             spotlightedUser={spotlightedUser} 
-            allSessionUsers={allSessionUsers} // ✅ CORRECTION : Type User[] au lieu de any[]
+            allSessionUsers={allSessionUsers}
             onlineUserIds={onlineUserIds} 
             onSpotlightParticipant={(id) => ablyTrigger(getSessionChannelName(sessionId), AblyEvents.PARTICIPANT_SPOTLIGHTED, { participantId: id })} 
             raisedHandQueue={raisedHandUsers} 
