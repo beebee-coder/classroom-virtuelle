@@ -1,3 +1,4 @@
+
 // src/components/session/TeacherSessionView.tsx - VERSION CORRIGÉE AVEC HOT RELOAD
 'use client';
 
@@ -87,7 +88,7 @@ const renderParticipant = (
         allSessionUsers,
         classOnlineIds,
     }: any
-) => {
+): React.ReactElement | null => { // ✅ CORRECTION: Type de retour explicite
     if (!participant) return null;
 
     let stream: MediaStream | null = null;
@@ -111,14 +112,14 @@ const renderParticipant = (
                 participantUserId={participant.id} 
                 onSpotlightParticipant={handleSpotlightAndSwitch}
                 displayName={participant.name ?? ''} 
-                isHandRaised={raisedHandQueue.some(u => u.id === participant.id)}
+                isHandRaised={raisedHandQueue.some((u: User) => u.id === participant.id)} // ✅ CORRECTION: Type explicite
                 onSetWhiteboardController={onWhiteboardControllerChange} 
                 isWhiteboardController={participant.id === whiteboardControllerId}
             />
         );
     }
     
-    const studentData = allSessionUsers.find(u => u.id === participant.id) as User | undefined;
+    const studentData = allSessionUsers.find((u: SessionParticipant) => u.id === participant.id) as User | undefined; // ✅ CORRECTION: Type explicite
     if (!studentData) return null;
 
     return (
@@ -127,7 +128,7 @@ const renderParticipant = (
             student={studentData} 
             isOnline={classOnlineIds.includes(participant.id)}
             onSpotlightParticipant={handleSpotlightAndSwitch} 
-            isHandRaised={raisedHandQueue.some(u => u.id === participant.id)}
+            isHandRaised={raisedHandQueue.some((u: User) => u.id === participant.id)} // ✅ CORRECTION: Type explicite
         />
     );
 };
@@ -211,10 +212,31 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
         return (stream && stream.active) ? stream : null;
     }, [spotlightedUser, currentUserId, isSharingScreen, screenStream, localStream, remoteStreamsMap]);
 
-    const renderActiveTool = useMemo(() => {
-        // ... (rest of the renderActiveTool logic remains the same)
+    const renderActiveTool = useMemo((): ReactNode => { // ✅ CORRECTION: Type de retour explicite
+        switch (activeTool) {
+            case 'camera':
+                const spotlightStream = getSpotlightStream();
+                if (spotlightStream && spotlightedUser) {
+                    return <Participant stream={spotlightStream} isLocal={spotlightedUser.id === currentUserId} isSpotlighted={true} isTeacher={spotlightedUser.role === Role.PROFESSEUR} participantUserId={spotlightedUser.id} onSpotlightParticipant={onSpotlightParticipant} displayName={spotlightedUser.name ?? ''} />;
+                }
+                return <div className="h-full w-full flex items-center justify-center bg-muted text-muted-foreground"><p>Aucun participant en vedette ou flux indisponible.</p></div>;
+            case 'document':
+                return <DocumentViewer url={documentUrl} />;
+            case 'whiteboard':
+                return <Html5Whiteboard sessionId={sessionId} userId={currentUserId} isController={currentUserId === whiteboardControllerId} operations={whiteboardOperations} onEvent={onWhiteboardEvent} flushOperations={flushWhiteboardOperations} />;
+            case 'chat':
+                return classroom?.id ? <ChatWorkspace classroomId={classroom.id} userId={currentUserId} userRole={Role.PROFESSEUR} /> : null;
+            case 'quiz':
+                return <QuizWorkspace sessionId={sessionId} activeQuiz={activeQuiz} quizResponses={quizResponses} quizResults={quizResults} onStartQuiz={onStartQuiz} onEndQuiz={onEndQuiz} onCloseResults={onCloseResults} students={students} />;
+            case 'breakout':
+                return <BreakoutRoomsManager sessionId={sessionId} students={students} />;
+            default:
+                return null;
+        }
     }, [
-        // ... (all dependencies for renderActiveTool)
+        activeTool, getSpotlightStream, spotlightedUser, currentUserId, onSpotlightParticipant, documentUrl,
+        sessionId, whiteboardControllerId, whiteboardOperations, onWhiteboardEvent, flushWhiteboardOperations,
+        classroom, students, activeQuiz, quizResponses, quizResults, onStartQuiz, onEndQuiz, onCloseResults
     ]);
     
     if (!currentUserId || !teacher) return <div className="flex-1 flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>;
@@ -230,7 +252,7 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
         <div className="flex-1 flex flex-col min-h-0 min-w-0">
           <div className="flex-1 min-h-0 relative">
             <div className="absolute inset-0 rounded-lg border bg-card p-4">
-                {teacherView === 'content' ? (
+                {teacherView === 'content' ? ( // ✅ CORRECTION: renderActiveTool est maintenant un ReactNode
                   renderActiveTool
                 ) : (
                   <ScrollArea className="h-full">
@@ -299,7 +321,7 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
                                 <QuickPollResults students={students} understandingStatus={understandingStatus} />
                             </AnimatedCard>
                             <AnimatedCard title="Mains Levées">
-                                <HandRaiseController raisedHandQueue={raisedHandQueue} onAcknowledgeNextHand={onAcknowledgeNextHand} />
+                                <HandRaiseController raisedHandQueue={raisedHandQueue} onAcknowledgeNext={onAcknowledgeNextHand} /> 
                             </AnimatedCard>
                         </div>
                     </ScrollArea>
