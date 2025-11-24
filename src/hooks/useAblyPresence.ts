@@ -44,14 +44,13 @@ const MAX_PRESENCE_UPDATES_PER_MINUTE = 30;
 export const useAblyPresence = (
   channelId?: string, 
   enabled: boolean = true, 
-  componentName: string = 'UnknownPresenceComponent' // ✅ CORRECTION: Nom plus descriptif
+  componentName: string = 'UnknownPresenceComponent'
 ): UseAblyPresenceReturn => {
-  // ✅ CORRECTION: Vérification du nom du composant
   const actualComponentName = componentName === 'UnknownPresenceComponent' 
     ? `useAblyPresence-${channelId || 'no-channel'}` 
     : componentName;
 
-  const { client, connectionState } = useAbly(actualComponentName); // ✅ CORRECTION: Utilisation du nom corrigé
+  const { client, connectionState } = useAbly(actualComponentName);
   const { isConnected: ablyConnected, error: healthError } = useAblyHealth(actualComponentName);
   
   const [onlineMembers, setOnlineMembers] = useState<AblyPresenceMember[]>([]);
@@ -211,7 +210,7 @@ export const useAblyPresence = (
     const channelName = getClassChannelName(channelId);
     currentChannelNameRef.current = channelName;
 
-    console.log(`🎯 [PRESENCE HOOK] - Initialisation pour canal: ${channelName} (${actualComponentName})`); // ✅ CORRECTION: Utilisation du nom corrigé
+    console.log(`🎯 [PRESENCE HOOK] - Initialisation pour canal: ${channelName} (${actualComponentName})`);
 
     const initializePresence = async () => {
       if (!mountedRef.current) return;
@@ -371,7 +370,7 @@ export const useAblyPresence = (
         currentChannelNameRef.current = null;
       }
     };
-  }, [channelId, enabled, client, manageChannelRefCount, updateOnlineMembers, extractPresenceData, actualComponentName]); // ✅ CORRECTION: Ajout de la dépendance
+  }, [channelId, enabled, client, manageChannelRefCount, updateOnlineMembers, extractPresenceData, actualComponentName]);
 
   const enterPresence = useCallback(async (userData: Omit<AblyPresenceMember, 'id'>) => {
     const channel = channelRef.current;
@@ -382,7 +381,6 @@ export const useAblyPresence = (
     
     if (!canUpdatePresence()) {
       console.warn('⏸️ [PRESENCE HOOK] - Rate limiting activé, report de l\'entrée en présence');
-      // On ne lance pas d'erreur pour permettre à la logique de continuer sans bloquer l'UI
       return;
     }
     
