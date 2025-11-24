@@ -5,6 +5,7 @@ import { useAblyHealth, type AblyConnectionStatus } from '@/hooks/useAblyHealth'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './tooltip';
 import { cn } from '@/lib/utils';
 import { Wifi, WifiOff, Loader2 } from 'lucide-react';
+import { memo } from 'react'; // ✅ CORRECTION: Ajout de memo pour éviter re-rendus inutiles
 
 const statusConfig: Record<AblyConnectionStatus, { color: string; label: string; icon: React.ElementType; pulsing?: boolean }> = {
     initialized: { color: 'bg-gray-400', label: 'Initializing', icon: Loader2, pulsing: true },
@@ -17,8 +18,9 @@ const statusConfig: Record<AblyConnectionStatus, { color: string; label: string;
     failed: { color: 'bg-red-500', label: 'Connection failed', icon: WifiOff },
 };
 
-export function AblyStatusIndicator() {
-    // ✅ CORRECTION FINALE : S'assurer que le nom du composant est bien passé
+// ✅ CORRECTION FINALE: Utilisation de memo pour éviter les re-rendus inutiles
+export const AblyStatusIndicator = memo(function AblyStatusIndicator() {
+    // ✅ CORRECTION: Nom explicite pour le debug
     const { status, error } = useAblyHealth('AblyStatusIndicator');
     const config = statusConfig[status] || statusConfig.failed;
     const Icon = config.icon;
@@ -26,7 +28,7 @@ export function AblyStatusIndicator() {
     return (
         <TooltipProvider>
             <Tooltip>
-                <TooltipTrigger>
+                <TooltipTrigger asChild>
                     <div className="flex items-center justify-center w-6 h-6">
                         <Icon className={cn(
                             "h-4 w-4",
@@ -42,4 +44,7 @@ export function AblyStatusIndicator() {
             </Tooltip>
         </TooltipProvider>
     );
-}
+});
+
+// ✅ CORRECTION: Display name pour le debug
+AblyStatusIndicator.displayName = 'AblyStatusIndicator';

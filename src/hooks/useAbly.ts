@@ -79,6 +79,9 @@ const getCallingComponentName = (): string => {
   return 'UnknownComponent';
 };
 
+
+
+
 export const useAbly = (componentName?: string): UseAblyReturn => {
   // ✅ CORRECTION : useMemo pour nom de composant stable
   const resolvedComponentName = useMemo(() => {
@@ -125,6 +128,41 @@ export const useAbly = (componentName?: string): UseAblyReturn => {
     
     updateAllListeners(newState, newIsConnected, newError);
   }, []);
+
+  // Dans useAbly.ts - Debug amélioré
+useEffect(() => {
+  const listenerId = listenerIdRef.current;
+  let isMounted = true;
+
+  componentStack.set(listenerId, resolvedComponentName);
+
+  // ✅ DEBUG CRITIQUE : Identifier les composants sans nom
+  if (resolvedComponentName.includes('mountMemo') || resolvedComponentName.includes('useMemo')) {
+    console.error('🚨 [ABLY DEBUG] Composant sans nom détecté:', {
+      resolvedComponentName,
+      stack: new Error().stack
+    });
+  }
+
+  // ... reste du code
+}, [ablyClient, resolvedComponentName, handleGlobalStateUpdate, handleConnectionStateChange]);
+// Dans useAbly.ts - Ajouter ce debug
+
+
+
+
+useEffect(() => {
+  const listenerId = listenerIdRef.current;
+  let isMounted = true;
+
+  componentStack.set(listenerId, resolvedComponentName);
+
+  // ✅ DEBUG: Log tous les composants Ably actifs
+  const activeComponents = Array.from(componentStack.values());
+  console.log('🔍 [ABLY GLOBAL DEBUG] Composants actifs:', activeComponents);
+  
+  // ... reste du code
+}, [ablyClient, resolvedComponentName, handleGlobalStateUpdate, handleConnectionStateChange]);
 
   useEffect(() => {
     const listenerId = listenerIdRef.current;
