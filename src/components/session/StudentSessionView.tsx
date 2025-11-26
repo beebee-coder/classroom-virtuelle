@@ -1,10 +1,10 @@
 // src/components/session/StudentSessionView.tsx - VERSION CORRIGÉE
 'use client';
 
-import { useState, type ReactNode, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, type ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Participant } from '@/components/Participant';
-import { SessionParticipant, DocumentInHistory, Html5CanvasScene, ComprehensionLevel, WhiteboardOperation, Role, Quiz, QuizResponse, QuizResults } from '@/types';
+import { SessionParticipant, DocumentInHistory, Html5CanvasScene, ComprehensionLevel, WhiteboardOperation, Role } from '@/types';
 import { Card, CardContent, CardHeader } from '../ui/card';
 import { Loader2, File, Users, Video, VideoOff } from 'lucide-react';
 import { StudentSessionControls } from './StudentSessionControls';
@@ -17,17 +17,14 @@ import { Button } from '../ui/button';
 import React from 'react';
 import { Html5Whiteboard } from '../Html5Whiteboard';
 import { AnimatedCard } from './AnimatedCard';
-import { useSession } from 'next-auth/react';
+import type { Quiz, QuizResponse, QuizResults } from '@/types';
 import { QuizView } from './quiz/QuizView';
-import { trackStudentActivity } from '@/lib/actions/activity.actions';
-import { ChatWorkspace } from './ChatWorkspace';
 
-// ✅ CORRECTION : Interface mise à jour pour permettre undefined
 interface StudentSessionViewProps {
     sessionId: string;
     localStream: MediaStream | null;
-    spotlightedStream: MediaStream | null | undefined; // ✅ CORRECTION : Ajout de undefined
-    spotlightedUser: SessionParticipant | null | undefined;
+    spotlightedStream: MediaStream | null;
+    spotlightedUser: SessionParticipant | null;
     isHandRaised: boolean;
     onToggleHandRaise: (isRaised: boolean) => void;
     onUnderstandingChange: (status: ComprehensionLevel) => void;
@@ -73,17 +70,13 @@ export function StudentSessionView({
     quizResults,
 }: StudentSessionViewProps) {
     const { toast } = useToast();
-    const { data: session } = useSession();
 
-    const [mainView, setMainView] = useState<'spotlight' | 'whiteboard' | 'document' | 'quiz' | 'chat'>('spotlight');
+    const [mainView, setMainView] = useState<'spotlight' | 'whiteboard' | 'document' | 'quiz'>('spotlight');
     const [isHandRaiseLoading, setIsHandRaiseLoading] = useState(false);
     const [isUnderstandingLoading, setIsUnderstandingLoading] = useState(false);
-    const [debugInfo, setDebugInfo] = useState<string>('');
-    
-    const debugInfoRef = useRef<string>('');
-    
+
     useEffect(() => {
-        if (activeTool === 'whiteboard' || activeTool === 'document' || activeTool === 'chat') {
+        if (activeTool === 'whiteboard' || activeTool === 'document') {
             setMainView(activeTool);
         } else if (activeQuiz) {
             setMainView('quiz');
@@ -91,28 +84,6 @@ export function StudentSessionView({
             setMainView('spotlight');
         }
     }, [activeTool, activeQuiz]);
-
-    useEffect(() => {
-        const ACTIVITY_INTERVAL_MS = 30000;
-        
-        const intervalId = setInterval(() => {
-            trackStudentActivity(ACTIVITY_INTERVAL_MS / 1000)
-                .then((result) => {
-                    if (result && result.success && result.pointsAwarded > 0) {
-                        console.log(`✨ [HEARTBEAT] +${result.pointsAwarded} points attribués.`);
-                    } else if (result && !result.success) {
-                        console.warn('⚠️ [HEARTBEAT] - Échec du suivi d\'activité');
-                    }
-                })
-                .catch((error) => {
-                    console.warn("⚠️ [HEARTBEAT] Échec du suivi d'activité:", error);
-                });
-        }, ACTIVITY_INTERVAL_MS);
-
-        return () => {
-            clearInterval(intervalId);
-        };
-    }, [sessionId]);
 
     const handleToggleHandRaise = useCallback(async (): Promise<void> => {
         if (isHandRaiseLoading) {
@@ -122,8 +93,7 @@ export function StudentSessionView({
         const newHandRaiseState = !isHandRaised;
         setIsHandRaiseLoading(true);
         
-        const previousHandRaiseState = isHandRaised;
-        
+        // Optimistic update
         onToggleHandRaise(newHandRaiseState);
         
         try {
@@ -133,16 +103,18 @@ export function StudentSessionView({
             });
             
             if (!result.success) {
-                throw new Error('Erreur inconnue lors de la mise à jour du statut');
+                // Revert on failure
+                onToggleHandRaise(!newHandRaiseState);
             }
         } catch (error) {
             console.error('❌ [STUDENT VIEW] - Erreur mise à jour statut main:', error);
+            // Revert on failure
+            onToggleHandRaise(!newHandRaiseState);
             toast({ 
                 variant: 'destructive', 
                 title: 'Erreur', 
                 description: 'Impossible de mettre à jour le statut de la main levée.'
             });
-            onToggleHandRaise(previousHandRaiseState);
         } finally {
             setIsHandRaiseLoading(false);
         }
@@ -156,8 +128,7 @@ export function StudentSessionView({
         const newStatus = currentUnderstanding === status ? ComprehensionLevel.NONE : status;
         setIsUnderstandingLoading(true);
         
-        const previousStatus = currentUnderstanding;
-        
+        // Optimistic update
         onUnderstandingChange(newStatus);
         
         try {
@@ -167,16 +138,18 @@ export function StudentSessionView({
             });
             
             if (!result.success) {
-                throw new Error('Erreur inconnue lors de la mise à jour de la compréhension');
+                // Revert on failure
+                onUnderstandingChange(currentUnderstanding);
             }
         } catch (error) {
             console.error('❌ [STUDENT VIEW] - Erreur mise à jour compréhension:', error);
+            // Revert on failure
+            onUnderstandingChange(currentUnderstanding);
             toast({ 
                 variant: 'destructive', 
                 title: 'Erreur', 
                 description: 'Impossible de mettre à jour le statut de compréhension.'
             });
-            onUnderstandingChange(previousStatus);
         } finally {
             setIsUnderstandingLoading(false);
         }
@@ -195,41 +168,13 @@ export function StudentSessionView({
         }
     }, [flushWhiteboardOperations]);
 
-    const isLocalStreamValid = useMemo(() => {
-        return !!localStream && 
-               localStream.active && 
-               (localStream.getAudioTracks().length > 0 || localStream.getVideoTracks().length > 0);
-    }, [localStream]);
-
-    // ✅ CORRECTION : Gestion robuste de spotlightedStream qui peut être undefined
     const isSpotlightStreamValid = useMemo(() => {
-        if (!spotlightedStream) return false;
-        
-        const isValid = spotlightedStream.active && 
-                       (spotlightedStream.getVideoTracks().length > 0 || spotlightedStream.getAudioTracks().length > 0);
-        
-        const videoTracks = spotlightedStream.getVideoTracks();
-        const audioTracks = spotlightedStream.getAudioTracks();
-        const hasActiveTracks = videoTracks.some(track => track.readyState === 'live') || 
-                               audioTracks.some(track => track.readyState === 'live');
-        
-        const finalValid = isValid && hasActiveTracks;
-        
-        if (process.env.NODE_ENV === 'development') {
-            const newDebugInfo = `Stream: ${spotlightedStream ? 'Oui' : 'Non'}, Actif: ${spotlightedStream?.active}, ` +
-                               `Vidéo: ${videoTracks.length}, Audio: ${audioTracks.length}, ` +
-                               `Tracks Actifs: ${hasActiveTracks}, Final: ${finalValid}`;
-            
-            if (newDebugInfo !== debugInfoRef.current) {
-                debugInfoRef.current = newDebugInfo;
-                setDebugInfo(newDebugInfo);
-            }
-        }
-        
-        return finalValid;
+        return !!spotlightedStream && 
+               spotlightedStream.active && 
+               (spotlightedStream.getAudioTracks().length > 0 || spotlightedStream.getVideoTracks().length > 0);
     }, [spotlightedStream]);
 
-    const renderMainContent = useCallback((): ReactNode => {
+    const renderMainContent = (): ReactNode => {
         switch(mainView) {
             case 'document':
                 return <DocumentViewer url={documentUrl} />;
@@ -259,20 +204,6 @@ export function StudentSessionView({
                     </div>
                 );
             
-            case 'chat':
-                if (session?.user.classeId && session?.user.role) {
-                    return (
-                        <div className="h-full w-full">
-                            <ChatWorkspace
-                                classroomId={session.user.classeId}
-                                userId={currentUserId}
-                                userRole={session.user.role}
-                            />
-                        </div>
-                    );
-                }
-                return <p>Impossible de charger le chat.</p>;
-                
             case 'quiz':
                 if (!activeQuiz) {
                     return (
@@ -298,17 +229,16 @@ export function StudentSessionView({
                 
             case 'spotlight':
             default:
-                // ✅ CORRECTION : Vérification robuste avec gestion de undefined
-                if (isSpotlightStreamValid && spotlightedStream) {
+                if (isSpotlightStreamValid && spotlightedStream && spotlightedUser) {
                     return (
                         <div className="w-full h-full relative bg-black rounded-lg overflow-hidden">
                             <Participant 
                                 stream={spotlightedStream}
                                 isLocal={false} 
                                 isSpotlighted={true}
-                                isTeacher={spotlightedUser?.role === Role.PROFESSEUR || !spotlightedUser}
-                                participantUserId={spotlightedUser?.id ?? 'professor'}
-                                displayName={spotlightedUser?.name ?? 'Professeur'}
+                                isTeacher={spotlightedUser.role === Role.PROFESSEUR}
+                                participantUserId={spotlightedUser.id}
+                                displayName={spotlightedUser.name ?? 'Participant'}
                                 isHandRaised={isHandRaised}
                             />
                         </div>
@@ -340,29 +270,7 @@ export function StudentSessionView({
                     </Card>
                 );
         }
-    }, [
-        mainView,
-        documentUrl,
-        whiteboardControllerId,
-        currentUserId,
-        whiteboardOperations,
-        spotlightedUser,
-        spotlightedStream, // ✅ CORRECTION : Maintenant compatible avec undefined
-        isHandRaised,
-        sessionId,
-        session,
-        isPresenceConnected,
-        onlineMembersCount,
-        handleWhiteboardEvent,
-        handleFlushWhiteboardOperations,
-        activeQuiz,
-        onSubmitQuizResponse,
-        quizResults,
-        isSpotlightStreamValid,
-        debugInfo
-    ]);
-
-    const mainContent = useMemo(() => renderMainContent(), [renderMainContent]);
+    };
     
     return (
         <div className="flex flex-row flex-1 min-h-0 gap-4">
@@ -377,7 +285,7 @@ export function StudentSessionView({
                             transition={{ duration: 0.2 }}
                             className="w-full h-full"
                         >
-                            {mainContent}
+                            {renderMainContent()}
                         </motion.div>
                     </AnimatePresence>
                 </div>
@@ -387,16 +295,16 @@ export function StudentSessionView({
                 <motion.div layout className="h-full flex flex-col gap-1">
                     <ScrollArea className="flex-1 pr-3 -mr-3">
                          <div className="space-y-4">
-                             {mainView !== 'spotlight' && isSpotlightStreamValid && spotlightedStream && (
-                                <AnimatedCard title={spotlightedUser?.name || "Professeur"}>
+                             {mainView !== 'spotlight' && isSpotlightStreamValid && spotlightedStream && spotlightedUser && (
+                                <AnimatedCard title={spotlightedUser.name || "Professeur"}>
                                     <div className="p-2">
                                          <Participant
                                             stream={spotlightedStream}
                                             isLocal={false} 
                                             isSpotlighted={false}
-                                            isTeacher={spotlightedUser?.role === Role.PROFESSEUR || !spotlightedUser}
-                                            participantUserId={spotlightedUser?.id ?? 'professor'}
-                                            displayName={spotlightedUser?.name || "Professeur"}
+                                            isTeacher={spotlightedUser.role === Role.PROFESSEUR}
+                                            participantUserId={spotlightedUser.id}
+                                            displayName={spotlightedUser.name || "Professeur"}
                                         />
                                     </div>
                                 </AnimatedCard>
@@ -404,9 +312,9 @@ export function StudentSessionView({
                              
                              <AnimatedCard title="Ma Vidéo">
                                 <div className="p-2">
-                                    {isLocalStreamValid ? (
+                                    {localStream && localStream.active ? (
                                         <Participant
-                                            stream={localStream!}
+                                            stream={localStream}
                                             isLocal={true}
                                             isTeacher={false}
                                             participantUserId={currentUserId}
