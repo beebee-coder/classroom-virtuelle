@@ -1,4 +1,3 @@
-
 // src/app/api/session/[id]/raise-hand/route.ts
 // ALTERNATIVE AVEC TIMEOUT CONTRÔLÉ
 import { NextRequest, NextResponse } from 'next/server';
@@ -25,7 +24,7 @@ export async function POST(
     }
     
     const channelName = getSessionChannelName(sessionId);
-    console.log(`  Déclenchement de l'événement '${AblyEvents.HAND_RAISE_UPDATE}' sur le canal ${channelName}`);
+    console.log(`  -> Déclenchement de l'événement '${AblyEvents.HAND_RAISE_UPDATE}' sur le canal ${channelName}`);
     
     // CORRECTION: Timeout de 2 secondes maximum pour Ably
     const ablyPromise = ablyTrigger(channelName, AblyEvents.HAND_RAISE_UPDATE, { userId, isRaised });
@@ -55,5 +54,3 @@ export async function POST(
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }
-
-    
