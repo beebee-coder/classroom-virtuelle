@@ -117,6 +117,7 @@ export interface SessionDetails {
   classroom: ClassroomWithDetails | null;
   startTime: string;
   endTime: string | null;
+  activeQuiz: Quiz | null;
 }
 
 // Types pour Pusher
@@ -195,6 +196,9 @@ export interface BreakoutRoom {
   name: string;
   task: string;
   participants: User[];
+  documentId: string | null;
+  documentName: string | null;
+  documentUrl: string | null;
 }
 
 

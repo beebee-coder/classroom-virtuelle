@@ -229,14 +229,14 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
             case 'quiz':
                 return <QuizWorkspace sessionId={sessionId} activeQuiz={activeQuiz} quizResponses={quizResponses} quizResults={quizResults} onStartQuiz={onStartQuiz} onEndQuiz={onEndQuiz} onCloseResults={onCloseResults} students={students} />;
             case 'breakout':
-                return <BreakoutRoomsManager sessionId={sessionId} students={students} />;
+                return <BreakoutRoomsManager sessionId={sessionId} students={students} documentHistory={documentHistory} />;
             default:
                 return null;
         }
     }, [
         activeTool, getSpotlightStream, spotlightedUser, currentUserId, onSpotlightParticipant, documentUrl,
         sessionId, whiteboardControllerId, whiteboardOperations, onWhiteboardEvent, flushWhiteboardOperations,
-        classroom, students, activeQuiz, quizResponses, quizResults, onStartQuiz, onEndQuiz, onCloseResults
+        classroom, students, activeQuiz, quizResponses, quizResults, onStartQuiz, onEndQuiz, onCloseResults, documentHistory
     ]);
     
     if (!currentUserId || !teacher) return <div className="flex-1 flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>;

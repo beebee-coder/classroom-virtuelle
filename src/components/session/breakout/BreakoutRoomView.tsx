@@ -3,10 +3,11 @@
 
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, ClipboardList, User } from 'lucide-react';
+import { Users, ClipboardList, User, FileText } from 'lucide-react';
 import type { BreakoutRoom } from '@/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
 
 interface BreakoutRoomViewProps {
     room: BreakoutRoom;
@@ -19,6 +20,12 @@ export function BreakoutRoomView({ room }: BreakoutRoomViewProps) {
                 <p className="text-muted-foreground">En attente d'assignation à un groupe...</p>
             </div>
         );
+    }
+
+    const handleOpenDocument = () => {
+        if (room.documentUrl) {
+            window.open(room.documentUrl, '_blank', 'noopener,noreferrer');
+        }
     }
 
     return (
@@ -39,12 +46,26 @@ export function BreakoutRoomView({ room }: BreakoutRoomViewProps) {
                     <div className="p-4 bg-background border rounded-lg">
                         <h3 className="font-semibold text-lg flex items-center gap-2 mb-2">
                             <ClipboardList className="h-5 w-5" />
-                            Votre Tâche
+                            Votre Consigne
                         </h3>
                         <p className="text-muted-foreground">
-                            {room.task || "Aucune tâche spécifique n'a été assignée."}
+                            {room.task || "Aucune consigne spécifique n'a été donnée."}
                         </p>
                     </div>
+
+                     {room.documentUrl && (
+                        <div className="p-4 bg-background border rounded-lg">
+                            <h3 className="font-semibold text-lg flex items-center gap-2 mb-3">
+                                <FileText className="h-5 w-5" />
+                                Document Associé
+                            </h3>
+                            <div className="flex items-center justify-between">
+                                <p className="text-muted-foreground truncate pr-4">{room.documentName || 'Document'}</p>
+                                <Button onClick={handleOpenDocument}>Voir le document</Button>
+                            </div>
+                        </div>
+                    )}
+
 
                     <div className="p-4 bg-background border rounded-lg">
                          <h3 className="font-semibold text-lg mb-3">

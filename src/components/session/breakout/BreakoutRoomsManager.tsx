@@ -7,8 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { User, Rocket, Users, Shuffle, Send } from 'lucide-react';
-import type { BreakoutRoom } from '@/types';
+import { User, Rocket, Users, Shuffle, Send, FileText } from 'lucide-react';
+import type { BreakoutRoom, DocumentInHistory } from '@/types';
 import type { User as PrismaUser } from '@prisma/client';
 import { ablyTrigger } from '@/lib/ably/triggers';
 import { AblyEvents } from '@/lib/ably/events';
@@ -17,9 +17,10 @@ import { getSessionChannelName } from '@/lib/ably/channels';
 interface BreakoutRoomsManagerProps {
     sessionId: string;
     students: PrismaUser[];
+    documentHistory: DocumentInHistory[];
 }
 
-export function BreakoutRoomsManager({ sessionId, students }: BreakoutRoomsManagerProps) {
+export function BreakoutRoomsManager({ sessionId, students, documentHistory }: BreakoutRoomsManagerProps) {
     const [rooms, setRooms] = useState<BreakoutRoom[]>([]);
     const [unassignedStudents, setUnassignedStudents] = useState<PrismaUser[]>(students);
     const [isLaunched, setIsLaunched] = useState(false);
@@ -32,10 +33,12 @@ export function BreakoutRoomsManager({ sessionId, students }: BreakoutRoomsManag
             id: `room-${i + 1}`,
             name: `Groupe ${i + 1}`,
             task: '',
-            participants: [] as PrismaUser[], // CORRECTION: Spécifier le type explicitement
+            participants: [],
+            documentId: null,
+            documentName: null,
+            documentUrl: null,
         }));
         
-        // Réaffecter les étudiants déjà dans des groupes
         const allStudentsInRooms = rooms.flatMap(r => r.participants);
         const allStudentsAvailable = [...unassignedStudents, ...allStudentsInRooms];
 
@@ -60,10 +63,19 @@ export function BreakoutRoomsManager({ sessionId, students }: BreakoutRoomsManag
         setRooms(rooms.map(room => room.id === roomId ? { ...room, task } : room));
     };
 
+    const handleDocumentChange = (roomId: string, documentId: string) => {
+        const selectedDoc = documentHistory.find(doc => doc.id === documentId);
+        setRooms(rooms.map(room => room.id === roomId ? { 
+            ...room, 
+            documentId: selectedDoc?.id || null,
+            documentName: selectedDoc?.name || null,
+            documentUrl: selectedDoc?.url || null,
+         } : room));
+    }
+
     const handleLaunch = async () => {
-        // Validation: tous les groupes doivent avoir une tâche
         if (rooms.some(room => !room.task.trim())) {
-            alert("Veuillez assigner une tâche à chaque groupe.");
+            alert("Veuillez assigner une tâche (consigne) à chaque groupe.");
             return;
         }
 
@@ -76,16 +88,13 @@ export function BreakoutRoomsManager({ sessionId, students }: BreakoutRoomsManag
         console.log('🛑 [BREAKOUT] Fin des groupes de travail...');
         await ablyTrigger(getSessionChannelName(sessionId), AblyEvents.BREAKOUT_ROOMS_ENDED, {});
         setIsLaunched(false);
-        // Réinitialiser l'état
         setRooms([]);
         setUnassignedStudents(students);
     };
 
-    // Pour le drag and drop (logique simplifiée)
-    const onDragStart = (e: React.DragEvent, studentId: string) => {
-        e.dataTransfer.setData("studentId", studentId);
-    };
-
+    // Drag and drop logic
+    const onDragStart = (e: React.DragEvent, studentId: string) => e.dataTransfer.setData("studentId", studentId);
+    const onDragOver = (e: React.DragEvent) => e.preventDefault();
     const onDrop = (e: React.DragEvent, roomId: string | null) => {
         e.preventDefault();
         const studentId = e.dataTransfer.getData("studentId");
@@ -94,7 +103,6 @@ export function BreakoutRoomsManager({ sessionId, students }: BreakoutRoomsManag
         let studentToMove: PrismaUser | undefined;
         let sourceRoomId: string | null = null;
         
-        // Trouver l'étudiant et sa source
         studentToMove = unassignedStudents.find(s => s.id === studentId);
         if (!studentToMove) {
             for (const room of rooms) {
@@ -109,11 +117,9 @@ export function BreakoutRoomsManager({ sessionId, students }: BreakoutRoomsManag
         
         if (!studentToMove) return;
 
-        // Mise à jour de l'état
         const newRooms = rooms.map(r => ({ ...r, participants: [...r.participants] }));
         let newUnassigned = [...unassignedStudents];
 
-        // Retirer de la source
         if (sourceRoomId) {
             const sourceRoom = newRooms.find(r => r.id === sourceRoomId)!;
             sourceRoom.participants = sourceRoom.participants.filter(p => p.id !== studentId);
@@ -121,20 +127,19 @@ export function BreakoutRoomsManager({ sessionId, students }: BreakoutRoomsManag
             newUnassigned = newUnassigned.filter(s => s.id !== studentId);
         }
 
-        // Ajouter à la destination
         if (roomId) {
             const destRoom = newRooms.find(r => r.id === roomId)!;
-            destRoom.participants.push(studentToMove);
+            if (!destRoom.participants.some(p => p.id === studentId)) {
+                destRoom.participants.push(studentToMove);
+            }
         } else {
-            newUnassigned.push(studentToMove);
+            if (!newUnassigned.some(s => s.id === studentId)) {
+                newUnassigned.push(studentToMove);
+            }
         }
 
         setRooms(newRooms);
         setUnassignedStudents(newUnassigned);
-    };
-
-    const onDragOver = (e: React.DragEvent) => {
-        e.preventDefault();
     };
 
     if (isLaunched) {
@@ -142,13 +147,14 @@ export function BreakoutRoomsManager({ sessionId, students }: BreakoutRoomsManag
             <Card className="h-full w-full flex flex-col">
                 <CardHeader>
                     <CardTitle>Groupes de Travail Actifs</CardTitle>
-                    <CardDescription>Les élèves sont répartis dans les groupes. Vous pouvez mettre fin à la session à tout moment.</CardDescription>
+                    <CardDescription>Les élèves sont répartis. Vous pouvez mettre fin à la session à tout moment.</CardDescription>
                 </CardHeader>
                 <CardContent className="flex-1 overflow-y-auto space-y-4">
                     {rooms.map(room => (
                         <div key={room.id} className="p-4 border rounded-lg">
                             <h4 className="font-bold">{room.name}</h4>
-                            <p className="text-sm text-muted-foreground mb-2">Tâche: {room.task}</p>
+                            <p className="text-sm text-muted-foreground mb-2">Consigne: {room.task}</p>
+                            {room.documentName && <p className="text-sm text-muted-foreground mb-2">Document: {room.documentName}</p>}
                             <div className="flex flex-wrap gap-2">
                                 {room.participants.map(p => <div key={p.id} className="text-xs bg-muted px-2 py-1 rounded">{p.name}</div>)}
                             </div>
@@ -171,12 +177,12 @@ export function BreakoutRoomsManager({ sessionId, students }: BreakoutRoomsManag
                     <CardHeader>
                         <CardTitle>Configurer les Groupes de Travail</CardTitle>
                         <CardDescription>
-                            Définissez le nombre de groupes, assignez les élèves et lancez la session.
+                            Définissez le nombre de groupes, assignez les élèves, donnez une consigne et un document, puis lancez.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="flex items-center gap-4">
                         <Label>Nombre de groupes</Label>
-                        <Select onValueChange={handleRoomCountChange} defaultValue={rooms.length.toString()}>
+                        <Select onValueChange={handleRoomCountChange} defaultValue={rooms.length > 0 ? rooms.length.toString() : ""}>
                             <SelectTrigger className="w-[180px]">
                                 <SelectValue placeholder="Choisir" />
                             </SelectTrigger>
@@ -209,21 +215,32 @@ export function BreakoutRoomsManager({ sessionId, students }: BreakoutRoomsManag
                     </div>
                 </div>
 
-                <div className="md:col-span-2 grid grid-cols-1 lg:grid-cols-2 gap-4 overflow-y-auto">
+                <div className="md:col-span-2 grid grid-cols-1 lg:grid-cols-2 gap-4 overflow-y-auto p-1">
                     {rooms.map(room => (
                         <div 
                             key={room.id}
-                            className="border rounded-lg p-4 flex flex-col gap-2 bg-background"
+                            className="border rounded-lg p-4 flex flex-col gap-3 bg-background"
                             onDrop={(e) => onDrop(e, room.id)}
                             onDragOver={onDragOver}
                         >
                             <h3 className="font-bold">{room.name} ({room.participants.length})</h3>
                             <Input 
-                                placeholder="Tâche du groupe..." 
+                                placeholder="Consigne pour ce groupe..." 
                                 value={room.task}
                                 onChange={(e) => handleTaskChange(room.id, e.target.value)}
                             />
-                            <div className="space-y-2 min-h-[50px] bg-muted/50 p-2 rounded">
+                             <Select onValueChange={(docId) => handleDocumentChange(room.id, docId)} value={room.documentId || ""}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Associer un document..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="">Aucun document</SelectItem>
+                                    {documentHistory.map(doc => (
+                                        <SelectItem key={doc.id} value={doc.id}>{doc.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <div className="space-y-2 min-h-[50px] bg-muted/50 p-2 rounded flex-1">
                                 {room.participants.map(student => (
                                     <div key={student.id} draggable onDragStart={(e) => onDragStart(e, student.id)} className="flex items-center gap-2 p-2 bg-card border rounded cursor-grab">
                                         <User className="h-4 w-4" /> {student.name}
