@@ -238,7 +238,7 @@ export function BreakoutRoomsManager({ sessionId, students, documentHistory }: B
                                 value={room.task}
                                 onChange={(e) => handleTaskChange(room.id, e.target.value)}
                             />
-                             <Select onValueChange={(docId) => handleDocumentChange(room.id, docId)} value={room.documentId || ''}>
+                             <Select onValueChange={(docId) => handleDocumentChange(room.id, docId)} value={room.documentId ?? 'none'}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Associer un document..." />
                                 </SelectTrigger>
