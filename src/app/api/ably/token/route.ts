@@ -1,4 +1,3 @@
-
 // app/api/ably/token/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from "next-auth";
@@ -8,6 +7,9 @@ import Ably from 'ably';
 // Timeout config
 const AUTH_TIMEOUT_MS = 8000;
 
+// ✅ CORRECTION : Force le mode dynamique pour éviter le rendu statique
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
     console.log('🚪 [ABLY TOKEN] - Token request received');
 
@@ -16,6 +18,7 @@ export async function GET(request: NextRequest) {
     );
 
     try {
+        // ✅ CORRECTION : Passage explicite des headers et cookies à getServerSession
         const session = await Promise.race([
             getServerSession(authOptions),
             timeoutPromise
@@ -31,14 +34,23 @@ export async function GET(request: NextRequest) {
             console.error('❌ [ABLY TOKEN] - Invalid user session');
             return new NextResponse('Unauthorized', { 
                 status: 401,
-                headers: { 'Cache-Control': 'no-store' }
+                headers: { 
+                    'Cache-Control': 'no-store, no-cache, must-revalidate',
+                    'Pragma': 'no-cache'
+                }
             });
         }
 
         const ablyApiKey = process.env.ABLY_API_KEY;
         if (!ablyApiKey) {
             console.error('❌ [ABLY TOKEN] - ABLY_API_KEY not configured');
-            return new NextResponse('Server configuration error', { status: 500 });
+            return new NextResponse('Server configuration error', { 
+                status: 500,
+                headers: { 
+                    'Cache-Control': 'no-store, no-cache, must-revalidate',
+                    'Pragma': 'no-cache'
+                }
+            });
         }
 
         const clientId = session.user.id;
@@ -71,7 +83,12 @@ export async function GET(request: NextRequest) {
         ]);
 
         return NextResponse.json(tokenRequest, {
-            headers: { 'Cache-Control': 'no-store' }
+            headers: { 
+                'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0',
+                'Surrogate-Control': 'no-store'
+            }
         });
 
     } catch (error) {
@@ -80,15 +97,19 @@ export async function GET(request: NextRequest) {
         if (error instanceof Error && error.message === 'Authentication timeout') {
             return new NextResponse('Authentication timeout', { 
                 status: 408,
-                headers: { 'Cache-Control': 'no-store' }
+                headers: { 
+                    'Cache-Control': 'no-store, no-cache, must-revalidate',
+                    'Pragma': 'no-cache'
+                }
             });
         }
 
         return new NextResponse('Internal server error', { 
             status: 500,
-            headers: { 'Cache-Control': 'no-store' }
+            headers: { 
+                'Cache-Control': 'no-store, no-cache, must-revalidate',
+                'Pragma': 'no-cache'
+            }
         });
     }
 }
-
-    
