@@ -1,3 +1,4 @@
+
 // src/components/SessionClient.tsx - VERSION CORRIGÉE
 'use client';
 
@@ -421,6 +422,8 @@ export default function SessionClient({
             onLeaveSession={handleLeaveSession} 
             currentUnderstanding={understandingStatus.get(currentUserId) || ComprehensionLevel.NONE}
             currentUserId={currentUserId} 
+            currentUserRole={currentUserRole}
+            classroomId={classroom?.id ?? null}
             activeTool={activeTool} 
             documentUrl={documentUrl}
             whiteboardControllerId={whiteboardControllerId} 

@@ -1,10 +1,11 @@
-// src/components/session/StudentSessionView.tsx
+
+// src/components/session/StudentSessionView.tsx - VERSION CORRIGÉE
 'use client';
 
-import React, { useState, type ReactNode, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, type ReactNode, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Participant } from '@/components/Participant';
-import { SessionParticipant, DocumentInHistory, Html5CanvasScene, ComprehensionLevel, WhiteboardOperation, Role, ClassroomWithDetails } from '@/types';
+import { SessionParticipant, DocumentInHistory, Html5CanvasScene, ComprehensionLevel, WhiteboardOperation, Role } from '@/types';
 import { Card, CardContent, CardHeader } from '../ui/card';
 import { Loader2, File, Users, Video, VideoOff } from 'lucide-react';
 import { StudentSessionControls } from './StudentSessionControls';
@@ -14,25 +15,26 @@ import { ScrollArea } from '../ui/scroll-area';
 import { SessionTimer } from './SessionTimer';
 import { DocumentViewer } from './DocumentViewer';
 import { Button } from '../ui/button';
+import React from 'react';
 import { Html5Whiteboard } from '../Html5Whiteboard';
 import { AnimatedCard } from './AnimatedCard';
 import type { Quiz, QuizResponse, QuizResults } from '@/types';
 import { QuizView } from './quiz/QuizView';
-import { ChatWorkspace } from './ChatWorkspace'; // Importer le composant de chat
+import { ChatWorkspace } from './ChatWorkspace'; // Importer le composant Chat
 
 interface StudentSessionViewProps {
     sessionId: string;
     localStream: MediaStream | null;
     spotlightedStream: MediaStream | null;
     spotlightedUser: SessionParticipant | undefined | null;
-    allSessionUsers: User[];
-    classroom: ClassroomWithDetails | null;
     isHandRaised: boolean;
     onToggleHandRaise: (isRaised: boolean) => void;
     onUnderstandingChange: (status: ComprehensionLevel) => void;
     onLeaveSession: () => void;
     currentUnderstanding: ComprehensionLevel;
     currentUserId: string;
+    currentUserRole: Role; // Ajouter le rôle de l'utilisateur
+    classroomId: string | null; // Ajouter l'ID de la classe
     activeTool: string;
     documentUrl: string | null;
     whiteboardControllerId: string | null;
@@ -52,14 +54,14 @@ export function StudentSessionView({
     localStream,
     spotlightedStream,
     spotlightedUser,
-    allSessionUsers,
-    classroom,
     isHandRaised,
     onToggleHandRaise,
     onUnderstandingChange,
     onLeaveSession,
     currentUnderstanding,
     currentUserId,
+    currentUserRole,
+    classroomId,
     activeTool,
     documentUrl,
     whiteboardControllerId,
@@ -75,79 +77,143 @@ export function StudentSessionView({
 }: StudentSessionViewProps) {
     const { toast } = useToast();
 
+    // ✅ CORRECTION : Ajout de 'chat' aux états possibles de la vue principale
+    const [mainView, setMainView] = useState<'spotlight' | 'whiteboard' | 'document' | 'quiz' | 'chat'>('spotlight');
     const [isHandRaiseLoading, setIsHandRaiseLoading] = useState(false);
     const [isUnderstandingLoading, setIsUnderstandingLoading] = useState(false);
 
-    // Déterminer la vue principale en fonction de l'outil actif
-    const mainView = useMemo(() => {
-        if (activeTool === 'chat') return 'chat';
-        if (activeTool === 'whiteboard') return 'whiteboard';
-        if (activeTool === 'document') return 'document';
-        if (activeQuiz) return 'quiz';
-        return 'spotlight';
+    useEffect(() => {
+        // ✅ CORRECTION : Gestion de l'outil 'chat'
+        if (activeTool === 'whiteboard' || activeTool === 'document' || activeTool === 'chat') {
+            setMainView(activeTool);
+        } else if (activeQuiz) {
+            setMainView('quiz');
+        } else {
+            setMainView('spotlight');
+        }
     }, [activeTool, activeQuiz]);
 
     const handleToggleHandRaise = useCallback(async (): Promise<void> => {
-        if (isHandRaiseLoading) return;
+        if (isHandRaiseLoading) {
+            return;
+        }
+        
         const newHandRaiseState = !isHandRaised;
         setIsHandRaiseLoading(true);
+        
+        // Optimistic update
         onToggleHandRaise(newHandRaiseState);
         
         try {
-            const result = await updateStudentSessionStatus(sessionId, { isHandRaised: newHandRaiseState, understanding: currentUnderstanding });
-            if (!result.success) onToggleHandRaise(!newHandRaiseState);
+            const result = await updateStudentSessionStatus(sessionId, {
+                isHandRaised: newHandRaiseState,
+                understanding: currentUnderstanding
+            });
+            
+            if (!result.success) {
+                // Revert on failure
+                onToggleHandRaise(!newHandRaiseState);
+            }
         } catch (error) {
+            console.error('❌ [STUDENT VIEW] - Erreur mise à jour statut main:', error);
+            // Revert on failure
             onToggleHandRaise(!newHandRaiseState);
-            toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de mettre à jour le statut de la main levée.'});
+            toast({ 
+                variant: 'destructive', 
+                title: 'Erreur', 
+                description: 'Impossible de mettre à jour le statut de la main levée.'
+            });
         } finally {
             setIsHandRaiseLoading(false);
         }
     }, [isHandRaiseLoading, isHandRaised, sessionId, currentUnderstanding, onToggleHandRaise, toast]);
     
     const handleUnderstandingUpdate = useCallback(async (status: ComprehensionLevel): Promise<void> => {
-        if (isUnderstandingLoading) return;
+        if (isUnderstandingLoading) {
+            return;
+        }
+        
         const newStatus = currentUnderstanding === status ? ComprehensionLevel.NONE : status;
         setIsUnderstandingLoading(true);
+        
+        // Optimistic update
         onUnderstandingChange(newStatus);
         
         try {
-            const result = await updateStudentSessionStatus(sessionId, { understanding: newStatus, isHandRaised });
-            if (!result.success) onUnderstandingChange(currentUnderstanding);
+            const result = await updateStudentSessionStatus(sessionId, { 
+                understanding: newStatus,
+                isHandRaised
+            });
+            
+            if (!result.success) {
+                // Revert on failure
+                onUnderstandingChange(currentUnderstanding);
+            }
         } catch (error) {
+            console.error('❌ [STUDENT VIEW] - Erreur mise à jour compréhension:', error);
+            // Revert on failure
             onUnderstandingChange(currentUnderstanding);
-            toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de mettre à jour le statut de compréhension.'});
+            toast({ 
+                variant: 'destructive', 
+                title: 'Erreur', 
+                description: 'Impossible de mettre à jour le statut de compréhension.'
+            });
         } finally {
             setIsUnderstandingLoading(false);
         }
     }, [isUnderstandingLoading, currentUnderstanding, sessionId, isHandRaised, onUnderstandingChange, toast]);
 
     const handleWhiteboardEvent = useCallback((operations: WhiteboardOperation[]) => {
-        if (!operations || !Array.isArray(operations)) return;
+        if (!operations || !Array.isArray(operations)) {
+            return;
+        }
         onWhiteboardEvent(operations);
     }, [onWhiteboardEvent]);
 
     const handleFlushWhiteboardOperations = useCallback(() => {
-        if (flushWhiteboardOperations && typeof flushWhiteboardOperations === 'function') flushWhiteboardOperations();
+        if (flushWhiteboardOperations && typeof flushWhiteboardOperations === 'function') {
+            flushWhiteboardOperations();
+        }
     }, [flushWhiteboardOperations]);
 
     const isSpotlightStreamValid = useMemo(() => {
-        return !!spotlightedStream && spotlightedStream.active && (spotlightedStream.getAudioTracks().length > 0 || spotlightedStream.getVideoTracks().length > 0);
+        return !!spotlightedStream && 
+               spotlightedStream.active && 
+               (spotlightedStream.getAudioTracks().length > 0 || spotlightedStream.getVideoTracks().length > 0);
     }, [spotlightedStream]);
-
-    const currentUser = useMemo(() => allSessionUsers.find(u => u.id === currentUserId), [allSessionUsers, currentUserId]);
 
     const renderMainContent = (): ReactNode => {
         switch(mainView) {
+            // ✅ CORRECTION : Ajout du cas pour le chat
             case 'chat':
-                if (classroom && currentUser) {
-                    return <ChatWorkspace classroomId={classroom.id} userId={currentUser.id} userRole={currentUser.role} />;
+                if (classroomId) {
+                    return <ChatWorkspace classroomId={classroomId} userId={currentUserId} userRole={currentUserRole} />;
                 }
-                return null;
+                return (
+                    <Card className="h-full w-full flex flex-col items-center justify-center">
+                        <CardContent className="text-center text-muted-foreground p-6">
+                            <h3 className="font-semibold">Chat non disponible</h3>
+                        </CardContent>
+                    </Card>
+                );
+
             case 'document':
                 return <DocumentViewer url={documentUrl} />;
+                
             case 'whiteboard':
                 return (
                     <div className="h-full w-full relative">
+                        <div className={`absolute top-2 left-2 z-10 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                            isPresenceConnected 
+                                ? 'bg-green-100 text-green-800 border border-green-200' 
+                                : 'bg-yellow-100 text-yellow-800 border border-yellow-200'
+                        }`}>
+                            {isPresenceConnected 
+                                ? `✅ Connecté (${onlineMembersCount} en ligne)` 
+                                : '⏳ Connexion...'
+                            }
+                        </div>
+                        
                         <Html5Whiteboard
                             sessionId={sessionId}
                             userId={currentUserId}
@@ -158,6 +224,7 @@ export function StudentSessionView({
                         />
                     </div>
                 );
+            
             case 'quiz':
                 if (!activeQuiz) {
                     return (
@@ -169,11 +236,18 @@ export function StudentSessionView({
                         </Card>
                     );
                 }
+                
                 return (
                     <div className="h-full w-full flex items-center justify-center p-4">
-                        <QuizView quiz={activeQuiz} isTeacherView={false} onSubmitResponse={onSubmitQuizResponse} results={quizResults} />
+                        <QuizView
+                            quiz={activeQuiz}
+                            isTeacherView={false}
+                            onSubmitResponse={onSubmitQuizResponse}
+                            results={quizResults}
+                        />
                     </div>
                 );
+                
             case 'spotlight':
             default:
                 if (isSpotlightStreamValid && spotlightedStream && spotlightedUser) {
@@ -191,6 +265,7 @@ export function StudentSessionView({
                         </div>
                     );
                 }
+
                 return (
                     <Card className="h-full w-full flex flex-col items-center justify-center bg-muted/30 border-dashed">
                         <CardContent className="text-center text-muted-foreground p-6">
@@ -201,7 +276,10 @@ export function StudentSessionView({
                                         {spotlightedUser ? `${spotlightedUser.name} se connecte` : 'En attente du professeur...'}
                                     </h3>
                                     <p className="text-sm text-muted-foreground max-w-md">
-                                        {spotlightedUser ? 'La connexion vidéo est en cours d\'établissement...' : 'Le professeur rejoindra bientôt la session'}
+                                        {spotlightedUser 
+                                            ? 'La connexion vidéo est en cours d\'établissement...' 
+                                            : 'Le professeur rejoindra bientôt la session'
+                                        }
                                     </p>
                                 </div>
                                 <div className="flex items-center gap-2 text-xs text-orange-600">
