@@ -64,13 +64,22 @@ export function BreakoutRoomsManager({ sessionId, students, documentHistory }: B
     };
 
     const handleDocumentChange = (roomId: string, documentId: string) => {
-        const selectedDoc = documentHistory.find(doc => doc.id === documentId);
-        setRooms(rooms.map(room => room.id === roomId ? { 
-            ...room, 
-            documentId: selectedDoc?.id || null,
-            documentName: selectedDoc?.name || null,
-            documentUrl: selectedDoc?.url || null,
-         } : room));
+        if (documentId === 'none') {
+            setRooms(rooms.map(room => room.id === roomId ? {
+                ...room,
+                documentId: null,
+                documentName: null,
+                documentUrl: null,
+            } : room));
+        } else {
+            const selectedDoc = documentHistory.find(doc => doc.id === documentId);
+            setRooms(rooms.map(room => room.id === roomId ? { 
+                ...room, 
+                documentId: selectedDoc?.id || null,
+                documentName: selectedDoc?.name || null,
+                documentUrl: selectedDoc?.url || null,
+             } : room));
+        }
     }
 
     const handleLaunch = async () => {
@@ -229,12 +238,12 @@ export function BreakoutRoomsManager({ sessionId, students, documentHistory }: B
                                 value={room.task}
                                 onChange={(e) => handleTaskChange(room.id, e.target.value)}
                             />
-                             <Select onValueChange={(docId) => handleDocumentChange(room.id, docId)} value={room.documentId || ""}>
+                             <Select onValueChange={(docId) => handleDocumentChange(room.id, docId)} value={room.documentId || ''}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Associer un document..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">Aucun document</SelectItem>
+                                    <SelectItem value="none">Aucun document</SelectItem>
                                     {documentHistory.map(doc => (
                                         <SelectItem key={doc.id} value={doc.id}>{doc.name}</SelectItem>
                                     ))}
