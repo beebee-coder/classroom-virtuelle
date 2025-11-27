@@ -1,11 +1,11 @@
-// src/app/api/ably/auth/route.ts - VERSION CORRIGÉE POUR STABILITÉ
+// src/app/api/ably/auth/route.ts - VERSION CORRIGÉE ET STABILISÉE
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import Ably from 'ably';
 
-// Timeout global pour la fonction serverless, Vercel la coupera après ~10s de toute façon.
-export const maxDuration = 10; 
+// Timeout global pour la fonction serverless
+export const maxDuration = 10;
 
 export async function POST(request: NextRequest) {
     console.log('🚪 [ABLY AUTH] - Requête d\'authentification reçue');
@@ -26,7 +26,6 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
         }
 
-        // Le clientId est TOUJOURS l'ID de l'utilisateur de la session pour la sécurité.
         const clientId = session.user.id;
         console.log(`🔑 [ABLY AUTH] - Création du jeton pour le clientId: ${clientId}`);
 
@@ -41,7 +40,18 @@ export async function POST(request: NextRequest) {
             ttl: 3600000, // 1 heure
         };
 
-        const tokenRequest = await ably.auth.createTokenRequest(tokenParams);
+        // ✅ CORRECTION : Utiliser explicitement une promesse pour éviter l'erreur "callback is not a function"
+        const tokenRequest = await new Promise<Ably.Types.TokenRequest>((resolve, reject) => {
+            ably.auth.createTokenRequest(tokenParams, (err, token) => {
+                if (err) {
+                    return reject(err);
+                }
+                if (!token) {
+                    return reject(new Error("Génération du token Ably a échoué sans erreur explicite."));
+                }
+                resolve(token);
+            });
+        });
         
         console.log(`✅ [ABLY AUTH] - Jeton créé avec succès pour ${clientId}.`);
 
