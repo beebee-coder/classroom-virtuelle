@@ -1,7 +1,7 @@
-// src/lib/ably/presence.ts - VERSION CORRIGÉE TEMPORAIRE
+// src/lib/ably/presence.ts
 import Ably from 'ably';
 import type { AblyPresenceMember } from './types';
-import { getServerAblyClient } from './server';
+import { initializeAblyServer } from './server';
 import { Types } from 'ably';
 
 /**
@@ -21,7 +21,10 @@ export async function getPresenceMembers(channelName: string): Promise<AblyPrese
     }
 
     try {
-        const ablyServer = getServerAblyClient();
+        const ablyServer = initializeAblyServer();
+        if (!ablyServer) {
+            throw new Error("Failed to initialize Ably server client.");
+        }
         const channel = ablyServer.channels.get(channelName);
         
         const presenceMembers = await channel.presence.get();
@@ -32,7 +35,6 @@ export async function getPresenceMembers(channelName: string): Promise<AblyPrese
         }
 
         const members = presenceMembers.map((member: Ably.Types.PresenceMessage) => {
-            // CORRECTION: Typage sécurisé avec assertions de type
             const memberData = member.data as any;
             
             return {
@@ -40,9 +42,8 @@ export async function getPresenceMembers(channelName: string): Promise<AblyPrese
                 name: memberData?.name || 'Unknown User',
                 role: memberData?.role || 'UNKNOWN',
                 image: memberData?.image || null,
-                // CORRECTION: timestamp optionnel avec valeur par défaut
                 ...(memberData?.timestamp && { timestamp: memberData.timestamp })
-            } as AblyPresenceMember; // CORRECTION: Assertion de type
+            } as AblyPresenceMember;
         });
 
         console.log(`[ABLY PRESENCE] - Found ${members.length} members on ${channelName}.`);
