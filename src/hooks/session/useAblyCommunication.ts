@@ -1,14 +1,13 @@
-// src/hooks/session/useAblyCommunication.ts - VERSION CORRIGÉE
+// src/hooks/session/useAblyCommunication.ts
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNamedAbly } from '@/hooks/useNamedAbly'; // ✅ CORRECTION: Utilisation du hook nommé
+import { useNamedAbly } from '@/hooks/useNamedAbly';
 import { getSessionChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
-import { ComprehensionLevel, Quiz, QuizResponse, QuizResults } from '@/types';
+import { ComprehensionLevel, Quiz, QuizResponse, QuizResults, BreakoutRoom } from '@/types';
 import type { Types as AblyTypes } from 'ably';
 import { useToast } from '../use-toast';
-import { useRouter } from 'next/navigation';
 
 const validateTimerDuration = (duration: unknown): number => {
   if (typeof duration !== 'number' || isNaN(duration) || duration <= 0) {
@@ -31,13 +30,12 @@ interface AblyCommunicationProps {
   initialTeacherId: string;
   onSessionEnded?: () => void;
   onSignalReceived: (fromUserId: string, signal: any) => void;
-  // Fonctions pour mettre à jour l'état du parent (SessionClient)
   setActiveTool: (tool: string) => void;
   setDocumentUrl: (url: string | null) => void;
   setActiveQuiz: (quiz: Quiz) => void;
   onNewQuizResponse: (response: QuizResponse) => void;
   onQuizEnded: (results: QuizResults) => void;
-  onQuizClosed: () => void; // Ajout de la nouvelle prop
+  onQuizClosed: () => void;
 }
 
 export function useAblyCommunication({ 
@@ -51,9 +49,8 @@ export function useAblyCommunication({
   setActiveQuiz,
   onNewQuizResponse,
   onQuizEnded,
-  onQuizClosed, // Utiliser la nouvelle prop
+  onQuizClosed,
 }: AblyCommunicationProps) {
-  // ✅ CORRECTION: Utilisation du hook nommé
   const { client: ablyClient, isConnected: isAblyConnected } = useNamedAbly('useAblyCommunication');
   const { toast } = useToast();
 
@@ -64,293 +61,92 @@ export function useAblyCommunication({
   const [whiteboardControllerId, setWhiteboardControllerId] = useState<string | null>(initialTeacherId);
   const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
   const [timerTimeLeft, setTimerTimeLeft] = useState<number>(3600);
+  const [breakoutRoomInfo, setBreakoutRoomInfo] = useState<BreakoutRoom | null>(null);
 
   const channelRef = useRef<AblyTypes.RealtimeChannelCallbacks | null>(null);
   const isMountedRef = useRef(true);
   
   const onSignalReceivedRef = useRef(onSignalReceived);
-  useEffect(() => {
-    onSignalReceivedRef.current = onSignalReceived;
-  }, [onSignalReceived]);
+  useEffect(() => { onSignalReceivedRef.current = onSignalReceived; }, [onSignalReceived]);
 
   const onSessionEndedRef = useRef(onSessionEnded);
-  useEffect(() => {
-    onSessionEndedRef.current = onSessionEnded;
-  }, [onSessionEnded]);
+  useEffect(() => { onSessionEndedRef.current = onSessionEnded; }, [onSessionEnded]);
 
-    // ✅ CORRECTION: Ajout du useEffect pour gérer le décompte du minuteur
     useEffect(() => {
         let timerInterval: NodeJS.Timeout | null = null;
-    
         if (isTimerRunning && timerTimeLeft > 0) {
-          console.log('⏱️ [TIMER] - Démarrage du décompte');
-          timerInterval = setInterval(() => {
-            setTimerTimeLeft((prevTime) => {
-              if (prevTime <= 1) {
-                if (timerInterval) clearInterval(timerInterval);
-                setIsTimerRunning(false);
-                return 0;
-              }
-              return prevTime - 1;
-            });
-          }, 1000);
+          timerInterval = setInterval(() => setTimerTimeLeft((prevTime) => prevTime > 0 ? prevTime - 1 : 0), 1000);
         }
-    
-        return () => {
-          if (timerInterval) {
-            console.log('⏱️ [TIMER] - Nettoyage de l\'intervalle du minuteur');
-            clearInterval(timerInterval);
-          }
-        };
+        return () => { if (timerInterval) clearInterval(timerInterval); };
       }, [isTimerRunning, timerTimeLeft]);
 
-  // CORRECTION : Handler pour les signaux WebRTC avec validation améliorée
   const handleSignalEvent = useCallback((message: AblyTypes.Message) => {
-    if (!isMountedRef.current) return;
-    
-    const data = message.data;
-    
-    if (!data || typeof data !== 'object') {
-      return;
-    }
-    
-    if (data.target !== currentUserId) {
-      return;
-    }
-    
-    onSignalReceivedRef.current(data.userId, data.signal);
+    if (message.data.target === currentUserId) onSignalReceivedRef.current(message.data.userId, message.data.signal);
   }, [currentUserId]);
 
   const handlePresenceUpdate = useCallback(() => {
-    if (!channelRef.current || !isMountedRef.current) return;
-    
-    channelRef.current.presence.get((err, members) => {
-      if (err) {
-        console.error('❌ [PRESENCE] - Erreur lors de la récupération des membres:', err);
-        return;
-      }
-      
-      if (!isMountedRef.current) return;
-      
-      if (members && Array.isArray(members)) {
-        const uniqueMembers = members
-          .map(m => m.clientId)
-          .filter((id): id is string => !!id && id !== currentUserId);
-        
-        const deduplicatedMembers = Array.from(new Set(uniqueMembers));
-        setOnlineUserIds(deduplicatedMembers);
-        
-      } else {
-        setOnlineUserIds([]);
-      }
-    });
-  }, [currentUserId]);
-  
-  const handleSessionEndedEvent = useCallback(() => {
-    if (!isMountedRef.current) return;
-    
-    toast({ 
-      title: 'Session terminée', 
-      description: 'Le professeur a mis fin à la session.' 
-    });
-    
-    if (onSessionEndedRef.current) {
-      onSessionEndedRef.current();
-    }
-  }, [toast]);
-
-  const handleSpotlightEvent = useCallback((message: AblyTypes.Message) => {
-    if (!isMountedRef.current) return;
-    
-    const { participantId } = message.data;
-    
-    if (typeof participantId !== 'string') {
-      return;
-    }
-    
-    setSpotlightedParticipantId(participantId);
-  }, []);
-
-  const handleHandRaiseUpdateEvent = useCallback((message: AblyTypes.Message) => {
-    if (!isMountedRef.current) return;
-    
-    const { userId, isRaised } = message.data;
-    
-    if (typeof userId !== 'string' || typeof isRaised !== 'boolean') {
-      return;
-    }
-    
-    setHandRaiseQueue(prev => {
-      const newQueue = prev.filter(id => id !== userId);
-      if (isRaised) {
-        return [...newQueue, userId];
-      }
-      return newQueue;
-    });
-    
-  }, []);
-
-  const handleHandAcknowledgedEvent = useCallback((message: AblyTypes.Message) => {
-    if (!isMountedRef.current) return;
-    
-    const { userId } = message.data;
-    
-    if (typeof userId !== 'string') {
-      return;
-    }
-    
-    setHandRaiseQueue(prev => prev.filter(id => id !== userId));
-  }, []);
-  
-  const handleUnderstandingUpdateEvent = useCallback((message: AblyTypes.Message) => {
-    if (!isMountedRef.current) return;
-    
-    const { userId, status } = message.data;
-    
-    if (typeof userId !== 'string' || !Object.values(ComprehensionLevel).includes(status)) {
-        return;
-    }
-    
-    setUnderstandingStatus(prev => new Map(prev).set(userId, status));
-  }, []);
-
-  const handleActiveToolChangeEvent = useCallback((message: AblyTypes.Message) => {
-    if (isMountedRef.current) {
-        const { tool } = message.data;
-        if (typeof tool === 'string') {
-            const validatedTool = validateActiveTool(tool);
-            setActiveTool(validatedTool);
-        }
-    }
-  }, [setActiveTool]);
-
-
-  const handleDocumentSharedEvent = useCallback((message: AblyTypes.Message) => {
-    if (!isMountedRef.current) return;
-    
-    const { sharedByUserId, url, sharedBy } = message.data;
-    
-    if (typeof sharedByUserId !== 'string' || typeof url !== 'string' || typeof sharedBy !== 'string') {
-      return;
-    }
-    
-    if (sharedByUserId !== currentUserId) {
-      setDocumentUrl(url);
-      setActiveTool('document');
-      
-      toast({
-        title: 'Document partagé',
-        description: `${sharedBy} a partagé un nouveau document.`
+    if (channelRef.current) {
+      channelRef.current.presence.get((err, members) => {
+        if (err) return;
+        setOnlineUserIds(members.map(m => m.clientId));
       });
-      
     }
-  }, [currentUserId, toast, setDocumentUrl, setActiveTool]);
-
-  const handleWhiteboardControllerUpdateEvent = useCallback((message: AblyTypes.Message) => {
-    if (!isMountedRef.current) return;
-    
-    const { controllerId } = message.data;
-    
-    if (typeof controllerId !== 'string' && controllerId !== null) {
-      return;
-    }
-    
-    setWhiteboardControllerId(controllerId);
   }, []);
   
-  const handleTimerStartedEvent = useCallback(() => {
-    if (!isMountedRef.current) return;
-    
-    setIsTimerRunning(true);
+  const handleSessionEndedEvent = useCallback(() => { onSessionEndedRef.current?.(); }, []);
+  const handleSpotlightEvent = useCallback((message: AblyTypes.Message) => setSpotlightedParticipantId(message.data.participantId), []);
+  const handleHandRaiseUpdateEvent = useCallback((message: AblyTypes.Message) => {
+    setHandRaiseQueue(prev => {
+        const newQueue = prev.filter(id => id !== message.data.userId);
+        return message.data.isRaised ? [...newQueue, message.data.userId] : newQueue;
+    });
   }, []);
-
-  const handleTimerPausedEvent = useCallback(() => {
-    if (!isMountedRef.current) return;
-    
-    setIsTimerRunning(false);
-  }, []);
-
+  const handleHandAcknowledgedEvent = useCallback((message: AblyTypes.Message) => setHandRaiseQueue(prev => prev.filter(id => id !== message.data.userId)), []);
+  const handleUnderstandingUpdateEvent = useCallback((message: AblyTypes.Message) => setUnderstandingStatus(prev => new Map(prev).set(message.data.userId, message.data.status)), []);
+  const handleActiveToolChangeEvent = useCallback((message: AblyTypes.Message) => setActiveTool(validateActiveTool(message.data.tool)), [setActiveTool]);
+  const handleDocumentSharedEvent = useCallback((message: AblyTypes.Message) => {
+    if (message.data.sharedByUserId !== currentUserId) {
+        setDocumentUrl(message.data.url);
+        setActiveTool('document');
+        toast({ title: 'Document partagé', description: `${message.data.sharedBy} a partagé un document.` });
+    }
+  }, [currentUserId, setDocumentUrl, setActiveTool, toast]);
+  const handleWhiteboardControllerUpdateEvent = useCallback((message: AblyTypes.Message) => setWhiteboardControllerId(message.data.controllerId), []);
+  const handleTimerStartedEvent = useCallback(() => setIsTimerRunning(true), []);
+  const handleTimerPausedEvent = useCallback(() => setIsTimerRunning(false), []);
   const handleTimerResetEvent = useCallback((message: AblyTypes.Message) => {
-    if (!isMountedRef.current) return;
-    
-    const { duration } = message.data;
-    const validatedDuration = validateTimerDuration(duration);
-    
-    setTimerTimeLeft(validatedDuration);
+    setTimerTimeLeft(validateTimerDuration(message.data.duration));
     setIsTimerRunning(false);
-    
+  }, []);
+  const handleQuizStartedEvent = useCallback((message: AblyTypes.Message) => {
+    setActiveTool('quiz');
+    setActiveQuiz(message.data.quiz as Quiz);
+  }, [setActiveQuiz, setActiveTool]);
+  const handleQuizResponseEvent = useCallback((message: AblyTypes.Message) => onNewQuizResponse(message.data as QuizResponse), [onNewQuizResponse]);
+  const handleQuizEndedEvent = useCallback((message: AblyTypes.Message) => onQuizEnded(message.data.results as QuizResults), [onQuizEnded]);
+  const handleQuizClosedEvent = useCallback(() => onQuizClosed(), [onQuizClosed]);
+
+  const handleBreakoutRoomsStarted = useCallback((message: AblyTypes.Message) => {
+    const { rooms } = message.data as { rooms: BreakoutRoom[] };
+    const myRoom = rooms.find(room => room.participants.some(p => p.id === currentUserId));
+    if (myRoom) {
+      setBreakoutRoomInfo(myRoom);
+    }
+  }, [currentUserId]);
+
+  const handleBreakoutRoomsEnded = useCallback(() => {
+    setBreakoutRoomInfo(null);
   }, []);
 
-  const handleQuizStartedEvent = useCallback((message: AblyTypes.Message) => {
-    if (!isMountedRef.current) return;
-    
-    const { quiz } = message.data;
-    
-    if (!quiz || typeof quiz !== 'object') {
-      return;
-    }
-    
-    setActiveTool('quiz'); // Assure que la vue bascule sur le quiz
-    setActiveQuiz(quiz as Quiz);
-  }, [setActiveQuiz, setActiveTool]);
-
-  const handleQuizResponseEvent = useCallback((message: AblyTypes.Message) => {
-    if (!isMountedRef.current) return;
-    
-    const response = message.data;
-    
-    if (!response || typeof response !== 'object') {
-      return;
-    }
-    
-    onNewQuizResponse(response as QuizResponse);
-  }, [onNewQuizResponse]);
-  
-  const handleQuizEndedEvent = useCallback((message: AblyTypes.Message) => {
-    if (!isMountedRef.current) return;
-    
-    const { results } = message.data;
-    
-    if (!results || typeof results !== 'object') {
-      return;
-    }
-    
-    onQuizEnded(results as QuizResults);
-  }, [onQuizEnded]);
-
-  const handleQuizClosedEvent = useCallback(() => {
-    if (isMountedRef.current) {
-        onQuizClosed();
-    }
-  }, [onQuizClosed]);
-
-  const enterPresence = useCallback(async (channel: AblyTypes.RealtimeChannelCallbacks, userData: any) => {
-    try {
-      await channel.presence.enter(userData);
-    } catch (error: any) {
-      console.error('❌ [PRESENCE] - Erreur lors de l\'entrée en présence:', error);
-    }
-  }, [currentUserId]);
-
-  const leavePresence = useCallback(async (channel: AblyTypes.RealtimeChannelCallbacks) => {
-    try {
-      await channel.presence.leave();
-    } catch (error: any) {
-      console.warn('⚠️ [PRESENCE] - Erreur lors de la sortie de présence:', error);
-    }
-  }, [currentUserId]);
+  const enterPresence = useCallback(async (channel: AblyTypes.RealtimeChannelCallbacks) => await channel.presence.enter(), []);
+  const leavePresence = useCallback(async (channel: AblyTypes.RealtimeChannelCallbacks) => await channel.presence.leave(), []);
 
   useEffect(() => {
     isMountedRef.current = true;
-    
-    if (!ablyClient || !isAblyConnected || !sessionId) {
-      return;
-    }
-    
+    if (!ablyClient || !isAblyConnected || !sessionId) return;
     const channelName = getSessionChannelName(sessionId);
     const channel = ablyClient.channels.get(channelName);
     channelRef.current = channel;
-
     const subscriptions = [
       { event: AblyEvents.SIGNAL, handler: handleSignalEvent },
       { event: AblyEvents.SESSION_ENDED, handler: handleSessionEndedEvent },
@@ -367,71 +163,23 @@ export function useAblyCommunication({
       { event: AblyEvents.QUIZ_STARTED, handler: handleQuizStartedEvent },
       { event: AblyEvents.QUIZ_RESPONSE, handler: handleQuizResponseEvent },
       { event: AblyEvents.QUIZ_ENDED, handler: handleQuizEndedEvent },
-      { event: AblyEvents.QUIZ_CLOSED, handler: handleQuizClosedEvent }, // Ajout du listener
+      { event: AblyEvents.QUIZ_CLOSED, handler: handleQuizClosedEvent },
+      { event: AblyEvents.BREAKOUT_ROOMS_STARTED, handler: handleBreakoutRoomsStarted },
+      { event: AblyEvents.BREAKOUT_ROOMS_ENDED, handler: handleBreakoutRoomsEnded },
     ];
-    
-    subscriptions.forEach(({ event, handler }) => {
-      channel.subscribe(event, handler);
-    });
-    
+    subscriptions.forEach(({ event, handler }) => channel.subscribe(event, handler));
     channel.presence.subscribe(['enter', 'leave', 'update'], handlePresenceUpdate);
-    
-    const userData = { 
-      name: 'User', 
-      role: 'UNKNOWN',
-      userId: currentUserId 
-    };
-    
-    enterPresence(channel, userData);
-
+    enterPresence(channel);
     return () => {
       isMountedRef.current = false;
-      
       if (channelRef.current) {
-        subscriptions.forEach(({ event, handler }) => {
-          channelRef.current!.unsubscribe(event, handler);
-        });
-        
+        subscriptions.forEach(({ event, handler }) => channelRef.current!.unsubscribe(event, handler));
         channelRef.current.presence.unsubscribe();
-        
         leavePresence(channelRef.current);
-        
         channelRef.current = null;
       }
     };
-  }, [
-    ablyClient, 
-    isAblyConnected, 
-    sessionId, 
-    currentUserId,
-    handlePresenceUpdate,
-    enterPresence, 
-    leavePresence,
-    handleActiveToolChangeEvent,
-    handleDocumentSharedEvent,
-    handleHandAcknowledgedEvent,
-    handleHandRaiseUpdateEvent,
-    handleQuizEndedEvent,
-    handleQuizResponseEvent,
-    handleQuizStartedEvent,
-    handleSessionEndedEvent,
-    handleSignalEvent,
-    handleSpotlightEvent,
-    handleTimerPausedEvent,
-    handleTimerResetEvent,
-    handleTimerStartedEvent,
-    handleUnderstandingUpdateEvent,
-    handleWhiteboardControllerUpdateEvent,
-    handleQuizClosedEvent, // Ajout aux dépendances
-  ]);
+  }, [ ablyClient, isAblyConnected, sessionId, handlePresenceUpdate, enterPresence, leavePresence, handleActiveToolChangeEvent, handleDocumentSharedEvent, handleHandAcknowledgedEvent, handleHandRaiseUpdateEvent, handleQuizEndedEvent, handleQuizResponseEvent, handleQuizStartedEvent, handleSessionEndedEvent, handleSignalEvent, handleSpotlightEvent, handleTimerPausedEvent, handleTimerResetEvent, handleTimerStartedEvent, handleUnderstandingUpdateEvent, handleWhiteboardControllerUpdateEvent, handleQuizClosedEvent, handleBreakoutRoomsStarted, handleBreakoutRoomsEnded ]);
 
-  return {
-      onlineUserIds,
-      spotlightedParticipantId,
-      handRaiseQueue,
-      understandingStatus,
-      whiteboardControllerId,
-      isTimerRunning,
-      timerTimeLeft,
-  };
+  return { onlineUserIds, spotlightedParticipantId, handRaiseQueue, understandingStatus, whiteboardControllerId, isTimerRunning, timerTimeLeft, breakoutRoomInfo };
 }

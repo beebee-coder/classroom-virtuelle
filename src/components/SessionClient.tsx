@@ -1,30 +1,24 @@
-
-// src/components/SessionClient.tsx - VERSION CORRIGÉE
+// src/components/SessionClient.tsx
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Instance as PeerInstance, SignalData as PeerSignalData } from 'simple-peer';
 import { useToast } from '@/hooks/use-toast';
 import { User, Role } from '@prisma/client';
 import { SessionClientProps, DocumentInHistory, WhiteboardOperation, Quiz, QuizResponse, QuizResults, ComprehensionLevel } from '@/types';
 import SessionLoading from './SessionLoading';
 import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';
-import { endCoursSession, shareDocumentToStudents, saveAndShareDocument } from '@/lib/actions/session.actions';
+import { endCoursSession, saveAndShareDocument } from '@/lib/actions/session.actions';
 import { ablyTrigger } from '@/lib/ably/triggers';
 import { AblyEvents } from '@/lib/ably/events';
 import { getSessionChannelName } from '@/lib/ably/channels';
-import { updateStudentSessionStatus, broadcastActiveTool, broadcastTimerEvent, startQuiz, submitQuizResponse, endQuiz } from '@/lib/actions/ably-session.actions';
+import { updateStudentSessionStatus, broadcastActiveTool, broadcastTimerEvent, startQuiz, submitQuizResponse, endQuiz, closeQuiz } from '@/lib/actions/ably-session.actions';
 import type { CreateQuizData } from '@/lib/actions/ably-session.actions';
-
-// Importation des hooks de refactorisation
 import { useWebRTCConnection } from '@/hooks/session/useWebRTCConnection';
 import { useAblyCommunication } from '@/hooks/session/useAblyCommunication';
 import { useMediaManagement } from '@/hooks/session/useMediaManagement';
 import { useSessionState } from '@/hooks/session/useSessionState';
-
-// Importation statique
 import { TeacherSessionView } from './session/TeacherSessionView';
 import { StudentSessionView } from './session/StudentSessionView';
 import { useAblyWhiteboardSync } from '@/hooks/useAblyWhiteboardSync';
@@ -45,248 +39,114 @@ export default function SessionClient({
   const isMountedRef = useRef(true);
   const [isEndingSession, setIsEndingSession] = useState<boolean>(false);
   
-  const {
-    localStream,
-    screenStream,
-    isSharingScreen,
-    isMuted,
-    isVideoOff,
-    isMediaReady,
-    isMediaLoading,
-    toggleMute,
-    toggleVideo,
-    toggleScreenShare
-  } = useMediaManagement();
-
+  const { localStream, screenStream, isSharingScreen, isMuted, isVideoOff, isMediaReady, isMediaLoading, toggleMute, toggleVideo, toggleScreenShare } = useMediaManagement();
   const activeStream = isSharingScreen ? screenStream : localStream;
   
-  const {
-    remoteStreams,
-    createPeer,
-    handleIncomingSignal
-  } = useWebRTCConnection(sessionId, currentUserId, activeStream, isMountedRef.current);
+  const { remoteStreams, createPeer, handleIncomingSignal, cleanupPeerConnection } = useWebRTCConnection(sessionId, currentUserId, activeStream, isMountedRef.current);
   
   const {
-    activeTool,
-    documentUrl,
-    documentHistory,
-    whiteboardOperations,
-    activeQuiz,
-    quizResponses,
-    quizResults,
-    setActiveTool,
-    setDocumentUrl,
-    setDocumentHistory,
-    setWhiteboardOperations,
-    handleSelectDocument,
-    handleUploadSuccess,
-    handleStartQuiz,
-    handleEndQuiz,
-    handleNewQuizResponse,
-    handleCloseQuizResults,
-    handleQuizClosed,
+    activeTool, documentUrl, documentHistory, whiteboardOperations, activeQuiz, quizResponses, quizResults,
+    setActiveTool, setDocumentUrl, setDocumentHistory, setWhiteboardOperations, handleSelectDocument,
+    handleUploadSuccess, handleStartQuiz, handleEndQuiz, handleNewQuizResponse, handleCloseQuizResults, handleQuizClosed,
   } = useSessionState({ initialDocumentHistory, initialActiveQuiz, sessionId });
 
   const handleSignalReceived = useCallback((fromUserId: string, signal: any) => {
     if (!isMountedRef.current) return;
-    
-    console.log(`🔧 [SIGNAL HANDLER] - Traitement du signal de ${fromUserId} vers ${currentUserId}`);
-    
-    if (!signal || typeof signal !== 'object' || !signal.type) {
-      console.warn('⚠️ [SIGNAL HANDLER] - Signal invalide reçu:', signal);
-      return;
-    }
-    
-    const validSignalTypes = ['offer', 'answer', 'candidate'];
-    if (!validSignalTypes.includes(signal.type)) {
-      console.warn('⚠️ [SIGNAL HANDLER] - Type de signal invalide:', signal.type);
-      return;
-    }
-    
     try {
       handleIncomingSignal(fromUserId, signal);
     } catch (error) {
       console.error('❌ [SIGNAL HANDLER] - Erreur lors du traitement du signal:', error);
     }
-  }, [handleIncomingSignal, currentUserId]);
+  }, [handleIncomingSignal]);
 
   const {
-    onlineUserIds,
-    spotlightedParticipantId,
-    handRaiseQueue,
-    understandingStatus,
-    whiteboardControllerId,
-    isTimerRunning,
-    timerTimeLeft,
+    onlineUserIds, spotlightedParticipantId, handRaiseQueue, understandingStatus,
+    whiteboardControllerId, isTimerRunning, timerTimeLeft, breakoutRoomInfo,
   } = useAblyCommunication({
-    sessionId,
-    currentUserId,
-    initialTeacherId: initialTeacher.id,
-    onSessionEnded: () => {
-      console.log('🔚 [SESSION CLIENT] - Redirection après fin de session');
-      router.push(currentUserRole === Role.PROFESSEUR ? '/teacher/dashboard' : '/student/dashboard');
-    },
+    sessionId, currentUserId, initialTeacherId: initialTeacher.id,
+    onSessionEnded: () => router.push(currentUserRole === Role.PROFESSEUR ? '/teacher/dashboard' : '/student/dashboard'),
     onSignalReceived: handleSignalReceived,
-    setActiveTool,
-    setDocumentUrl,
-    setActiveQuiz: handleStartQuiz,
-    onNewQuizResponse: handleNewQuizResponse,
-    onQuizEnded: handleEndQuiz,
-    onQuizClosed: handleQuizClosed,
+    setActiveTool, setDocumentUrl, setActiveQuiz: handleStartQuiz,
+    onNewQuizResponse: handleNewQuizResponse, onQuizEnded: handleEndQuiz, onQuizClosed: handleQuizClosed,
   });
 
-  const { sendOperation, flushOperations, isInitialized: isWhiteboardInitialized } = useAblyWhiteboardSync(
-    sessionId, 
-    currentUserId, 
+  const { sendOperation, flushOperations } = useAblyWhiteboardSync(
+    sessionId, currentUserId, 
     useCallback((ops: WhiteboardOperation[]) => {
-      if (!isMountedRef.current) return;
-      
-      console.log(`📥 [SESSION CLIENT] - Réception de ${ops.length} opérations whiteboard`);
-      setWhiteboardOperations(prev => [...prev, ...ops]);
+      if (isMountedRef.current) setWhiteboardOperations(prev => [...prev, ...ops]);
     }, [setWhiteboardOperations])
   );
 
   useEffect(() => {
     isMountedRef.current = true;
-    console.log(`🎯 [SESSION CLIENT] - Initialisation pour ${currentUserRole}: ${currentUserId}`);
-    
-    return () => { 
-      isMountedRef.current = false;
-      console.log(`🧹 [SESSION CLIENT] - Nettoyage pour ${currentUserId}`);
-    };
-  }, [currentUserRole, currentUserId]);
+    return () => { isMountedRef.current = false; };
+  }, []);
 
   useEffect(() => {
-    if (!isMediaReady || !activeStream || !isMountedRef.current || onlineUserIds.length === 0) {
-      return;
-    }
-
-    console.log(`🔗 [SESSION CLIENT] - Connexion WebRTC avec ${onlineUserIds.length} utilisateurs en ligne`);
+    if (!isMediaReady || !activeStream || onlineUserIds.length === 0) return;
+    const usersToConnect = onlineUserIds.filter(userId => userId !== currentUserId && !remoteStreams.has(userId));
+    usersToConnect.forEach(userId => createPeer(userId, true, activeStream));
     
-    const usersToConnect = onlineUserIds.filter(userId => 
-      userId !== currentUserId && 
-      !remoteStreams.has(userId)
-    );
-    
-    console.log(`🔗 [SESSION CLIENT] - Nouveaux utilisateurs à connecter: ${usersToConnect.length}`);
-    
-    usersToConnect.forEach(userId => {
-      createPeer(userId, true, activeStream);
+    // Nettoyage des pairs déconnectés
+    remoteStreams.forEach((_, userId) => {
+      if (!onlineUserIds.includes(userId)) {
+        cleanupPeerConnection(userId);
+      }
     });
-  }, [onlineUserIds, currentUserId, isMediaReady, activeStream, createPeer, remoteStreams]);
 
-  const allSessionUsers = useMemo(
-    () => [initialTeacher, ...(initialStudents || [])].filter(Boolean) as User[],
-    [initialTeacher, initialStudents]
-  );
+  }, [onlineUserIds, currentUserId, isMediaReady, activeStream, createPeer, remoteStreams, cleanupPeerConnection]);
+
+  const allSessionUsers = useMemo(() => [initialTeacher, ...(initialStudents || [])].filter(Boolean) as User[], [initialTeacher, initialStudents]);
   
-  const spotlightedUser = useMemo(() => 
-    spotlightedParticipantId ? allSessionUsers.find(u => u.id === spotlightedParticipantId) : undefined,
-    [allSessionUsers, spotlightedParticipantId]
-  );
-
+  const spotlightedUser = useMemo(() => spotlightedParticipantId ? allSessionUsers.find(u => u.id === spotlightedParticipantId) : undefined, [allSessionUsers, spotlightedParticipantId]);
   const spotlightedStream = useMemo(() => {
     if (!spotlightedParticipantId) return null;
     if (spotlightedParticipantId === currentUserId) return activeStream;
     return remoteStreams.get(spotlightedParticipantId) || null;
   }, [spotlightedParticipantId, currentUserId, activeStream, remoteStreams]);
 
-  const remoteParticipants = useMemo(() => 
-    Array.from(remoteStreams.entries())
-      .filter(([_, stream]) => stream && stream.active)
-      .map(([id, stream]) => ({ id, stream })),
-    [remoteStreams]
-  );
-
-  const isHandRaised = useMemo(() => 
-    handRaiseQueue.includes(currentUserId),
-    [handRaiseQueue, currentUserId]
-  );
-
-  const raisedHandUsers = useMemo(() => 
-    handRaiseQueue
-      .map(userId => allSessionUsers.find(u => u.id === userId))
-      .filter(Boolean) as User[],
-    [handRaiseQueue, allSessionUsers]
-  );
+  const remoteParticipants = useMemo(() => Array.from(remoteStreams.entries()).map(([id, stream]) => ({ id, stream })), [remoteStreams]);
+  const isHandRaised = useMemo(() => handRaiseQueue.includes(currentUserId), [handRaiseQueue, currentUserId]);
+  const raisedHandUsers = useMemo(() => handRaiseQueue.map(userId => allSessionUsers.find(u => u.id === userId)).filter(Boolean) as User[], [handRaiseQueue, allSessionUsers]);
 
   const handleEndSession = useCallback(async () => {
     if (currentUserRole !== Role.PROFESSEUR || isEndingSession) return;
-
     setIsEndingSession(true);
-    try { 
-      await endCoursSession(sessionId);
-      if (isMountedRef.current) {
-        toast({ title: 'Session terminée' });
-      }
-    } catch (error) {
-      if (isMountedRef.current) {
-        setIsEndingSession(false);
-        toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de terminer la session' });
-      }
-    }
+    try { await endCoursSession(sessionId); if (isMountedRef.current) toast({ title: 'Session terminée' }); } 
+    catch (error) { if (isMountedRef.current) { setIsEndingSession(false); toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de terminer la session' }); } }
   }, [currentUserRole, sessionId, toast, isEndingSession]);
 
-  const handleLeaveSession = useCallback(() => {
-    router.push(currentUserRole === Role.PROFESSEUR ? '/teacher/dashboard' : '/student/dashboard');
-  }, [router, currentUserRole]);
+  const handleLeaveSession = useCallback(() => router.push(currentUserRole === Role.PROFESSEUR ? '/teacher/dashboard' : '/student/dashboard'), [router, currentUserRole]);
   
   const handleToggleHandRaise = useCallback(async (isRaised: boolean) => {
-    if (!isMountedRef.current) return;
-    try {
-      await updateStudentSessionStatus(sessionId, { isHandRaised: isRaised });
-    } catch (error) {
-      if (isMountedRef.current) {
-        toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de changer le statut de la main' });
-      }
-    }
+    try { await updateStudentSessionStatus(sessionId, { isHandRaised: isRaised }); } 
+    catch (error) { if (isMountedRef.current) toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de changer le statut de la main' }); }
   }, [sessionId, toast]);
 
   const handleAcknowledgeNextHand = useCallback(async () => {
     if (handRaiseQueue.length === 0) return;
-    const nextUserId = handRaiseQueue[0];
-    try {
-      await ablyTrigger(getSessionChannelName(sessionId), AblyEvents.HAND_ACKNOWLEDGED, { userId: nextUserId, timestamp: Date.now() });
-    } catch (error) {
-      if (isMountedRef.current) {
-        toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de reconnaître la main' });
-      }
-    }
+    try { await ablyTrigger(getSessionChannelName(sessionId), AblyEvents.HAND_ACKNOWLEDGED, { userId: handRaiseQueue[0], timestamp: Date.now() }); } 
+    catch (error) { if (isMountedRef.current) toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de reconnaître la main' }); }
   }, [sessionId, handRaiseQueue, toast]);
 
   const handleUnderstandingChange = useCallback(async (status: ComprehensionLevel) => {
-    if (!isMountedRef.current) return;
-    try {
-      await updateStudentSessionStatus(sessionId, { understanding: status });
-    } catch (error) {
-      // Gérer l'erreur
-    }
+    try { await updateStudentSessionStatus(sessionId, { understanding: status }); } 
+    catch (error) { /* Gérer l'erreur */ }
   }, [sessionId]);
 
   const onToolChange = useCallback(async (tool: string) => {
-    if (!isMountedRef.current) return;
-    try {
-      await broadcastActiveTool(sessionId, tool);
-    } catch (error) {
-      // Gérer l'erreur
-    }
+    try { await broadcastActiveTool(sessionId, tool); } 
+    catch (error) { /* Gérer l'erreur */ }
   }, [sessionId]);
   
   const handleWhiteboardControllerChange = useCallback(async (userId: string) => {
     if (currentUserRole !== Role.PROFESSEUR) return;
-
     const newControllerId = userId === whiteboardControllerId ? initialTeacher?.id || null : userId;
     try {
-      const response = await fetch(`/api/session/${sessionId}/whiteboard-controller`, { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ controllerId: newControllerId }) 
-      });
+      const response = await fetch(`/api/session/${sessionId}/whiteboard-controller`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ controllerId: newControllerId }) });
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     } catch (error) {
-      if (isMountedRef.current) {
-        toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de changer le contrôleur' });
-      }
+      if (isMountedRef.current) toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de changer le contrôleur' });
     }
   }, [sessionId, currentUserRole, whiteboardControllerId, initialTeacher?.id, toast]);
 
@@ -294,30 +154,18 @@ export default function SessionClient({
     if (!isMountedRef.current) return;
     try {
       const result = await saveAndShareDocument(sessionId, uploadedDoc);
-      if (!result.success) throw new Error('Erreur inconnue');
-      if (isMountedRef.current) {
-        handleUploadSuccess(result.document);
-        toast({ title: 'Succès', description: 'Document partagé' });
-      }
-    } catch (error) {
-      if (isMountedRef.current) {
-        toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de partager' });
-      }
-    }
+      if (isMountedRef.current) { handleUploadSuccess(result.document); toast({ title: 'Succès', description: 'Document partagé' }); }
+    } catch (error) { if (isMountedRef.current) toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de partager' }); }
   }, [sessionId, toast, handleUploadSuccess]);
   
   const handleOnStartQuiz = useCallback(async (quizData: CreateQuizData) => {
     if (!isMountedRef.current) return { success: false, error: 'Composant non monté' };
     try {
       const result = await startQuiz(sessionId, quizData);
-      if (!result.success && isMountedRef.current) {
-        toast({ variant: 'destructive', title: 'Erreur', description: result.error || 'Impossible de lancer le quiz.' });
-      }
+      if (!result.success && isMountedRef.current) toast({ variant: 'destructive', title: 'Erreur', description: result.error || 'Impossible de lancer le quiz.' });
       return result;
     } catch (error) {
-      if (isMountedRef.current) {
-        toast({ variant: 'destructive', title: 'Erreur', description: 'Erreur inattendue' });
-      }
+      if (isMountedRef.current) toast({ variant: 'destructive', title: 'Erreur', description: 'Erreur inattendue' });
       return { success: false, error: 'Erreur inattendue' };
     }
   }, [sessionId, toast]);
@@ -326,116 +174,54 @@ export default function SessionClient({
     if (!isMountedRef.current) return { success: false, error: 'Composant non monté' };
     try {
       const result = await submitQuizResponse(sessionId, response);
-      if (!result.success && isMountedRef.current) {
-        toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible d\'envoyer vos réponses.' });
-      }
+      if (!result.success && isMountedRef.current) toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible d\'envoyer vos réponses.' });
       return result;
     } catch (error) {
-      if (isMountedRef.current) {
-        toast({ variant: 'destructive', title: 'Erreur', description: 'Erreur inattendue' });
-      }
+      if (isMountedRef.current) toast({ variant: 'destructive', title: 'Erreur', description: 'Erreur inattendue' });
       return { success: false, error: 'Erreur inattendue' };
     }
   }, [sessionId, toast]);
 
   const handleOnEndQuiz = useCallback(async (quizId: string, responses: Map<string, QuizResponse>) => {
     if (!isMountedRef.current) return { success: false, error: 'Composant non monté' };
-    try {
-      return await endQuiz(sessionId, quizId, responses);
-    } catch (error) {
-      return { success: false, error: 'Erreur inattendue' };
-    }
+    try { return await endQuiz(sessionId, quizId, responses); } 
+    catch (error) { return { success: false, error: 'Erreur inattendue' }; }
   }, [sessionId]);
+
+  const handleOnCloseQuizResults = useCallback(async () => {
+    if (!isMountedRef.current) return;
+    try { await closeQuiz(sessionId); handleCloseQuizResults(); }
+    catch(error) { if(isMountedRef.current) toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de fermer les résultats.'}) }
+  }, [sessionId, handleCloseQuizResults, toast]);
 
   if (isMediaLoading) return <SessionLoading />;
 
   return (
     <div className="flex flex-col h-full bg-background p-4">
-      <SessionHeader 
-        sessionId={sessionId} 
-        isTeacher={currentUserRole === Role.PROFESSEUR}
-        onEndSession={handleEndSession} 
-        onLeaveSession={handleLeaveSession}
-        isEndingSession={isEndingSession} 
-        isSharingScreen={isSharingScreen}
-        onToggleScreenShare={toggleScreenShare} 
-        isMuted={isMuted} 
-        onToggleMute={toggleMute}
-        isVideoOff={isVideoOff} 
-        onToggleVideo={toggleVideo} 
-        activeTool={activeTool} 
-        onToolChange={onToolChange} 
-        classroom={classroom}
-      />
+      <SessionHeader sessionId={sessionId} isTeacher={currentUserRole === Role.PROFESSEUR} onEndSession={handleEndSession} onLeaveSession={handleLeaveSession} isEndingSession={isEndingSession} isSharingScreen={isSharingScreen} onToggleScreenShare={toggleScreenShare} isMuted={isMuted} onToggleMute={toggleMute} isVideoOff={isVideoOff} onToggleVideo={toggleVideo} activeTool={activeTool} onToolChange={onToolChange} classroom={classroom} />
       <main className="flex-1 flex flex-col min-h-0 w-full pt-4">
         <PermissionPrompt />
         {currentUserRole === Role.PROFESSEUR ? (
           <TeacherSessionView
-            sessionId={sessionId} 
-            localStream={localStream} 
-            screenStream={screenStream}
-            remoteParticipants={remoteParticipants} 
-            spotlightedUser={spotlightedUser} 
-            allSessionUsers={allSessionUsers}
-            onlineUserIds={onlineUserIds} 
-            onSpotlightParticipant={(id) => ablyTrigger(getSessionChannelName(sessionId), AblyEvents.PARTICIPANT_SPOTLIGHTED, { participantId: id })} 
-            raisedHandQueue={raisedHandUsers} 
-            onAcknowledgeNextHand={handleAcknowledgeNextHand}
-            understandingStatus={understandingStatus} 
-            currentUserId={currentUserId} 
-            isSharingScreen={isSharingScreen} 
-            activeTool={activeTool} 
-            onToolChange={onToolChange}
-            classroom={classroom} 
-            documentUrl={documentUrl} 
-            onSelectDocument={handleSelectDocument}
-            whiteboardControllerId={whiteboardControllerId} 
-            onWhiteboardControllerChange={handleWhiteboardControllerChange}
-            initialDuration={3600} 
-            timerTimeLeft={timerTimeLeft} 
-            isTimerRunning={isTimerRunning} 
-            onStartTimer={() => broadcastTimerEvent(sessionId, 'timer-started')}
-            onPauseTimer={() => broadcastTimerEvent(sessionId, 'timer-paused')} 
-            onResetTimer={(duration) => broadcastTimerEvent(sessionId, 'timer-reset', { duration })}
-            onWhiteboardEvent={sendOperation} 
-            whiteboardOperations={whiteboardOperations} 
-            flushWhiteboardOperations={flushOperations} 
-            documentHistory={documentHistory}
-            onDocumentShared={handleOnUploadSuccess} 
-            activeQuiz={activeQuiz}
-            quizResponses={quizResponses} 
-            quizResults={quizResults}
-            onStartQuiz={handleOnStartQuiz}
-            onEndQuiz={handleOnEndQuiz}
-            onCloseResults={handleCloseQuizResults}
-            students={initialStudents}
+            sessionId={sessionId} localStream={localStream} screenStream={screenStream} remoteParticipants={remoteParticipants} spotlightedUser={spotlightedUser} allSessionUsers={allSessionUsers}
+            onlineUserIds={onlineUserIds} onSpotlightParticipant={(id) => ablyTrigger(getSessionChannelName(sessionId), AblyEvents.PARTICIPANT_SPOTLIGHTED, { participantId: id })} 
+            raisedHandQueue={raisedHandUsers} onAcknowledgeNextHand={handleAcknowledgeNextHand} understandingStatus={understandingStatus} currentUserId={currentUserId} 
+            isSharingScreen={isSharingScreen} activeTool={activeTool} onToolChange={onToolChange} classroom={classroom} documentUrl={documentUrl} onSelectDocument={handleSelectDocument}
+            whiteboardControllerId={whiteboardControllerId} onWhiteboardControllerChange={handleWhiteboardControllerChange} initialDuration={3600} timerTimeLeft={timerTimeLeft} 
+            isTimerRunning={isTimerRunning} onStartTimer={() => broadcastTimerEvent(sessionId, 'timer-started')} onPauseTimer={() => broadcastTimerEvent(sessionId, 'timer-paused')} onResetTimer={(duration) => broadcastTimerEvent(sessionId, 'timer-reset', { duration })}
+            onWhiteboardEvent={sendOperation} whiteboardOperations={whiteboardOperations} flushWhiteboardOperations={flushOperations} documentHistory={documentHistory} onDocumentShared={handleOnUploadSuccess} 
+            activeQuiz={activeQuiz} quizResponses={quizResponses} quizResults={quizResults} onStartQuiz={handleOnStartQuiz} onEndQuiz={handleOnEndQuiz} onCloseResults={handleOnCloseQuizResults} students={initialStudents}
           />
         ) : (
           <StudentSessionView
-            sessionId={sessionId} 
-            localStream={localStream} 
-            spotlightedStream={spotlightedStream}
-            spotlightedUser={spotlightedUser} 
-            isHandRaised={isHandRaised}
-            onToggleHandRaise={() => handleToggleHandRaise(!isHandRaised)} 
-            onUnderstandingChange={handleUnderstandingChange}
-            onLeaveSession={handleLeaveSession} 
-            currentUnderstanding={understandingStatus.get(currentUserId) || ComprehensionLevel.NONE}
-            currentUserId={currentUserId} 
-            currentUserRole={currentUserRole}
-            classroomId={classroom?.id ?? null}
-            activeTool={activeTool} 
-            documentUrl={documentUrl}
-            whiteboardControllerId={whiteboardControllerId} 
-            timerTimeLeft={timerTimeLeft}
-            onWhiteboardEvent={sendOperation} 
-            whiteboardOperations={whiteboardOperations} 
-            flushWhiteboardOperations={flushOperations} 
-            onlineMembersCount={onlineUserIds.length} 
-            isPresenceConnected={true} 
-            activeQuiz={activeQuiz}
-            onSubmitQuizResponse={handleSubmitQuizResponse}
-            quizResults={quizResults}
+            sessionId={sessionId} localStream={localStream} spotlightedStream={spotlightedStream} spotlightedUser={spotlightedUser} 
+            isHandRaised={isHandRaised} onToggleHandRaise={() => handleToggleHandRaise(!isHandRaised)} onUnderstandingChange={handleUnderstandingChange}
+            onLeaveSession={handleLeaveSession} currentUnderstanding={understandingStatus.get(currentUserId) || ComprehensionLevel.NONE}
+            currentUserId={currentUserId} currentUserRole={currentUserRole} classroomId={classroom?.id ?? null} activeTool={activeTool} documentUrl={documentUrl}
+            whiteboardControllerId={whiteboardControllerId} timerTimeLeft={timerTimeLeft} onWhiteboardEvent={sendOperation} 
+            whiteboardOperations={whiteboardOperations} flushWhiteboardOperations={flushOperations} onlineMembersCount={onlineUserIds.length} 
+            isPresenceConnected={true} activeQuiz={activeQuiz} onSubmitQuizResponse={handleSubmitQuizResponse} quizResults={quizResults}
+            breakoutRoomInfo={breakoutRoomInfo} allSessionUsers={allSessionUsers}
           />
         )}
       </main>
