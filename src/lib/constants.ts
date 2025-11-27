@@ -25,6 +25,7 @@ import {
     Palette,
     Network,
     Folder,
+    type LucideIcon, // ✅ CORRECTION : Import du type
 } from 'lucide-react';
 import type { Classroom } from '@prisma/client';
 import { TaskCategory, Role } from '@prisma/client';
@@ -162,11 +163,11 @@ export const menuItems: MenuSection[] = [
     },
 ];
 
-// ✅ CORRECTION : Interface pour les outils
+// ✅ CORRECTION : Interface pour les outils avec typage LucideIcon
 export interface ToolItem {
     id: string;
     name: string;
-    icon: React.ComponentType<any>;
+    icon: LucideIcon; // ✅ CORRECTION : Changé de React.ComponentType<any> à LucideIcon
     colors: [string, string];
 }
 

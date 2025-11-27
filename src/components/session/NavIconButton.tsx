@@ -6,7 +6,7 @@ import type { LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 
 interface NavIconButtonProps {
-  icon: LucideIcon;
+  icon : LucideIcon;
   label: string;
   colors: [string, string];
   isActive?: boolean;
