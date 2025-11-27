@@ -1,8 +1,14 @@
 
 import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { Providers } from '@/components/Providers';
+import { cn } from '@/lib/utils';
+
+const inter = Inter({
+  subsets: ['latin'],
+});
 
 export const metadata: Metadata = {
   title: 'Classroom Connector',
@@ -16,8 +22,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="w-full min-h-screen" >
-      <Providers>
+      <body className={cn('min-h-screen w-full font-sans antialiased', inter.className)} >
+        <Providers>
             {children}
             <Toaster />
         </Providers>
