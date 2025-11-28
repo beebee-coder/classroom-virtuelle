@@ -1,4 +1,3 @@
-
 // src/app/student/[id]/page.tsx
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
@@ -53,33 +52,41 @@ export default async function StudentProfilePage({ params }: { params: { id: str
     const tasks = await prisma.task.findMany({ where: { isActive: true } });
     const classeId = student.classe?.id;
 
+    const pageContent = (
+        <StudentPageClient
+            student={student}
+            announcements={announcements}
+            allCareers={allCareers}
+            isTeacherView={isTeacherView}
+            tasks={tasks}
+            user={viewingUser}
+        />
+    );
+
+    // Si c'est un professeur qui regarde, on n'applique pas le thème de fond
+    // pour que la page s'intègre dans le layout du professeur.
+    if (isTeacherView) {
+        return pageContent;
+    }
+    
+    // Si c'est l'élève qui regarde sa propre page, on applique son thème.
     return (
       <CareerThemeWrapper career={metier ?? undefined}>
         <SidebarProvider>
           <div className="flex flex-col min-h-screen">
             <Header user={viewingUser}>
-                {isTeacherView && <SidebarTrigger />}
                 {classeId && viewingUser.role === 'ELEVE' && (
                   <ChatSheet classroomId={classeId} userId={viewingUser.id} userRole={viewingUser.role} />
                 )}
             </Header>
             <div className="flex flex-1">
-              {isTeacherView && (
-                <Sidebar>
-                  <SidebarContent>
-                    <Menu user={viewingUser} />
-                  </SidebarContent>
-                </Sidebar>
-              )}
+              <Sidebar>
+                <SidebarContent>
+                  <Menu user={viewingUser} />
+                </SidebarContent>
+              </Sidebar>
               <SidebarInset>
-                <StudentPageClient
-                    student={student}
-                    announcements={announcements}
-                    allCareers={allCareers}
-                    isTeacherView={isTeacherView}
-                    tasks={tasks}
-                    user={viewingUser}
-                />
+                {pageContent}
               </SidebarInset>
             </div>
           </div>
@@ -91,5 +98,3 @@ export default async function StudentProfilePage({ params }: { params: { id: str
     redirect('/login');
   }
 }
-
-    
