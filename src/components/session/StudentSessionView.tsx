@@ -45,8 +45,8 @@ interface StudentSessionViewProps {
     activeQuiz: Quiz | null;
     onSubmitQuizResponse: (response: QuizResponse) => Promise<{ success: boolean; }>;
     quizResults: QuizResults | null;
-    breakoutRoomInfo: BreakoutRoom | null; // Ajout de cette prop
-    allSessionUsers: User[]; // Ajout de cette prop
+    breakoutRoomInfo: BreakoutRoom | null;
+    allSessionUsers: User[];
 }
 
 export function StudentSessionView({
@@ -74,8 +74,8 @@ export function StudentSessionView({
     activeQuiz,
     onSubmitQuizResponse,
     quizResults,
-    breakoutRoomInfo, // Utilisation de la prop
-    allSessionUsers, // Utilisation de la prop
+    breakoutRoomInfo,
+    allSessionUsers,
 }: StudentSessionViewProps) {
     const { toast } = useToast();
     const [mainView, setMainView] = useState<'spotlight' | 'whiteboard' | 'document' | 'quiz' | 'chat' | 'breakout'>('spotlight');
@@ -95,12 +95,28 @@ export function StudentSessionView({
     }, [activeTool, activeQuiz, breakoutRoomInfo]);
 
     const handleToggleHandRaise = useCallback(async (): Promise<void> => {
-        // ... (logique existante)
-    }, [isHandRaiseLoading, isHandRaised, sessionId, currentUnderstanding, onToggleHandRaise, toast]);
+        if (isHandRaiseLoading) return;
+        setIsHandRaiseLoading(true);
+        try {
+            await onToggleHandRaise(!isHandRaised);
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de changer le statut de la main.' });
+        } finally {
+            setIsHandRaiseLoading(false);
+        }
+    }, [isHandRaiseLoading, isHandRaised, onToggleHandRaise, toast]);
     
     const handleUnderstandingUpdate = useCallback(async (status: ComprehensionLevel): Promise<void> => {
-        // ... (logique existante)
-    }, [isUnderstandingLoading, currentUnderstanding, sessionId, isHandRaised, onUnderstandingChange, toast]);
+        if (isUnderstandingLoading || status === currentUnderstanding) return;
+        setIsUnderstandingLoading(true);
+        try {
+            await onUnderstandingChange(status);
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de mettre à jour le statut.' });
+        } finally {
+            setIsUnderstandingLoading(false);
+        }
+    }, [isUnderstandingLoading, currentUnderstanding, onUnderstandingChange, toast]);
 
     const handleWhiteboardEvent = useCallback((operations: WhiteboardOperation[]) => {
         if (!operations || !Array.isArray(operations)) return;
@@ -219,7 +235,7 @@ export function StudentSessionView({
                 </div>
             </div>
 
-            <div className="w-60 flex-shrink-0 flex flex-col">
+            <div className="w-80 flex-shrink-0 flex flex-col">
                 <motion.div layout className="h-full flex flex-col gap-1">
                     <ScrollArea className="flex-1 pr-3 -mr-3">
                          <div className="space-y-4">
@@ -237,27 +253,6 @@ export function StudentSessionView({
                                     </div>
                                 </AnimatedCard>
                              )}
-                             
-                             <AnimatedCard title="Ma Vidéo">
-                                <div className="p-2">
-                                    {localStream && localStream.active ? (
-                                        <Participant
-                                            stream={localStream}
-                                            isLocal={true}
-                                            isTeacher={false}
-                                            participantUserId={currentUserId}
-                                            displayName="Vous"
-                                            isHandRaised={isHandRaised}
-                                            isWhiteboardController={currentUserId === whiteboardControllerId}
-                                        />
-                                    ) : (
-                                        <div className="text-center text-muted-foreground p-4 aspect-video flex flex-col items-center justify-center border border-dashed rounded-lg">
-                                            <VideoOff className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                                            <p className="text-sm">Caméra non disponible</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </AnimatedCard>
                              
                              <AnimatedCard title="Minuteur">
                                  <SessionTimer
