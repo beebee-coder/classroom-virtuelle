@@ -27,7 +27,7 @@ export function StudentProfileCard({
     const handleProfileClick = (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        router.push(`/student/${student.id}?viewAs=teacher`);
+        router.push(`/teacher/student/${student.id}`);
     };
 
     const isPunished = student.etat?.isPunished ?? false;
@@ -87,5 +87,3 @@ export function StudentProfileCard({
         </div>
     );
 }
-
-    
