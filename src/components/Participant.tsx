@@ -21,6 +21,8 @@ interface ParticipantProps {
   onSpotlightParticipant?: (participantId: string) => void;
   onSetWhiteboardController?: (participantId: string) => void; 
   isWhiteboardController?: boolean; 
+  compact?: boolean;
+  className?: string; // ✅ CORRECTION : Ajout de className pour le styling personnalisé
 }
 
 function ParticipantComponent({ 
@@ -34,6 +36,8 @@ function ParticipantComponent({
     onSpotlightParticipant,
     onSetWhiteboardController,
     isWhiteboardController,
+    compact = false,
+    className = "", // ✅ CORRECTION : className avec valeur par défaut
 }: ParticipantProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { toast } = useToast();
@@ -41,7 +45,6 @@ function ParticipantComponent({
   const nameToDisplay = displayName || participantUserId;
   const isMuted = !stream || stream.getAudioTracks().length === 0 || !stream.getAudioTracks().some(t => t.enabled);
   const hasVideo = stream && stream.getVideoTracks().length > 0 && stream.getVideoTracks().some(t => t.enabled);
-
 
   useEffect(() => {
     if (videoRef.current && stream) {
@@ -72,31 +75,58 @@ function ParticipantComponent({
   // ou si c'est sa propre vidéo et que qqn d'autre a le contrôle (pour le reprendre).
   const canShowWhiteboardControlButton = isTeacher && onSetWhiteboardController && (!isLocal || !isWhiteboardController);
 
+
   return (
     <Card className={cn(
-        "relative aspect-video bg-muted rounded-lg overflow-hidden flex items-center justify-center group text-white",
+        "relative bg-muted rounded-lg overflow-hidden flex items-center justify-center group text-white",
+        // ✅ CORRECTION : Classes conditionnelles pour le mode plein écran
+        compact ? "aspect-video min-h-[120px] max-h-[200px]" : "w-full h-full min-h-[300px]",
         isSpotlighted && "ring-2 ring-amber-500 shadow-lg",
         isHandRaised && "ring-2 ring-blue-500",
-        isWhiteboardController && "ring-4 ring-green-500 shadow-lg border-green-500", // Style plus visible
+        isWhiteboardController && "ring-4 ring-green-500 shadow-lg border-green-500",
+        className // ✅ CORRECTION : Application de la className personnalisée
     )}>
-        <video ref={videoRef} autoPlay playsInline muted={isLocal} className={cn("w-full h-full object-cover", !hasVideo && "hidden")} />
+        {/* ✅ CORRECTION : Vidéo en plein écran */}
+        <video 
+            ref={videoRef} 
+            autoPlay 
+            playsInline 
+            muted={isLocal} 
+            className={cn(
+                "w-full h-full object-cover", 
+                !hasVideo && "hidden"
+            )} 
+        />
 
         {!hasVideo && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-slate-800">
-                <Avatar className="h-12 w-12 text-xl">
+                <Avatar className={cn(
+                    "text-xl", 
+                    compact ? "h-8 w-8" : "h-20 w-20 text-3xl" // ✅ CORRECTION : Taille adaptative pour plein écran
+                )}>
                     <AvatarFallback>{nameToDisplay?.charAt(0)}</AvatarFallback>
                 </Avatar>
-                <p className="text-sm font-semibold">{nameToDisplay}</p>
+                <p className={cn(
+                    "font-semibold", 
+                    compact ? "text-xs" : "text-xl" // ✅ CORRECTION : Texte plus grand en plein écran
+                )}>{nameToDisplay}</p>
             </div>
         )}
        
-        <div className="absolute bottom-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+        {/* ✅ CORRECTION : Boutons plus grands en mode plein écran */}
+        <div className="absolute bottom-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
              <TooltipProvider>
                  {canShowWhiteboardControlButton && (
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="secondary" size="icon" className="h-6 w-6 bg-black/50 hover:bg-black/80 border-none" onClick={handleSetController}>
-                        <Edit className={cn("h-3 w-3", isWhiteboardController && "fill-green-500 text-green-500")} />
+                      <Button variant="secondary" size="icon" className={cn(
+                          "bg-black/50 hover:bg-black/80 border-none", 
+                          compact ? "h-5 w-5" : "h-10 w-10" // ✅ CORRECTION : Boutons plus grands
+                      )}>
+                        <Edit className={cn(
+                            isWhiteboardController && "fill-green-500 text-green-500", 
+                            compact ? "h-2.5 w-2.5" : "h-5 w-5" // ✅ CORRECTION : Icônes plus grandes
+                        )} />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent><p>{isWhiteboardController ? 'Retirer le contrôle' : 'Donner le contrôle du tableau'}</p></TooltipContent>
@@ -105,8 +135,14 @@ function ParticipantComponent({
                  {isTeacher && onSpotlightParticipant && (
                     <Tooltip>
                         <TooltipTrigger asChild>
-                             <Button variant="secondary" size="icon" className="h-6 w-6 bg-black/50 hover:bg-black/80 border-none" onClick={handleSpotlight}>
-                                <Star className={cn("h-3 w-3", isSpotlighted && "fill-amber-500 text-amber-500")} />
+                             <Button variant="secondary" size="icon" className={cn(
+                                 "bg-black/50 hover:bg-black/80 border-none", 
+                                 compact ? "h-5 w-5" : "h-10 w-10" // ✅ CORRECTION : Boutons plus grands
+                             )}>
+                                <Star className={cn(
+                                    isSpotlighted && "fill-amber-500 text-amber-500", 
+                                    compact ? "h-2.5 w-2.5" : "h-5 w-5" // ✅ CORRECTION : Icônes plus grandes
+                                )} />
                             </Button>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -116,19 +152,30 @@ function ParticipantComponent({
                 )}
              </TooltipProvider>
         </div>
-         <p className="absolute bottom-2 left-2 text-xs font-semibold bg-black/50 px-2 py-1 rounded">
+        
+        {/* ✅ CORRECTION : Nom plus visible en plein écran */}
+        <p className={cn(
+            "absolute bottom-4 left-4 font-semibold bg-black/50 px-3 py-2 rounded", 
+            compact ? "text-xs" : "text-lg" // ✅ CORRECTION : Texte plus grand
+        )}>
             {isLocal ? 'Vous' : nameToDisplay}
         </p>
-         <div className="absolute top-2 left-2 flex items-center gap-1.5">
-            <div className="bg-black/50 backdrop-blur-sm rounded-md p-1">
-                {isMuted ? <MicOff className="h-3 w-3 text-destructive" /> : <Mic className="h-3 w-3 text-green-500" />}
+        
+        {/* ✅ CORRECTION : Indicateurs plus visibles en plein écran */}
+        <div className="absolute top-4 left-4 flex items-center gap-2">
+            <div className="bg-black/50 backdrop-blur-sm rounded-md p-2">
+                {isMuted ? (
+                    <MicOff className={cn("text-destructive", compact ? "h-2.5 w-2.5" : "h-5 w-5")} />
+                ) : (
+                    <Mic className={cn("text-green-500", compact ? "h-2.5 w-2.5" : "h-5 w-5")} />
+                )}
             </div>
             {isHandRaised && (
                 <TooltipProvider>
                     <Tooltip>
                         <TooltipTrigger asChild>
-                           <div className="bg-blue-500/80 backdrop-blur-sm rounded-md p-1 animate-pulse">
-                                <Hand className="h-3 w-3 text-white" />
+                           <div className="bg-blue-500/80 backdrop-blur-sm rounded-md p-2 animate-pulse">
+                                <Hand className={cn("text-white", compact ? "h-2.5 w-2.5" : "h-5 w-5")} />
                             </div>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -141,8 +188,8 @@ function ParticipantComponent({
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="bg-green-500/80 backdrop-blur-sm rounded-md p-1">
-                      <Edit className="h-3 w-3 text-white" />
+                    <div className="bg-green-500/80 backdrop-blur-sm rounded-md p-2">
+                      <Edit className={cn("text-white", compact ? "h-2.5 w-2.5" : "h-5 w-5")} />
                     </div>
                   </TooltipTrigger>
                   <TooltipContent><p>Contrôle du tableau blanc</p></TooltipContent>

@@ -14,6 +14,8 @@ interface StudentPlaceholderProps {
   isOnline: boolean;
   isHandRaised?: boolean;
   onSpotlightParticipant: (participantId: string) => void;
+  compact?: boolean; // ✅ CORRECTION : Ajout de la prop compact
+
 }
 
 export function StudentPlaceholder({ 

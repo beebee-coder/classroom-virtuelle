@@ -1,5 +1,4 @@
-
-// src/components/session/TeacherSessionView.tsx - VERSION CORRIGÉE AVEC HOT RELOAD
+// src/components/session/TeacherSessionView.tsx - VERSION COMPLÈTE CORRIGÉE
 'use client';
 
 import React, { useState, type ReactNode, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -72,6 +71,32 @@ interface TeacherSessionViewProps {
     students: User[];
 }
 
+// ✅ NOUVEAU : Hook de grille responsive
+const useResponsiveGrid = (participantCount: number) => {
+    return useMemo(() => {
+        if (participantCount <= 4) return "grid-cols-1 sm:grid-cols-2";
+        if (participantCount <= 9) return "grid-cols-2 sm:grid-cols-3 md:grid-cols-3";
+        return "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5";
+    }, [participantCount]);
+};
+
+// ✅ NOUVEAU : Composant ParticipantCard encapsulé
+const ParticipantCard = ({ 
+    children, 
+    className = "" 
+}: { 
+    children: React.ReactNode;
+    className?: string;
+}) => (
+    <div className={cn(
+        "aspect-video min-h-[120px] max-h-[200px] bg-card rounded-lg border overflow-hidden",
+        "flex items-center justify-center relative shadow-sm",
+        className
+    )}>
+        {children}
+    </div>
+);
+
 const renderParticipant = (
     participant: SessionParticipant,
     {
@@ -88,7 +113,7 @@ const renderParticipant = (
         allSessionUsers,
         classOnlineIds,
     }: any
-): React.ReactElement | null => { // ✅ CORRECTION: Type de retour explicite
+): React.ReactElement | null => {
     if (!participant) return null;
 
     let stream: MediaStream | null = null;
@@ -112,14 +137,15 @@ const renderParticipant = (
                 participantUserId={participant.id} 
                 onSpotlightParticipant={handleSpotlightAndSwitch}
                 displayName={participant.name ?? ''} 
-                isHandRaised={raisedHandQueue.some((u: User) => u.id === participant.id)} // ✅ CORRECTION: Type explicite
+                isHandRaised={raisedHandQueue.some((u: User) => u.id === participant.id)}
                 onSetWhiteboardController={onWhiteboardControllerChange} 
                 isWhiteboardController={participant.id === whiteboardControllerId}
+                compact={true}
             />
         );
     }
     
-    const studentData = allSessionUsers.find((u: SessionParticipant) => u.id === participant.id) as User | undefined; // ✅ CORRECTION: Type explicite
+    const studentData = allSessionUsers.find((u: SessionParticipant) => u.id === participant.id) as User | undefined;
     if (!studentData) return null;
 
     return (
@@ -128,7 +154,8 @@ const renderParticipant = (
             student={studentData} 
             isOnline={classOnlineIds.includes(participant.id)}
             onSpotlightParticipant={handleSpotlightAndSwitch} 
-            isHandRaised={raisedHandQueue.some((u: User) => u.id === participant.id)} // ✅ CORRECTION: Type explicite
+            isHandRaised={raisedHandQueue.some((u: User) => u.id === participant.id)}
+            compact={true}
         />
     );
 };
@@ -147,6 +174,19 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
         flushWhiteboardOperations, documentHistory, onDocumentShared, activeQuiz, quizResponses, quizResults, 
         onStartQuiz, onEndQuiz, onCloseResults, students
     } = props;
+    const teacher = useMemo(() => allSessionUsers.find(u => u.role === 'PROFESSEUR'), [allSessionUsers]);
+
+    // ✅ CORRECTION : Grille responsive dynamique
+    const allGridParticipants = useMemo(() => {
+        const participantMap = new Map<string, SessionParticipant>();
+        if (teacher) participantMap.set(teacher.id, teacher); // ✅ Maintenant teacher est déclaré
+        if (classroom?.eleves) classroom.eleves.forEach(student => { 
+            if (!participantMap.has(student.id)) participantMap.set(student.id, student as SessionParticipant); 
+        });
+        return Array.from(participantMap.values());
+    }, [teacher, classroom?.eleves]);
+
+    const gridClass = useResponsiveGrid(allGridParticipants.length);
 
     const validatedTimerTimeLeft = useMemo(() => {
         const time = timerTimeLeft;
@@ -165,8 +205,6 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
         remoteParticipants.forEach(p => { if (p.stream && p.stream.active) map.set(p.id, p.stream); });
         return map;
     }, [remoteParticipants]);
-
-    const teacher = useMemo(() => allSessionUsers.find(u => u.role === 'PROFESSEUR'), [allSessionUsers]);
 
     const activeParticipantIds = useMemo(() => {
         const ids = new Set<string>([currentUserId]);
@@ -197,14 +235,17 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
         }
     }, [sessionId, onSelectDocument, toast]);
 
-    const allGridParticipants = useMemo(() => {
-        const participantMap = new Map<string, SessionParticipant>();
-        if (teacher) participantMap.set(teacher.id, teacher);
-        if (classroom?.eleves) classroom.eleves.forEach(student => { 
-            if (!participantMap.has(student.id)) participantMap.set(student.id, student as SessionParticipant); 
-        });
-        return Array.from(participantMap.values());
-    }, [teacher, classroom?.eleves]);
+    // ✅ CORRECTION : Render participant avec conteneur contrôlé
+    const renderGridParticipant = (participant: SessionParticipant, props: any) => {
+        const content = renderParticipant(participant, props);
+        if (!content) return null;
+        
+        return (
+            <ParticipantCard key={participant.id}>
+                {content}
+            </ParticipantCard>
+        );
+    };
 
     const getSpotlightStream = useCallback(() => {
         if (!spotlightedUser) return null;
@@ -212,122 +253,252 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
         return (stream && stream.active) ? stream : null;
     }, [spotlightedUser, currentUserId, isSharingScreen, screenStream, localStream, remoteStreamsMap]);
 
-    const renderActiveTool = useMemo((): ReactNode => { // ✅ CORRECTION: Type de retour explicite
+    const renderActiveTool = useMemo((): ReactNode => {
         switch (activeTool) {
             case 'camera':
                 const spotlightStream = getSpotlightStream();
                 if (spotlightStream && spotlightedUser) {
-                    return <Participant stream={spotlightStream} isLocal={spotlightedUser.id === currentUserId} isSpotlighted={true} isTeacher={spotlightedUser.role === Role.PROFESSEUR} participantUserId={spotlightedUser.id} onSpotlightParticipant={onSpotlightParticipant} displayName={spotlightedUser.name ?? ''} />;
+                    return (
+                        <div className="w-full h-full relative bg-black rounded-lg overflow-hidden">
+                            <Participant
+                                className="w-full h-full"
+                                stream={spotlightStream} 
+                                isLocal={spotlightedUser.id === currentUserId} 
+                                isSpotlighted={true} 
+                                isTeacher={spotlightedUser.role === Role.PROFESSEUR} 
+                                participantUserId={spotlightedUser.id} 
+                                onSpotlightParticipant={onSpotlightParticipant} 
+                                displayName={spotlightedUser.name ?? ''}
+                            />
+                        </div>
+                    );
                 }
-                return <div className="h-full w-full flex items-center justify-center bg-muted text-muted-foreground"><p>Aucun participant en vedette ou flux indisponible.</p></div>;
+                return (
+                    <div className="h-full w-full flex items-center justify-center bg-muted/20 text-muted-foreground rounded-lg">
+                        <div className="text-center">
+                            <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                            <p className="text-lg font-medium">Aucun participant en vedette</p>
+                            <p className="text-sm text-muted-foreground">Sélectionnez un participant dans la grille</p>
+                        </div>
+                    </div>
+                );
             case 'document':
                 return <DocumentViewer url={documentUrl} />;
             case 'whiteboard':
-                return <Html5Whiteboard sessionId={sessionId} userId={currentUserId} isController={currentUserId === whiteboardControllerId} operations={whiteboardOperations} onEvent={onWhiteboardEvent} flushOperations={flushWhiteboardOperations} />;
+                return (
+                    <div className="w-full h-full bg-white rounded-lg">
+                        <Html5Whiteboard 
+                            sessionId={sessionId} 
+                            userId={currentUserId} 
+                            isController={currentUserId === whiteboardControllerId} 
+                            operations={whiteboardOperations} 
+                            onEvent={onWhiteboardEvent} 
+                            flushOperations={flushWhiteboardOperations} 
+                        />
+                    </div>
+                );
             case 'chat':
-                return classroom?.id ? <ChatWorkspace classroomId={classroom.id} userId={currentUserId} userRole={Role.PROFESSEUR} /> : null;
+                return classroom?.id ? (
+                    <div className="w-full h-full rounded-lg border">
+                        <ChatWorkspace classroomId={classroom.id} userId={currentUserId} userRole={Role.PROFESSEUR} />
+                    </div>
+                ) : null;
             case 'quiz':
-                return <QuizWorkspace sessionId={sessionId} activeQuiz={activeQuiz} quizResponses={quizResponses} quizResults={quizResults} onStartQuiz={onStartQuiz} onEndQuiz={onEndQuiz} onCloseResults={onCloseResults} students={students} />;
+                return (
+                    <div className="w-full h-full rounded-lg border">
+                        <QuizWorkspace 
+                            sessionId={sessionId} 
+                            activeQuiz={activeQuiz} 
+                            quizResponses={quizResponses} 
+                            quizResults={quizResults} 
+                            onStartQuiz={onStartQuiz} 
+                            onEndQuiz={onEndQuiz} 
+                            onCloseResults={onCloseResults} 
+                            students={students} 
+                        />
+                    </div>
+                );
             case 'breakout':
-                return <BreakoutRoomsManager sessionId={sessionId} students={students} documentHistory={documentHistory} />;
+                return (
+                    <div className="w-full h-full rounded-lg border">
+                        <BreakoutRoomsManager sessionId={sessionId} students={students} documentHistory={documentHistory} />
+                    </div>
+                );
             default:
-                return null;
+                return (
+                    <div className="h-full w-full flex items-center justify-center bg-muted/20 text-muted-foreground rounded-lg">
+                        <div className="text-center">
+                            <Presentation className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                            <p className="text-lg font-medium">Outil non disponible</p>
+                        </div>
+                    </div>
+                );
         }
     }, [
         activeTool, getSpotlightStream, spotlightedUser, currentUserId, onSpotlightParticipant, documentUrl,
         sessionId, whiteboardControllerId, whiteboardOperations, onWhiteboardEvent, flushWhiteboardOperations,
         classroom, students, activeQuiz, quizResponses, quizResults, onStartQuiz, onEndQuiz, onCloseResults, documentHistory
     ]);
-    
-    if (!currentUserId || !teacher) return <div className="flex-1 flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8" /></div>;
 
-    const renderParticipantProps = {
-        currentUserId, isSharingScreen, screenStream, localStream, remoteStreamsMap,
-        spotlightedUser, handleSpotlightAndSwitch, raisedHandQueue, 
-        onWhiteboardControllerChange, whiteboardControllerId, allSessionUsers, classOnlineIds
-    };
-
-    return (
-      <div className="flex-1 flex min-h-0 gap-4 p-4">
-        <div className="flex-1 flex flex-col min-h-0 min-w-0">
-          <div className="flex-1 min-h-0 relative">
-            <div className="absolute inset-0 rounded-lg border bg-card p-4">
-                {teacherView === 'content' ? ( // ✅ CORRECTION: renderActiveTool est maintenant un ReactNode
-                  renderActiveTool
-                ) : (
-                  <ScrollArea className="h-full">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                      {allGridParticipants.map(p => renderParticipant(p, renderParticipantProps))}
+    // ✅ CORRECTION : Conteneur principal simplifié pour le mode plein écran
+    const renderMainContent = () => (
+        <div className="absolute inset-0 rounded-lg border bg-card overflow-hidden flex flex-col">
+            {/* En-tête avec contrôles - garder le header */}
+            <div className="flex-shrink-0 flex justify-between items-center p-4 bg-card border-b">
+                <h3 className="font-semibold text-lg">
+                    {teacherView === 'content' 
+                        ? `Vue Contenu - ${activeTool.charAt(0).toUpperCase() + activeTool.slice(1)}` 
+                        : `Vue Grille (${allGridParticipants.length} participants)`
+                    }
+                </h3>
+                <div className="flex items-center gap-2">
+                    <ToggleGroup 
+                        type="single" 
+                        value={teacherView} 
+                        onValueChange={(value) => value && setTeacherView(value as 'content' | 'grid')} 
+                        className="bg-background/80 backdrop-blur-sm p-1 rounded-lg border"
+                    >
+                        <ToggleGroupItem value="content" aria-label="Vue Contenu">
+                            <Presentation className="h-4 w-4" />
+                        </ToggleGroupItem>
+                        <ToggleGroupItem value="grid" aria-label="Vue Grille">
+                            <Grid className="h-4 w-4" />
+                        </ToggleGroupItem>
+                    </ToggleGroup>
+                    <Button 
+                        variant="outline" 
+                        size="icon" 
+                        onClick={() => setIsSidebarVisible(!isSidebarVisible)} 
+                        className="h-9 w-9 bg-background/80 backdrop-blur-sm"
+                    >
+                        {isSidebarVisible ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+                    </Button>
+                </div>
+            </div>
+            
+            {/* ✅ CORRECTION : Zone de contenu sans padding supplémentaire */}
+            <div className="flex-1 min-h-0 overflow-hidden">
+                {teacherView === 'content' ? (
+                    // ✅ CORRECTION : Vue contenu en plein écran
+                    <div className="w-full h-full">
+                        {renderActiveTool}
                     </div>
-                  </ScrollArea>
-                )}
-            </div>
-            <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
-                <ToggleGroup type="single" value={teacherView} onValueChange={(value) => value && setTeacherView(value as 'content' | 'grid')} className="bg-background/80 backdrop-blur-sm p-1 rounded-lg border">
-                    <ToggleGroupItem value="content" aria-label="Vue Contenu"><Presentation className="h-4 w-4" /></ToggleGroupItem>
-                    <ToggleGroupItem value="grid" aria-label="Vue Grille"><Grid className="h-4 w-4" /></ToggleGroupItem>
-                </ToggleGroup>
-                <Button variant="outline" size="icon" onClick={() => setIsSidebarVisible(!isSidebarVisible)} className="h-9 w-9 bg-background/80 backdrop-blur-sm">
-                    {isSidebarVisible ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
-                </Button>
-            </div>
-          </div>
-        </div>
-        <AnimatePresence>
-            {isSidebarVisible && (
-                 <motion.div
-                    initial={{ width: 0, opacity: 0, x: 50 }}
-                    animate={{ width: 400, opacity: 1, x: 0 }}
-                    exit={{ width: 0, opacity: 0, x: 50 }}
-                    transition={{ duration: 0.3, ease: "easeInOut" }}
-                    className="flex-shrink-0"
-                  >
-                    <ScrollArea className="h-full pr-3 -mr-3">
-                        <div className="space-y-4">
-                            <AnimatedCard title="Partage de Document">
-                                <div className='p-4 space-y-3'>
-                                    <DocumentUploadSection sessionId={sessionId} onUploadSuccess={onDocumentShared} />
-                                    <DocumentHistory
-                                        documents={documentHistory}
-                                        onSelectDocument={onSelectDocument}
-                                        onReshare={handleDocumentReshare}
-                                        sessionId={sessionId}
-                                        currentUserId={currentUserId}
-                                    />
-                                </div>
-                            </AnimatedCard>
-                            <AnimatedCard title="Gestion de Session">
-                                <div className="space-y-3 p-4">
-                                    <SessionTimer
-                                        isTeacher={true} sessionId={sessionId} initialDuration={validatedInitialDuration}
-                                        timeLeft={validatedTimerTimeLeft} isTimerRunning={isTimerRunning}
-                                        onStart={onStartTimer} onPause={onPauseTimer} onReset={onResetTimer}
-                                    />
-                                    <SessionStatus
-                                        participants={allSessionUsers as User[]} onlineIds={activeParticipantIds}
-                                        webrtcConnections={remoteParticipants.length} whiteboardControllerId={whiteboardControllerId}
-                                    />
-                                </div>
-                            </AnimatedCard>
-                            {classroom && (
-                                 <ClassStudentList
-                                    classroom={classroom} onlineUserIds={classOnlineIds} currentUserId={currentUserId}
-                                    activeParticipantIds={activeParticipantIds} sessionId={sessionId} waitingStudentCount={waitingCount}
-                                    onSpotlightParticipant={onSpotlightParticipant} spotlightedParticipantId={spotlightedUser?.id || null}
-                                    whiteboardControllerId={whiteboardControllerId} onWhiteboardControllerChange={onWhiteboardControllerChange}
-                                />
-                            )}
-                            <AnimatedCard title="Sondage de Compréhension">
-                                <QuickPollResults students={students} understandingStatus={understandingStatus} />
-                            </AnimatedCard>
-                            <AnimatedCard title="Mains Levées">
-                                <HandRaiseController raisedHandQueue={raisedHandQueue} onAcknowledgeNext={onAcknowledgeNextHand} /> 
-                            </AnimatedCard>
+                ) : (
+                    // Vue grille inchangée
+                    <ScrollArea className="h-full w-full" type="always">
+                        <div className={cn(
+                            "grid gap-3 auto-rows-fr p-4",
+                            gridClass
+                        )}>
+                            {allGridParticipants.map(p => renderGridParticipant(p, {
+                                currentUserId, 
+                                isSharingScreen, 
+                                screenStream, 
+                                localStream, 
+                                remoteStreamsMap,
+                                spotlightedUser, 
+                                handleSpotlightAndSwitch, 
+                                raisedHandQueue, 
+                                onWhiteboardControllerChange, 
+                                whiteboardControllerId, 
+                                allSessionUsers, 
+                                classOnlineIds
+                            }))}
                         </div>
                     </ScrollArea>
-                 </motion.div>
-            )}
-        </AnimatePresence>
-      </div>
+                )}
+            </div>
+        </div>
+    );
+
+    if (!currentUserId || !teacher) {
+        return (
+            <div className="flex-1 flex items-center justify-center">
+                <Loader2 className="animate-spin h-8 w-8" />
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex-1 flex min-h-0 gap-4 p-4">
+            {/* Conteneur principal */}
+            <div className="flex-1 flex flex-col min-h-0 min-w-0 relative">
+                {renderMainContent()}
+            </div>
+            
+            {/* Sidebar */}
+            <AnimatePresence>
+                {isSidebarVisible && (
+                    <motion.div
+                        initial={{ width: 0, opacity: 0, x: 50 }}
+                        animate={{ width: 400, opacity: 1, x: 0 }}
+                        exit={{ width: 0, opacity: 0, x: 50 }}
+                        transition={{ duration: 0.3, ease: "easeInOut" }}
+                        className="flex-shrink-0"
+                    >
+                        <ScrollArea className="h-full pr-3 -mr-3">
+                            <div className="space-y-4">
+                                <AnimatedCard title="Partage de Document">
+                                    <div className='p-4 space-y-3'>
+                                        <DocumentUploadSection sessionId={sessionId} onUploadSuccess={onDocumentShared} />
+                                        <DocumentHistory
+                                            documents={documentHistory}
+                                            onSelectDocument={onSelectDocument}
+                                            onReshare={handleDocumentReshare}
+                                            sessionId={sessionId}
+                                            currentUserId={currentUserId}
+                                        />
+                                    </div>
+                                </AnimatedCard>
+                                
+                                <AnimatedCard title="Gestion de Session">
+                                    <div className="space-y-3 p-4">
+                                        <SessionTimer
+                                            isTeacher={true} 
+                                            sessionId={sessionId} 
+                                            initialDuration={validatedInitialDuration}
+                                            timeLeft={validatedTimerTimeLeft} 
+                                            isTimerRunning={isTimerRunning}
+                                            onStart={onStartTimer} 
+                                            onPause={onPauseTimer} 
+                                            onReset={onResetTimer}
+                                        />
+                                        <SessionStatus
+                                            participants={allSessionUsers as User[]} 
+                                            onlineIds={activeParticipantIds}
+                                            webrtcConnections={remoteParticipants.length} 
+                                            whiteboardControllerId={whiteboardControllerId}
+                                        />
+                                    </div>
+                                </AnimatedCard>
+                                
+                                {classroom && (
+                                    <ClassStudentList
+                                        classroom={classroom} 
+                                        onlineUserIds={classOnlineIds} 
+                                        currentUserId={currentUserId}
+                                        activeParticipantIds={activeParticipantIds} 
+                                        sessionId={sessionId} 
+                                        waitingStudentCount={waitingCount}
+                                        onSpotlightParticipant={onSpotlightParticipant} 
+                                        spotlightedParticipantId={spotlightedUser?.id || null}
+                                        whiteboardControllerId={whiteboardControllerId} 
+                                        onWhiteboardControllerChange={onWhiteboardControllerChange}
+                                    />
+                                )}
+                                
+                                <AnimatedCard title="Sondage de Compréhension">
+                                    <QuickPollResults students={students} understandingStatus={understandingStatus} />
+                                </AnimatedCard>
+                                
+                                <AnimatedCard title="Mains Levées">
+                                    <HandRaiseController raisedHandQueue={raisedHandQueue} onAcknowledgeNext={onAcknowledgeNextHand} /> 
+                                </AnimatedCard>
+                            </div>
+                        </ScrollArea>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
     );
 }
