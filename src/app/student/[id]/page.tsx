@@ -63,13 +63,13 @@ export default async function StudentProfilePage({ params }: { params: { id: str
         />
     );
 
-    // Si c'est un professeur qui regarde, on n'applique pas le thème de fond
-    // pour que la page s'intègre dans le layout du professeur.
+    // Si c'est un professeur qui regarde, on affiche seulement le contenu
+    // qui sera inséré dans le layout du professeur.
     if (isTeacherView) {
         return pageContent;
     }
     
-    // Si c'est l'élève qui regarde sa propre page, on applique son thème.
+    // Si c'est l'élève qui regarde sa propre page, on applique son thème et le layout complet.
     return (
       <CareerThemeWrapper career={metier ?? undefined}>
         <SidebarProvider>
