@@ -88,7 +88,7 @@ export default function SessionClient({
 
     if (currentUserRole === Role.PROFESSEUR) {
       // Le professeur initie la connexion vers tous les élèves en ligne
-      const studentIds = (initialStudents || []).map(s => s.id);
+      const studentIds = (classroom?.eleves || []).map(s => s.id); // ✅ Utiliser classroom.eleves
       const usersToConnect = onlineUserIds.filter(userId => 
         userId !== currentUserId && 
         studentIds.includes(userId) && 
@@ -108,9 +108,16 @@ export default function SessionClient({
     // ✅ L'élève ne fait RIEN ici : il attend un signal du professeur
     // La connexion sera créée automatiquement dans handleIncomingSignal
 
-  }, [onlineUserIds, currentUserId, isMediaReady, activeStream, createPeer, remoteStreams, cleanupPeerConnection, currentUserRole, initialStudents]);
+  }, [onlineUserIds, currentUserId, isMediaReady, activeStream, createPeer, remoteStreams, cleanupPeerConnection, currentUserRole, classroom?.eleves]);
 
-  const allSessionUsers = useMemo(() => [initialTeacher, ...(initialStudents || [])].filter(Boolean) as User[], [initialTeacher, initialStudents]);
+  // ✅ CORRECTION : Inclure TOUS les élèves de la classe, pas seulement initialStudents
+  const allSessionUsers = useMemo(() => {
+    const users = [initialTeacher];
+    if (classroom?.eleves) {
+      users.push(...classroom.eleves);
+    }
+    return users.filter(Boolean) as User[];
+  }, [initialTeacher, classroom?.eleves]);
   
   const spotlightedUser = useMemo(() => spotlightedParticipantId ? allSessionUsers.find(u => u.id === spotlightedParticipantId) : undefined, [allSessionUsers, spotlightedParticipantId]);
   const spotlightedStream = useMemo(() => {
