@@ -1,4 +1,4 @@
-// src/components/session/TeacherSessionView.tsx - VERSION COMPLÈTE CORRIGÉE
+// src/components/session/TeacherSessionView.tsx - VERSION COMPLÈTE ET CORRIGÉE
 'use client';
 
 import React, { useState, type ReactNode, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -97,6 +97,7 @@ const ParticipantCard = ({
     </div>
 );
 
+// ✅ CORRECTION : Toujours afficher un Participant pour le professeur
 const renderParticipant = (
     participant: SessionParticipant,
     {
@@ -116,9 +117,10 @@ const renderParticipant = (
 ): React.ReactElement | null => {
     if (!participant) return null;
 
+    const isSelf = participant.id === currentUserId;
     let stream: MediaStream | null = null;
 
-    if (participant.id === currentUserId) {
+    if (isSelf) {
         stream = isSharingScreen ? screenStream : localStream;
     } else {
         stream = remoteStreamsMap.get(participant.id) || null;
@@ -126,12 +128,13 @@ const renderParticipant = (
 
     const key = participant.id;
 
-    if (stream && stream.active) {
+    // ✅ CORRECTION : Toujours afficher un Participant pour le professeur (même sans caméra)
+    if (isSelf || (stream && stream.active)) {
         return (
             <Participant
                 key={key} 
                 stream={stream} 
-                isLocal={participant.id === currentUserId}
+                isLocal={isSelf}
                 isSpotlighted={participant.id === spotlightedUser?.id} 
                 isTeacher={participant.role === Role.PROFESSEUR}
                 participantUserId={participant.id} 
@@ -145,6 +148,7 @@ const renderParticipant = (
         );
     }
     
+    // ✅ Les élèves hors ligne → placeholder
     const studentData = allSessionUsers.find((u: SessionParticipant) => u.id === participant.id) as User | undefined;
     if (!studentData) return null;
 
@@ -157,6 +161,18 @@ const renderParticipant = (
             isHandRaised={raisedHandQueue.some((u: User) => u.id === participant.id)}
             compact={true}
         />
+    );
+};
+
+// ✅ CORRECTION : Wrapper pour encapsuler le Participant dans un Card
+const renderGridParticipant = (participant: SessionParticipant, props: any) => {
+    const content = renderParticipant(participant, props);
+    if (!content) return null;
+    
+    return (
+        <ParticipantCard key={participant.id}>
+            {content}
+        </ParticipantCard>
     );
 };
 
@@ -176,16 +192,17 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
     } = props;
     const teacher = useMemo(() => allSessionUsers.find(u => u.role === 'PROFESSEUR'), [allSessionUsers]);
 
-    // ✅ CORRECTION : Grille responsive dynamique
+    // ✅ CORRECTION : Déplacer la déclaration AVANT son utilisation
     const allGridParticipants = useMemo(() => {
         const participantMap = new Map<string, SessionParticipant>();
-        if (teacher) participantMap.set(teacher.id, teacher); // ✅ Maintenant teacher est déclaré
-        if (classroom?.eleves) classroom.eleves.forEach(student => { 
-            if (!participantMap.has(student.id)) participantMap.set(student.id, student as SessionParticipant); 
+        if (teacher) participantMap.set(teacher.id, teacher);
+        students.forEach(student => {
+            participantMap.set(student.id, student as SessionParticipant);
         });
         return Array.from(participantMap.values());
-    }, [teacher, classroom?.eleves]);
+    }, [teacher, students]);
 
+    // ✅ CORRECTION : Utiliser allGridParticipants après sa déclaration
     const gridClass = useResponsiveGrid(allGridParticipants.length);
 
     const validatedTimerTimeLeft = useMemo(() => {
@@ -234,18 +251,6 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
             toast({ variant: 'destructive', title: 'Erreur de partage' });
         }
     }, [sessionId, onSelectDocument, toast]);
-
-    // ✅ CORRECTION : Render participant avec conteneur contrôlé
-    const renderGridParticipant = (participant: SessionParticipant, props: any) => {
-        const content = renderParticipant(participant, props);
-        if (!content) return null;
-        
-        return (
-            <ParticipantCard key={participant.id}>
-                {content}
-            </ParticipantCard>
-        );
-    };
 
     const getSpotlightStream = useCallback(() => {
         if (!spotlightedUser) return null;

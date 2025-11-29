@@ -82,19 +82,33 @@ export default function SessionClient({
     return () => { isMountedRef.current = false; };
   }, []);
 
+  // ✅ CORRECTION : Stratégie WebRTC différenciée par rôle (One-to-Many)
   useEffect(() => {
     if (!isMediaReady || !activeStream || onlineUserIds.length === 0) return;
-    const usersToConnect = onlineUserIds.filter(userId => userId !== currentUserId && !remoteStreams.has(userId));
-    usersToConnect.forEach(userId => createPeer(userId, true, activeStream));
-    
-    // Nettoyage des pairs déconnectés
-    remoteStreams.forEach((_, userId) => {
-      if (!onlineUserIds.includes(userId)) {
-        cleanupPeerConnection(userId);
-      }
-    });
 
-  }, [onlineUserIds, currentUserId, isMediaReady, activeStream, createPeer, remoteStreams, cleanupPeerConnection]);
+    if (currentUserRole === Role.PROFESSEUR) {
+      // Le professeur initie la connexion vers tous les élèves en ligne
+      const studentIds = (initialStudents || []).map(s => s.id);
+      const usersToConnect = onlineUserIds.filter(userId => 
+        userId !== currentUserId && 
+        studentIds.includes(userId) && 
+        !remoteStreams.has(userId)
+      );
+      usersToConnect.forEach(userId => {
+        createPeer(userId, true, activeStream);
+      });
+
+      // Nettoyage des pairs déconnectés
+      remoteStreams.forEach((_, userId) => {
+        if (!onlineUserIds.includes(userId)) {
+          cleanupPeerConnection(userId);
+        }
+      });
+    }
+    // ✅ L'élève ne fait RIEN ici : il attend un signal du professeur
+    // La connexion sera créée automatiquement dans handleIncomingSignal
+
+  }, [onlineUserIds, currentUserId, isMediaReady, activeStream, createPeer, remoteStreams, cleanupPeerConnection, currentUserRole, initialStudents]);
 
   const allSessionUsers = useMemo(() => [initialTeacher, ...(initialStudents || [])].filter(Boolean) as User[], [initialTeacher, initialStudents]);
   
@@ -201,18 +215,49 @@ export default function SessionClient({
       <SessionHeader sessionId={sessionId} isTeacher={currentUserRole === Role.PROFESSEUR} onEndSession={handleEndSession} onLeaveSession={handleLeaveSession} isEndingSession={isEndingSession} isSharingScreen={isSharingScreen} onToggleScreenShare={toggleScreenShare} isMuted={isMuted} onToggleMute={toggleMute} isVideoOff={isVideoOff} onToggleVideo={toggleVideo} activeTool={activeTool} onToolChange={onToolChange} classroom={classroom} />
       <main className="flex-1 flex flex-col min-h-0 w-full pt-4">
         <PermissionPrompt />
-        {currentUserRole === Role.PROFESSEUR ? (
-          <TeacherSessionView
-            sessionId={sessionId} localStream={localStream} screenStream={screenStream} remoteParticipants={remoteParticipants} spotlightedUser={spotlightedUser} allSessionUsers={allSessionUsers}
-            onlineUserIds={onlineUserIds} onSpotlightParticipant={(id) => ablyTrigger(getSessionChannelName(sessionId), AblyEvents.PARTICIPANT_SPOTLIGHTED, { participantId: id })} 
-            raisedHandQueue={raisedHandUsers} onAcknowledgeNextHand={handleAcknowledgeNextHand} understandingStatus={understandingStatus} currentUserId={currentUserId} 
-            isSharingScreen={isSharingScreen} activeTool={activeTool} onToolChange={onToolChange} classroom={classroom} documentUrl={documentUrl} onSelectDocument={handleSelectDocument}
-            whiteboardControllerId={whiteboardControllerId} onWhiteboardControllerChange={handleWhiteboardControllerChange} initialDuration={3600} timerTimeLeft={timerTimeLeft} 
-            isTimerRunning={isTimerRunning} onStartTimer={() => broadcastTimerEvent(sessionId, 'timer-started')} onPauseTimer={() => broadcastTimerEvent(sessionId, 'timer-paused')} onResetTimer={(duration) => broadcastTimerEvent(sessionId, 'timer-reset', { duration })}
-            onWhiteboardEvent={sendOperation} whiteboardOperations={whiteboardOperations} flushWhiteboardOperations={flushOperations} documentHistory={documentHistory} onDocumentShared={handleOnUploadSuccess} 
-            activeQuiz={activeQuiz} quizResponses={quizResponses} quizResults={quizResults} onStartQuiz={handleOnStartQuiz} onEndQuiz={handleOnEndQuiz} onCloseResults={handleOnCloseQuizResults} students={initialStudents}
-          />
-        ) : (
+{currentUserRole === Role.PROFESSEUR ? (
+  <TeacherSessionView
+    sessionId={sessionId}
+    localStream={localStream}
+    screenStream={screenStream}
+    remoteParticipants={remoteParticipants}
+    spotlightedUser={spotlightedUser}
+    allSessionUsers={allSessionUsers}
+    onlineUserIds={onlineUserIds}
+    onSpotlightParticipant={(id) => ablyTrigger(getSessionChannelName(sessionId), AblyEvents.PARTICIPANT_SPOTLIGHTED, { participantId: id })}
+    raisedHandQueue={raisedHandUsers}
+    onAcknowledgeNextHand={handleAcknowledgeNextHand}
+    understandingStatus={understandingStatus}
+    currentUserId={currentUserId}
+    isSharingScreen={isSharingScreen}
+    activeTool={activeTool}
+    onToolChange={onToolChange}
+    classroom={classroom}
+    documentUrl={documentUrl}
+    onSelectDocument={handleSelectDocument}
+    whiteboardControllerId={whiteboardControllerId}
+    onWhiteboardControllerChange={handleWhiteboardControllerChange}
+    initialDuration={3600}
+    timerTimeLeft={timerTimeLeft}
+    isTimerRunning={isTimerRunning}
+    onStartTimer={() => broadcastTimerEvent(sessionId, 'timer-started')}
+    onPauseTimer={() => broadcastTimerEvent(sessionId, 'timer-paused')}
+    onResetTimer={(duration) => broadcastTimerEvent(sessionId, 'timer-reset', { duration })}
+    onWhiteboardEvent={sendOperation}
+    whiteboardOperations={whiteboardOperations}
+    flushWhiteboardOperations={flushOperations}
+    documentHistory={documentHistory}
+    onDocumentShared={handleOnUploadSuccess}
+    activeQuiz={activeQuiz}
+    quizResponses={quizResponses}
+    quizResults={quizResults}
+    onStartQuiz={handleOnStartQuiz}
+    onEndQuiz={handleOnEndQuiz}
+    onCloseResults={handleOnCloseQuizResults}
+    // ✅ CORRECTION : Passer TOUS les élèves de la classe, pas seulement les connectés
+    students={classroom?.eleves || []}
+  />
+) : (
           <StudentSessionView
             sessionId={sessionId} localStream={localStream} spotlightedStream={spotlightedStream} spotlightedUser={spotlightedUser} 
             isHandRaised={isHandRaised} onToggleHandRaise={() => handleToggleHandRaise(!isHandRaised)} onUnderstandingChange={handleUnderstandingChange}

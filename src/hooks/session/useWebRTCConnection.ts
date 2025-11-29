@@ -1,4 +1,4 @@
-// src/hooks/session/useWebRTCConnection.ts - VERSION COMPLÈTE CORRIGÉE
+// src/hooks/session/useWebRTCConnection.ts - VERSION COMPLÈTE CORRIGÉE POUR ONE-TO-MANY
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
@@ -430,10 +430,11 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
         let peer = peersRef.current.get(fromUserId);
         const existingState = peerStatesRef.current.get(fromUserId);
         
-        // ✅ CORRECTION CRITIQUE : Logique d'initiateur/répondeur corrigée
+        // ✅ CORRECTION ARCHITECTURE ONE-TO-MANY :
+        // Lorsqu'on reçoit un signal (souvent un 'offer'), on doit toujours être en mode répondeur.
+        // Cela respecte la topologie : Prof (initiateur) → Élève (répondeur).
         if (!peer || peer.destroyed) {
-            // Déterminer qui doit être l'initiateur basé sur l'ID utilisateur pour éviter les conflits
-            const shouldBeInitiator = currentUserId > fromUserId;
+            const shouldBeInitiator = false; // <-- SEULE MODIFICATION
             
             console.log(`🔄 [SIGNAL IN] - Création nouveau peer ${shouldBeInitiator ? 'initiateur' : 'répondeur'} pour ${fromUserId}`);
             peer = createPeer(fromUserId, shouldBeInitiator, localStream);
@@ -478,7 +479,7 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
                 
                 // ✅ CORRECTION : Recréer le peer avec le bon rôle d'initiateur
                 cleanupPeerConnection(fromUserId);
-                const shouldBeInitiator = currentUserId > fromUserId;
+                const shouldBeInitiator = false; // <-- SEULE MODIFICATION
                 const newPeer = createPeer(fromUserId, shouldBeInitiator, localStream);
                 if (newPeer) {
                     setTimeout(() => {
