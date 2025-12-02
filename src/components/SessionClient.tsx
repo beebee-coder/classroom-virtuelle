@@ -1,3 +1,4 @@
+
 // src/components/SessionClient.tsx
 'use client';
 
@@ -64,7 +65,7 @@ export default function SessionClient({
   }, [router, currentUserRole]);
 
   const {
-    onlineUserIds, spotlightedParticipantId, handRaiseQueue, understandingStatus,
+    onlineUserIds, spotlightedParticipantId, setSpotlightedParticipantId, handRaiseQueue, understandingStatus,
     whiteboardControllerId, isTimerRunning, timerTimeLeft, breakoutRoomInfo,
   } = useAblyCommunication({
     sessionId, currentUserId, initialTeacherId: initialTeacher.id,
@@ -91,7 +92,7 @@ export default function SessionClient({
             description: result.error || 'Impossible de changer le participant en vedette.'
         });
     }
-  }, [currentUserRole, sessionId, toast, spotlightedParticipantId]);
+  }, [currentUserRole, sessionId, toast, spotlightedParticipantId, setSpotlightedParticipantId]);
 
   const { sendOperation, flushOperations } = useAblyWhiteboardSync(
     sessionId, currentUserId, 
@@ -374,3 +375,5 @@ export default function SessionClient({
     </div>
   );
 }
+
+    

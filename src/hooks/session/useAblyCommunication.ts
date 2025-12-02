@@ -1,3 +1,4 @@
+
 // src/hooks/session/useAblyCommunication.ts - VERSION COMPLÈTE CORRIGÉE
 'use client';
 
@@ -299,6 +300,7 @@ export function useAblyCommunication({
   return { 
     onlineUserIds, 
     spotlightedParticipantId, 
+    setSpotlightedParticipantId,
     handRaiseQueue, 
     understandingStatus, 
     whiteboardControllerId, 
@@ -307,3 +309,5 @@ export function useAblyCommunication({
     breakoutRoomInfo 
   };
 }
+
+    
