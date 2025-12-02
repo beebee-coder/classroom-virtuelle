@@ -9,7 +9,7 @@ import { SessionClientProps, DocumentInHistory, WhiteboardOperation, Quiz, QuizR
 import SessionLoading from './SessionLoading';
 import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';
-import { endCoursSession, saveAndShareDocument } from '@/lib/actions/session.actions';
+import { endCoursSession, saveAndShareDocument, spotlightParticipant } from '@/lib/actions/session.actions';
 import { ablyTrigger } from '@/lib/ably/triggers';
 import { AblyEvents } from '@/lib/ably/events';
 import { getSessionChannelName } from '@/lib/ably/channels';
@@ -50,25 +50,48 @@ export default function SessionClient({
     handleUploadSuccess, handleStartQuiz, handleEndQuiz: useSessionStateEndQuiz, handleNewQuizResponse, handleCloseQuizResults: useSessionStateClose, handleQuizClosed,
   } = useSessionState({ initialDocumentHistory, initialActiveQuiz, sessionId });
 
-  const handleSignalReceived = useCallback((fromUserId: string, signal: any) => {
+  const handleSignalReceived = useCallback((fromUserId: string, signal: any, isReturnSignal?: boolean) => {
     if (!isMountedRef.current) return;
     try {
-      handleIncomingSignal(fromUserId, signal);
+      handleIncomingSignal(fromUserId, signal, isReturnSignal);
     } catch (error) {
       console.error('❌ [SIGNAL HANDLER] - Erreur lors du traitement du signal:', error);
     }
   }, [handleIncomingSignal]);
+  
+  const handleSessionEnded = useCallback(() => {
+    router.push(currentUserRole === Role.PROFESSEUR ? '/teacher/dashboard' : '/student/dashboard');
+  }, [router, currentUserRole]);
 
   const {
     onlineUserIds, spotlightedParticipantId, handRaiseQueue, understandingStatus,
     whiteboardControllerId, isTimerRunning, timerTimeLeft, breakoutRoomInfo,
   } = useAblyCommunication({
     sessionId, currentUserId, initialTeacherId: initialTeacher.id,
-    onSessionEnded: () => router.push(currentUserRole === Role.PROFESSEUR ? '/teacher/dashboard' : '/student/dashboard'),
+    onSessionEnded: handleSessionEnded,
     onSignalReceived: handleSignalReceived,
     setActiveTool, setDocumentUrl, setActiveQuiz: handleStartQuiz,
     onNewQuizResponse: handleNewQuizResponse, onQuizEnded: useSessionStateEndQuiz, onQuizClosed: handleQuizClosed,
   });
+
+  const handleSpotlight = useCallback(async (participantId: string) => {
+    if (currentUserRole !== Role.PROFESSEUR) return;
+
+    // Optimistic update
+    const previousSpotlightId = spotlightedParticipantId;
+    setSpotlightedParticipantId(participantId);
+
+    const result = await spotlightParticipant(sessionId, participantId);
+    
+    if (!result.success) {
+        setSpotlightedParticipantId(previousSpotlightId); // Rollback
+        toast({
+            variant: 'destructive',
+            title: 'Erreur de mise en vedette',
+            description: result.error || 'Impossible de changer le participant en vedette.'
+        });
+    }
+  }, [currentUserRole, sessionId, toast, spotlightedParticipantId]);
 
   const { sendOperation, flushOperations } = useAblyWhiteboardSync(
     sessionId, currentUserId, 
@@ -183,8 +206,7 @@ export default function SessionClient({
     if (currentUserRole !== Role.PROFESSEUR) return;
     const newControllerId = userId === whiteboardControllerId ? initialTeacher?.id || null : userId;
     try {
-      const response = await fetch(`/api/session/${sessionId}/whiteboard-controller`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ controllerId: newControllerId }) });
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        await ablyTrigger(getSessionChannelName(sessionId), AblyEvents.WHITEBOARD_CONTROLLER_UPDATE, { controllerId: newControllerId });
     } catch (error) {
       if (isMountedRef.current) toast({ variant: 'destructive', title: 'Erreur', description: 'Impossible de changer le contrôleur' });
     }
@@ -286,7 +308,7 @@ export default function SessionClient({
             spotlightedUser={spotlightedUser}
             allSessionUsers={allSessionUsers}
             onlineUserIds={onlineUserIds}
-            onSpotlightParticipant={(id) => ablyTrigger(getSessionChannelName(sessionId), AblyEvents.PARTICIPANT_SPOTLIGHTED, { participantId: id })}
+            onSpotlightParticipant={handleSpotlight}
             raisedHandQueue={raisedHandUsers}
             onAcknowledgeNextHand={handleAcknowledgeNextHand}
             understandingStatus={understandingStatus}

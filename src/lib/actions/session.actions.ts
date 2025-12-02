@@ -260,18 +260,35 @@ export async function endCoursSession(sessionId: string) {
     return { id: sessionId, success: true };
 }
 
-export async function spotlightParticipant(sessionId: string, participantId: string) {
+export async function spotlightParticipant(sessionId: string, participantId: string): Promise<{ success: boolean; error?: string }> {
     console.log(`🌟 [ACTION] - Mise en vedette de ${participantId} dans la session ${sessionId}`);
-    
-    const sessionExists = await prisma.coursSession.count({ where: { id: sessionId } });
-    if (!sessionExists) throw new Error('Session not found');
+    const session = await getServerSession(authOptions);
 
-    const channelName = getSessionChannelName(sessionId);
-    await ablyTrigger(channelName, AblyEvents.PARTICIPANT_SPOTLIGHTED, { participantId, sessionId, timestamp: new Date().toISOString() });
+    if (session?.user?.role !== Role.PROFESSEUR) {
+        return { success: false, error: 'Accès non autorisé' };
+    }
 
-    revalidatePath(`/session/${sessionId}`);
-    console.log('✅ [ACTION] - Événement de mise en vedette diffusé.');
-    return { success: true, participantId, sessionId };
+    const sessionExists = await prisma.coursSession.count({ where: { id: sessionId, professeurId: session.user.id } });
+    if (!sessionExists) {
+        return { success: false, error: 'Session non trouvée ou non possédée' };
+    }
+
+    try {
+        const channelName = getSessionChannelName(sessionId);
+        const success = await ablyTrigger(channelName, AblyEvents.PARTICIPANT_SPOTLIGHTED, { participantId, sessionId, timestamp: new Date().toISOString() });
+        
+        if (!success) {
+            throw new Error("La diffusion de l'événement Ably a échoué.");
+        }
+
+        revalidatePath(`/session/${sessionId}`);
+        console.log('✅ [ACTION] - Événement de mise en vedette diffusé.');
+        return { success: true };
+
+    } catch (error) {
+        console.error('❌ [ACTION] - Erreur lors de la diffusion de la mise en vedette:', error);
+        return { success: false, error: 'Erreur de diffusion' };
+    }
 }
 
 export async function shareDocumentToStudents(
