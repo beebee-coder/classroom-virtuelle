@@ -1,15 +1,18 @@
-import { PrismaClient } from '@prisma/client'
+// src/lib/prisma.ts
+import { PrismaClient } from '@prisma/client';
 
-const prismaClientSingleton = () => {
-  return new PrismaClient()
-}
-
+// Déclare un client Prisma global pour éviter de créer de nouvelles instances à chaque rechargement à chaud.
 declare global {
-  var prisma: undefined | ReturnType<typeof prismaClientSingleton>
+  // eslint-disable-next-line no-var
+  var prisma: PrismaClient | undefined;
 }
 
-const prisma = globalThis.prisma ?? prismaClientSingleton()
+const prisma = global.prisma || new PrismaClient({
+  log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
+});
 
-export default prisma
+if (process.env.NODE_ENV !== 'production') {
+  global.prisma = prisma;
+}
 
-if (process.env.NODE_ENV !== 'production') globalThis.prisma = prisma
+export default prisma;
