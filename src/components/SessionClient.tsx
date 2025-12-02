@@ -42,7 +42,23 @@ export default function SessionClient({
   const { localStream, screenStream, isSharingScreen, isMuted, isVideoOff, isMediaReady, isMediaLoading, toggleMute, toggleVideo, toggleScreenShare } = useMediaManagement();
   const activeStream = isSharingScreen ? screenStream : localStream;
   
-  const { remoteStreams, createPeer, handleIncomingSignal, cleanupPeerConnection } = useWebRTCConnection(sessionId, currentUserId, activeStream, isMountedRef.current);
+  // ✅ CORRECTION : Utilisation de `useCallback` pour stabiliser les références de fonctions
+  const onStreamConnected = useCallback((userId: string, stream: MediaStream) => {
+    console.log(`[SESSION CLIENT] Stream connected for ${userId}`);
+  }, []);
+  
+  const onStreamDisconnected = useCallback((userId: string) => {
+    console.log(`[SESSION CLIENT] Stream disconnected for ${userId}`);
+  }, []);
+
+  const { remoteStreams, createPeer, handleIncomingSignal, cleanupPeerConnection } = useWebRTCConnection(
+    sessionId, 
+    currentUserId, 
+    activeStream, 
+    isMountedRef.current,
+    onStreamConnected,
+    onStreamDisconnected
+  );
   
   const {
     activeTool, documentUrl, documentHistory, whiteboardOperations, activeQuiz, quizResponses, quizResults,
@@ -95,31 +111,36 @@ export default function SessionClient({
     return () => { isMountedRef.current = false; };
   }, []);
 
-  // Logique de connexion WebRTC
+  // ✅ CORRECTION MAJEURE: Logique de connexion WebRTC stabilisée
+  const establishedPeersRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     if (!isMediaReady || !activeStream || onlineUserIds.length === 0) return;
 
-    const allConnectableUsers = onlineUserIds.filter(id => id !== currentUserId);
-
-    // Le professeur se connecte à tout le monde
-    if (currentUserRole === Role.PROFESSEUR) {
-        allConnectableUsers.forEach(userId => {
-            createPeer(userId, true, activeStream);
-        });
-    }
-    // Les élèves se connectent uniquement au professeur
-    else if (currentUserRole === Role.ELEVE && onlineUserIds.includes(initialTeacher.id)) {
-        createPeer(initialTeacher.id, false, activeStream);
-    }
-
-    // Nettoyer les pairs pour les utilisateurs qui se sont déconnectés
-    remoteStreams.forEach((_, userId) => {
-        if (!allConnectableUsers.includes(userId)) {
-            cleanupPeerConnection(userId);
+    const allConnectableUsers = new Set(onlineUserIds.filter(id => id !== currentUserId));
+    
+    // Nouveaux utilisateurs à connecter
+    allConnectableUsers.forEach(userId => {
+        if (!establishedPeersRef.current.has(userId)) {
+            console.log(`[RTC Logic] - Nouvel utilisateur détecté: ${userId}. Tentative de connexion.`);
+            
+            const isInitiator = currentUserRole === Role.PROFESSEUR;
+            createPeer(userId, isInitiator, activeStream);
+            establishedPeersRef.current.add(userId);
         }
     });
 
-  }, [onlineUserIds, currentUserId, isMediaReady, activeStream, createPeer, remoteStreams, cleanupPeerConnection, currentUserRole, initialTeacher.id]);
+    // Utilisateurs déconnectés à nettoyer
+    establishedPeersRef.current.forEach(userId => {
+        if (!allConnectableUsers.has(userId)) {
+            console.log(`[RTC Logic] - Utilisateur parti: ${userId}. Nettoyage de la connexion.`);
+            cleanupPeerConnection(userId);
+            establishedPeersRef.current.delete(userId);
+        }
+    });
+
+  }, [onlineUserIds, currentUserId, isMediaReady, activeStream, createPeer, cleanupPeerConnection, currentUserRole, initialTeacher.id]);
+
 
   const allSessionUsers = useMemo(() => {
     const users = [initialTeacher, ...(classroom?.eleves || [])];
