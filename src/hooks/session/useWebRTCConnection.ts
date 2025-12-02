@@ -232,7 +232,7 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
                 config: { 
                     iceServers: WEBRTC_CONFIG.ICE_SERVERS,
                     iceCandidatePoolSize: 10,
-                    iceTransportPolicy: 'all'
+                    iceTransportPolicy: 'relay'
                 },
                 offerOptions: {
                     offerToReceiveAudio: true,

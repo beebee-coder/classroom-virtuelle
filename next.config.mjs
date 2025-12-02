@@ -1,12 +1,21 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    // Configuration pour autoriser les requêtes cross-origin en développement
-    // depuis l'environnement Cloud Workstation.
-    experimental: {
-        allowedDevOrigins: [
-            "https://*.cloudworkstations.dev",
-        ]
-    }
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+        port: '',
+        pathname: '/**',
+      },
+    ],
+  },
+  experimental: {
+    // Cela peut être nécessaire pour certains environnements de développement
+    // pour éviter les avertissements de cross-origin, mais nous allons
+    // le laisser commenté pour l'instant car le middleware gère le cas principal.
+    // allowedDevOrigins: [],
+  },
 };
 
 export default nextConfig;

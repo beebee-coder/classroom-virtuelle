@@ -75,12 +75,56 @@ export function useMediaManagement() {
     const localStreamRef = useRef<MediaStream | null>(null);
     const screenStreamRef = useRef<MediaStream | null>(null);
 
-    // Nettoyage des streams au démontage
     useEffect(() => {
+        isMountedRef.current = true;
+        
+        const timeoutId = setTimeout(() => {
+            if (isMountedRef.current && isMediaLoading) {
+                console.warn('⚠️ [MEDIA] Timeout déclenché après 5s, création d’un flux factice.');
+                const silentStream = createSilentStream();
+                localStreamRef.current = silentStream;
+                setLocalStream(silentStream);
+                setIsVideoOff(true);
+                setIsMuted(true);
+                setIsMediaReady(true);
+                setIsMediaLoading(false);
+            }
+        }, 5000); // ⏱️ Timeout de sécurité
+    
+        const getMedia = async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia(MEDIA_CONSTRAINTS);
+                if (isMountedRef.current) {
+                    clearTimeout(timeoutId); // ✅ Annuler le timeout si succès
+                    localStreamRef.current = stream;
+                    setLocalStream(stream);
+                    setIsMediaReady(true);
+                }
+            } catch (error) {
+                console.error("❌ [MEDIA] Erreur d'accès à la caméra/micro:", error);
+                if (isMountedRef.current) {
+                    clearTimeout(timeoutId); // ✅ Annuler le timeout si erreur
+                    const silentStream = createSilentStream();
+                    localStreamRef.current = silentStream;
+                    setLocalStream(silentStream);
+                    setIsVideoOff(true);
+                    setIsMuted(true);
+                    setIsMediaReady(true);
+                }
+            } finally {
+                if (isMountedRef.current) {
+                    setIsMediaLoading(false);
+                }
+            }
+        };
+    
+        getMedia();
+    
         return () => {
             isMountedRef.current = false;
+            clearTimeout(timeoutId);
             localStreamRef.current?.getTracks().forEach(track => track.stop());
-            screenStreamRef.current?.getTracks().forEach(track => track.stop());
+            screenStream?.getTracks().forEach(track => track.stop());
         };
     }, []);
 
