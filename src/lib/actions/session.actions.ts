@@ -262,18 +262,18 @@ export async function endCoursSession(sessionId: string) {
 
 export async function spotlightParticipant(sessionId: string, participantId: string): Promise<{ success: boolean; error?: string }> {
     console.log(`🌟 [ACTION] - Mise en vedette de ${participantId} dans la session ${sessionId}`);
-    const session = await getServerSession(authOptions);
-
-    if (session?.user?.role !== Role.PROFESSEUR) {
-        return { success: false, error: 'Accès non autorisé' };
-    }
-
-    const sessionExists = await prisma.coursSession.count({ where: { id: sessionId, professeurId: session.user.id } });
-    if (!sessionExists) {
-        return { success: false, error: 'Session non trouvée ou non possédée' };
-    }
-
     try {
+        const session = await getServerSession(authOptions);
+
+        if (session?.user?.role !== Role.PROFESSEUR) {
+            return { success: false, error: 'Accès non autorisé' };
+        }
+
+        const sessionExists = await prisma.coursSession.count({ where: { id: sessionId, professeurId: session.user.id } });
+        if (!sessionExists) {
+            return { success: false, error: 'Session non trouvée ou non possédée' };
+        }
+
         const channelName = getSessionChannelName(sessionId);
         const success = await ablyTrigger(channelName, AblyEvents.PARTICIPANT_SPOTLIGHTED, { participantId, sessionId, timestamp: new Date().toISOString() });
         
@@ -287,9 +287,12 @@ export async function spotlightParticipant(sessionId: string, participantId: str
 
     } catch (error) {
         console.error('❌ [ACTION] - Erreur lors de la diffusion de la mise en vedette:', error);
-        return { success: false, error: 'Erreur de diffusion' };
+        const errorMessage = error instanceof Error ? error.message : 'Erreur de diffusion interne.';
+        // Ne lancez pas d'erreur ici, retournez un objet d'erreur JSON sérialisable
+        return { success: false, error: errorMessage };
     }
 }
+
 
 export async function shareDocumentToStudents(
     sessionId: string,

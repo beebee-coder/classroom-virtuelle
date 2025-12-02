@@ -1,4 +1,3 @@
-
 // src/components/SessionClient.tsx
 'use client';
 
@@ -78,18 +77,18 @@ export default function SessionClient({
   const handleSpotlight = useCallback(async (participantId: string) => {
     if (currentUserRole !== Role.PROFESSEUR) return;
 
-    // Optimistic update
     const previousSpotlightId = spotlightedParticipantId;
     setSpotlightedParticipantId(participantId);
 
     const result = await spotlightParticipant(sessionId, participantId);
     
-    if (!result.success) {
+    // CORRECTION : Vérifier si `result` existe avant d'accéder à `result.success`
+    if (!result || !result.success) {
         setSpotlightedParticipantId(previousSpotlightId); // Rollback
         toast({
             variant: 'destructive',
             title: 'Erreur de mise en vedette',
-            description: result.error || 'Impossible de changer le participant en vedette.'
+            description: result?.error || 'Impossible de changer le participant en vedette.'
         });
     }
   }, [currentUserRole, sessionId, toast, spotlightedParticipantId, setSpotlightedParticipantId]);
@@ -375,5 +374,3 @@ export default function SessionClient({
     </div>
   );
 }
-
-    
