@@ -232,14 +232,29 @@ export function TeacherSessionView(props: TeacherSessionViewProps) {
       }
     }, [quizResults, activeQuiz, allSessionUsers]);
 
+    // ✅ CORRECTION : inclure TOUS les utilisateurs en ligne (même s'ils ne sont pas dans `students`)
     const allGridParticipants = useMemo(() => {
-        const participantMap = new Map<string, SessionParticipant>();
-        if (teacher) participantMap.set(teacher.id, teacher);
-        students.forEach(student => {
-            participantMap.set(student.id, student as SessionParticipant);
+      const participantMap = new Map<string, SessionParticipant>();
+      
+      // Professeur
+      if (teacher) participantMap.set(teacher.id, teacher);
+      
+      // Élèves de la classe
+      if (classroom?.eleves) {
+        classroom.eleves.forEach(student => {
+          participantMap.set(student.id, student as SessionParticipant);
         });
-        return Array.from(participantMap.values());
-    }, [teacher, students]);
+      }
+      
+      // ✅ Tous les utilisateurs en ligne (Ably) — sécurité pour les connexions tardives
+      allOnlineUserIds.forEach(userId => {
+        if (userId !== currentUserId && !participantMap.has(userId)) {
+          participantMap.set(userId, { id: userId, name: 'Élève', role: Role.ELEVE } as SessionParticipant);
+        }
+      });
+      
+      return Array.from(participantMap.values());
+    }, [teacher, classroom?.eleves, allOnlineUserIds, currentUserId]);
 
     const gridClass = useResponsiveGrid(allGridParticipants.length);
 

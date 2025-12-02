@@ -105,17 +105,19 @@ export default function SessionClient({
     }
   }, [onlineUserIds, currentUserId, isMediaReady, activeStream, createPeer, remoteStreams, cleanupPeerConnection, currentUserRole, classroom?.eleves]);
 
-  // 🔧 ✅ ÉLÈVE : se connecte AU PROFESSEUR (même sans caméra/micro) — CORRIGÉ
+  // 🔧 ✅ ÉLÈVE : se connecte AU PROFESSEUR (même sans caméra/micro) — CORRIGÉ + RÉACTIF
   useEffect(() => {
     if (currentUserRole !== Role.ELEVE || !initialTeacher.id) return;
 
     const teacherId = initialTeacher.id;
     if (teacherId && teacherId !== currentUserId) {
-      if (!remoteStreams.has(teacherId)) {
+      // ✅ Se reconnecter si le professeur apparaît en ligne
+      if (onlineUserIds.includes(teacherId) && !remoteStreams.has(teacherId)) {
         createPeer(teacherId, false, activeStream);
       }
     }
 
+    // Nettoyage si le professeur quitte
     if (remoteStreams.has(teacherId) && !onlineUserIds.includes(teacherId)) {
       cleanupPeerConnection(teacherId);
     }
