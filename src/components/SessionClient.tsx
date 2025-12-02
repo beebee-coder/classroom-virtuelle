@@ -50,15 +50,6 @@ export default function SessionClient({
     handleUploadSuccess, handleStartQuiz, handleEndQuiz: useSessionStateEndQuiz, handleNewQuizResponse, handleCloseQuizResults: useSessionStateClose, handleQuizClosed,
   } = useSessionState({ initialDocumentHistory, initialActiveQuiz, sessionId });
 
-  const handleSignalReceived = useCallback((fromUserId: string, signal: any, isReturnSignal?: boolean) => {
-    if (!isMountedRef.current) return;
-    try {
-      handleIncomingSignal(fromUserId, signal, isReturnSignal);
-    } catch (error) {
-      console.error('❌ [SIGNAL HANDLER] - Erreur lors du traitement du signal:', error);
-    }
-  }, [handleIncomingSignal]);
-  
   const handleSessionEnded = useCallback(() => {
     router.push(currentUserRole === Role.PROFESSEUR ? '/teacher/dashboard' : '/student/dashboard');
   }, [router, currentUserRole]);
@@ -69,7 +60,7 @@ export default function SessionClient({
   } = useAblyCommunication({
     sessionId, currentUserId, initialTeacherId: initialTeacher.id,
     onSessionEnded: handleSessionEnded,
-    onSignalReceived: handleSignalReceived,
+    onSignalReceived: handleIncomingSignal,
     setActiveTool, setDocumentUrl, setActiveQuiz: handleStartQuiz,
     onNewQuizResponse: handleNewQuizResponse, onQuizEnded: useSessionStateEndQuiz, onQuizClosed: handleQuizClosed,
   });
@@ -82,7 +73,6 @@ export default function SessionClient({
 
     const result = await spotlightParticipant(sessionId, participantId);
     
-    // CORRECTION : Vérifier si `result` existe avant d'accéder à `result.success`
     if (!result || !result.success) {
         setSpotlightedParticipantId(previousSpotlightId); // Rollback
         toast({
@@ -105,52 +95,34 @@ export default function SessionClient({
     return () => { isMountedRef.current = false; };
   }, []);
 
-  // 🔧 PROFESSEUR : se connecte à tous les élèves en ligne
+  // Logique de connexion WebRTC
   useEffect(() => {
     if (!isMediaReady || !activeStream || onlineUserIds.length === 0) return;
 
+    const allConnectableUsers = onlineUserIds.filter(id => id !== currentUserId);
+
+    // Le professeur se connecte à tout le monde
     if (currentUserRole === Role.PROFESSEUR) {
-      const studentIds = (classroom?.eleves || []).map(s => s.id);
-      const usersToConnect = onlineUserIds.filter(userId => 
-        userId !== currentUserId && 
-        studentIds.includes(userId) && 
-        !remoteStreams.has(userId)
-      );
-      usersToConnect.forEach(userId => {
-        createPeer(userId, true, activeStream);
-      });
+        allConnectableUsers.forEach(userId => {
+            createPeer(userId, true, activeStream);
+        });
+    }
+    // Les élèves se connectent uniquement au professeur
+    else if (currentUserRole === Role.ELEVE && onlineUserIds.includes(initialTeacher.id)) {
+        createPeer(initialTeacher.id, false, activeStream);
+    }
 
-      remoteStreams.forEach((_, userId) => {
-        if (!onlineUserIds.includes(userId)) {
-          cleanupPeerConnection(userId);
+    // Nettoyer les pairs pour les utilisateurs qui se sont déconnectés
+    remoteStreams.forEach((_, userId) => {
+        if (!allConnectableUsers.includes(userId)) {
+            cleanupPeerConnection(userId);
         }
-      });
-    }
-  }, [onlineUserIds, currentUserId, isMediaReady, activeStream, createPeer, remoteStreams, cleanupPeerConnection, currentUserRole, classroom?.eleves]);
+    });
 
-  // 🔧 ✅ ÉLÈVE : se connecte AU PROFESSEUR (même sans caméra/micro) — CORRIGÉ + RÉACTIF
-  useEffect(() => {
-    if (currentUserRole !== Role.ELEVE || !initialTeacher.id) return;
-
-    const teacherId = initialTeacher.id;
-    if (teacherId && teacherId !== currentUserId) {
-      // ✅ Se reconnecter si le professeur apparaît en ligne
-      if (onlineUserIds.includes(teacherId) && !remoteStreams.has(teacherId)) {
-        createPeer(teacherId, false, activeStream);
-      }
-    }
-
-    // Nettoyage si le professeur quitte
-    if (remoteStreams.has(teacherId) && !onlineUserIds.includes(teacherId)) {
-      cleanupPeerConnection(teacherId);
-    }
-  }, [onlineUserIds, currentUserId, currentUserRole, initialTeacher.id, createPeer, remoteStreams, cleanupPeerConnection, activeStream]);
+  }, [onlineUserIds, currentUserId, isMediaReady, activeStream, createPeer, remoteStreams, cleanupPeerConnection, currentUserRole, initialTeacher.id]);
 
   const allSessionUsers = useMemo(() => {
-    const users = [initialTeacher];
-    if (classroom?.eleves) {
-      users.push(...classroom.eleves);
-    }
+    const users = [initialTeacher, ...(classroom?.eleves || [])];
     return users.filter(Boolean) as User[];
   }, [initialTeacher, classroom?.eleves]);
   
