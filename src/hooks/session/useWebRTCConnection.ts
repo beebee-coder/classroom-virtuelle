@@ -64,7 +64,8 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
         
         const isPeerConnected = peer ? !peer.destroyed && (peer.connected === true) : false;
         
-        return peerState.isConnected && (!!isStreamActive || isPeerConnected);
+        // La connexion est établie s'il y a un flux actif OU si le peer est connecté (cas d'un spectateur)
+        return (peerState.isConnected && (!!isStreamActive || isPeerConnected));
     }, [remoteStreams]);
 
     // ✅ CORRECTION : Fonction de nettoyage améliorée
@@ -312,6 +313,8 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
                 
                 const currentPeerState = peerStatesRef.current.get(targetUserId);
                 if (currentPeerState) {
+                    // Si on est connecté mais qu'aucun stream n'a été reçu, on considère quand même la connexion comme réussie.
+                    // C'est le cas crucial pour les élèves sans caméra.
                     peerStatesRef.current.set(targetUserId, { 
                         ...currentPeerState,
                         isConnected: true,
@@ -323,22 +326,17 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
                 
                 pendingConnectionsRef.current.delete(targetUserId);
             });
-
-            // ✅ CORRECTION CRITIQUE : Gestion spécifique des InvalidStateError
+            
             peer.on('error', (err: Error) => {
                 console.error(`❌ [PEER ERROR] - Erreur avec ${targetUserId}:`, err);
                 
                 const errorState = peerStatesRef.current.get(targetUserId);
                 if (!errorState) return;
                 
-                // ✅ CORRECTION : Gestion spécifique pour InvalidStateError (erreur normale WebRTC)
                 if (err.name === 'InvalidStateError' || err.message.includes('wrong state: stable')) {
                     console.log(`🔄 [PEER RECOVERY] - Erreur d'état WebRTC normale, connexion déjà établie pour ${targetUserId}`);
-                    
-                    // Ne pas nettoyer si le stream est actif
-                    if (errorState.hasReceivedStream || errorState.isConnected) {
-                        console.log(`⏭️ [PEER RECOVERY] - Stream actif ou connexion établie détecté, maintien de la connexion pour ${targetUserId}`);
-                        return; // Ne pas détruire la connexion
+                    if (errorState.isConnected || errorState.hasReceivedStream) {
+                        return; // Ne rien faire si déjà connecté
                     }
                 }
                 
@@ -363,18 +361,7 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
             
             peer.on('close', () => {
                 console.log(`🔒 [PEER CLOSE] - Connexion fermée avec ${targetUserId}`);
-                
-                const closeState = peerStatesRef.current.get(targetUserId);
-                if (closeState && !closeState.hasReceivedStream) {
-                    peerStatesRef.current.set(targetUserId, { 
-                        ...closeState,
-                        isConnected: false, 
-                        isConnecting: false,
-                        peerConnectionState: 'closed'
-                    });
-                }
-                
-                pendingConnectionsRef.current.delete(targetUserId);
+                cleanupPeerConnection(targetUserId); // Nettoyer complètement à la fermeture
             });
 
             const existingPeer = peersRef.current.get(targetUserId);
@@ -410,92 +397,33 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
             });
             return undefined;
         }
-    }, [sessionId, cleanupPeerConnection, isMounted, signalViaAbly, isConnectionReallyEstablished]);
-
-    // ✅ CORRECTION CRITIQUE : Gestion des signaux entrants avec logique d'initiateur corrigée
+    }, [isMounted, isConnectionReallyEstablished, signalViaAbly, cleanupPeerConnection]);
+    
     const handleIncomingSignal = useCallback((fromUserId: string, signal: PeerSignalData, isReturnSignal: boolean = false) => {
         if (!isMounted) {
             console.warn(`⚠️ [SIGNAL IN] - Composant non monté, signal ignoré de ${fromUserId}`);
             return;
         }
 
-        console.log(`📨 [SIGNAL IN] - Signal ${signal.type} reçu de ${fromUserId} (return: ${isReturnSignal})`);
-
-        // ✅ CORRECTION : Utiliser la vérification améliorée au lieu de isConnected brut
-        if (isConnectionReallyEstablished(fromUserId)) {
-            console.log(`⏭️ [SIGNAL IN] - Connexion RÉELLEMENT établie avec ${fromUserId}, signal ${signal.type} ignoré`);
-            return;
-        }
+        console.log(`📨 [SIGNAL IN] - Signal ${signal.type} reçu de ${fromUserId}`);
 
         let peer = peersRef.current.get(fromUserId);
         
-        // ✅ CORRECTION ARCHITECTURE ONE-TO-MANY :
-        // Lorsqu'on reçoit un signal (souvent un 'offer'), on doit toujours être en mode répondeur.
-        // Cela respecte la topologie : Prof (initiateur) → Élève (répondeur).
         if (!peer || peer.destroyed) {
             const shouldBeInitiator = false;
-            
             console.log(`🔄 [SIGNAL IN] - Création nouveau peer répondeur pour ${fromUserId}`);
             peer = createPeer(fromUserId, shouldBeInitiator, localStream);
-            
-            if (!peer) {
-                console.warn(`⚠️ [SIGNAL IN] - Impossible de créer le peer pour ${fromUserId}`);
-                return;
-            }
-            
-            // ✅ CORRECTION : Attendre que le peer soit prêt avant d'appliquer le signal
-            setTimeout(() => {
-                if (isMounted && peer && !peer.destroyed) {
-                    try {
-                        console.log(`🔄 [SIGNAL IN] - Application du signal au nouveau peer pour ${fromUserId}`);
-                        peer.signal(signal);
-                    } catch (error) {
-                        console.error(`❌ [SIGNAL IN] - Erreur lors de l'application du signal:`, error);
-                    }
-                }
-            }, 150);
-        } else {
-            // ✅ CORRECTION : Vérifier l'état du peer avant d'appliquer le signal
-            const peerState = peerStatesRef.current.get(fromUserId);
-            if (peerState?.hasReceivedStream && signal.type === 'answer') {
-                console.log(`⏭️ [SIGNAL IN] - Stream déjà reçu, signal answer ignoré pour ${fromUserId}`);
-                return;
-            }
-            
-            try {
-                console.log(`🔄 [SIGNAL IN] - Application du signal au peer existant pour ${fromUserId}`);
-                peer.signal(signal);
-            } catch (error) {
-                console.error(`❌ [SIGNAL IN] - Erreur avec peer existant pour ${fromUserId}:`, error);
-                
-                if (error instanceof Error) {
-                    // ✅ CORRECTION : Ne pas nettoyer si c'est une erreur d'état normale
-                    if (error.name === 'InvalidStateError' || error.message.includes('wrong state: stable')) {
-                        console.log(`🔄 [SIGNAL IN] - Erreur d'état normale, connexion déjà établie pour ${fromUserId}`);
-                        return;
-                    }
-                }
-                
-                // ✅ CORRECTION : Recréer le peer avec le bon rôle d'initiateur
-                cleanupPeerConnection(fromUserId);
-                const shouldBeInitiator = false;
-                const newPeer = createPeer(fromUserId, shouldBeInitiator, localStream);
-                if (newPeer) {
-                    setTimeout(() => {
-                        if (isMounted && newPeer && !newPeer.destroyed) {
-                            try {
-                                newPeer.signal(signal);
-                            } catch (retryError) {
-                                console.error(`❌ [SIGNAL IN] - Erreur lors de la réapplication du signal:`, retryError);
-                            }
-                        }
-                    }, 200);
-                }
-            }
+            if (!peer) return;
         }
-    }, [createPeer, localStream, isMounted, cleanupPeerConnection, isConnectionReallyEstablished]);
+        
+        try {
+            peer.signal(signal);
+        } catch (error) {
+            console.error(`❌ [SIGNAL IN] - Erreur application signal pour ${fromUserId}:`, error);
+        }
 
-    // ✅ CORRECTION DÉFINITIVE : Vérification périodique des streams - LOGIQUE AMÉLIORÉE
+    }, [createPeer, localStream, isMounted]);
+
     useEffect(() => {
         const interval = setInterval(() => {
             if (!isMounted) return;
@@ -505,17 +433,13 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
                 const peerState = peerStatesRef.current.get(userId);
                 if (peerState && now - peerState.lastStreamCheck > WEBRTC_CONFIG.STREAM_CHECK_INTERVAL) {
                     
-                    // 🔥 CORRECTION : Ne plus utiliser `track.enabled`
                     const isStreamActive = stream.active;
-                    const hasLiveVideoTracks = stream.getVideoTracks().some(track => track.readyState === 'live');
-                    const hasLiveAudioTracks = stream.getAudioTracks().some(track => track.readyState === 'live');
-                    const hasLiveTracks = hasLiveVideoTracks || hasLiveAudioTracks;
+                    const hasLiveTracks = stream.getTracks().some(track => track.readyState === 'live');
                     
                     if (!isStreamActive || !hasLiveTracks) {
                         console.warn(`⚠️ [STREAM CHECK] - Stream inactif détecté pour ${userId}, nettoyage...`);
                         cleanupPeerConnection(userId);
                     } else {
-                        // Mettre à jour le timestamp de vérification
                         peerStatesRef.current.set(userId, {
                             ...peerState,
                             lastStreamCheck: now
@@ -527,14 +451,11 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
 
         return () => clearInterval(interval);
     }, [remoteStreams, cleanupPeerConnection, isMounted]);
-
-    // ✅ CORRECTION : Nettoyage complet lors du démontage
+    
     useEffect(() => {
         return () => {
-            console.log(`🧹 [WEBRTC CLEANUP] - Nettoyage de toutes les connexions WebRTC`);
+            console.log(`🧹 [WEBRTC CLEANUP] - Nettoyage de toutes les connexions WebRTC au démontage du hook`);
             Array.from(peersRef.current.keys()).forEach(cleanupPeerConnection);
-            signalTimestampsRef.current.clear();
-            processedCandidatesRef.current.clear();
         };
     }, [cleanupPeerConnection]);
 
