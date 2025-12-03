@@ -2,7 +2,8 @@
 
 # Configuration et push d'un dépôt existant depuis la ligne de commande
 
-REMOTE_URL="https://github.com/beebee-coder/classroom-virtuelle.git"
+# CORRECTION : Utilisation de l'URL SSH pour l'authentification non-interactive
+REMOTE_URL="git@github.com:beebee-coder/classroom-virtuelle.git"
 BRANCH_NAME="main"
 
 echo "Configuration du remote Git..."
