@@ -16,14 +16,7 @@ const WEBRTC_CONFIG = {
     ]
 };
 
-export function useWebRTCConnection(
-    sessionId: string, 
-    currentUserId: string, 
-    localStream: MediaStream | null, 
-    isComponentMounted: boolean,
-    onStreamConnected: (userId: string, stream: MediaStream) => void,
-    onStreamDisconnected: (userId: string) => void
-) {
+export function useWebRTCConnection(sessionId: string, currentUserId: string, localStream: MediaStream | null, isComponentMounted: boolean, onStreamConnected: (userId: string, stream: MediaStream) => void, onStreamDisconnected: (userId: string) => void) {
     const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
     const peersRef = useRef<Map<string, PeerInstance>>(new Map());
     const signalQueueRef = useRef<Map<string, PeerSignalData[]>>(new Map());
@@ -42,12 +35,11 @@ export function useWebRTCConnection(
             if (newMap.has(userId)) {
                 newMap.get(userId)?.getTracks().forEach(track => track.stop());
                 newMap.delete(userId);
-                onStreamDisconnected(userId);
                 return newMap;
             }
             return prev;
         });
-    }, [onStreamDisconnected]);
+    }, []);
 
     // Création d'une nouvelle connexion pair-à-pair
     const createPeer = useCallback((targetUserId: string, initiator: boolean, stream: MediaStream | null) => {
@@ -84,7 +76,6 @@ export function useWebRTCConnection(
             if (!isComponentMounted) return;
             console.log(`📥 [WebRTC] Flux média reçu de ${targetUserId}`);
             setRemoteStreams(prev => new Map(prev).set(targetUserId, remoteStream));
-            onStreamConnected(targetUserId, remoteStream);
         });
 
         // Confirmation de la connexion
@@ -116,7 +107,7 @@ export function useWebRTCConnection(
 
         return peer;
 
-    }, [isComponentMounted, sessionId, currentUserId, cleanupPeerConnection, onStreamConnected]);
+    }, [isComponentMounted, sessionId, currentUserId, cleanupPeerConnection]);
 
     // Traitement des signaux entrants
     const handleIncomingSignal = useCallback((fromUserId: string, signal: PeerSignalData) => {
