@@ -20,45 +20,32 @@ const SCREEN_CONSTRAINTS: DisplayMediaStreamOptions = {
 };
 
 /**
- * Crée un flux audio/vidéo silencieux et factice.
- * @returns Une MediaStream contenant une piste vidéo noire et une piste audio silencieuse.
+ * Crée un flux audio/vidéo silencieux mais fonctionnel pour WebRTC.
+ * C'est essentiel pour les participants sans caméra/micro.
+ * @returns Une MediaStream avec une piste vidéo noire et une piste audio silencieuse.
  */
 const createSilentStream = (): MediaStream => {
     // Vidéo noire
     const canvas = document.createElement('canvas');
-    canvas.width = 640;
-    canvas.height = 480;
+    canvas.width = 1;
+    canvas.height = 1;
     const ctx = canvas.getContext('2d');
     if (ctx) {
         ctx.fillStyle = 'black';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, 1, 1);
     }
-    const videoStream = canvas.captureStream(30); // 30 FPS
+    const videoStream = canvas.captureStream(1); // 1 FPS, suffisant pour une piste noire
+    const videoTrack = videoStream.getVideoTracks()[0];
+    videoTrack.enabled = true; // Crucial : la piste doit être activée
 
     // Audio silencieux
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const dst = audioContext.createMediaStreamDestination();
-    oscillator.connect(dst);
-    oscillator.frequency.setValueAtTime(0, audioContext.currentTime); // Fréquence nulle = silence
-    oscillator.start();
-    
-    // Arrêter proprement l'oscillateur après un court délai pour éviter les fuites
-    setTimeout(() => {
-        try { oscillator.stop(); } catch (e) { /* ignore */ }
-    }, 100);
+    const destination = audioContext.createMediaStreamDestination();
+    const audioTrack = destination.stream.getAudioTracks()[0];
+    audioTrack.enabled = true; // Crucial : la piste doit être activée
 
-    const audioStream = dst.stream;
-
-    const combinedStream = new MediaStream([
-        ...videoStream.getTracks(),
-        ...audioStream.getTracks()
-    ]);
-
-    // Désactiver les pistes par défaut (l'utilisateur n'émet rien)
-    combinedStream.getVideoTracks().forEach(track => track.enabled = false);
-    combinedStream.getAudioTracks().forEach(track => track.enabled = false);
-
+    const combinedStream = new MediaStream([videoTrack, audioTrack]);
+    console.log("Blank stream created", combinedStream.getTracks());
     return combinedStream;
 };
 
