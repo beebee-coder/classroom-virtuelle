@@ -17,7 +17,15 @@ export default async function TeacherClassesPage() {
     redirect('/login');
   }
 
-  const user = session.user;
+  // ✅ CORRECTION: Récupérer l'objet utilisateur complet depuis la BDD
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+  });
+
+  if (!user) {
+    console.error("Erreur critique: Professeur non trouvé dans la base de données.");
+    redirect('/login');
+  }
 
   try {
     const classrooms = await prisma.classroom.findMany({
@@ -53,6 +61,7 @@ export default async function TeacherClassesPage() {
               </p>
             </div>
           </div>
+          {/* ✅ CORRECTION: Passer l'ID de l'utilisateur complet */}
           <AddClassForm teacherId={user.id} />
         </div>
 
