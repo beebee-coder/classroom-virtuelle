@@ -33,7 +33,7 @@ async function main() {
 
   await prisma.$transaction(async (tx) => {
     
-    // Nettoyage de la base
+    // Nettoyage complet de la base de données dans l'ordre des dépendances
     console.log('🧹 Nettoyage des anciennes données...');
     await tx.reaction.deleteMany();
     await tx.message.deleteMany();
@@ -48,8 +48,8 @@ async function main() {
     await tx.metier.deleteMany();
     console.log('✅ Données nettoyées.');
 
-    // Création du professeur
-    console.log('👨‍🏫 Création du professeur...');
+    // 1. Création du professeur principal
+    console.log('👨‍🏫 Création du professeur principal...');
     const hashedPassword = await bcrypt.hash(OWNER_PASSWORD, 12);
     const teacher = await tx.user.create({
       data: {
@@ -63,17 +63,13 @@ async function main() {
     });
     console.log(`✅ Professeur créé : ${teacher.name} (${teacher.email})`);
 
-    // Création des métiers
-    console.log('🛠️ Création des métiers...');
+    // 2. Création des métiers et des tâches
+    console.log('🛠️ Création des métiers et tâches...');
     await tx.metier.createMany({ data: METIERS_DATA });
-    console.log(`✅ ${METIERS_DATA.length} métiers créés.`);
-
-    // Création des tâches
-    console.log('📋 Création des tâches...');
     await tx.task.createMany({ data: TASKS_DATA });
-    console.log(`✅ ${TASKS_DATA.length} tâches créées.`);
+    console.log(`✅ ${METIERS_DATA.length} métiers et ${TASKS_DATA.length} tâches créés.`);
     
-    // Création des classes et élèves
+    // 3. Création des classes et des élèves
     console.log('🏫 Création des classes et des élèves...');
     const classesData = [
         { nom: '6ème A', elevesCount: 8 },
@@ -98,18 +94,18 @@ async function main() {
                 data: {
                     name: studentName,
                     email: faker.internet.email({ firstName: studentFirstName, lastName: studentLastName }).toLowerCase(),
-                    role: Role.ELEVE,
+                    role: Role.ELEVE, // Tous les utilisateurs créés ici sont des élèves
                     classeId: newClass.id,
-                    validationStatus: ValidationStatus.VALIDATED,
+                    validationStatus: ValidationStatus.VALIDATED, // Validés pour les tests
                     emailVerified: new Date(),
                     points: faker.number.int({ min: 50, max: 500 })
                 },
             });
 
+            // Création de l'état associé à l'élève
             await tx.etatEleve.create({
                 data: {
                     eleveId: student.id,
-                    // metierId peut être assigné aléatoirement ici si besoin
                 }
             });
         }
