@@ -18,11 +18,11 @@ const METIERS_DATA = [
 ];
 
 const TASKS_DATA = [
-  { title: 'Faire son lit', description: 'Un lit bien fait pour une journée bien commencée.', points: 5, type: TaskType.DAILY, category: TaskCategory.LIFE_SKILL, difficulty: TaskDifficulty.EASY, validationType: ValidationType.PARENT, requiresProof: false },
+  { title: 'Faire son lit', description: 'Un lit bien fait pour une journée bien commencée.', points: 5, type: TaskType.DAILY, category: TaskCategory.HOME, difficulty: TaskDifficulty.EASY, validationType: ValidationType.PARENT, requiresProof: false },
   { title: 'Lire pendant 15 minutes', description: 'Un chapitre de livre, une BD, un article...', points: 10, type: TaskType.DAILY, category: TaskCategory.LANGUAGE, difficulty: TaskDifficulty.EASY, validationType: ValidationType.PARENT, requiresProof: false },
   { title: 'Exercice de calcul mental', description: 'Faire 10 calculs rapides en ligne.', points: 10, type: TaskType.DAILY, category: TaskCategory.MATH, difficulty: TaskDifficulty.MEDIUM, validationType: ValidationType.AUTOMATIC, requiresProof: false },
-  { title: 'Aider à mettre la table', description: 'Participer aux tâches de la maison.', points: 5, type: TaskType.DAILY, category: TaskCategory.LIFE_SKILL, difficulty: TaskDifficulty.EASY, validationType: ValidationType.PARENT, requiresProof: false },
-  { title: 'Ranger sa chambre', description: 'Un espace propre pour des idées claires.', points: 25, type: TaskType.WEEKLY, category: TaskCategory.LIFE_SKILL, difficulty: TaskDifficulty.MEDIUM, validationType: ValidationType.PARENT, requiresProof: true },
+  { title: 'Aider à mettre la table', description: 'Participer aux tâches de la maison.', points: 5, type: TaskType.DAILY, category: TaskCategory.HOME, difficulty: TaskDifficulty.EASY, validationType: ValidationType.PARENT, requiresProof: false },
+  { title: 'Ranger sa chambre', description: 'Un espace propre pour des idées claires.', points: 25, type: TaskType.WEEKLY, category: TaskCategory.HOME, difficulty: TaskDifficulty.MEDIUM, validationType: ValidationType.PARENT, requiresProof: true },
   { title: 'Préparer une recette simple', description: 'Cuisiner un plat ou un dessert avec supervision.', points: 50, type: TaskType.WEEKLY, category: TaskCategory.ART, difficulty: TaskDifficulty.HARD, validationType: ValidationType.PARENT, requiresProof: true },
   { title: 'Faire un dessin sur un thème donné', description: 'Le professeur donnera un thème chaque semaine.', points: 30, type: TaskType.WEEKLY, category: TaskCategory.ART, difficulty: TaskDifficulty.MEDIUM, validationType: ValidationType.PROFESSOR, requiresProof: true },
   { title: 'Présenter un exposé', description: 'Faire un court exposé sur un sujet de son choix.', points: 100, type: TaskType.MONTHLY, category: TaskCategory.LANGUAGE, difficulty: TaskDifficulty.HARD, validationType: ValidationType.PROFESSOR, requiresProof: false },
