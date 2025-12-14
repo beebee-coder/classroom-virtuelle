@@ -1,8 +1,8 @@
-// src/app/api/ably/auth/route.ts - VERSION CORRIGÉE ET STABILISÉE
+// src/app/api/ably/auth/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
-import Ably from 'ably';
+import Ably from 'ably/promises';
 
 // Timeout global pour la fonction serverless
 export const maxDuration = 10;
@@ -34,24 +34,12 @@ export async function POST(request: NextRequest) {
         const tokenParams: Ably.Types.TokenParams = {
             clientId: clientId,
             capability: {
-                // Permissions granulaires et sécurisées
                 [`${process.env.ABLY_CHANNEL_PREFIX || 'classroom-connector'}:*`]: ["presence", "subscribe", "publish"],
             },
             ttl: 3600000, // 1 heure
         };
 
-        // ✅ CORRECTION : Utiliser explicitement une promesse pour éviter l'erreur "callback is not a function"
-        const tokenRequest = await new Promise<Ably.Types.TokenRequest>((resolve, reject) => {
-            ably.auth.createTokenRequest(tokenParams, (err, token) => {
-                if (err) {
-                    return reject(err);
-                }
-                if (!token) {
-                    return reject(new Error("Génération du token Ably a échoué sans erreur explicite."));
-                }
-                resolve(token);
-            });
-        });
+        const tokenRequest = await ably.auth.createTokenRequest(tokenParams);
         
         console.log(`✅ [ABLY AUTH] - Jeton créé avec succès pour ${clientId}.`);
 

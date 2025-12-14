@@ -1,12 +1,12 @@
-// src/hooks/useAbly.ts - VERSION CORRIGÉE POUR STABILITÉ AVANCÉE
+// src/hooks/useAbly.ts
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getAblyClient, getAblyClientUsage } from '@/lib/ably/client';
-import Ably, { type Types } from 'ably';
+import { Types } from 'ably/react';
 
 interface UseAblyReturn {
-  client: Ably.Realtime;
+  client: Types.Realtime;
   connectionState: Types.ConnectionState;
   isConnected: boolean;
   connectionError: Types.ErrorInfo | null;

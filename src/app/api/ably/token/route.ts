@@ -2,12 +2,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
-import Ably from 'ably';
+import Ably from 'ably/promises';
+import { Types } from 'ably';
 
 // Timeout config
 const AUTH_TIMEOUT_MS = 8000;
 
-// ✅ CORRECTION : Force le mode dynamique pour éviter le rendu statique
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
@@ -18,7 +18,6 @@ export async function GET(request: NextRequest) {
     );
 
     try {
-        // ✅ CORRECTION : Passage explicite des headers et cookies à getServerSession
         const session = await Promise.race([
             getServerSession(authOptions),
             timeoutPromise
@@ -58,29 +57,20 @@ export async function GET(request: NextRequest) {
 
         const ably = new Ably.Rest(ablyApiKey);
         
+        const tokenParams: Types.TokenParams = {
+            clientId: clientId,
+            capability: {
+                'classroom-connector:*': ['presence', 'subscribe', 'publish']
+            },
+            ttl: 3600000 // 1 hour
+        };
+        
         const tokenRequest = await Promise.race([
-            new Promise<Ably.Types.TokenRequest>((resolve, reject) => {
-                ably.auth.createTokenRequest(
-                    {
-                        clientId: clientId,
-                        capability: {
-                            'classroom-connector:*': ['presence', 'subscribe', 'publish']
-                        },
-                        ttl: 3600000 // 1 hour
-                    },
-                    (err, tokenRequest) => {
-                        if (err) {
-                            console.error('❌ [ABLY TOKEN] - Token creation error:', err);
-                            reject(err);
-                        } else {
-                            console.log(`✅ [ABLY TOKEN] - Token created for ${clientId.substring(0, 8)}...`);
-                            resolve(tokenRequest!);
-                        }
-                    }
-                );
-            }),
+            ably.auth.createTokenRequest(tokenParams),
             timeoutPromise
         ]);
+
+        console.log(`✅ [ABLY TOKEN] - Token created for ${clientId.substring(0, 8)}...`);
 
         return NextResponse.json(tokenRequest, {
             headers: { 

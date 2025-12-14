@@ -1,7 +1,5 @@
 // src/lib/ably/server.ts
-// ❌ SUPPRIMER 'use server' - Ce n'est pas une Server Action
-
-import Ably from 'ably';
+import Ably from 'ably/promises';
 
 declare global {
   // eslint-disable-next-line no-var
@@ -10,7 +8,6 @@ declare global {
 
 const ablyApiKey = process.env.ABLY_API_KEY;
 
-// ✅ CORRECTION : Fonction pure pour obtenir l'instance Ably
 export function initializeAblyServer(): Ably.Rest | null {
   if (typeof window !== 'undefined') {
     return null;
@@ -27,7 +24,6 @@ export function initializeAblyServer(): Ably.Rest | null {
   }
 
   try {
-    // ✅ CORRECTION : Retourner une nouvelle instance ou l'existante
     if (process.env.NODE_ENV === 'production' || !global.ablyServerInstance) {
       const clientOptions: Ably.Types.ClientOptions = {
         key: ablyApiKey,
@@ -56,7 +52,6 @@ export function initializeAblyServer(): Ably.Rest | null {
   }
 }
 
-// ✅ CORRECTION : Fonction helper pour les Server Actions
 export async function getAblyChannel(channelName: string) {
   const ablyServer = initializeAblyServer();
   if (!ablyServer) {

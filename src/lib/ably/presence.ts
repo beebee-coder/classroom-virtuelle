@@ -1,17 +1,10 @@
 // src/lib/ably/presence.ts
-import Ably from 'ably';
+'use server';
+
 import type { AblyPresenceMember } from './types';
 import { initializeAblyServer } from './server';
-import { Types } from 'ably';
+import Ably from 'ably/promises';
 
-/**
- * Retrieves the list of presence members for a given channel.
- * This function must be called from the server-side.
- * 
- * @param channelName The name of the channel to query.
- * @returns A promise that resolves to an array of presence members.
- * @throws Will throw an error if the Ably API call fails.
- */
 export async function getPresenceMembers(channelName: string): Promise<AblyPresenceMember[]> {
     console.log(`[ABLY PRESENCE] - Fetching members for channel: ${channelName}`);
     
@@ -27,7 +20,8 @@ export async function getPresenceMembers(channelName: string): Promise<AblyPrese
         }
         const channel = ablyServer.channels.get(channelName);
         
-        const presenceMembers = await channel.presence.get();
+        const presencePage = await channel.presence.get();
+        const presenceMembers = presencePage.items;
         
         if (!Array.isArray(presenceMembers)) {
             console.warn('[ABLY PRESENCE] - Presence.get() did not return an array:', presenceMembers);

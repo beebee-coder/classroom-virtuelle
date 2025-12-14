@@ -1,13 +1,13 @@
-// src/components/session/SessionInvitationListener.tsx - VERSION CORRIGÉE SANS BOUCLES
+// src/components/session/SessionInvitationListener.tsx
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { useAbly } from '@/hooks/useAbly';
+import { useNamedAbly } from '@/hooks/useNamedAbly';
 import { getUserChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
-import type { Types as AblyTypes } from 'ably';
+import { Types } from 'ably/react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Video, XCircle, Clock, X } from 'lucide-react';
@@ -33,19 +33,17 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
   const router = useRouter();
   const { toast } = useToast();
   
-  const { client: ablyClient, isConnected: ablyConnected } = useAbly('SessionInvitationListener');
+  const { client: ablyClient, isConnected: ablyConnected } = useNamedAbly('SessionInvitationListener');
   
-  // ✅ CORRECTION : Références stabilisées et simplifiées
   const processedInvitationsRef = useRef<Set<string>>(new Set());
   const mountedRef = useRef(true);
-  const channelRef = useRef<AblyTypes.RealtimeChannelCallbacks | null>(null);
+  const channelRef = useRef<Types.RealtimeChannelCallbacks | null>(null);
   const initializationStateRef = useRef({
     hasInitialized: false,
     hasCheckedPending: false,
     currentStudentId: ''
   });
 
-  // ✅ CORRECTION : Fonction handleInvitation stabilisée avec useCallback fixe
   const handleInvitation = useCallback((data: SessionInvitation) => {
     if (!mountedRef.current) return;
     
@@ -68,7 +66,6 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
     });
   }, [toast]);
 
-  // ✅ CORRECTION : Fonction checkPendingInvitations DÉPLACÉE dans l'effet pour éviter les dépendances circulaires
   const checkPendingInvitations = useCallback(async (currentStudentId: string) => {
     if (!currentStudentId || !mountedRef.current || initializationStateRef.current.hasCheckedPending) {
       return;
@@ -105,15 +102,13 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
       }
     } catch (error) {
       console.error('❌ [INVITE LISTENER] - Erreur vérification invitations:', error);
-      // Reset en cas d'erreur pour permettre une nouvelle tentative
       initializationStateRef.current.hasCheckedPending = false;
     }
-  }, [handleInvitation]); // ✅ CORRECTION : Dépendance unique
+  }, [handleInvitation]);
 
-  // ✅ CORRECTION : Effet UNIQUE avec gestion d'état centralisée
   useEffect(() => {
     mountedRef.current = true;
-    let channel: AblyTypes.RealtimeChannelCallbacks | null = null;
+    let channel: Types.RealtimeChannelCallbacks | null = null;
 
     const initializeListener = async () => {
       const currentStudentId = studentId;
@@ -121,7 +116,6 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
         return;
       }
 
-      // ✅ CORRECTION : Éviter les réinitialisations inutiles avec état centralisé
       if (initializationStateRef.current.hasInitialized && initializationStateRef.current.currentStudentId === currentStudentId) {
         console.log(`🔁 [INVITE LISTENER] - Déjà initialisé pour ${currentStudentId}`);
         return;
@@ -134,22 +128,19 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
         channel = ablyClient.channels.get(channelName);
         channelRef.current = channel;
         
-        // ✅ CORRECTION : Handler défini une seule fois avec référence stable
-        const invitationHandler = (message: AblyTypes.Message) => {
+        const invitationHandler = (message: Types.Message) => {
           if (mountedRef.current && message.name === AblyEvents.SESSION_INVITATION) {
             console.log(`📨 [INVITE LISTENER] - Invitation temps réel: ${message.data.sessionId}`);
             handleInvitation(message.data);
           }
         };
         
-        // ✅ CORRECTION : Attendre l'attachement du canal
         if (channel.state !== 'attached' && channel.state !== 'attaching') {
           await channel.attach();
         }
         
         channel.subscribe(AblyEvents.SESSION_INVITATION, invitationHandler);
         
-        // ✅ CORRECTION : Mise à jour de l'état centralisé
         initializationStateRef.current = {
           hasInitialized: true,
           hasCheckedPending: initializationStateRef.current.hasCheckedPending,
@@ -158,22 +149,18 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
         
         console.log(`✅ [INVITE LISTENER] - Abonnement réussi: ${channelName}`);
         
-        // ✅ CORRECTION : Vérifier les invitations UNE SEULE FOIS avec paramètre
         if (!initializationStateRef.current.hasCheckedPending) {
           await checkPendingInvitations(currentStudentId);
         }
         
       } catch (error) {
         console.error('❌ [INVITE LISTENER] - Erreur configuration Ably:', error);
-        // ✅ CORRECTION : Reset partiel en cas d'erreur
         initializationStateRef.current.hasInitialized = false;
       }
     };
 
-    // ✅ CORRECTION : Initialisation unique avec timeout pour éviter les conflits
     const timeoutId = setTimeout(initializeListener, 100);
     
-    // ✅ CORRECTION : Nettoyage complet
     return () => {
       mountedRef.current = false;
       clearTimeout(timeoutId);
@@ -188,10 +175,8 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
         channelRef.current = null;
       }
     };
-  // ✅ CORRECTION CRITIQUE : Dépendances MINIMALES et STABLES
   }, [studentId, ablyClient, ablyConnected, checkPendingInvitations, handleInvitation]);
 
-  // ✅ CORRECTION : Fonction d'acceptation avec gestion d'erreur améliorée
   const handleAcceptInvitation = useCallback(async (invitation: SessionInvitation) => {
     if (!mountedRef.current) return;
     
@@ -225,7 +210,6 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
         
         console.log(`🔄 [INVITE LISTENER] - Navigation vers session: ${invitation.sessionId}`);
         
-        // ✅ CORRECTION : Navigation simplifiée
         setTimeout(() => {
           if (mountedRef.current) {
             router.push(`/session/${invitation.sessionId}`);
@@ -245,7 +229,6 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
     }
   }, [toast, router, studentId]);
 
-  // ✅ CORRECTION : Fonction de refus avec dépendances correctes
   const handleDeclineInvitation = useCallback(async () => {
     if (!mountedRef.current || !sessionInvitation) return;
     
