@@ -1,0 +1,189 @@
+/* src/styles/student-card.css */
+
+@keyframes studentCardImageZoom {
+    from {
+      object-position: 0 50%;
+    }
+    to {
+      object-position: 100% 50%;
+    }
+}
+
+.student-card {
+    position: relative;
+    align-self: center;
+    justify-self: center;
+    overflow: hidden;
+    display: block;
+    width: 100%;
+    max-width: 250px;
+    height: 350px;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    transition: all 0.5s ease;
+}
+
+.student-card:hover {
+    box-shadow: 0 30px 100px rgba(0, 0, 0, 0.4);
+    transform: scale(1.08, 1.08);
+    cursor: pointer;
+}
+
+.student-card__image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 0;
+    overflow: hidden;
+    display: block;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.4));
+}
+
+.student-card__image img {
+    transform: scale(1.3, 1.3);
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.6;
+    transition: all 0.5s ease;
+    animation-name: studentCardImageZoom;
+    animation-duration: 30s;
+    animation-direction: alternate;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+}
+
+.student-card:hover .student-card__image img {
+    transform: scale(1, 1);
+    opacity: 0.4;
+}
+
+.student-card__header {
+    display: grid;
+    width: 100%;
+    height: 180px;
+    position: relative;
+    z-index: 1;
+}
+
+.student-card__profile {
+    align-self: center;
+    justify-self: center;
+    display: block;
+    overflow: hidden;
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+}
+
+.student-card__profile .avatar-image {
+    transform: scale(1.4, 1.4) translateZ(0);
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: grayscale(30%) contrast(90%) brightness(1.1);
+    transition: all 0.5s ease;
+    backface-visibility: hidden;
+}
+
+.student-card:hover .student-card__profile .avatar-image {
+    transform: scale(1, 1) translateZ(0);
+    filter: grayscale(0%) contrast(100%) brightness(1);
+}
+
+.student-card__body {
+    display: grid;
+    padding: 0 20px;
+    position: relative;
+    z-index: 1;
+}
+
+.student-card__name {
+    align-self: center;
+    justify-self: center;
+    margin-bottom: 2px;
+    color: white;
+    font-size: 1.375em; /* 22px */
+    font-weight: 300;
+    letter-spacing: 0.1rem;
+    text-align: center;
+    text-transform: uppercase;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    background: linear-gradient(white, #c1c1c1);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    transition: all 0.5s ease;
+}
+
+.student-card:hover .student-card__name {
+    background: linear-gradient(white, #e1e1e1);
+    -webkit-background-clip: text;
+}
+
+.student-card__job {
+    align-self: center;
+    justify-self: center;
+    display: inline-block;
+    font-size: 0.625em; /* 10px */
+    font-weight: 300;
+    text-align: center;
+    letter-spacing: 0.25rem;
+    color: rgba(200, 220, 255, 0.6);
+    transition: all 0.5s ease;
+    text-transform: uppercase;
+}
+
+.student-card:hover .student-card__job {
+    color: rgba(200, 220, 255, 1);
+}
+
+.student-card__bio {
+    position: relative;
+    transform: translateY(30%);
+    display: block;
+    margin: 18px 0 12px 0;
+    font-size: 0.875em; /* 14px */
+    font-weight: 400;
+    text-shadow: 0 0.5px 2px rgba(0, 0, 0, 0.4);
+    color: rgba(255, 255, 255, 0.75);
+    opacity: 0;
+    transition: all 0.5s ease;
+    text-align: center;
+}
+
+.student-card:hover .student-card__bio {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.student-card__footer {
+    position: relative;
+    transform: translateY(100%);
+    display: grid;
+    grid-template-columns: 1fr;
+    padding: 10px 20px;
+    opacity: 0;
+    transition: all 0.5s ease;
+    z-index: 1;
+}
+
+.student-card:hover .student-card__footer {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.card__date {
+  justify-self: flex-start;
+  font-size: 0.75rem; /* 12px */
+  font-weight: 300;
+  text-transform: uppercase;
+  text-shadow: 0 0.5px 1px rgba(0, 0, 0, 0.5);
+  color: rgba(250, 250, 250, 0.6);
+}
