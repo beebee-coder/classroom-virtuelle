@@ -31,10 +31,10 @@ const TASKS_DATA = [
 async function main() {
   console.log('🌱 Démarrage du script de seeding...');
 
+  // Étape 1: Nettoyage complet dans une transaction
+  console.log('🧹 Nettoyage des anciennes données...');
   await prisma.$transaction(async (tx) => {
-    
-    // Nettoyage complet de la base de données dans l'ordre des dépendances
-    console.log('🧹 Nettoyage des anciennes données...');
+    // Ordre de suppression pour respecter les contraintes de clés étrangères
     await tx.reaction.deleteMany();
     await tx.message.deleteMany();
     await tx.studentProgress.deleteMany();
@@ -47,72 +47,73 @@ async function main() {
     await tx.user.deleteMany({ where: { role: Role.PROFESSEUR } });
     await tx.task.deleteMany();
     await tx.metier.deleteMany();
-    console.log('✅ Données nettoyées.');
-
-    // 1. Création du professeur principal
-    console.log('👨‍🏫 Création du professeur principal...');
-    const hashedPassword = await bcrypt.hash(OWNER_PASSWORD, 12);
-    const teacher = await tx.user.create({
-      data: {
-        email: OWNER_EMAIL.toLowerCase(),
-        password: hashedPassword,
-        name: 'Professeur Principal',
-        role: Role.PROFESSEUR,
-        validationStatus: ValidationStatus.VALIDATED,
-        emailVerified: new Date(),
-      },
-    });
-    console.log(`✅ Professeur créé : ${teacher.name} (${teacher.email})`);
-
-    // 2. Création des métiers et des tâches
-    console.log('🛠️ Création des métiers et tâches...');
-    await tx.metier.createMany({ data: METIERS_DATA });
-    await tx.task.createMany({ data: TASKS_DATA });
-    console.log(`✅ ${METIERS_DATA.length} métiers et ${TASKS_DATA.length} tâches créés.`);
-    
-    // 3. Création des classes et des élèves
-    console.log('🏫 Création des classes et des élèves...');
-    const classesData = [
-        { nom: '6ème A', elevesCount: 8 },
-        { nom: '5ème B', elevesCount: 7 },
-    ];
-    
-    for (const classInfo of classesData) {
-        const newClass = await tx.classroom.create({
-            data: {
-                nom: classInfo.nom,
-                professeurId: teacher.id,
-            },
-        });
-        console.log(`  -> Classe créée: ${newClass.nom}`);
-
-        for (let i = 0; i < classInfo.elevesCount; i++) {
-            const studentFirstName = faker.person.firstName();
-            const studentLastName = faker.person.lastName();
-            const studentName = `${studentFirstName} ${studentLastName}`;
-            
-            const student = await tx.user.create({
-                data: {
-                    name: studentName,
-                    email: faker.internet.email({ firstName: studentFirstName, lastName: studentLastName }).toLowerCase(),
-                    role: Role.ELEVE, // Tous les utilisateurs créés ici sont des élèves
-                    classeId: newClass.id,
-                    validationStatus: ValidationStatus.VALIDATED, // Validés pour les tests
-                    emailVerified: new Date(),
-                    points: faker.number.int({ min: 50, max: 500 })
-                },
-            });
-
-            // Création de l'état associé à l'élève
-            await tx.etatEleve.create({
-                data: {
-                    eleveId: student.id,
-                }
-            });
-        }
-        console.log(`    -> ${classInfo.elevesCount} élèves ajoutés à ${newClass.nom}`);
-    }
   });
+  console.log('✅ Données nettoyées.');
+
+  // Étape 2: Création des données (hors transaction pour éviter les timeouts)
+  
+  // 2.1. Création du professeur principal
+  console.log('👨‍🏫 Création du professeur principal...');
+  const hashedPassword = await bcrypt.hash(OWNER_PASSWORD, 12);
+  const teacher = await prisma.user.create({
+    data: {
+      email: OWNER_EMAIL.toLowerCase(),
+      password: hashedPassword,
+      name: 'Professeur Principal',
+      role: Role.PROFESSEUR,
+      validationStatus: ValidationStatus.VALIDATED,
+      emailVerified: new Date(),
+    },
+  });
+  console.log(`✅ Professeur créé : ${teacher.name} (${teacher.email})`);
+
+  // 2.2. Création des métiers et des tâches
+  console.log('🛠️ Création des métiers et tâches...');
+  await prisma.metier.createMany({ data: METIERS_DATA });
+  await prisma.task.createMany({ data: TASKS_DATA });
+  console.log(`✅ ${METIERS_DATA.length} métiers et ${TASKS_DATA.length} tâches créés.`);
+  
+  // 2.3. Création des classes et des élèves
+  console.log('🏫 Création des classes et des élèves...');
+  const classesData = [
+      { nom: '6ème A', elevesCount: 8 },
+      { nom: '5ème B', elevesCount: 7 },
+  ];
+  
+  for (const classInfo of classesData) {
+      const newClass = await prisma.classroom.create({
+          data: {
+              nom: classInfo.nom,
+              professeurId: teacher.id,
+          },
+      });
+      console.log(`  -> Classe créée: ${newClass.nom}`);
+
+      for (let i = 0; i < classInfo.elevesCount; i++) {
+          const studentFirstName = faker.person.firstName();
+          const studentLastName = faker.person.lastName();
+          const studentName = `${studentFirstName} ${studentLastName}`;
+          
+          const student = await prisma.user.create({
+              data: {
+                  name: studentName,
+                  email: faker.internet.email({ firstName: studentFirstName, lastName: studentLastName }).toLowerCase(),
+                  role: Role.ELEVE,
+                  classeId: newClass.id,
+                  validationStatus: ValidationStatus.VALIDATED,
+                  emailVerified: new Date(),
+                  points: faker.number.int({ min: 50, max: 500 })
+              },
+          });
+
+          await prisma.etatEleve.create({
+              data: {
+                  eleveId: student.id,
+              }
+          });
+      }
+      console.log(`    -> ${classInfo.elevesCount} élèves ajoutés à ${newClass.nom}`);
+  }
 
   console.log('✅ Seeding terminé avec succès !');
 }
