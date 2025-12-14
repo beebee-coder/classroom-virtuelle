@@ -19,7 +19,7 @@ import type { Message, Reaction, User, Role } from '@prisma/client';
 import { useNamedAbly } from '@/hooks/useNamedAbly';
 import { getClassChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
-import type { Types } from 'ably/react';
+import type { Types } from 'ably';
 
 const EMOJIS = ['👍', '❤️', '😂', '😯', '😢', '🤔'];
 
