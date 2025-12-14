@@ -1,4 +1,4 @@
-// src/hooks/useAblyPresence.ts - VERSION CORRIGÉE
+// src/hooks/useAblyPresence.ts
 'use client';
 
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
@@ -9,10 +9,11 @@ import Ably from 'ably';
 import { Role } from '@prisma/client';
 import { useAblyHealth } from './useAblyHealth';
 
-type AblyChannel = Ably.Types.RealtimeChannelCallbacks;
-type AblyChannelStateChange = Ably.Types.ChannelStateChange;
-type AblyPresenceMessage = Ably.Types.PresenceMessage;
-type AblyErrorInfo = Ably.Types.ErrorInfo;
+// ✅ CORRECTION : utiliser les types à la racine d'Ably
+type AblyChannel = Ably.RealtimeChannel;
+type AblyChannelStateChange = Ably.ChannelStateChange;
+type AblyPresenceMessage = Ably.PresenceMessage;
+type AblyErrorInfo = Ably.ErrorInfo;
 
 interface UseAblyPresenceReturn {
   onlineMembers: AblyPresenceMember[];
@@ -274,62 +275,44 @@ export const useAblyPresence = (
             
             setTimeout(updateOnlineMembers, 100);
           };
-
-          const initializePresenceData = (targetChannel: AblyChannel, targetChannelInfo: { 
+          const initializePresenceData = async (targetChannel: AblyChannel, targetChannelInfo: { 
             refCount: number; 
             channel: AblyChannel;
             members: Map<string, AblyPresenceMember>;
             listeners: Set<string>;
             lastPresenceUpdate: number;
           }) => {
-            if (!targetChannelInfo) {
-              console.error('❌ [PRESENCE HOOK] - targetChannelInfo est undefined');
+            if (!targetChannelInfo || !mountedRef.current) {
               return;
             }
-
+          
             try {
-              targetChannel.presence.get((err, members) => {
-                if (!mountedRef.current) return;
-                if (err) {
-                  console.error('❌ [PRESENCE HOOK] - Erreur récupération de la présence:', err);
-                  return;
-                }
-                
-                if (members && Array.isArray(members)) {
-                  console.log(`🔍 [PRESENCE HOOK] - Récupération de ${members.length} membres présents`);
-                  targetChannelInfo.members.clear();
-                  members.forEach((member: AblyPresenceMessage) => {
-                    const presenceMember = extractPresenceData(member);
-                    if (presenceMember) {
-                      targetChannelInfo.members.set(member.clientId!, presenceMember);
-                    }
-                  });
-                  updateOnlineMembers();
-                } else {
-                  targetChannelInfo.members.clear();
-                  updateOnlineMembers();
+              const members = await targetChannel.presence.get();
+              
+              if (!mountedRef.current) return;
+          
+              console.log(`🔍 [PRESENCE HOOK] - Récupération de ${members.length} membres présents`);
+              targetChannelInfo.members.clear();
+              
+              members.forEach((member: AblyPresenceMessage) => {
+                const presenceMember = extractPresenceData(member);
+                if (presenceMember && member.clientId) {
+                  targetChannelInfo.members.set(member.clientId, presenceMember);
                 }
               });
+              
+              updateOnlineMembers();
+              
             } catch (err) {
               if (mountedRef.current) {
                 console.error('❌ [PRESENCE HOOK] - Erreur getPresence:', err);
               }
             }
           };
-
-          channel.on(stateHandler);
-          channel.presence.subscribe(onPresenceUpdate);
-
-          if (channel.state !== 'attached' && channel.state !== 'attaching') {
-            await channel.attach();
-          }
-        } else {
-          console.log(`🔁 [PRESENCE HOOK] - Réutilisation canal global: ${channelName}`);
-          channelRef.current = channelInfo.channel;
           
+          // Appel initial de récupération de la présence
           if (channelInfo.channel.state === 'attached') {
-            setIsConnected(true);
-            setTimeout(updateOnlineMembers, 200);
+            initializePresenceData(channel, channelInfo);
           }
         }
 

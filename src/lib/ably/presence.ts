@@ -3,7 +3,8 @@
 
 import type { AblyPresenceMember } from './types';
 import { initializeAblyServer } from './server';
-import Ably from 'ably/promises';
+// ✅ CORRECTION : Importer les types Ably pour le typage
+import type * as Ably from 'ably';
 
 export async function getPresenceMembers(channelName: string): Promise<AblyPresenceMember[]> {
     console.log(`[ABLY PRESENCE] - Fetching members for channel: ${channelName}`);
@@ -28,7 +29,8 @@ export async function getPresenceMembers(channelName: string): Promise<AblyPrese
             return [];
         }
 
-        const members = presenceMembers.map((member: Ably.Types.PresenceMessage) => {
+        // ✅ CORRECTION : typer avec Ably.PresenceMessage
+        const members = presenceMembers.map((member: Ably.PresenceMessage) => {
             const memberData = member.data as any;
             
             return {
@@ -37,7 +39,7 @@ export async function getPresenceMembers(channelName: string): Promise<AblyPrese
                 role: memberData?.role || 'UNKNOWN',
                 image: memberData?.image || null,
                 ...(memberData?.timestamp && { timestamp: memberData.timestamp })
-            } as AblyPresenceMember;
+            } satisfies AblyPresenceMember;
         });
 
         console.log(`[ABLY PRESENCE] - Found ${members.length} members on ${channelName}.`);

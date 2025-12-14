@@ -1,12 +1,12 @@
-// src/hooks/useAblyWhiteboardSync.ts - VERSION CORRIGÉE
+// src/hooks/useAblyWhiteboardSync.ts
 'use client';
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import type { WhiteboardOperation } from '@/types';
-import { useNamedAbly } from './useNamedAbly'; // ✅ CORRECTION: Utilisation du hook nommé
+import { useNamedAbly } from './useNamedAbly';
 import { getSessionChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
-import Ably from 'ably';
+import type * as Ably from 'ably'; // ✅ Importer les types
 
 // Configuration optimisée pour Ably
 const BATCH_DELAY_MS = 100;
@@ -19,7 +19,6 @@ export const useAblyWhiteboardSync = (
     userId: string,
     onIncomingOperations: (operations: WhiteboardOperation[]) => void
 ) => {
-    // ✅ CORRECTION: Utilisation du hook nommé
     const { client, isConnected, connectionState } = useNamedAbly('useAblyWhiteboardSync');
     const isLoading = connectionState === 'initialized' || connectionState === 'connecting';
     
@@ -31,11 +30,11 @@ export const useAblyWhiteboardSync = (
     const pendingOperations = useRef<WhiteboardOperation[]>([]);
     const batchTimeout = useRef<NodeJS.Timeout | null>(null);
     const processedOperationIds = useRef<Set<string>>(new Set());
-    const channelRef = useRef<Ably.Types.RealtimeChannelCallbacks | null>(null);
-    const batchOperationsListenerRef = useRef<((message: Ably.Types.Message) => void) | null>(null);
-    const channelStateListenerRef = useRef<((stateChange: Ably.Types.ChannelStateChange) => void) | null>(null);
+    // ✅ CORRECTION : utiliser Ably.RealtimeChannel
+    const channelRef = useRef<Ably.RealtimeChannel | null>(null);
+    const batchOperationsListenerRef = useRef<((message: Ably.Message) => void) | null>(null);
+    const channelStateListenerRef = useRef<((stateChange: Ably.ChannelStateChange) => void) | null>(null);
     
-    // CORRECTION : Système de rate limiting
     const rateLimitTracker = useRef<number[]>([]);
     const isRateLimited = useRef(false);
     
@@ -45,7 +44,6 @@ export const useAblyWhiteboardSync = (
         onIncomingOperationsRef.current = onIncomingOperations;
     }, [onIncomingOperations]);
 
-    // CORRECTION : Fonction de vérification du rate limiting optimisée
     const checkRateLimit = useCallback(() => {
         const now = Date.now();
         rateLimitTracker.current = rateLimitTracker.current.filter(
@@ -64,7 +62,6 @@ export const useAblyWhiteboardSync = (
         return true;
     }, []);
 
-    // CORRECTION : flushBatch avec meilleure gestion des erreurs
     const flushBatch = useCallback(async () => {
         if (batchTimeout.current) {
             clearTimeout(batchTimeout.current);
@@ -76,7 +73,6 @@ export const useAblyWhiteboardSync = (
 
         if (opsToSend.length === 0) return;
         
-        // CORRECTION : Vérification rate limiting avant envoi
         if (!checkRateLimit()) {
             console.warn(`⏸️ [WHITEBOARD SYNC] - Rate limited, requeuing ${opsToSend.length} operations`);
             pendingOperations.current.unshift(...opsToSend);
@@ -95,7 +91,6 @@ export const useAblyWhiteboardSync = (
         try {
             const channel = channelRef.current;
             if (channel && (channel.state === 'attached' || channel.state === 'attaching')) {
-                // CORRECTION : Envoi par chunks pour éviter les messages trop gros
                 const batchChunks = [];
                 for (let i = 0; i < opsToSend.length; i += MAX_BATCH_SIZE) {
                     batchChunks.push(opsToSend.slice(i, i + MAX_BATCH_SIZE));
@@ -116,7 +111,6 @@ export const useAblyWhiteboardSync = (
                 return;
             }
 
-            // CORRECTION : Sync API en arrière-plan (non bloquant)
             fetch(`/api/session/${sessionId}/sync`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -141,7 +135,6 @@ export const useAblyWhiteboardSync = (
         }
     }, [sessionId, userId, checkRateLimit]);
 
-    // CORRECTION : Nettoyage complet
     useEffect(() => {
         isMounted.current = true;
         setIsInitialized(false);
@@ -175,7 +168,6 @@ export const useAblyWhiteboardSync = (
         };
     }, [sessionId]);
 
-    // CORRECTION : scheduleBatch optimisée
     const scheduleBatch = useCallback(() => {
         if (!isMounted.current) return;
         
@@ -204,8 +196,8 @@ export const useAblyWhiteboardSync = (
         }, BATCH_DELAY_MS);
     }, [flushBatch]);
 
-    // CORRECTION : attachChannel avec gestion d'erreur améliorée
-    const attachChannel = useCallback(async (channel: Ably.Types.RealtimeChannelCallbacks) => {
+    // ✅ CORRECTION : utiliser Ably.RealtimeChannel
+    const attachChannel = useCallback(async (channel: Ably.RealtimeChannel) => {
         try {
             await channel.attach();
             console.log(`✅ [WHITEBOARD SYNC] - Successfully attached to whiteboard channel: ${channel.name}`);
@@ -227,7 +219,6 @@ export const useAblyWhiteboardSync = (
         }
     }, []);
 
-    // CORRECTION : Logique d'initialisation principale - FIX CRITIQUE
     useEffect(() => {
         if (!sessionId || !userId || !client || isLoading || !isConnected) {
             if (isMounted.current) {
@@ -239,7 +230,6 @@ export const useAblyWhiteboardSync = (
         const channelName = getSessionChannelName(sessionId);
         console.log(`🔧 [WHITEBOARD SYNC] - Setting up for channel: ${channelName}, user: ${userId}`);
 
-        // CORRECTION : Logique de réinitialisation améliorée
         const currentChannel = channelRef.current;
         const shouldReinitialize = !currentChannel || 
                                  currentChannel.name !== channelName || 
@@ -253,7 +243,6 @@ export const useAblyWhiteboardSync = (
             return;
         }
 
-        // Nettoyer l'ancien canal si nécessaire
         if (currentChannel && currentChannel.name !== channelName) {
             console.log(`🔄 [WHITEBOARD SYNC] - Channel changed from ${currentChannel.name} to ${channelName}, reinitializing`);
             if (batchOperationsListenerRef.current) {
@@ -267,7 +256,8 @@ export const useAblyWhiteboardSync = (
         const channel = client.channels.get(channelName);
         channelRef.current = channel;
 
-        const handleBatchOperations = (message: Ably.Types.Message) => {
+        // ✅ CORRECTION : typer message avec Ably.Message
+        const handleBatchOperations = (message: Ably.Message) => {
             if (!isMounted.current) return;
             
             try {
@@ -277,7 +267,6 @@ export const useAblyWhiteboardSync = (
                     sessionId?: string;
                 };
                 
-                // CORRECTION : Validation améliorée des données
                 if (!data || !Array.isArray(data.operations)) {
                     console.warn('⚠️ [WHITEBOARD SYNC] - Invalid operation batch received');
                     return;
@@ -309,7 +298,8 @@ export const useAblyWhiteboardSync = (
             }
         };
 
-        const handleChannelState = (stateChange: Ably.Types.ChannelStateChange) => {
+        // ✅ CORRECTION : typer stateChange avec Ably.ChannelStateChange
+        const handleChannelState = (stateChange: Ably.ChannelStateChange) => {
             console.log(`🔧 [WHITEBOARD SYNC] - Channel state change: ${stateChange.previous} -> ${stateChange.current}`);
             
             if (stateChange.current === 'attached') {
@@ -332,7 +322,6 @@ export const useAblyWhiteboardSync = (
             }
         };
 
-        // CORRECTION : S'abonner aux événements
         channel.unsubscribe(AblyEvents.WHITEBOARD_OPERATION_BATCH);
         channel.subscribe(AblyEvents.WHITEBOARD_OPERATION_BATCH, handleBatchOperations);
         channel.on(handleChannelState);
@@ -340,7 +329,6 @@ export const useAblyWhiteboardSync = (
         batchOperationsListenerRef.current = handleBatchOperations;
         channelStateListenerRef.current = handleChannelState;
 
-        // Gérer l'état initial du canal
         if (channel.state === 'attached') {
             if (isMounted.current) {
                 setIsInitialized(true);
@@ -354,7 +342,6 @@ export const useAblyWhiteboardSync = (
         };
     }, [sessionId, userId, client, isLoading, isConnected, isInitialized, attachChannel]);
 
-    // CORRECTION : sendOperation avec validation
     const sendOperation = useCallback((operations: WhiteboardOperation | WhiteboardOperation[]) => {
         if (!sessionId || !isMounted.current || !isInitialized) {
             console.warn(`⚠️ [WHITEBOARD SYNC] - Cannot send operations, initialized: ${isInitialized}, session: ${sessionId}`);
@@ -363,14 +350,12 @@ export const useAblyWhiteboardSync = (
         
         const opsArray = Array.isArray(operations) ? operations : [operations];
         
-        // CORRECTION : Appliquer localement d'abord
         onIncomingOperationsRef.current(opsArray);
         
         opsArray.forEach(op => {
             processedOperationIds.current.add(op.id);
         });
         
-        // CORRECTION : Gestion du rate limiting
         if (isRateLimited.current && pendingOperations.current.length > 10) {
             console.warn(`⏸️ [WHITEBOARD SYNC] - Rate limited, dropping ${opsArray.length} operations`);
             return;

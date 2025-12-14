@@ -74,6 +74,7 @@ export const authOptions: NextAuthOptions = {
   ],
   session: { strategy: "jwt" },
   pages: { signIn: "/login", error: "/login" },
+  allowDangerousEmailAccountLinking: true,
   callbacks: {
     // ✅ Supprimez toute logique de blocage ici
     async signIn({ account }) {

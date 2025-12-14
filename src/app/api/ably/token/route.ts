@@ -1,8 +1,9 @@
-// app/api/ably/token/route.ts
+// src/app/api/ably/token/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
-import Ably from 'ably/promises';
+import Ably from 'ably';
+import type * as AblyTypes from 'ably';
 
 // Timeout config
 const AUTH_TIMEOUT_MS = 8000;
@@ -54,13 +55,14 @@ export async function GET(request: NextRequest) {
         const clientId = session.user.id;
         console.log(`🔑 [ABLY TOKEN] - Creating token for: ${clientId.substring(0, 8)}...`);
 
-        const ably = new Ably.Rest(ablyApiKey);
+        const ably = new Ably.Rest({ key: ablyApiKey }); // ✅ passer un objet options
         
-        const capability: Ably.Types.Capability = {
-            'classroom-connector:*': ['presence', 'subscribe', 'publish']
+        // ✅ CORRECTION : capability bien typé
+        const capability = {
+            'classroom-connector:*': ['presence', 'subscribe', 'publish'] as AblyTypes.capabilityOp[],
         };
 
-        const tokenParams: Ably.Types.TokenParams = {
+        const tokenParams: AblyTypes.TokenParams = {
             clientId: clientId,
             capability: capability,
             ttl: 3600000 // 1 hour

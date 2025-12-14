@@ -7,10 +7,11 @@ import { useToast } from '@/hooks/use-toast';
 import { useNamedAbly } from '@/hooks/useNamedAbly';
 import { getUserChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
-import type { Types } from 'ably/react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Video, XCircle, Clock, X } from 'lucide-react';
+// ✅ CORRECTION : importer les types Ably correctement
+import type * as Ably from 'ably';
 
 interface SessionInvitation {
   sessionId: string;
@@ -37,7 +38,8 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
   
   const processedInvitationsRef = useRef<Set<string>>(new Set());
   const mountedRef = useRef(true);
-  const channelRef = useRef<Types.RealtimeChannel | null>(null);
+  // ✅ CORRECTION : utiliser Ably.RealtimeChannel
+  const channelRef = useRef<Ably.RealtimeChannel | null>(null);
   const initializationStateRef = useRef({
     hasInitialized: false,
     hasCheckedPending: false,
@@ -108,7 +110,7 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
 
   useEffect(() => {
     mountedRef.current = true;
-    let channel: Types.RealtimeChannel | null = null;
+    let channel: Ably.RealtimeChannel | null = null;
 
     const initializeListener = async () => {
       const currentStudentId = studentId;
@@ -128,7 +130,8 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
         channel = ablyClient.channels.get(channelName);
         channelRef.current = channel;
         
-        const invitationHandler = (message: Types.Message) => {
+        // ✅ CORRECTION : typer avec Ably.Message
+        const invitationHandler = (message: Ably.Message) => {
           if (mountedRef.current && message.name === AblyEvents.SESSION_INVITATION) {
             console.log(`📨 [INVITE LISTENER] - Invitation temps réel: ${message.data.sessionId}`);
             handleInvitation(message.data);

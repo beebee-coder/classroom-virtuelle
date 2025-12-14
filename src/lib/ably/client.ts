@@ -1,9 +1,10 @@
 // src/lib/ably/client.ts
 'use client';
-import * as Ably from 'ably/react';
-import type { Types } from 'ably/react';
 
-let globalClient: Types.Realtime | null = null;
+import * as Ably from 'ably';
+import type * as AblyTypes from 'ably';
+
+let globalClient: AblyTypes.Realtime | null = null;
 let refCount = 0;
 let connectionHandlerAttached = false;
 
@@ -11,16 +12,17 @@ export const getAblyClientUsage = (): { refCount: number; clientState: string; h
   return {
     refCount,
     clientState: globalClient?.connection.state || 'no_client',
-    hasClient: !!globalClient
+    hasClient: !!globalClient,
   };
 };
 
 const cleanupFaultyClient = (): void => {
-  if (globalClient && (
-    globalClient.connection.state === 'failed' || 
-    globalClient.connection.state === 'closed' ||
-    globalClient.connection.state === 'suspended'
-  )) {
+  if (
+    globalClient &&
+    (globalClient.connection.state === 'failed' ||
+      globalClient.connection.state === 'closed' ||
+      globalClient.connection.state === 'suspended')
+  ) {
     console.log('🧹 [ABLY CLIENT] Nettoyage du client en état critique:', globalClient.connection.state);
     try {
       globalClient.close();
@@ -33,7 +35,7 @@ const cleanupFaultyClient = (): void => {
   }
 };
 
-export const getAblyClient = (): Types.Realtime => {
+export const getAblyClient = (): AblyTypes.Realtime => {
   cleanupFaultyClient();
 
   if (globalClient) {
@@ -59,8 +61,8 @@ export const getAblyClient = (): Types.Realtime => {
   };
 
   const authUrl = getAuthUrl();
-  
-  const clientOptions: Types.ClientOptions = {
+
+  const clientOptions: AblyTypes.ClientOptions = {
     authUrl: authUrl,
     authMethod: 'POST',
     disconnectedRetryTimeout: 10000,
@@ -71,13 +73,13 @@ export const getAblyClient = (): Types.Realtime => {
     closeOnUnload: false,
     transports: ['web_socket'],
     transportParams: {
-      requestTimeout: 30000
+      requestTimeout: 30000,
     },
     httpRequestTimeout: 30000,
     httpMaxRetryCount: 3,
     logLevel: process.env.NODE_ENV === 'development' ? 2 : 1,
     maxMessageSize: 65536,
-    fallbackHosts: ['a.ably-realtime.com', 'b.ably-realtime.com', 'c.ably-realtime.com']
+    fallbackHosts: ['a.ably-realtime.com', 'b.ably-realtime.com', 'c.ably-realtime.com'],
   };
 
   console.log('✅ [ABLY CLIENT] Creating new global Ably Realtime client instance optimized for Vercel.');
@@ -86,12 +88,12 @@ export const getAblyClient = (): Types.Realtime => {
   const ablyClient = new Ably.Realtime(clientOptions);
 
   if (!connectionHandlerAttached) {
-    const connectionHandler = (stateChange: Types.ConnectionStateChange) => {
+    const connectionHandler = (stateChange: AblyTypes.ConnectionStateChange) => {
       const previous = stateChange.previous;
       const current = stateChange.current;
-      
+
       console.log(`🔌 [ABLY CLIENT] Connection state: ${previous} -> ${current}`);
-      
+
       switch (current) {
         case 'connected':
           console.log(`🎯 [ABLY CLIENT] Client connected with real clientId: ${ablyClient.auth.clientId}`);
@@ -123,7 +125,7 @@ export const getAblyClient = (): Types.Realtime => {
         console.error(`❌ [ABLY CLIENT] Connection error:`, {
           code: stateChange.reason.code,
           statusCode: stateChange.reason.statusCode,
-          message: stateChange.reason.message
+          message: stateChange.reason.message,
         });
       }
     };
@@ -131,7 +133,7 @@ export const getAblyClient = (): Types.Realtime => {
     ablyClient.connection.on(connectionHandler);
     connectionHandlerAttached = true;
 
-    ablyClient.connection.on('failed', (stateChange: Types.ConnectionStateChange) => {
+    ablyClient.connection.on('failed', (stateChange: AblyTypes.ConnectionStateChange) => {
       if (stateChange.reason?.code === 40100) {
         console.error('❌ [ABLY CLIENT] Authentication failed - check auth endpoint');
       }
@@ -148,13 +150,13 @@ export const closeAblyClient = (): void => {
   if (refCount > 0) {
     refCount--;
   }
-  
+
   console.log(`📊 [ABLY CLIENT] Close requested (refCount: ${refCount})`);
-  
+
   if (refCount <= 0 && globalClient) {
     const currentState = globalClient.connection.state;
     console.log(`🚪 [ABLY CLIENT] Closing global Ably client instance (state: ${currentState})`);
-    
+
     try {
       if (currentState === 'connected' || currentState === 'connecting') {
         globalClient.close();
@@ -192,9 +194,9 @@ export const renewAblyAuth = async (): Promise<boolean> => {
   }
 };
 
-export const checkAblyHealth = (): { 
-  isHealthy: boolean; 
-  state: string; 
+export const checkAblyHealth = (): {
+  isHealthy: boolean;
+  state: string;
   clientId?: string;
   refCount: number;
   canBeReused: boolean;
@@ -202,7 +204,7 @@ export const checkAblyHealth = (): {
   if (!globalClient) {
     return { isHealthy: false, state: 'no_client', refCount, canBeReused: false };
   }
-  
+
   const state = globalClient.connection.state;
   const isHealthy = state === 'connected';
   const canBeReused = state === 'connected' || state === 'connecting' || state === 'initialized';
@@ -212,7 +214,7 @@ export const checkAblyHealth = (): {
     state,
     clientId: globalClient.auth.clientId || undefined,
     refCount,
-    canBeReused
+    canBeReused,
   };
 };
 
@@ -231,9 +233,10 @@ export const resetAblyClient = (): void => {
 };
 
 export const isAblyClientReady = (): boolean => {
-  return !!globalClient && 
-         (globalClient.connection.state === 'connected' || 
-          globalClient.connection.state === 'connecting');
+  return (
+    !!globalClient &&
+    (globalClient.connection.state === 'connected' || globalClient.connection.state === 'connecting')
+  );
 };
 
 export const forceResetAblyClient = (reason?: string): void => {
@@ -250,6 +253,6 @@ export const getAblyDetailedStats = () => {
     clientId: globalClient?.auth.clientId || 'none',
     connectionId: globalClient?.connection.id || 'none',
     connectionKey: globalClient?.connection.key || 'none',
-    connectionRecoveryKey: globalClient?.connection.recoveryKey || 'none'
+    // ✅ Correction : 'recoveryKey' supprimé (n'existe plus en Ably v2)
   };
 };

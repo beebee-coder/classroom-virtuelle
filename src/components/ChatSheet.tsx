@@ -19,7 +19,8 @@ import type { Message, Reaction, User, Role } from '@prisma/client';
 import { useNamedAbly } from '@/hooks/useNamedAbly';
 import { getClassChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
-import type { Types } from 'ably';
+// ✅ Ajout de l'import des types Ably
+import type * as Ably from 'ably';
 
 const EMOJIS = ['👍', '❤️', '😂', '😯', '😢', '🤔'];
 
@@ -44,8 +45,8 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   
-  const channelRef = useRef<Types.RealtimeChannel | null>(null);
-  const listenersRef = useRef<Map<string, (message: Types.Message) => void>>(new Map());
+  const channelRef = useRef<Ably.RealtimeChannel | null>(null);
+  const listenersRef = useRef<Map<string, (message: Ably.Message) => void>>(new Map());
   const isMountedRef = useRef(true);
 
   const { client: ablyClient, isConnected: ablyConnected, connectionState } = useNamedAbly('ChatSheet');
@@ -135,7 +136,8 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
       channelRef.current = channel;
       
       const createMessageHandler = () => {
-        const handler = (message: Types.Message) => {
+        // ✅ CORRECTION : Types.Message → Ably.Message
+        const handler = (message: Ably.Message) => {
           if (!isMountedRef.current) return;
           
           const data = message.data as MessageWithReactions;
@@ -152,7 +154,8 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
       };
 
       const createReactionHandler = () => {
-        const handler = (message: Types.Message) => {
+        // ✅ CORRECTION : Types.Message → Ably.Message
+        const handler = (message: Ably.Message) => {
           if (!isMountedRef.current) return;
           
           const data = message.data as { 
