@@ -40,6 +40,7 @@ async function main() {
     await tx.studentProgress.deleteMany();
     await tx.etatEleve.deleteMany();
     await tx.announcement.deleteMany();
+    await tx.sharedDocument.deleteMany();
     await tx.coursSession.deleteMany();
     await tx.classroom.deleteMany();
     await tx.user.deleteMany({ where: { role: Role.ELEVE } });
