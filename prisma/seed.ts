@@ -2,7 +2,6 @@
 
 import { PrismaClient, Role, ValidationStatus, TaskType, TaskCategory, TaskDifficulty, ValidationType } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import { faker } from '@faker-js/faker/locale/fr';
 
 const prisma = new PrismaClient();
 
@@ -73,49 +72,8 @@ async function main() {
   await prisma.task.createMany({ data: TASKS_DATA });
   console.log(`✅ ${METIERS_DATA.length} métiers et ${TASKS_DATA.length} tâches créés.`);
   
-  // 2.3. Création des classes et des élèves
-  console.log('🏫 Création des classes et des élèves...');
-  const classesData = [
-      { nom: '6ème A', elevesCount: 8 },
-      { nom: '5ème B', elevesCount: 7 },
-  ];
-  
-  for (const classInfo of classesData) {
-      const newClass = await prisma.classroom.create({
-          data: {
-              nom: classInfo.nom,
-              professeurId: teacher.id,
-          },
-      });
-      console.log(`  -> Classe créée: ${newClass.nom}`);
 
-      for (let i = 0; i < classInfo.elevesCount; i++) {
-          const studentFirstName = faker.person.firstName();
-          const studentLastName = faker.person.lastName();
-          const studentName = `${studentFirstName} ${studentLastName}`;
-          
-          const student = await prisma.user.create({
-              data: {
-                  name: studentName,
-                  email: faker.internet.email({ firstName: studentFirstName, lastName: studentLastName }).toLowerCase(),
-                  role: Role.ELEVE,
-                  classeId: newClass.id,
-                  validationStatus: ValidationStatus.VALIDATED,
-                  emailVerified: new Date(),
-                  points: faker.number.int({ min: 50, max: 500 })
-              },
-          });
-
-          await prisma.etatEleve.create({
-              data: {
-                  eleveId: student.id,
-              }
-          });
-      }
-      console.log(`    -> ${classInfo.elevesCount} élèves ajoutés à ${newClass.nom}`);
-  }
-
-  console.log('✅ Seeding terminé avec succès !');
+  console.log('✅ Seeding terminé avec succès ! Les classes et élèves peuvent être créés via l\'application.');
 }
 
 main()
