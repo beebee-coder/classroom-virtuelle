@@ -41,9 +41,9 @@ async function main() {
     await tx.etatEleve.deleteMany();
     await tx.announcement.deleteMany();
     await tx.coursSession.deleteMany();
+    await tx.classroom.deleteMany();
     await tx.user.deleteMany({ where: { role: Role.ELEVE } });
     await tx.user.deleteMany({ where: { role: Role.PROFESSEUR } });
-    await tx.classroom.deleteMany();
     await tx.task.deleteMany();
     await tx.metier.deleteMany();
     console.log('✅ Données nettoyées.');
