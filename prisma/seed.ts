@@ -1,359 +1,128 @@
+// prisma/seed.ts
 
-import { PrismaClient, Role, TaskType, TaskCategory, TaskDifficulty, ValidationType, ValidationStatus } from '@prisma/client';
-import * as dotenv from 'dotenv';
+import { PrismaClient, Role, ValidationStatus, TaskType, TaskCategory, TaskDifficulty, ValidationType } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-
-dotenv.config({ path: '.env.local' });
+import { faker } from '@faker-js/faker/locale/fr';
 
 const prisma = new PrismaClient();
 
+const OWNER_EMAIL = process.env.OWNER_EMAIL || 'teacher@example.com';
+const OWNER_PASSWORD = 'password123';
+
+const METIERS_DATA = [
+  { nom: 'Astronaute', description: 'Explore les étoiles et découvre de nouveaux mondes.', icon: 'Rocket', theme: JSON.stringify({ primaryColor: '240 5.9% 10%', accentColor: '210 40% 98%', backgroundColor: 'bg-gray-900', textColor: 'text-white' }) },
+  { nom: 'Détective', description: 'Résout des mystères et trouve des indices cachés.', icon: 'Search', theme: JSON.stringify({ primaryColor: '35 100% 50%', accentColor: '10 10% 30%', backgroundColor: 'bg-amber-900', textColor: 'text-white' }) },
+  { nom: 'Artiste', description: 'Crée des œuvres d\'art qui inspirent et émeuvent.', icon: 'Palette', theme: JSON.stringify({ primaryColor: '346 84% 61%', accentColor: '346 74% 41%', backgroundColor: 'bg-fuchsia-100', textColor: 'text-gray-800' }) },
+  { nom: 'Scientifique', description: 'Fait des expériences et repousse les limites de la connaissance.', icon: 'FlaskConical', theme: JSON.stringify({ primaryColor: '142 76% 36%', accentColor: '142 66% 26%', backgroundColor: 'bg-green-50', textColor: 'text-gray-900' }) },
+  { nom: 'Chef Cuisinier', description: 'Invente des recettes délicieuses et régale les papilles.', icon: 'ChefHat', theme: JSON.stringify({ primaryColor: '355 78% 50%', accentColor: '355 68% 40%', backgroundColor: 'bg-red-50', textColor: 'text-gray-900' }) },
+];
+
+const TASKS_DATA = [
+  { title: 'Faire son lit', description: 'Un lit bien fait pour une journée bien commencée.', points: 5, type: TaskType.DAILY, category: TaskCategory.LIFE_SKILL, difficulty: TaskDifficulty.EASY, validationType: ValidationType.PARENT, requiresProof: false },
+  { title: 'Lire pendant 15 minutes', description: 'Un chapitre de livre, une BD, un article...', points: 10, type: TaskType.DAILY, category: TaskCategory.LANGUAGE, difficulty: TaskDifficulty.EASY, validationType: ValidationType.PARENT, requiresProof: false },
+  { title: 'Exercice de calcul mental', description: 'Faire 10 calculs rapides en ligne.', points: 10, type: TaskType.DAILY, category: TaskCategory.MATH, difficulty: TaskDifficulty.MEDIUM, validationType: ValidationType.AUTOMATIC, requiresProof: false },
+  { title: 'Aider à mettre la table', description: 'Participer aux tâches de la maison.', points: 5, type: TaskType.DAILY, category: TaskCategory.LIFE_SKILL, difficulty: TaskDifficulty.EASY, validationType: ValidationType.PARENT, requiresProof: false },
+  { title: 'Ranger sa chambre', description: 'Un espace propre pour des idées claires.', points: 25, type: TaskType.WEEKLY, category: TaskCategory.LIFE_SKILL, difficulty: TaskDifficulty.MEDIUM, validationType: ValidationType.PARENT, requiresProof: true },
+  { title: 'Préparer une recette simple', description: 'Cuisiner un plat ou un dessert avec supervision.', points: 50, type: TaskType.WEEKLY, category: TaskCategory.ART, difficulty: TaskDifficulty.HARD, validationType: ValidationType.PARENT, requiresProof: true },
+  { title: 'Faire un dessin sur un thème donné', description: 'Le professeur donnera un thème chaque semaine.', points: 30, type: TaskType.WEEKLY, category: TaskCategory.ART, difficulty: TaskDifficulty.MEDIUM, validationType: ValidationType.PROFESSOR, requiresProof: true },
+  { title: 'Présenter un exposé', description: 'Faire un court exposé sur un sujet de son choix.', points: 100, type: TaskType.MONTHLY, category: TaskCategory.LANGUAGE, difficulty: TaskDifficulty.HARD, validationType: ValidationType.PROFESSOR, requiresProof: false },
+];
+
 async function main() {
-  console.log('🌱 Start seeding...');
+  console.log('🌱 Démarrage du script de seeding...');
 
-  // Nettoyer la base de données dans le bon ordre pour respecter les contraintes de clé étrangère
-  console.log('🧹 Cleaning database...');
-  
-  // D'abord supprimer les données qui ont des dépendances vers d'autres tables
-  await prisma.reaction.deleteMany();
-  await prisma.message.deleteMany();
-  await prisma.studentProgress.deleteMany();
-  await prisma.etatEleve.deleteMany();
-  await prisma.announcement.deleteMany();
-  await prisma.coursSession.deleteMany();
-  
-  // Ensuite supprimer les classes qui dépendent des utilisateurs (professeurs)
-  await prisma.classroom.deleteMany();
-  
-  // Maintenant on peut supprimer les utilisateurs
-  await prisma.user.deleteMany();
+  await prisma.$transaction(async (tx) => {
+    
+    // Nettoyage de la base
+    console.log('🧹 Nettoyage des anciennes données...');
+    await tx.reaction.deleteMany();
+    await tx.message.deleteMany();
+    await tx.studentProgress.deleteMany();
+    await tx.etatEleve.deleteMany();
+    await tx.announcement.deleteMany();
+    await tx.coursSession.deleteMany();
+    await tx.user.deleteMany({ where: { role: Role.ELEVE } });
+    await tx.user.deleteMany({ where: { role: Role.PROFESSEUR } });
+    await tx.classroom.deleteMany();
+    await tx.task.deleteMany();
+    await tx.metier.deleteMany();
+    console.log('✅ Données nettoyées.');
 
-  // Et enfin les tables sans dépendances sortantes majeures
-  await prisma.task.deleteMany();
-  await prisma.metier.deleteMany();
-
-  console.log('✅ Database cleaned successfully');
-
-  // Hacher le mot de passe commun
-  const hashedPassword = await bcrypt.hash('password', 10);
-  console.log('🔑 Mot de passe commun haché.');
-
-  // Créer le professeur d'abord
-  const teacher = await prisma.user.create({
-    data: {
-      email: 'teacher@example.com',
-      name: 'Professeur Test',
-      role: 'PROFESSEUR' as Role,
-      password: hashedPassword,
-      validationStatus: ValidationStatus.VALIDATED,
-      emailVerified: new Date(),
-    },
-  });
-  console.log(`👨‍🏫 Created teacher: ${teacher.name} (${teacher.email})`);
-
-  // Créer des classes
-  const classA = await prisma.classroom.create({
-    data: {
-      id: 'classe-6eme-a',
-      nom: 'Classe 6ème A',
-      professeurId: teacher.id,
-    },
-  });
-  console.log(`🏫 Created class: ${classA.nom}`);
-
-  const classB = await prisma.classroom.create({
-    data: {
-      id: 'classe-6eme-b',
-      nom: 'Classe 6ème B',
-      professeurId: teacher.id,
-    },
-  });
-  console.log(`🏫 Created class: ${classB.nom}`);
-
-  const classC = await prisma.classroom.create({
-    data: {
-      id: 'classe-5eme-a',
-      nom: 'Classe 5ème A',
-      professeurId: teacher.id,
-    },
-  });
-  console.log(`🏫 Created class: ${classC.nom}`);
-
-  // Créer des élèves
-  const students = [
-    // Classe A
-    { name: 'Ahmed', classeId: classA.id, ambition: 'Devenir Astronaute' },
-    { name: 'Hafedh', classeId: classA.id, ambition: 'Explorer les fonds marins' },
-    { name: 'Mohamed-Amin', classeId: classA.id, ambition: 'Créer des jeux vidéo' },
-    { name: 'Samar', classeId: classA.id, ambition: 'Devenir chef cuisinier' },
-    { name: 'Youssef', classeId: classA.id, ambition: 'Être un grand artiste' },
-    { name: 'Amina', classeId: classA.id, ambition: 'Protéger la nature' },
-    { name: 'Tarek', classeId: classA.id, ambition: 'Construire des robots' },
-    { name: 'Leila', classeId: classA.id, ambition: 'Soigner les animaux' },
-    { name: 'Ibrahim', classeId: classA.id, ambition: 'Devenir pompier' },
-    { name: 'Nora', classeId: classA.id, ambition: 'Voyager dans le temps' },
-    // Classe B
-    { name: 'Ali', classeId: classB.id, ambition: 'Piloter des avions' },
-    { name: 'Sofia', classeId: classB.id, ambition: 'Écrire des histoires' },
-    { name: 'Mehdi', classeId: classB.id, ambition: 'Devenir un champion de sport' },
-    { name: 'Yasmina', classeId: classB.id, ambition: 'Inventer de nouvelles choses' },
-    { name: 'Karim', classeId: classB.id, ambition: 'Être détective' },
-    { name: 'Sara', classeId: classB.id, ambition: 'Guérir les maladies' },
-    { name: 'Hassan', classeId: classB.id, ambition: 'Explorer des grottes' },
-    { name: 'Ines', classeId: classB.id, ambition: 'Parler toutes les langues' },
-    { name: 'Rachid', classeId: classB.id, ambition: 'Construire des ponts' },
-    { name: 'Samira', classeId: classB.id, ambition: 'Chanter sur scène' },
-    // Classe C
-    { name: 'Zayd', classeId: classC.id, ambition: 'Découvrir des trésors' },
-    { name: 'Lina', classeId: classC.id, ambition: 'Dessiner des mangas' },
-    { name: 'Adil', classeId: classC.id, ambition: 'Créer des applications' },
-    { name: 'Dounia', classeId: classC.id, ambition: 'Devenir photographe' },
-    { name: 'Anis', classeId: classC.id, ambition: 'Comprendre les étoiles' },
-    { name: 'Nadia', classeId: classC.id, ambition: 'Faire le tour du monde' },
-    { name: 'Ismail', classeId: classC.id, ambition: 'Construire des cabanes' },
-    { name: 'Rania', classeId: classC.id, ambition: 'Aider les autres' },
-    { name: 'Malik', classeId: classC.id, ambition: 'Être un super-héros' },
-    { name: 'Zahra', classeId: classC.id, ambition: 'Cultiver un jardin magique' },
-  ];
-
-  for (const [index, studentData] of students.entries()) {
-    const email = studentData.name === 'Ahmed' 
-      ? 'ahmed0@example.com' 
-      : `${studentData.name.toLowerCase()}${index}@example.com`;
-      
-    const student = await prisma.user.create({
+    // Création du professeur
+    console.log('👨‍🏫 Création du professeur...');
+    const hashedPassword = await bcrypt.hash(OWNER_PASSWORD, 12);
+    const teacher = await tx.user.create({
       data: {
-        email: email,
-        name: studentData.name,
-        role: 'ELEVE' as Role,
-        classeId: studentData.classeId,
-        ambition: studentData.ambition,
-        password: hashedPassword, // Assigner le mot de passe haché
+        email: OWNER_EMAIL.toLowerCase(),
+        password: hashedPassword,
+        name: 'Professeur Principal',
+        role: Role.PROFESSEUR,
         validationStatus: ValidationStatus.VALIDATED,
         emailVerified: new Date(),
       },
     });
+    console.log(`✅ Professeur créé : ${teacher.name} (${teacher.email})`);
 
-    // Créer l'état de l'élève
-    await prisma.etatEleve.create({
-      data: { eleveId: student.id }
-    });
-    console.log(`🎓 Created student: ${student.name}`);
-  }
+    // Création des métiers
+    console.log('🛠️ Création des métiers...');
+    await tx.metier.createMany({ data: METIERS_DATA });
+    console.log(`✅ ${METIERS_DATA.length} métiers créés.`);
 
-  // Créer des métiers
-  const metiers = [
-    { 
-      id: 'metier-pompier',
-      nom: 'Pompier', 
-      description: 'Sauve des vies et combat le feu.', 
-      icon: 'Flame', 
-      theme: JSON.stringify({ 
-        backgroundColor: 'from-red-500 to-orange-500', 
-        textColor: 'text-white', 
-        primaryColor: '22 84% 44%', 
-        accentColor: '45 93% 47%', 
-        cursor: 'cursor-crosshair' 
-      })
-    },
-    { 
-      id: 'metier-astronaute',
-      nom: 'Astronaute', 
-      description: 'Explore l\'espace et les étoiles.', 
-      icon: 'Rocket', 
-      theme: JSON.stringify({ 
-        backgroundColor: 'from-blue-800 to-indigo-900', 
-        textColor: 'text-white', 
-        primaryColor: '217 91% 60%', 
-        accentColor: '262 84% 60%', 
-        cursor: 'cursor-pointer' 
-      })
-    },
-    { 
-      id: 'metier-veterinaire',
-      nom: 'Vétérinaire', 
-      description: 'Soigne les animaux.', 
-      icon: 'Stethoscope', 
-      theme: JSON.stringify({ 
-        backgroundColor: 'from-green-400 to-teal-500', 
-        textColor: 'text-white', 
-        primaryColor: '142 76% 36%', 
-        accentColor: '160 84% 39%', 
-        cursor: 'cursor-help' 
-      })
-    },
-    { 
-      id: 'metier-devjeux',
-      nom: 'DevJeux', 
-      description: 'Crée des mondes virtuels.', 
-      icon: 'Gamepad2', 
-      theme: JSON.stringify({ 
-        backgroundColor: 'from-purple-600 to-blue-600', 
-        textColor: 'text-white', 
-        primaryColor: '250 84% 60%', 
-        accentColor: '280 84% 60%', 
-        cursor: 'cursor-grab' 
-      })
-    },
-    { 
-      id: 'metier-chef',
-      nom: 'Chef', 
-      description: 'Invente des plats délicieux.', 
-      icon: 'ChefHat', 
-      theme: JSON.stringify({ 
-        backgroundColor: 'from-yellow-400 to-amber-500', 
-        textColor: 'text-black', 
-        primaryColor: '38 92% 50%', 
-        accentColor: '24 98% 52%', 
-        cursor: 'cursor-cell' 
-      })
-    },
-    { 
-      id: 'metier-artiste',
-      nom: 'Artiste', 
-      description: 'Exprime sa créativité.', 
-      icon: 'Paintbrush', 
-      theme: JSON.stringify({ 
-        backgroundColor: 'from-pink-500 to-rose-500', 
-        textColor: 'text-white', 
-        primaryColor: '320 84% 60%', 
-        accentColor: '340 84% 60%', 
-        cursor: 'cursor-alias' 
-      })
-    },
-    { 
-      id: 'metier-ecologiste',
-      nom: 'Écologiste', 
-      description: 'Protège la planète.', 
-      icon: 'Leaf', 
-      theme: JSON.stringify({ 
-        backgroundColor: 'from-lime-500 to-emerald-600', 
-        textColor: 'text-white', 
-        primaryColor: '120 73% 40%', 
-        accentColor: '140 73% 40%', 
-        cursor: 'cursor-zoom-in' 
-      })
-    },
-  ];
-  
-  for (const metier of metiers) {
-    await prisma.metier.create({
-      data: {
-        id: metier.id,
-        nom: metier.nom,
-        description: metier.description,
-        icon: metier.icon,
-        theme: metier.theme,
-      }
-    });
-    console.log(`🛠️ Created metier: ${metier.nom}`);
-  }
+    // Création des tâches
+    console.log('📋 Création des tâches...');
+    await tx.task.createMany({ data: TASKS_DATA });
+    console.log(`✅ ${TASKS_DATA.length} tâches créées.`);
+    
+    // Création des classes et élèves
+    console.log('🏫 Création des classes et des élèves...');
+    const classesData = [
+        { nom: '6ème A', elevesCount: 8 },
+        { nom: '5ème B', elevesCount: 7 },
+    ];
+    
+    for (const classInfo of classesData) {
+        const newClass = await tx.classroom.create({
+            data: {
+                nom: classInfo.nom,
+                professeurId: teacher.id,
+            },
+        });
+        console.log(`  -> Classe créée: ${newClass.nom}`);
 
-  // Créer des tâches
-  const tasks = [
-    // Tâches quotidiennes
-    { 
-      id: 'task-daily-bed',
-      title: 'Faire son lit', 
-      description: 'Un lit bien fait, une journée bien commencée !', 
-      points: 10, 
-      type: TaskType.DAILY, 
-      category: TaskCategory.HOME, 
-      difficulty: TaskDifficulty.EASY, 
-      validationType: ValidationType.PARENT 
-    },
-    { 
-      id: 'task-daily-reading',
-      title: 'Lire 15 minutes', 
-      description: 'Un chapitre par jour pour voyager.', 
-      points: 15, 
-      type: TaskType.DAILY, 
-      category: TaskCategory.LANGUAGE, 
-      difficulty: TaskDifficulty.EASY, 
-      validationType: ValidationType.PARENT 
-    },
-    // Tâches hebdomadaires
-    { 
-      id: 'task-weekly-clean',
-      title: 'Ranger sa chambre', 
-      description: 'Un espace propre pour des idées claires.', 
-      points: 50, 
-      type: TaskType.WEEKLY, 
-      category: TaskCategory.HOME, 
-      difficulty: TaskDifficulty.MEDIUM, 
-      validationType: ValidationType.PARENT, 
-      requiresProof: true 
-    },
-    { 
-      id: 'task-weekly-math',
-      title: 'Exercice de maths', 
-      description: 'Résoudre une série de problèmes complexes.', 
-      points: 70, 
-      type: TaskType.WEEKLY, 
-      category: TaskCategory.MATH, 
-      difficulty: TaskDifficulty.MEDIUM, 
-      validationType: ValidationType.PROFESSOR, 
-      requiresProof: true 
-    },
-    // Tâches mensuelles
-    { 
-      id: 'task-monthly-creative',
-      title: 'Projet créatif mensuel', 
-      description: 'Réaliser une recette de cuisine et la présenter.', 
-      points: 200, 
-      type: TaskType.MONTHLY, 
-      category: TaskCategory.ART, 
-      difficulty: TaskDifficulty.HARD, 
-      validationType: ValidationType.PARENT, 
-      requiresProof: true 
-    },
-    { 
-      id: 'task-monthly-science',
-      title: 'Exposé scientifique', 
-      description: 'Préparer et présenter un sujet scientifique.', 
-      points: 250, 
-      type: TaskType.MONTHLY, 
-      category: TaskCategory.SCIENCE, 
-      difficulty: TaskDifficulty.HARD, 
-      validationType: ValidationType.PROFESSOR, 
-      requiresProof: true 
-    },
-  ];
+        for (let i = 0; i < classInfo.elevesCount; i++) {
+            const studentFirstName = faker.person.firstName();
+            const studentLastName = faker.person.lastName();
+            const studentName = `${studentFirstName} ${studentLastName}`;
+            
+            const student = await tx.user.create({
+                data: {
+                    name: studentName,
+                    email: faker.internet.email({ firstName: studentFirstName, lastName: studentLastName }).toLowerCase(),
+                    role: Role.ELEVE,
+                    classeId: newClass.id,
+                    validationStatus: ValidationStatus.VALIDATED,
+                    emailVerified: new Date(),
+                    points: faker.number.int({ min: 50, max: 500 })
+                },
+            });
 
-  for (const task of tasks) {
-    await prisma.task.create({
-      data: task
-    });
-    console.log(`📝 Created task: ${task.title}`);
-  }
-
-  // Créer des annonces
-  await prisma.announcement.create({
-    data: {
-      id: 'announcement-welcome',
-      title: 'Bienvenue sur Classroom Connector !',
-      content: 'C\'est la plateforme où l\'apprentissage devient une aventure. Participez, gagnez des points et explorez votre avenir !',
-      authorId: teacher.id,
+            await tx.etatEleve.create({
+                data: {
+                    eleveId: student.id,
+                    // metierId peut être assigné aléatoirement ici si besoin
+                }
+            });
+        }
+        console.log(`    -> ${classInfo.elevesCount} élèves ajoutés à ${newClass.nom}`);
     }
   });
-  
-  await prisma.announcement.create({
-    data: {
-      id: 'announcement-reminder-6a',
-      title: 'Rappel pour la 6ème A',
-      content: 'N\'oubliez pas de préparer vos questions pour la session de demain sur les volcans.',
-      authorId: teacher.id,
-      classeId: classA.id,
-    }
-  });
-   
-  console.log('📢 Created default announcements');
 
-  console.log('✅ Seeding finished.');
+  console.log('✅ Seeding terminé avec succès !');
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error('❌ Une erreur est survenue pendant le seeding:', e);
     process.exit(1);
   })
   .finally(async () => {
