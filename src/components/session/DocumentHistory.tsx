@@ -26,7 +26,7 @@ import {
 import { useNamedAbly } from '@/hooks/useNamedAbly';
 import { AblyEvents } from '@/lib/ably/events';
 import { getSessionChannelName } from '@/lib/ably/channels';
-import { Types } from 'ably/react';
+import type { Types } from 'ably/react';
 import {
   DropdownMenu,
   DropdownMenuContent,

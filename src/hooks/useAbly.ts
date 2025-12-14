@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getAblyClient, getAblyClientUsage } from '@/lib/ably/client';
-import { Types } from 'ably/react';
+import type { Types } from 'ably/react';
 
 interface UseAblyReturn {
   client: Types.Realtime;

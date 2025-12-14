@@ -18,7 +18,7 @@ import type { Message, Reaction, User, Role } from '@prisma/client';
 import { useNamedAbly } from '@/hooks/useNamedAbly';
 import { getClassChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
-import { Types } from 'ably/react';
+import type { Types } from 'ably/react';
 
 const EMOJIS = ['👍', '❤️', '😂', '😯', '😢', '🤔'];
 
@@ -42,7 +42,7 @@ export function ChatWorkspace({ classroomId, userId, userRole }: ChatWorkspacePr
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   
-  const channelRef = useRef<Types.RealtimeChannelCallbacks | null>(null);
+  const channelRef = useRef<Types.RealtimeChannel | null>(null);
   const listenersRef = useRef<Map<string, (message: Types.Message) => void>>(new Map());
   const isMountedRef = useRef(true);
 

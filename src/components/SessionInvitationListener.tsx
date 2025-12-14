@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useNamedAbly } from '@/hooks/useNamedAbly';
 import { getUserChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
-import { Types } from 'ably/react';
+import type { Types } from 'ably/react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Video, XCircle, Clock, X } from 'lucide-react';
@@ -37,7 +37,7 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
   
   const processedInvitationsRef = useRef<Set<string>>(new Set());
   const mountedRef = useRef(true);
-  const channelRef = useRef<Types.RealtimeChannelCallbacks | null>(null);
+  const channelRef = useRef<Types.RealtimeChannel | null>(null);
   const initializationStateRef = useRef({
     hasInitialized: false,
     hasCheckedPending: false,
@@ -108,7 +108,7 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
 
   useEffect(() => {
     mountedRef.current = true;
-    let channel: Types.RealtimeChannelCallbacks | null = null;
+    let channel: Types.RealtimeChannel | null = null;
 
     const initializeListener = async () => {
       const currentStudentId = studentId;

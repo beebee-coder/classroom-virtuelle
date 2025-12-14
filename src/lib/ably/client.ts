@@ -1,7 +1,7 @@
 // src/lib/ably/client.ts
 'use client';
 import * as Ably from 'ably/react';
-import { Types } from 'ably/react';
+import type { Types } from 'ably/react';
 
 let globalClient: Types.Realtime | null = null;
 let refCount = 0;

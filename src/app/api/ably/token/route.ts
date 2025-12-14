@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import Ably from 'ably/promises';
-import { Types } from 'ably';
+import type { Types as AblyTypes } from 'ably';
 
 // Timeout config
 const AUTH_TIMEOUT_MS = 8000;
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
 
         const ably = new Ably.Rest(ablyApiKey);
         
-        const tokenParams: Types.TokenParams = {
+        const tokenParams: AblyTypes.TokenParams = {
             clientId: clientId,
             capability: {
                 'classroom-connector:*': ['presence', 'subscribe', 'publish']

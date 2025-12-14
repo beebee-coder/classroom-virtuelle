@@ -27,7 +27,7 @@ export function initializeAblyServer(): Ably.Rest | null {
     if (process.env.NODE_ENV === 'production' || !global.ablyServerInstance) {
       const clientOptions: Ably.Types.ClientOptions = {
         key: ablyApiKey,
-        logLevel: (process.env.NODE_ENV === 'development' ? 2 : 1) as any,
+        logLevel: (process.env.NODE_ENV === 'development' ? 2 : 1),
         tls: true,
         httpMaxRetryCount: 5,
         httpOpenTimeout: 15000,

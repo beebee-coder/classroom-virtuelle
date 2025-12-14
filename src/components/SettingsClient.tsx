@@ -15,7 +15,7 @@ import { updateUserSettings } from '@/lib/actions/user.actions';
 import { ProfileAvatar } from './ProfileAvatar';
 import type { User as PrismaUser } from '@prisma/client';
 import { useRouter } from 'next/navigation';
-import { Session } from 'next-auth';
+import type { Session } from 'next-auth';
 
 const profileFormSchema = z.object({
   name: z.string().min(2, {
