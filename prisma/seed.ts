@@ -58,7 +58,7 @@ async function main() {
     data: {
       email: OWNER_EMAIL.toLowerCase(),
       password: hashedPassword,
-      name: 'Professeur Principal',
+      name: 'ahmed abbes',
       role: Role.PROFESSEUR,
       validationStatus: ValidationStatus.VALIDATED,
       emailVerified: new Date(),

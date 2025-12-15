@@ -1,10 +1,6 @@
-
 // src/app/register/page.tsx
 import { Suspense } from 'react';
 import RegisterForm from './register-form';
-
-// Forcer le rendu dynamique pour éviter les problèmes de cache
-export const dynamic = 'force-dynamic';
 
 export default function RegisterPage() {
   return (
