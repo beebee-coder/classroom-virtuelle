@@ -1,5 +1,5 @@
 // src/lib/auth-options.ts
-import { NextAuthOptions } from "next-auth";
+import { NextAuthOptions, User } from "next-auth";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import prisma from "./prisma";
 import Credentials from "next-auth/providers/credentials";
@@ -48,7 +48,6 @@ export const authOptions: NextAuthOptions = {
         const ownerEmail = process.env.OWNER_EMAIL?.toLowerCase().trim();
         const userEmail = profile.email.toLowerCase().trim();
 
-        // 🔑 Si c'est le propriétaire → PROFESSEUR + VALIDATED
         if (ownerEmail && userEmail === ownerEmail) {
           return {
             id: profile.sub,
@@ -60,7 +59,6 @@ export const authOptions: NextAuthOptions = {
           };
         }
 
-        // ✅ Sinon → ELEVE + PENDING (et NextAuth crée le compte)
         return {
           id: profile.sub,
           name: profile.name,
@@ -74,11 +72,17 @@ export const authOptions: NextAuthOptions = {
   ],
   session: { strategy: "jwt" },
   pages: { signIn: "/login", error: "/login" },
-  allowDangerousEmailAccountLinking: true,
   callbacks: {
-    // ✅ Supprimez toute logique de blocage ici
-    async signIn({ account }) {
-      return !!account; // toujours autoriser
+    async signIn({ user, account, profile }) {
+      if (account?.provider === 'google') {
+        const userExists = await prisma.user.findUnique({
+          where: { email: user.email! },
+        });
+        if (userExists) {
+          return true; // L'utilisateur existe, on autorise la connexion
+        }
+      }
+      return true; // Autoriser pour les autres cas
     },
 
     async jwt({ token, user }) {
@@ -93,7 +97,7 @@ export const authOptions: NextAuthOptions = {
     },
 
     async session({ session, token }) {
-      if (token) {
+      if (token && session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as Role;
         session.user.classeId = token.classeId as string | null;
@@ -103,6 +107,5 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
-
   debug: process.env.NODE_ENV === "development",
 };
