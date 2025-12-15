@@ -108,4 +108,6 @@ export const authOptions: NextAuthOptions = {
     },
   },
   debug: process.env.NODE_ENV === "development",
+  // ✅ Correction clé : autorise le lien email/provider pour le compte propriétaire
+  allowDangerousEmailAccountLinking: true,
 };
