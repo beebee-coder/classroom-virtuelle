@@ -9,7 +9,7 @@ import { SessionClientProps, DocumentInHistory, WhiteboardOperation, Quiz, QuizR
 import SessionLoading from './SessionLoading';
 import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';
-import { endCoursSession, saveAndShareDocument } from '@/lib/actions/session.actions';
+import { endCoursSession, saveAndShareDocument, shareDocumentToStudents } from '@/lib/actions/session.actions';
 import { ablyTrigger } from '@/lib/ably/triggers';
 import { AblyEvents } from '@/lib/ably/events';
 import { getSessionChannelName } from '@/lib/ably/channels';
@@ -50,10 +50,10 @@ export default function SessionClient({
     handleUploadSuccess, handleStartQuiz, handleEndQuiz: useSessionStateEndQuiz, handleNewQuizResponse, handleCloseQuizResults: useSessionStateClose, handleQuizClosed,
   } = useSessionState({ initialDocumentHistory, initialActiveQuiz, sessionId });
 
-  const handleSignalReceived = useCallback((fromUserId: string, signal: any) => {
+  const handleSignalReceived = useCallback((fromUserId: string, signal: any, isReturnSignal?: boolean) => {
     if (!isMountedRef.current) return;
     try {
-      handleIncomingSignal(fromUserId, signal);
+      handleIncomingSignal(fromUserId, signal, isReturnSignal);
     } catch (error) {
       console.error('❌ [SIGNAL HANDLER] - Erreur lors du traitement du signal:', error);
     }

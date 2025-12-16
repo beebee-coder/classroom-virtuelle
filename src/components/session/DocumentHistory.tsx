@@ -23,7 +23,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { useAbly } from '@/hooks/useAbly';
+import { useNamedAbly } from '@/hooks/useNamedAbly';
 import { AblyEvents } from '@/lib/ably/events';
 import { getSessionChannelName } from '@/lib/ably/channels';
 import type { Types } from 'ably';
@@ -48,7 +48,7 @@ export function DocumentHistory({ documents, onSelectDocument, onReshare, sessio
     const { toast } = useToast();
     const [isDeleting, startDeleteTransition] = useTransition();
     const [localDocuments, setLocalDocuments] = useState<DocumentInHistory[]>([]);
-    const { client: ablyClient } = useAbly();
+    const { client: ablyClient } = useNamedAbly('DocumentHistory');
 
     useEffect(() => {
         setLocalDocuments(documents || []);

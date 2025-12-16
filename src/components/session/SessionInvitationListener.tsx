@@ -1,10 +1,10 @@
-// src/components/session/SessionInvitationListener.tsx - VERSION CORRIGÉE SANS BOUCLES
+// src/components/session/SessionInvitationListener.tsx - VERSION CORRIGÉE FINALE
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { useAbly } from '@/hooks/useAbly';
+import { useNamedAbly } from '@/hooks/useNamedAbly'; // ✅ CORRECTION: Utilisation du hook nommé
 import { getUserChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
 import type { Types as AblyTypes } from 'ably';
@@ -33,7 +33,8 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
   const router = useRouter();
   const { toast } = useToast();
   
-  const { client: ablyClient, isConnected: ablyConnected } = useAbly('SessionInvitationListener');
+  // ✅ CORRECTION: Utilisation du hook nommé
+  const { client: ablyClient, isConnected: ablyConnected } = useNamedAbly('SessionInvitationListener');
   
   // ✅ CORRECTION : Références stabilisées et simplifiées
   const processedInvitationsRef = useRef<Set<string>>(new Set());
@@ -88,14 +89,14 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
         
         if (pendingSessions.length > 0 && mountedRef.current) {
           const latestSession = pendingSessions[0];
-          if (latestSession && !processedInvitationsRef.current.has(latestSession.id)) {
+          if (latestSession && latestSession.id && !processedInvitationsRef.current.has(latestSession.id)) {
             const invitation: SessionInvitation = {
-              sessionId: latestSession.id || latestSession.sessionId,
-              teacherId: latestSession.teacherId,
-              classroomId: latestSession.classroomId,
-              classroomName: latestSession.classroomName || 'Classe',
-              teacherName: latestSession.teacherName || 'Professeur',
-              timestamp: latestSession.timestamp || new Date().toISOString(),
+              sessionId: latestSession.id,
+              teacherId: latestSession.data.teacherId,
+              classroomId: latestSession.data.classroomId,
+              classroomName: latestSession.data.classroomName || 'Classe',
+              teacherName: latestSession.data.teacherName || 'Professeur',
+              timestamp: latestSession.data.timestamp || new Date().toISOString(),
               type: 'session-invitation'
             };
             

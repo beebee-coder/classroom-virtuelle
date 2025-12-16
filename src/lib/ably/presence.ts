@@ -27,7 +27,7 @@ export async function getPresenceMembers(channelName: string): Promise<AblyPrese
         }
         const channel = ablyServer.channels.get(channelName);
         
-        const presenceMembers = await channel.presence.get();
+        const presenceMembers: Types.PresenceMessage[] = await channel.presence.get();
         
         if (!Array.isArray(presenceMembers)) {
             console.warn('[ABLY PRESENCE] - Presence.get() did not return an array:', presenceMembers);
@@ -42,6 +42,7 @@ export async function getPresenceMembers(channelName: string): Promise<AblyPrese
                 name: memberData?.name || 'Unknown User',
                 role: memberData?.role || 'UNKNOWN',
                 image: memberData?.image || null,
+                data: memberData?.data || {}, // ✅ CORRECTION: S'assurer que data est toujours un objet
                 ...(memberData?.timestamp && { timestamp: memberData.timestamp })
             } as AblyPresenceMember;
         });

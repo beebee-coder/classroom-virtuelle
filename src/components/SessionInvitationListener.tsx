@@ -89,14 +89,14 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
         
         if (pendingSessions.length > 0 && mountedRef.current) {
           const latestSession = pendingSessions[0];
-          if (latestSession && !processedInvitationsRef.current.has(latestSession.id)) {
+          if (latestSession && latestSession.id && !processedInvitationsRef.current.has(latestSession.id)) {
             const invitation: SessionInvitation = {
-              sessionId: latestSession.id || latestSession.sessionId,
-              teacherId: latestSession.teacherId,
-              classroomId: latestSession.classroomId,
-              classroomName: latestSession.classroomName || 'Classe',
-              teacherName: latestSession.teacherName || 'Professeur',
-              timestamp: latestSession.timestamp || new Date().toISOString(),
+              sessionId: latestSession.id,
+              teacherId: latestSession.data.teacherId,
+              classroomId: latestSession.data.classroomId,
+              classroomName: latestSession.data.classroomName || 'Classe',
+              teacherName: latestSession.data.teacherName || 'Professeur',
+              timestamp: latestSession.data.timestamp || new Date().toISOString(),
               type: 'session-invitation'
             };
             
