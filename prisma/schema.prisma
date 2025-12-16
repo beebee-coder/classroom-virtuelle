@@ -38,34 +38,34 @@ model Session {
 }
 
 model User {
-  id               String            @id @default(cuid())
-  name             String?
-  email            String?           @unique
-  emailVerified    DateTime?
-  image            String?
-  password         String?
-  parentPassword   String?
-  accounts         Account[]
-  sessions         Session[]
-  role             Role              @default(ELEVE)
-  validationStatus ValidationStatus  @default(PENDING)
-  points           Int               @default(0)
-  ambition         String?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  classeId         String?
-  classe           Classroom?        @relation("ClassStudents", fields: [classeId], references: [id])
-  taughtClasses    Classroom[]       @relation("TeacherClasses")
-  sessionsAsProf   CoursSession[]    @relation("SessionTeacher")
-  participatedSessions CoursSession[] @relation("SessionParticipants")
-  studentProgress  StudentProgress[]
-  etat             EtatEleve?
-  annonces         Announcement[]
-  reactions        Reaction[]
-  messages         Message[]
-  sharedDocuments  SharedDocument[]
-  quizResponses    QuizResponse[]
-  quizzesCreated   Quiz[]
+  id                   String            @id @default(cuid())
+  name                 String?
+  email                String?           @unique
+  emailVerified        DateTime?
+  image                String?
+  password             String?
+  parentPassword       String?
+  accounts             Account[]
+  sessions             Session[]
+  role                 Role              @default(ELEVE)
+  validationStatus     ValidationStatus  @default(PENDING)
+  points               Int               @default(0)
+  ambition             String?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  classeId             String?
+  classe               Classroom?        @relation("ClassStudents", fields: [classeId], references: [id])
+  taughtClasses        Classroom[]       @relation("TeacherClasses")
+  sessionsAsProf       CoursSession[]    @relation("SessionTeacher")
+  participatedSessions CoursSession[]    @relation("SessionParticipants")
+  studentProgress      StudentProgress[]
+  etat                 EtatEleve?
+  annonces             Announcement[]
+  reactions            Reaction[]
+  messages             Message[]
+  sharedDocuments      SharedDocument[]
+  quizResponses        QuizResponse[]
+  quizzesCreated       Quiz[]
 }
 
 model VerificationToken {
@@ -85,6 +85,7 @@ model Classroom {
   annonces     Announcement[]
   sessions     CoursSession[]
   subject      TaskCategory?
+  Message      Message[]
 }
 
 model CoursSession {
@@ -104,12 +105,12 @@ model CoursSession {
 }
 
 model SharedDocument {
-  id        String       @id @default(cuid())
+  id        String        @id @default(cuid())
   name      String
   url       String
-  createdAt DateTime     @default(now())
+  createdAt DateTime      @default(now())
   userId    String
-  user      User         @relation(fields: [userId], references: [id])
+  user      User          @relation(fields: [userId], references: [id])
   sessionId String?
   session   CoursSession? @relation(fields: [sessionId], references: [id])
 }
@@ -131,18 +132,18 @@ model StudentProgress {
 }
 
 model Task {
-  id             String            @id @default(cuid())
-  title          String
-  description    String
-  points         Int
-  type           TaskType
-  category       TaskCategory
-  difficulty     TaskDifficulty
-  validationType ValidationType
-  requiresProof  Boolean           @default(false)
-  isActive       Boolean           @default(true)
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  id              String            @id @default(cuid())
+  title           String
+  description     String
+  points          Int
+  type            TaskType
+  category        TaskCategory
+  difficulty      TaskDifficulty
+  validationType  ValidationType
+  requiresProof   Boolean           @default(false)
+  isActive        Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
   studentProgress StudentProgress[]
 }
 
@@ -202,23 +203,23 @@ model Reaction {
 }
 
 model Quiz {
-  id               String          @id @default(cuid())
-  title            String
-  createdById      String
-  createdBy        User            @relation(fields: [createdById], references: [id])
-  questions        QuizQuestion[]
-  responses        QuizResponse[]
-  awardedPointsAt  DateTime?
-  activeInSession  CoursSession?
-  createdAt        DateTime        @default(now())
+  id              String         @id @default(cuid())
+  title           String
+  createdById     String
+  createdBy       User           @relation(fields: [createdById], references: [id])
+  questions       QuizQuestion[]
+  responses       QuizResponse[]
+  awardedPointsAt DateTime?
+  activeInSession CoursSession?
+  createdAt       DateTime       @default(now())
 }
 
 model QuizQuestion {
-  id            String       @id @default(cuid())
-  text          String
-  quizId        String
-  quiz          Quiz         @relation(fields: [quizId], references: [id])
-  options       QuizOption[]
+  id              String       @id @default(cuid())
+  text            String
+  quizId          String
+  quiz            Quiz         @relation(fields: [quizId], references: [id])
+  options         QuizOption[]
   correctOptionId String
 }
 
