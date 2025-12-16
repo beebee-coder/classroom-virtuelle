@@ -1,4 +1,3 @@
-
 // src/components/SessionClient.tsx
 'use client';
 
@@ -97,7 +96,7 @@ export default function SessionClient({
         createPeer(userId, true, activeStream);
       });
 
-      remoteStreams.forEach((_, userId) => {
+      remoteStreams.forEach((stream, userId) => {
         if (!onlineUserIds.includes(userId)) {
           cleanupPeerConnection(userId);
         }

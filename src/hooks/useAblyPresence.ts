@@ -1,4 +1,3 @@
-
 // src/hooks/useAblyPresence.ts
 'use client';
 
@@ -6,14 +5,14 @@ import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useNamedAbly } from './useNamedAbly';
 import type { AblyPresenceMember } from '@/lib/ably/types';
 import { getClassChannelName } from '@/lib/ably/channels';
-import type { Types } from 'ably';
+import type { Types as AblyTypes } from 'ably';
 import { Role } from '@prisma/client';
 import { useAblyHealth } from './useAblyHealth';
 
-type AblyChannel = Types.RealtimeChannelCallbacks;
-type AblyChannelStateChange = Types.ChannelStateChange;
-type AblyPresenceMessage = Types.PresenceMessage;
-type AblyErrorInfo = Types.ErrorInfo;
+type AblyChannel = AblyTypes.RealtimeChannelCallbacks;
+type AblyChannelStateChange = AblyTypes.ChannelStateChange;
+type AblyPresenceMessage = AblyTypes.PresenceMessage;
+type AblyErrorInfo = AblyTypes.ErrorInfo;
 
 interface UseAblyPresenceReturn {
   onlineMembers: AblyPresenceMember[];

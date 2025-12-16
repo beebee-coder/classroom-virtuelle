@@ -1,4 +1,3 @@
-
 // src/components/session/DocumentHistory.tsx
 'use client';
 
@@ -27,7 +26,7 @@ import {
 import { useNamedAbly } from '@/hooks/useNamedAbly';
 import { AblyEvents } from '@/lib/ably/events';
 import { getSessionChannelName } from '@/lib/ably/channels';
-import type { Types } from 'ably';
+import type { Types as AblyTypes } from 'ably';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -61,7 +60,7 @@ export function DocumentHistory({ documents, onSelectDocument, onReshare, sessio
         const channelName = getSessionChannelName(sessionId);
         const channel = ablyClient.channels.get(channelName);
         
-        const handleDocumentDeleted = (message: Types.Message) => {
+        const handleDocumentDeleted = (message: AblyTypes.Message) => {
             const { documentId, deletedBy } = message.data;
             if (deletedBy !== currentUserId) {
                 setLocalDocuments(prev => prev.filter(doc => doc.id !== documentId));

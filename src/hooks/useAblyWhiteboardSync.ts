@@ -1,4 +1,3 @@
-
 // src/hooks/useAblyWhiteboardSync.ts
 'use client';
 
@@ -7,7 +6,7 @@ import type { WhiteboardOperation } from '@/types';
 import { useNamedAbly } from './useNamedAbly';
 import { getSessionChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
-import type { Types } from 'ably';
+import type { Types as AblyTypes } from 'ably';
 
 const BATCH_DELAY_MS = 100;
 const MAX_BATCH_SIZE = 20;
@@ -30,9 +29,9 @@ export const useAblyWhiteboardSync = (
     const pendingOperations = useRef<WhiteboardOperation[]>([]);
     const batchTimeout = useRef<NodeJS.Timeout | null>(null);
     const processedOperationIds = useRef<Set<string>>(new Set());
-    const channelRef = useRef<Types.RealtimeChannelCallbacks | null>(null);
-    const batchOperationsListenerRef = useRef<((message: Types.Message) => void) | null>(null);
-    const channelStateListenerRef = useRef<((stateChange: Types.ChannelStateChange) => void) | null>(null);
+    const channelRef = useRef<AblyTypes.RealtimeChannelCallbacks | null>(null);
+    const batchOperationsListenerRef = useRef<((message: AblyTypes.Message) => void) | null>(null);
+    const channelStateListenerRef = useRef<((stateChange: AblyTypes.ChannelStateChange) => void) | null>(null);
     
     const rateLimitTracker = useRef<number[]>([]);
     const isRateLimited = useRef(false);
@@ -191,7 +190,7 @@ export const useAblyWhiteboardSync = (
         }, BATCH_DELAY_MS);
     }, [flushBatch]);
 
-    const attachChannel = useCallback(async (channel: Types.RealtimeChannelCallbacks) => {
+    const attachChannel = useCallback(async (channel: AblyTypes.RealtimeChannelCallbacks) => {
         try {
             await channel.attach();
             if (isMounted.current) {
@@ -241,7 +240,7 @@ export const useAblyWhiteboardSync = (
         const channel = client.channels.get(channelName);
         channelRef.current = channel;
 
-        const handleBatchOperations = (message: Types.Message) => {
+        const handleBatchOperations = (message: AblyTypes.Message) => {
             if (!isMounted.current) return;
             
             try {
@@ -279,7 +278,7 @@ export const useAblyWhiteboardSync = (
             }
         };
 
-        const handleChannelState = (stateChange: Types.ChannelStateChange) => {
+        const handleChannelState = (stateChange: AblyTypes.ChannelStateChange) => {
             if (stateChange.current === 'attached') {
                 if (isMounted.current) {
                     setIsInitialized(true);

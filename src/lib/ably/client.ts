@@ -1,7 +1,6 @@
-
 // src/lib/ably/client.ts
 'use client';
-import Ably, { type Types } from 'ably';
+import Ably, { type Types as AblyTypes } from 'ably';
 
 let globalClient: Ably.Realtime | null = null;
 let refCount = 0;
@@ -56,7 +55,7 @@ export const getAblyClient = (): Ably.Realtime => {
 
   const authUrl = getAuthUrl();
   
-  const clientOptions: Types.ClientOptions = {
+  const clientOptions: AblyTypes.ClientOptions = {
     authUrl: authUrl,
     authMethod: 'POST',
     disconnectedRetryTimeout: 10000,
@@ -71,7 +70,7 @@ export const getAblyClient = (): Ably.Realtime => {
     },
     httpRequestTimeout: 30000,
     httpMaxRetryCount: 3,
-    logLevel: process.env.NODE_ENV === 'development' ? 2 : 1,
+    log: { level: process.env.NODE_ENV === 'development' ? 2 : 1 },
     maxMessageSize: 65536,
     fallbackHosts: ['a.ably-realtime.com', 'b.ably-realtime.com', 'c.ably-realtime.com']
   };
@@ -79,7 +78,7 @@ export const getAblyClient = (): Ably.Realtime => {
   const ablyClient = new Ably.Realtime(clientOptions);
 
   if (!connectionHandlerAttached) {
-    const connectionHandler = (stateChange: Types.ConnectionStateChange) => {
+    const connectionHandler = (stateChange: AblyTypes.ConnectionStateChange) => {
       const previous = stateChange.previous;
       const current = stateChange.current;
       
@@ -110,7 +109,7 @@ export const getAblyClient = (): Ably.Realtime => {
     ablyClient.connection.on(connectionHandler);
     connectionHandlerAttached = true;
 
-    ablyClient.connection.on('failed', (stateChange: Types.ConnectionStateChange) => {
+    ablyClient.connection.on('failed', (stateChange: AblyTypes.ConnectionStateChange) => {
       if (stateChange.reason?.code === 40100) {
       }
     });

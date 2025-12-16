@@ -1,4 +1,3 @@
-
 // src/components/SessionInvitationListener.tsx
 'use client';
 

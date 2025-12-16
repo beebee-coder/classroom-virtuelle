@@ -1,4 +1,3 @@
-
 // src/lib/actions/quiz-gamification.ts
 'use server';
 

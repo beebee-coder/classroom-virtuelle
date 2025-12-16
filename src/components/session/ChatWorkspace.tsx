@@ -1,4 +1,3 @@
-
 // src/components/session/ChatWorkspace.tsx
 'use client';
 
@@ -19,7 +18,7 @@ import type { Message, Reaction, User, Role } from '@prisma/client';
 import { useNamedAbly } from '@/hooks/useNamedAbly';
 import { getClassChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
-import type { Types } from 'ably';
+import type { Types as AblyTypes } from 'ably';
 
 const EMOJIS = ['👍', '❤️', '😂', '😯', '😢', '🤔'];
 
@@ -43,8 +42,8 @@ export function ChatWorkspace({ classroomId, userId, userRole }: ChatWorkspacePr
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   
-  const channelRef = useRef<Types.RealtimeChannelCallbacks | null>(null);
-  const listenersRef = useRef<Map<string, (message: Types.Message) => void>>(new Map());
+  const channelRef = useRef<AblyTypes.RealtimeChannelCallbacks | null>(null);
+  const listenersRef = useRef<Map<string, (message: AblyTypes.Message) => void>>(new Map());
   const isMountedRef = useRef(true);
 
   const { client: ablyClient, isConnected: ablyConnected, connectionState } = useNamedAbly('ChatWorkspace');
@@ -114,13 +113,13 @@ export function ChatWorkspace({ classroomId, userId, userRole }: ChatWorkspacePr
     }
   }, []);
 
-  const messageHandler = useCallback((message: Types.Message) => {
+  const messageHandler = useCallback((message: AblyTypes.Message) => {
     if (!isMountedRef.current) return;
     const data = message.data as MessageWithReactions;
     setMessages((prev) => prev.some(msg => msg.id === data.id) ? prev : [...prev, data]);
   }, []);
 
-  const reactionHandler = useCallback((message: Types.Message) => {
+  const reactionHandler = useCallback((message: AblyTypes.Message) => {
     if (!isMountedRef.current) return;
     const data = message.data as { messageId: string; reaction: ReactionWithUser; action: 'added' | 'removed'; };
     setMessages(prev => prev.map(msg => {
