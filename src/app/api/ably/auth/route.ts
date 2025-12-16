@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
-import Ably from 'ably';
+import Ably, { type Types as AblyTypes } from 'ably';
 
 // Timeout global pour la fonction serverless
 export const maxDuration = 10;
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
 
         const ably = new Ably.Rest({ key: ablyApiKey });
 
-        const tokenParams: Ably.Types.TokenParams = {
+        const tokenParams: AblyTypes.TokenParams = {
             clientId: clientId,
             capability: {
                 [`${process.env.ABLY_CHANNEL_PREFIX || 'classroom-connector'}:*`]: ["presence", "subscribe", "publish"],
@@ -39,8 +39,8 @@ export async function POST(request: NextRequest) {
             ttl: 3600000, // 1 heure
         };
         
-        const tokenRequest = await new Promise<Ably.Types.TokenRequest>((resolve, reject) => {
-            ably.auth.createTokenRequest(tokenParams, (err: Ably.Types.ErrorInfo | null, token: Ably.Types.TokenRequest | null) => {
+        const tokenRequest = await new Promise<AblyTypes.TokenRequest>((resolve, reject) => {
+            ably.auth.createTokenRequest(tokenParams, (err: AblyTypes.ErrorInfo | null, token: AblyTypes.TokenRequest | null) => {
                 if (err) {
                     return reject(err);
                 }

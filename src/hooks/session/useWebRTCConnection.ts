@@ -45,8 +45,7 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
     }
   }, []);
 
-  const createPeer = useCallback((targetUserId: string, initiator: boolean, stream: MediaStream): PeerInstance | null => {
-    if (!isComponentMounted) return null;
+  const createPeer = useCallback((targetUserId: string, initiator: boolean, stream: MediaStream): PeerInstance => {
     
     if (peersRef.current.has(targetUserId)) {
       return peersRef.current.get(targetUserId)!;

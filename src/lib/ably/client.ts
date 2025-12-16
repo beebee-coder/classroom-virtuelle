@@ -55,7 +55,7 @@ export const getAblyClient = (): Ably.Realtime => {
 
   const authUrl = getAuthUrl();
   
-  const clientOptions: Ably.Types.ClientOptions = {
+  const clientOptions: Ably.ClientOptions = {
     authUrl: authUrl,
     authMethod: 'POST',
     disconnectedRetryTimeout: 10000,

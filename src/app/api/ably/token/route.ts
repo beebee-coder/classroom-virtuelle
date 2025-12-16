@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
-import Ably from 'ably';
+import Ably, { type Types as AblyTypes } from 'ably';
 
 // Timeout config
 const AUTH_TIMEOUT_MS = 8000;
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
         const ably = new Ably.Rest({ key: ablyApiKey });
         
         const tokenRequest = await Promise.race([
-            new Promise<Ably.Types.TokenRequest>((resolve, reject) => {
+            new Promise<AblyTypes.TokenRequest>((resolve, reject) => {
                 ably.auth.createTokenRequest(
                     {
                         clientId: clientId,
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
                         },
                         ttl: 3600000 // 1 hour
                     },
-                    (err: Ably.Types.ErrorInfo | null, tokenRequest: Ably.Types.TokenRequest | null) => {
+                    (err: AblyTypes.ErrorInfo | null, tokenRequest: AblyTypes.TokenRequest | null) => {
                         if (err) {
                             console.error('❌ [ABLY TOKEN] - Token creation error:', err);
                             reject(err);
