@@ -90,29 +90,40 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async signIn({ user, account }) {
-        if (account?.provider === "google" && user.email) {
-            const userInDb = await prisma.user.findUnique({
-                where: { email: user.email },
-                include: { accounts: true }
+      // ✅ Logique de liaison de compte pour OAuth
+      if (account && account.provider !== 'credentials') {
+        const userByEmail = await prisma.user.findUnique({
+          where: { email: user.email! },
+        });
+
+        // Si l'utilisateur existe déjà avec cet email, mais que le compte OAuth n'est pas lié
+        if (userByEmail) {
+          const accountLinked = await prisma.account.findFirst({
+            where: {
+              provider: account.provider,
+              providerAccountId: account.providerAccountId,
+            },
+          });
+          
+          if (!accountLinked) {
+            console.log(`🔗 [SIGN_IN] - Liaison du nouveau compte ${account.provider} à l'utilisateur existant: ${user.email}`);
+            await prisma.account.create({
+              data: {
+                userId: userByEmail.id,
+                type: account.type,
+                provider: account.provider,
+                providerAccountId: account.providerAccountId,
+                access_token: account.access_token,
+                expires_at: account.expires_at,
+                token_type: account.token_type,
+                scope: account.scope,
+                id_token: account.id_token,
+              },
             });
-            if (userInDb && !userInDb.accounts.some(acc => acc.provider === "google")) {
-                console.log(`🔗 [SIGN_IN] - Liaison du compte Google à l'utilisateur existant: ${user.email}`);
-                await prisma.account.create({
-                    data: {
-                        userId: userInDb.id,
-                        provider: account.provider,
-                        type: account.type,
-                        providerAccountId: account.providerAccountId,
-                        access_token: account.access_token,
-                        expires_at: account.expires_at,
-                        token_type: account.token_type,
-                        scope: account.scope,
-                        id_token: account.id_token,
-                    }
-                });
-            }
+          }
         }
-        return true;
+      }
+      return true;
     },
     async jwt({ token, user }) {
       if (user) {
