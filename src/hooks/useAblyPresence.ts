@@ -264,38 +264,34 @@ export const useAblyPresence = (
             setTimeout(updateOnlineMembers, 100);
           };
 
-          const initializePresenceData = (targetChannel: AblyChannel, targetChannelInfo: any) => {
+          const initializePresenceData = async (targetChannel: AblyChannel, targetChannelInfo: any) => {
             if (!targetChannelInfo) {
               return;
             }
-
+        
             try {
-              targetChannel.presence.get((err: AblyErrorInfo | null, members: AblyPresenceMessage[] | null) => {
+                const members = await targetChannel.presence.get();
                 if (!mountedRef.current) return;
-                if (err) {
-                  return;
-                }
-                
+        
                 if (members && Array.isArray(members)) {
-                  targetChannelInfo.members.clear();
-                  members.forEach((member: AblyPresenceMessage) => {
-                    const presenceMember = extractPresenceData(member);
-                    if (presenceMember) {
-                      targetChannelInfo.members.set(member.clientId!, presenceMember);
-                    }
-                  });
-                  updateOnlineMembers();
+                    targetChannelInfo.members.clear();
+                    members.forEach((member: AblyPresenceMessage) => {
+                        const presenceMember = extractPresenceData(member);
+                        if (presenceMember) {
+                            targetChannelInfo.members.set(member.clientId!, presenceMember);
+                        }
+                    });
+                    updateOnlineMembers();
                 } else {
-                  targetChannelInfo.members.clear();
-                  updateOnlineMembers();
+                    targetChannelInfo.members.clear();
+                    updateOnlineMembers();
                 }
-              });
             } catch (err) {
-              if (mountedRef.current) {
-                console.error('❌ [PRESENCE HOOK] - Erreur getPresence:', err);
-              }
+                if (mountedRef.current) {
+                    console.error('❌ [PRESENCE HOOK] - Erreur getPresence:', err);
+                }
             }
-          };
+        };
 
           channel.on(stateHandler);
           channel.presence.subscribe(onPresenceUpdate);

@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
-import Ably, { type Types as AblyTypes } from 'ably';
+import Ably from 'ably';
 
 // Timeout config
 const AUTH_TIMEOUT_MS = 8000;
@@ -56,31 +56,20 @@ export async function GET(request: NextRequest) {
 
         const ably = new Ably.Rest({ key: ablyApiKey });
         
+        const tokenParams: Ably.TokenParams = {
+            clientId: clientId,
+            capability: {
+                'classroom-connector:*': ['presence', 'subscribe', 'publish']
+            },
+            ttl: 3600000 // 1 hour
+        };
+        
         const tokenRequest = await Promise.race([
-            new Promise<AblyTypes.TokenRequest>((resolve, reject) => {
-                ably.auth.createTokenRequest(
-                    {
-                        clientId: clientId,
-                        capability: {
-                            'classroom-connector:*': ['presence', 'subscribe', 'publish']
-                        },
-                        ttl: 3600000 // 1 hour
-                    },
-                    (err: AblyTypes.ErrorInfo | null, tokenRequest: AblyTypes.TokenRequest | null) => {
-                        if (err) {
-                            console.error('❌ [ABLY TOKEN] - Token creation error:', err);
-                            reject(err);
-                        } else if (tokenRequest) {
-                            console.log(`✅ [ABLY TOKEN] - Token created for ${clientId.substring(0, 8)}...`);
-                            resolve(tokenRequest);
-                        } else {
-                            reject(new Error('Token request failed to generate'));
-                        }
-                    }
-                );
-            }),
+            ably.auth.createTokenRequest(tokenParams),
             timeoutPromise
         ]);
+
+        console.log(`✅ [ABLY TOKEN] - Token created for ${clientId.substring(0, 8)}...`);
 
         return NextResponse.json(tokenRequest, {
             headers: { 

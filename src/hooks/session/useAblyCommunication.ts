@@ -90,21 +90,24 @@ export function useAblyCommunication({
     }
   }, [currentUserId]);
 
-  const handlePresenceUpdate = useCallback(() => {
+  const handlePresenceUpdate = useCallback(async () => {
     if (!channelRef.current) return;
     
-    channelRef.current.presence.get((err: Ably.ErrorInfo | null, members: Ably.PresenceMessage[] | null) => {
-      if (err || !members) {
-        console.warn('⚠️ [PRESENCE] - Erreur ou membres non disponibles:', err);
-        return;
-      }
-      
-      const userIds = members
-        .map(member => member.clientId)
-        .filter((clientId): clientId is string => clientId !== undefined && clientId !== null);
-      
-      setOnlineUserIds(userIds);
-    });
+    try {
+        const members = await channelRef.current.presence.get();
+        if (!members) {
+            console.warn('⚠️ [PRESENCE] - Membres non disponibles');
+            return;
+        }
+        
+        const userIds = members
+            .map(member => member.clientId)
+            .filter((clientId): clientId is string => !!clientId);
+        
+        setOnlineUserIds(userIds);
+    } catch (err) {
+        console.warn('⚠️ [PRESENCE] - Erreur de récupération des membres:', err);
+    }
   }, []);
 
   const handleSessionEndedEvent = useCallback(() => { 
