@@ -54,45 +54,47 @@ enum ValidationStatus {
 }
 
 model User {
-  id               String         @id @default(cuid())
+  id               String           @id @default(cuid())
   name             String?
-  email            String?        @unique
+  email            String?          @unique
   emailVerified    DateTime?
   image            String?
   password         String?
   parentPassword   String?
-  role             Role           @default(ELEVE)
+  role             Role             @default(ELEVE)
   validationStatus ValidationStatus @default(PENDING)
-  points           Int            @default(0)
+  points           Int              @default(0)
   ambition         String?
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
-  accounts           Account[]
-  sessions           Session[]
-  classe             Classroom?     @relation("ClassStudents", fields: [classeId], references: [id])
-  classeId           String?
-  classesEnseignees  Classroom[]    @relation("TeacherClasses")
-  sessionsEnseignees CoursSession[] @relation("SessionTeacher")
-  sessionsParticipees CoursSession[] @relation("SessionParticipants")
-  announcements      Announcement[]
-  studentProgress    StudentProgress[]
-  etat               EtatEleve?
-  messages           Message[]
-  reactions          Reaction[]
-  createdQuizzes     Quiz[]         @relation("UserQuizzes")
-  quizResponses      QuizResponse[]
+  accounts            Account[]
+  sessions            Session[]
+  classe              Classroom?        @relation("ClassStudents", fields: [classeId], references: [id])
+  classeId            String?
+  classesEnseignees   Classroom[]       @relation("TeacherClasses")
+  sessionsEnseignees  CoursSession[]    @relation("SessionTeacher")
+  sessionsParticipees CoursSession[]    @relation("SessionParticipants")
+  announcements       Announcement[]
+  studentProgress     StudentProgress[]
+  etat                EtatEleve?
+  messages            Message[]
+  reactions           Reaction[]
+  createdQuizzes      Quiz[]            @relation("UserQuizzes")
+  quizResponses       QuizResponse[]
+  SharedDocument      SharedDocument[]
 }
 
 model Classroom {
-  id           String         @id @default(cuid())
-  nom          String
-  professeur   User           @relation("TeacherClasses", fields: [professeurId], references: [id])
-  professeurId String
-  eleves       User[]         @relation("ClassStudents")
-  sessions     CoursSession[]
+  id            String         @id @default(cuid())
+  nom           String
+  professeur    User           @relation("TeacherClasses", fields: [professeurId], references: [id])
+  professeurId  String
+  eleves        User[]         @relation("ClassStudents")
+  sessions      CoursSession[]
   announcements Announcement[]
-  subject      String?
+  subject       String?
+  Message       Message[]
 }
 
 model CoursSession {
@@ -121,15 +123,15 @@ model SharedDocument {
 }
 
 model Announcement {
-  id             String     @id @default(cuid())
-  title          String
-  content        String
-  attachmentUrl  String?
-  authorId       String
-  author         User       @relation(fields: [authorId], references: [id])
-  classeId       String?
-  classe         Classroom? @relation(fields: [classeId], references: [id])
-  createdAt      DateTime   @default(now())
+  id            String     @id @default(cuid())
+  title         String
+  content       String
+  attachmentUrl String?
+  authorId      String
+  author        User       @relation(fields: [authorId], references: [id])
+  classeId      String?
+  classe        Classroom? @relation(fields: [classeId], references: [id])
+  createdAt     DateTime   @default(now())
 }
 
 enum TaskType {
@@ -192,14 +194,14 @@ model StudentProgress {
   completionDate DateTime?      @default(now())
   submissionUrl  String?
   pointsAwarded  Int?
-  feedback       Json?          // Pour le feedback détaillé du parent
-  recipeName     String?        // Nom de la recette pour les tâches de cuisine
+  feedback       Json? // Pour le feedback détaillé du parent
+  recipeName     String? // Nom de la recette pour les tâches de cuisine
 
   @@unique([studentId, taskId])
 }
 
 model Metier {
-  id          String     @id @default(cuid())
+  id          String      @id @default(cuid())
   nom         String
   description String
   icon        String?
@@ -208,12 +210,12 @@ model Metier {
 }
 
 model EtatEleve {
-  id          String   @id @default(cuid())
-  eleve       User     @relation(fields: [eleveId], references: [id])
-  eleveId     String   @unique
-  metier      Metier?  @relation(fields: [metierId], references: [id])
-  metierId    String?
-  isPunished  Boolean  @default(false)
+  id            String    @id @default(cuid())
+  eleve         User      @relation(fields: [eleveId], references: [id])
+  eleveId       String    @unique
+  metier        Metier?   @relation(fields: [metierId], references: [id])
+  metierId      String?
+  isPunished    Boolean   @default(false)
   punishedUntil DateTime?
 }
 
@@ -230,11 +232,11 @@ model Message {
 }
 
 model Reaction {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   emoji     String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User    @relation(fields: [userId], references: [id])
   userId    String
-  message   Message  @relation(fields: [messageId], references: [id])
+  message   Message @relation(fields: [messageId], references: [id])
   messageId String
 
   @@unique([userId, messageId, emoji])
