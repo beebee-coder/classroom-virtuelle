@@ -37,22 +37,23 @@ export default function LoginForm() {
 
   // Redirection après authentification
   useEffect(() => {
-    if (status === "authenticated" && session?.user) {
+    // S'assurer que le statut est "authenticated" ET que les données de session (surtout le rôle) sont bien là
+    if (status === "authenticated" && session?.user?.role) {
       console.log('🔵 [LOGIN FORM] - Utilisateur authentifié, vérification du statut.');
 
       // 🔹 Si élève non validé → page d'attente
       if (session.user.role === 'ELEVE' && session.user.validationStatus !== 'VALIDATED') {
-        console.log(' redirecting to /student/validation-pending');
+        console.log('[LOGIN FORM] - Élève non validé. Redirection vers /student/validation-pending');
         router.push('/student/validation-pending');
         return;
       }
 
-      // Sinon → dashboard
+      // Sinon → dashboard approprié
       const targetUrl =
         session.user.role === 'PROFESSEUR'
           ? '/teacher/dashboard'
           : '/student/dashboard';
-      console.log(`[LOGIN FORM] Redirection vers: ${targetUrl}`);
+      console.log(`[LOGIN FORM] - Redirection vers: ${targetUrl}`);
       router.push(targetUrl);
     }
   }, [status, session, router]);
@@ -80,9 +81,10 @@ export default function LoginForm() {
 
     if (result?.ok && !result.error) {
         console.log('✅ [LOGIN FORM] - Connexion réussie. La redirection sera gérée par le useEffect.');
-        // Forcer le rechargement de la session pour déclencher le useEffect de redirection.
-        router.refresh();
-      } else {
+        // Ne pas rediriger ici, laisser le useEffect s'en charger lorsque la session est mise à jour.
+        // On peut forcer un re-fetch de la session si nécessaire, mais en général c'est automatique.
+        router.refresh(); 
+    } else {
       setError(
         result?.error === 'CredentialsSignin'
           ? "Identifiants ou mot de passe incorrects."
@@ -97,6 +99,7 @@ export default function LoginForm() {
     signIn("google", { callbackUrl });
   };
 
+  // Condition de chargement plus robuste
   if (status === "loading" || (status === 'authenticated' && !session.user.role)) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
@@ -105,6 +108,17 @@ export default function LoginForm() {
       </div>
     );
   }
+
+  // Ne pas afficher le formulaire si l'utilisateur est déjà connecté et en cours de redirection
+  if (status === 'authenticated' && session.user.role) {
+    return (
+       <div className="flex items-center justify-center min-h-screen bg-background">
+        <Loader2 className="h-12 w-12 animate-spin" />
+        <p className="ml-2 text-muted-foreground">Redirection en cours...</p>
+      </div>
+    );
+  }
+
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4 relative bg-background">
