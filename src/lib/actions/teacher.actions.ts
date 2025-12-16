@@ -136,7 +136,7 @@ export async function resetAllStudentData() {
   return { success: true, message: "Toutes les données des élèves ont été réinitialisées avec succès." };
 }
 
-export async function validateStudent(studentId: string, classroomId: string): Promise<{ success: boolean }> {
+export async function validateStudent(studentId: string, classroomId: string): Promise<User> {
   console.log(`✅ [ACTION validateStudent] - Validation de l'élève ${studentId} pour la classe ${classroomId}`);
   
   const student = await prisma.user.update({
@@ -151,5 +151,5 @@ export async function validateStudent(studentId: string, classroomId: string): P
   revalidatePath(`/teacher/class/${classroomId}`);
   console.log(`  -> Revalidation du chemin '/teacher/class/${classroomId}' déclenchée.`);
   
-  return { success: true };
+  return student;
 }

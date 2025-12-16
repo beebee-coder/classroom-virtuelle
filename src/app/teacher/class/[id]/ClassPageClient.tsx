@@ -39,9 +39,9 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
         classroom.eleves?.filter(s => s.validationStatus === ValidationStatus.PENDING) || []
     );
 
-    const validatedStudents = useMemo(() => {
-        return classroom.eleves?.filter(s => s.validationStatus === ValidationStatus.VALIDATED) || [];
-    }, [classroom.eleves]);
+    const [validatedStudents, setValidatedStudents] = useState<User[]>(
+      classroom.eleves?.filter(s => s.validationStatus === ValidationStatus.VALIDATED) || []
+    );
 
     const { 
         onlineMembers, 
@@ -141,13 +141,16 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
         return { onlineStudentIds: [...new Set(ids)] };
     }, [onlineMembers, classroom.eleves]);
 
-    const handleValidateStudent = (studentId: string) => {
-        console.log(`▶️ [CLIENT CLASSE] - Le professeur clique sur 'Valider' pour l'élève ${studentId}`);
+    const handleValidateStudent = (student: User) => {
+        console.log(`▶️ [CLIENT CLASSE] - Le professeur clique sur 'Valider' pour l'élève ${student.id}`);
         startValidationTransition(async () => {
             try {
-                await validateStudent(studentId, classroom.id);
-                toast({ title: 'Élève validé !', description: "L'élève a été ajouté à votre classe." });
-                setPendingStudents(prev => prev.filter(s => s.id !== studentId));
+                const validated = await validateStudent(student.id, classroom.id);
+                toast({ title: 'Élève validé !', description: `${student.name} a été ajouté à votre classe.` });
+                
+                // Mettre à jour l'état local pour une UI réactive
+                setPendingStudents(prev => prev.filter(s => s.id !== student.id));
+                setValidatedStudents(prev => [...prev, validated]);
             } catch (error) {
                 toast({ variant: 'destructive', title: 'Erreur de validation' });
             }
@@ -221,7 +224,7 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                                         <p className="font-medium">{student.name}</p>
                                         <p className="text-sm text-muted-foreground">{student.email}</p>
                                     </div>
-                                    <Button onClick={() => handleValidateStudent(student.id)} disabled={isPendingValidation}>
+                                    <Button onClick={() => handleValidateStudent(student)} disabled={isPendingValidation}>
                                         {isPendingValidation ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <UserCheck className="mr-2 h-4 w-4"/>}
                                         Valider et ajouter
                                     </Button>
