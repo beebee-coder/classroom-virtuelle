@@ -1,6 +1,5 @@
 // src/app/teacher/validations/ValidationConsoleClient.tsx
 'use client';
-
 import { useState, useTransition, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Check, Loader2, UserCheck } from 'lucide-react';
@@ -22,21 +21,30 @@ export function ValidationConsoleClient({ initialPendingStudents, teacherClasses
   const [selectedClasses, setSelectedClasses] = useState<Record<string, string>>({});
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
-  
-  const ablyClient = useNamedAbly('ValidationConsoleClient');
+
+  // Utilisation du hook Ably pour la connexion temps réel
+  const { client: ablyClient } = useNamedAbly('ValidationConsoleClient');
 
   useEffect(() => {
-    if (!ablyClient) return;
+    if (!ablyClient?.client) {
+      console.warn('⚠️ [ValidationConsoleClient] Ably client non disponible.');
+      return;
+    }
 
     const channelName = getPendingStudentsChannelName();
     const channel = ablyClient.client.channels.get(channelName);
 
     const listener = (message: any) => {
       console.log("📨 [CONSOLE VALIDATION] - Événement 'student-pending' reçu!", message.data);
+      const { studentId, studentName, studentEmail } = message.data;
+      if (!studentId || !studentName || !studentEmail) {
+        console.warn('⚠️ Données élèves invalides reçues via Ably:', message.data);
+        return;
+      }
       const newStudent: User = {
-        id: message.data.studentId,
-        name: message.data.studentName,
-        email: message.data.studentEmail,
+        id: studentId,
+        name: studentName,
+        email: studentEmail,
         emailVerified: null,
         image: null,
         password: null,
@@ -49,12 +57,12 @@ export function ValidationConsoleClient({ initialPendingStudents, teacherClasses
         createdAt: new Date(),
         updatedAt: new Date(),
       };
-
       setPendingStudents(prev => {
+        // Éviter les doublons
         if (prev.some(s => s.id === newStudent.id)) return prev;
         toast({
-            title: "🔔 Nouvel élève en attente !",
-            description: `${newStudent.name} vient de s'inscrire et attend votre validation.`
+          title: "🔔 Nouvel élève en attente !",
+          description: `${newStudent.name} vient de s'inscrire et attend votre validation.`,
         });
         return [...prev, newStudent];
       });
@@ -62,19 +70,18 @@ export function ValidationConsoleClient({ initialPendingStudents, teacherClasses
 
     channel.subscribe(AblyEvents.STUDENT_PENDING, listener);
 
+    // Nettoyage de l'abonnement lors du démontage du composant
     return () => {
       channel.unsubscribe(AblyEvents.STUDENT_PENDING, listener);
     };
-  }, [ablyClient, toast]);
-
+  }, [ablyClient?.client, toast]);
 
   const handleValidate = (student: User) => {
     const classroomId = selectedClasses[student.id];
     if (!classroomId) {
-        toast({ variant: 'destructive', title: 'Classe requise', description: 'Veuillez sélectionner une classe pour cet élève.' });
-        return;
+      toast({ variant: 'destructive', title: 'Classe requise', description: 'Veuillez sélectionner une classe pour cet élève.' });
+      return;
     }
-    
     startTransition(async () => {
       try {
         const validated = await validateStudent(student.id, classroomId);
@@ -87,8 +94,8 @@ export function ValidationConsoleClient({ initialPendingStudents, teacherClasses
   };
 
   const handleClassSelection = (studentId: string, classroomId: string) => {
-    setSelectedClasses(prev => ({...prev, [studentId]: classroomId}));
-  }
+    setSelectedClasses(prev => ({ ...prev, [studentId]: classroomId }));
+  };
 
   if (pendingStudents.length === 0) {
     return <p className="text-muted-foreground text-center py-4">Aucun nouvel élève en attente de validation. Bravo !</p>;
@@ -102,20 +109,20 @@ export function ValidationConsoleClient({ initialPendingStudents, teacherClasses
             <p className="font-medium">{student.name}</p>
             <p className="text-sm text-muted-foreground">{student.email}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <Select onValueChange={(value) => handleClassSelection(student.id, value)} disabled={isPending}>
-                <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="Choisir une classe..." />
-                </SelectTrigger>
-                <SelectContent>
-                    {teacherClasses.map(c => (
-                        <SelectItem key={c.id} value={c.id}>{c.nom}</SelectItem>
-                    ))}
-                </SelectContent>
+              <SelectTrigger className="flex-1 min-w-[200px]">
+                <SelectValue placeholder="Choisir une classe..." />
+              </SelectTrigger>
+              <SelectContent>
+                {teacherClasses.map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.nom}</SelectItem>
+                ))}
+              </SelectContent>
             </Select>
             <Button onClick={() => handleValidate(student)} disabled={isPending || !selectedClasses[student.id]}>
-                {isPending ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <UserCheck className="mr-2 h-4 w-4"/>}
-                Valider et Assigner
+              {isPending ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <UserCheck className="mr-2 h-4 w-4" />}
+              Valider et Assigner
             </Button>
           </div>
         </div>

@@ -17,33 +17,18 @@ export default async function ValidationsPage() {
     redirect("/login");
   }
 
+  // Récupérer la liste initiale des élèves en attente
   const pendingStudents = await prisma.user.findMany({
     where: {
       role: 'ELEVE',
       validationStatus: 'PENDING',
-    },
-    // CORRECTION : Sélection explicite des champs et syntaxe de tri correcte
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      createdAt: true, // Inclure le champ pour le tri
-      // Inclure les autres champs nécessaires pour le type User si besoin
-      emailVerified: true,
-      image: true,
-      password: true,
-      parentPassword: true,
-      role: true,
-      validationStatus: true,
-      points: true,
-      ambition: true,
-      classeId: true,
     },
     orderBy: {
       createdAt: 'asc' // Trier par date de création, les plus anciens en premier
     }
   });
 
+  // Récupérer les classes du professeur pour le sélecteur d'assignation
   const teacherClasses = await prisma.classroom.findMany({
       where: { professeurId: session.user.id },
       select: { id: true, nom: true }
@@ -70,8 +55,9 @@ export default async function ValidationsPage() {
               </CardDescription>
           </CardHeader>
           <CardContent>
+              {/* Le composant client gère l'affichage et les mises à jour temps réel */}
               <ValidationConsoleClient 
-                initialPendingStudents={pendingStudents as User[]}
+                initialPendingStudents={pendingStudents}
                 teacherClasses={teacherClasses}
               />
           </CardContent>
