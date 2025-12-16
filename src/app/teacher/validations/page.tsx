@@ -22,9 +22,11 @@ export default async function ValidationsPage() {
       role: 'ELEVE',
       validationStatus: 'PENDING',
     },
-    orderBy: {
-      createdAt: 'asc',
-    },
+    orderBy: [
+      {
+        createdAt: 'asc',
+      },
+    ],
   });
 
   const teacherClasses = await prisma.classroom.findMany({
