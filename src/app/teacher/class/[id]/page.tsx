@@ -27,15 +27,16 @@ export default async function ClassPage({ params }: { params: { id: string } }) 
       redirect('/login');
   }
 
-  // ✅ CORRECTION MAJEURE: On récupère la classe ET tous les élèves en attente
-  const classroomDataPromise = prisma.classroom.findUnique({
+  // Simplification : On récupère uniquement les élèves validés de la classe.
+  // La logique de validation est maintenant sur une page dédiée.
+  const classroom = await prisma.classroom.findUnique({
     where: { id: classroomId, professeurId: teacher.id },
     include: {
       eleves: {
-        where: { validationStatus: 'VALIDATED' }, // Ne prendre que les élèves déjà validés pour cette classe
+        where: { validationStatus: 'VALIDATED' }, 
         select: {
           id: true, name: true, email: true, image: true, role: true,
-          validationStatus: true, points: true,
+          validationStatus: true, points: true, ambition: true,
           etat: { select: { isPunished: true, metierId: true } },
         },
         orderBy: { points: 'desc' }
@@ -43,40 +44,15 @@ export default async function ClassPage({ params }: { params: { id: string } }) 
     },
   });
 
-  const pendingStudentsPromise = prisma.user.findMany({
-    where: { 
-      role: 'ELEVE',
-      validationStatus: 'PENDING',
-      classeId: null // Qui ne sont dans aucune classe
-    },
-     select: {
-        id: true, name: true, email: true, image: true, role: true,
-        validationStatus: true, points: true,
-        etat: { select: { isPunished: true, metierId: true } },
-     }
-  });
-
-  const [classroom, pendingStudents] = await Promise.all([
-    classroomDataPromise,
-    pendingStudentsPromise
-  ]);
-
   if (!classroom) {
     notFound();
   }
-
-  // On fusionne les élèves de la classe et les élèves en attente pour la vue client
-  const allStudentsForView = [...classroom.eleves, ...pendingStudents];
-  const classroomWithAllStudents = {
-    ...classroom,
-    eleves: allStudentsForView,
-  };
 
   const announcements = await getClassAnnouncements(classroom.id) as AnnouncementWithAuthor[];
   
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-w-0">
-      <ClassPageClient classroom={classroomWithAllStudents as ClassroomWithDetails} teacher={teacher} announcements={announcements} />
+      <ClassPageClient classroom={classroom as ClassroomWithDetails} teacher={teacher} announcements={announcements} />
     </div>
   );
 }

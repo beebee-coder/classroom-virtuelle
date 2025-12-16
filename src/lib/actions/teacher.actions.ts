@@ -159,6 +159,7 @@ export async function validateStudent(studentId: string, classroomId: string): P
   
   // Revalider également le tableau de bord au cas où
   revalidatePath('/teacher/dashboard');
+  revalidatePath('/teacher/validations');
   
   console.log(`  -> Revalidation des chemins déclenchée.`);
   

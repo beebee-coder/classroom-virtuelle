@@ -1,25 +1,19 @@
 // src/app/teacher/class/[id]/ClassPageClient.tsx
 'use client';
 
-import { useEffect, useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { CreateAnnouncementForm } from '@/components/CreateAnnouncementForm';
 import { AddStudentForm } from './AddStudentForm';
 import { BackButton } from '@/components/BackButton';
 import { AnnouncementCarousel } from '@/components/AnnouncementCarousel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Video, UserCheck } from 'lucide-react';
+import { Users, Video } from 'lucide-react';
 import { SessionLauncher } from './SessionLauncher';
 import { StudentGrid } from './StudentGrid';
-import { type User, type Announcement, Role, ValidationStatus } from '@prisma/client';
+import { type User, type Announcement, Role } from '@prisma/client';
 import type { ClassroomWithDetails } from '@/types';
 import { useAblyPresence } from '@/hooks/useAblyPresence';
-import { validateStudent } from '@/lib/actions/teacher.actions';
-import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
-import { useAbly } from '@/hooks/useAbly';
-import { AblyEvents } from '@/lib/ably/events';
-import { getPendingStudentsChannelName } from '@/lib/ably/channels';
 
 type AnnouncementWithAuthor = Announcement & { author: { name: string | null } };
 
@@ -31,21 +25,12 @@ interface ClassPageClientProps {
 
 export default function ClassPageClient({ classroom, teacher, announcements }: ClassPageClientProps) {
     const [hasEnteredPresence, setHasEnteredPresence] = useState(false);
-    const [presenceEnterAttempts, setPresenceEnterAttempts] = useState(0);
-    const { toast } = useToast();
-    const [isPendingValidation, startValidationTransition] = useTransition();
     
-    // ✅ CORRECTION: L'état local est initialisé avec TOUS les élèves (validés ET en attente)
-    const [allStudents, setAllStudents] = useState<User[]>(classroom.eleves || []);
-
-    const pendingStudents = useMemo(() => 
-        allStudents.filter(s => s.validationStatus === ValidationStatus.PENDING),
-        [allStudents]
-    );
-
-    const validatedStudents = useMemo(() =>
-        allStudents.filter(s => s.validationStatus === ValidationStatus.VALIDATED),
-        [allStudents]
+    // La logique des élèves en attente est maintenant sur /teacher/validations
+    // On n'affiche que les élèves validés ici.
+    const validatedStudents = useMemo(() => 
+        classroom.eleves || [],
+        [classroom.eleves]
     );
 
     const { 
@@ -59,52 +44,6 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
         !!classroom?.id,
         'ClassPageClient'
     );
-
-    const ablyClient = useAbly('ClassPageClient-GlobalListener');
-    useEffect(() => {
-        if (!ablyClient) return;
-
-        const channelName = getPendingStudentsChannelName();
-        console.log(`🎧 [CLIENT CLASSE] - Écoute des nouveaux élèves sur le canal global: ${channelName}`);
-        const channel = ablyClient.client.channels.get(channelName);
-
-        const listener = (message: any) => {
-            console.log("📨 [CLIENT CLASSE] - Événement 'student-pending' reçu!", message.data);
-            const data = message.data;
-            const newStudent: User = {
-                id: data.studentId,
-                name: data.studentName,
-                email: data.studentEmail,
-                emailVerified: null,
-                image: null,
-                password: null,
-                parentPassword: null,
-                role: 'ELEVE',
-                validationStatus: 'PENDING',
-                points: 0,
-                ambition: null,
-                classeId: null, // Un nouvel élève n'a pas encore de classe
-            };
-
-            setAllStudents(prev => {
-                if (prev.some(s => s.id === newStudent.id)) return prev;
-                toast({
-                    title: "🔔 Nouvel élève en attente !",
-                    description: `${newStudent.name} vient de s'inscrire et attend votre validation.`
-                });
-                console.log(`  -> ✨ Ajout de ${newStudent.name} à la liste d'attente.`);
-                return [...prev, newStudent];
-            });
-        };
-
-        channel.subscribe(AblyEvents.STUDENT_PENDING, listener);
-
-        return () => {
-            console.log(`🛑 [CLIENT CLASSE] - Arrêt de l'écoute sur ${channelName}`);
-            channel.unsubscribe(AblyEvents.STUDENT_PENDING, listener);
-            channel.detach();
-        };
-    }, [ablyClient, toast]);
 
     useEffect(() => {
         if (isConnected && classroom?.id && teacher && !hasEnteredPresence && !isLoading) {
@@ -121,17 +60,14 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                         }
                     });
                     setHasEnteredPresence(true);
-                    setPresenceEnterAttempts(0);
                 } catch (error) {
-                    setPresenceEnterAttempts(prev => prev + 1);
-                    if (presenceEnterAttempts < 3) {
-                        setTimeout(() => setHasEnteredPresence(false), Math.min(1000 * Math.pow(2, presenceEnterAttempts), 10000));
-                    }
+                    console.warn("Retrying presence entry...");
+                    setTimeout(() => setHasEnteredPresence(false), 3000);
                 }
             };
             enterPresenceWithRetry();
         }
-    }, [isConnected, classroom?.id, teacher, enterPresence, isLoading, hasEnteredPresence, presenceEnterAttempts]);
+    }, [isConnected, classroom?.id, teacher, enterPresence, isLoading, hasEnteredPresence]);
 
     const { onlineStudentIds } = useMemo(() => {
         const ids: string[] = [];
@@ -146,21 +82,6 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
         return { onlineStudentIds: [...new Set(ids)] };
     }, [onlineMembers, classroom.eleves]);
 
-    const handleValidateStudent = (student: User) => {
-        console.log(`▶️ [CLIENT CLASSE] - Le professeur clique sur 'Valider' pour l'élève ${student.id}`);
-        startValidationTransition(async () => {
-            try {
-                const validated = await validateStudent(student.id, classroom.id);
-                toast({ title: 'Élève validé !', description: `${validated.name} a été ajouté à votre classe.` });
-                
-                // Mettre à jour l'état local pour une UI réactive
-                setAllStudents(prev => prev.map(s => s.id === validated.id ? validated : s));
-
-            } catch (error) {
-                toast({ variant: 'destructive', title: 'Erreur de validation', description: 'Impossible de valider cet élève.' });
-            }
-        });
-    };
 
     useEffect(() => {
         if (presenceError) {
@@ -197,46 +118,22 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                 </div>
             )}
             
-            <Tabs defaultValue="manage" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="manage">
+            <Tabs defaultValue="students" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="students">
                         <Users className="mr-2 h-4 w-4" />
                         Élèves ({validatedStudents.length})
-                    </TabsTrigger>
-                    <TabsTrigger value="pending">
-                        <UserCheck className="mr-2 h-4 w-4" />
-                        En attente ({pendingStudents.length})
                     </TabsTrigger>
                     <TabsTrigger value="launch">
                         <Video className="mr-2 h-4 w-4" />
                         Lancer une Session
                     </TabsTrigger>
                 </TabsList>
-                <TabsContent value="manage" className="mt-6">
+                <TabsContent value="students" className="mt-6">
                     <StudentGrid 
                         students={validatedStudents} 
                         onlineStudentIds={onlineStudentIds}
                     />
-                </TabsContent>
-                <TabsContent value="pending" className="mt-6">
-                    {pendingStudents.length === 0 ? (
-                        <p className="text-center text-muted-foreground py-8">Aucun élève en attente de validation.</p>
-                    ) : (
-                        <div className="space-y-3">
-                            {pendingStudents.map(student => (
-                                <div key={student.id} className="flex items-center justify-between p-3 border rounded-lg bg-card">
-                                    <div>
-                                        <p className="font-medium">{student.name}</p>
-                                        <p className="text-sm text-muted-foreground">{student.email}</p>
-                                    </div>
-                                    <Button onClick={() => handleValidateStudent(student)} disabled={isPendingValidation}>
-                                        {isPendingValidation ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <UserCheck className="mr-2 h-4 w-4"/>}
-                                        Valider et ajouter à cette classe
-                                    </Button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
                 </TabsContent>
                 <TabsContent value="launch" className="mt-6">
                     <SessionLauncher 
