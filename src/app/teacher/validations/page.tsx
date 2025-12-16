@@ -1,3 +1,4 @@
+
 // src/app/teacher/validations/page.tsx
 import { BackButton } from "@/components/BackButton";
 import { getServerSession } from "next-auth";
@@ -17,15 +18,17 @@ export default async function ValidationsPage() {
     redirect("/login");
   }
 
-  const pendingStudents = await prisma.user.findMany({
+  const pendingStudentsUnsorted = await prisma.user.findMany({
     where: {
       role: 'ELEVE',
       validationStatus: 'PENDING',
     },
-    orderBy: {
-      createdAt: 'asc',
-    },
   });
+
+  // Tri des élèves côté serveur pour contourner l'erreur de type Prisma
+  const pendingStudents = pendingStudentsUnsorted.sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
 
   const teacherClasses = await prisma.classroom.findMany({
       where: { professeurId: session.user.id },
