@@ -35,12 +35,17 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
     const { toast } = useToast();
     const [isPendingValidation, startValidationTransition] = useTransition();
     
-    const [pendingStudents, setPendingStudents] = useState<User[]>(
-        classroom.eleves?.filter(s => s.validationStatus === ValidationStatus.PENDING) || []
+    // ✅ CORRECTION: L'état local est initialisé avec TOUS les élèves (validés ET en attente)
+    const [allStudents, setAllStudents] = useState<User[]>(classroom.eleves || []);
+
+    const pendingStudents = useMemo(() => 
+        allStudents.filter(s => s.validationStatus === ValidationStatus.PENDING),
+        [allStudents]
     );
 
-    const [validatedStudents, setValidatedStudents] = useState<User[]>(
-      classroom.eleves?.filter(s => s.validationStatus === ValidationStatus.VALIDATED) || []
+    const validatedStudents = useMemo(() =>
+        allStudents.filter(s => s.validationStatus === ValidationStatus.VALIDATED),
+        [allStudents]
     );
 
     const { 
@@ -78,10 +83,10 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                 validationStatus: 'PENDING',
                 points: 0,
                 ambition: null,
-                classeId: null,
+                classeId: null, // Un nouvel élève n'a pas encore de classe
             };
 
-            setPendingStudents(prev => {
+            setAllStudents(prev => {
                 if (prev.some(s => s.id === newStudent.id)) return prev;
                 toast({
                     title: "🔔 Nouvel élève en attente !",
@@ -146,13 +151,13 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
         startValidationTransition(async () => {
             try {
                 const validated = await validateStudent(student.id, classroom.id);
-                toast({ title: 'Élève validé !', description: `${student.name} a été ajouté à votre classe.` });
+                toast({ title: 'Élève validé !', description: `${validated.name} a été ajouté à votre classe.` });
                 
                 // Mettre à jour l'état local pour une UI réactive
-                setPendingStudents(prev => prev.filter(s => s.id !== student.id));
-                setValidatedStudents(prev => [...prev, validated]);
+                setAllStudents(prev => prev.map(s => s.id === validated.id ? validated : s));
+
             } catch (error) {
-                toast({ variant: 'destructive', title: 'Erreur de validation' });
+                toast({ variant: 'destructive', title: 'Erreur de validation', description: 'Impossible de valider cet élève.' });
             }
         });
     };
@@ -226,7 +231,7 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                                     </div>
                                     <Button onClick={() => handleValidateStudent(student)} disabled={isPendingValidation}>
                                         {isPendingValidation ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <UserCheck className="mr-2 h-4 w-4"/>}
-                                        Valider et ajouter
+                                        Valider et ajouter à cette classe
                                     </Button>
                                 </div>
                             ))}

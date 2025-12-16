@@ -143,13 +143,24 @@ export async function validateStudent(studentId: string, classroomId: string): P
     where: { id: studentId },
     data: { 
       validationStatus: 'VALIDATED',
-      classeId: classroomId,
+      classeId: classroomId, // Assigner l'élève à la classe
+    },
+    include: { // Renvoyer toutes les données de l'utilisateur mis à jour
+        etat: true,
+        classe: true,
+        studentProgress: true,
     }
   });
 
   console.log(`  -> Élève ${student.name} mis à jour avec le statut VALIDATED et assigné à la classe ${classroomId}.`);
+  
+  // Revalider le chemin de la classe pour forcer le rafraîchissement des données
   revalidatePath(`/teacher/class/${classroomId}`);
-  console.log(`  -> Revalidation du chemin '/teacher/class/${classroomId}' déclenchée.`);
+  
+  // Revalider également le tableau de bord au cas où
+  revalidatePath('/teacher/dashboard');
+  
+  console.log(`  -> Revalidation des chemins déclenchée.`);
   
   return student;
 }
