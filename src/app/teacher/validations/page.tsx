@@ -1,4 +1,3 @@
-
 // src/app/teacher/validations/page.tsx
 import { BackButton } from "@/components/BackButton";
 import { getServerSession } from "next-auth";
@@ -18,17 +17,32 @@ export default async function ValidationsPage() {
     redirect("/login");
   }
 
-  const pendingStudentsUnsorted = await prisma.user.findMany({
+  const pendingStudents = await prisma.user.findMany({
     where: {
       role: 'ELEVE',
       validationStatus: 'PENDING',
     },
+    // CORRECTION : Sélection explicite des champs et syntaxe de tri correcte
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      createdAt: true, // Inclure le champ pour le tri
+      // Inclure les autres champs nécessaires pour le type User si besoin
+      emailVerified: true,
+      image: true,
+      password: true,
+      parentPassword: true,
+      role: true,
+      validationStatus: true,
+      points: true,
+      ambition: true,
+      classeId: true,
+    },
+    orderBy: {
+      createdAt: 'asc' // Trier par date de création, les plus anciens en premier
+    }
   });
-
-  // Tri des élèves côté serveur pour contourner l'erreur de type Prisma
-  const pendingStudents = pendingStudentsUnsorted.sort(
-    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-  );
 
   const teacherClasses = await prisma.classroom.findMany({
       where: { professeurId: session.user.id },
@@ -57,7 +71,7 @@ export default async function ValidationsPage() {
           </CardHeader>
           <CardContent>
               <ValidationConsoleClient 
-                initialPendingStudents={pendingStudents}
+                initialPendingStudents={pendingStudents as User[]}
                 teacherClasses={teacherClasses}
               />
           </CardContent>
