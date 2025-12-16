@@ -75,33 +75,31 @@ export const authOptions: NextAuthOptions = {
   pages: { signIn: "/login", error: "/login" },
   events: {
     async createUser({ user }) {
-      // Pour les comptes créés via Google ou un formulaire, si c'est un élève
+      console.log(`🎉 [AUTH EVENT] - Événement 'createUser' déclenché pour: ${user.email}`);
       if (user.role === 'ELEVE') {
-        console.log(`🔔 [AUTH EVENT] - Nouvel élève créé: ${user.email}. Déclenchement de la notification.`);
-        // Garantir que name et email ne sont pas undefined
+        console.log(`  -> 🔔 L'utilisateur est un élève, appel de la notification...`);
         await broadcastNewPendingStudent({
           id: user.id,
           name: user.name ?? null,
           email: user.email ?? null,
         });
+      } else {
+        console.log(`  -> L'utilisateur est un ${user.role}, aucune notification envoyée.`);
       }
     }
   },
   callbacks: {
-    // @ts-ignore
-    async signIn({ user, account, profile }) {
+    async signIn({ user, account }) {
         if (account?.provider === "google" && user.email) {
-            const userExists = await prisma.user.findUnique({
+            const userInDb = await prisma.user.findUnique({
                 where: { email: user.email },
                 include: { accounts: true }
             });
-
-            // Si l'utilisateur existe mais n'a pas de compte Google lié
-            if (userExists && !userExists.accounts.some(acc => acc.provider === "google")) {
+            if (userInDb && !userInDb.accounts.some(acc => acc.provider === "google")) {
                 console.log(`🔗 [SIGN_IN] - Liaison du compte Google à l'utilisateur existant: ${user.email}`);
                 await prisma.account.create({
                     data: {
-                        userId: userExists.id,
+                        userId: userInDb.id,
                         provider: account.provider,
                         type: account.type,
                         providerAccountId: account.providerAccountId,

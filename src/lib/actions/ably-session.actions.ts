@@ -322,11 +322,11 @@ export async function endQuiz(
  * Publishes an event to a global channel to notify teachers of a new pending student.
  */
 export async function broadcastNewPendingStudent(student: { id: string; name: string | null; email: string | null }) {
-    console.log(`📢 [ACTION] Diffusion d'un nouvel élève en attente : ${student.email}`);
+    console.log(`📢 [ACTION broadcastNewPendingStudent] - Diffusion d'un nouvel élève en attente: ${student.email}`);
     
     // Ensure we have the necessary data
     if (!student.name || !student.email) {
-        console.warn(`⚠️ [ACTION] Données de l'élève incomplètes pour la diffusion :`, student);
+        console.warn(`  -> ⚠️ Données de l'élève incomplètes, diffusion annulée:`, student);
         return;
     }
 
@@ -337,11 +337,10 @@ export async function broadcastNewPendingStudent(student: { id: string; name: st
         timestamp: new Date().toISOString(),
     };
     
-    // Get the global channel name for pending students
     const channelName = getPendingStudentsChannelName();
-
-    // Trigger the event
+    console.log(`  -> Publication sur le canal global: ${channelName}`);
+    
     await ablyTrigger(channelName, AblyEvents.STUDENT_PENDING, payload);
 
-    console.log(`✅ [ACTION] Événement STUDENT_PENDING diffusé sur le canal ${channelName}`);
+    console.log(`✅ [ACTION broadcastNewPendingStudent] - Événement STUDENT_PENDING diffusé.`);
 }

@@ -19,7 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useAbly } from '@/hooks/useAbly';
 import { AblyEvents } from '@/lib/ably/events';
-import { getPendingStudentsChannelName } from '@/lib/ably/channels'; // Nouvelle importation
+import { getPendingStudentsChannelName } from '@/lib/ably/channels';
 
 type AnnouncementWithAuthor = Announcement & { author: { name: string | null } };
 
@@ -35,7 +35,6 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
     const { toast } = useToast();
     const [isPendingValidation, startValidationTransition] = useTransition();
     
-    // État local pour les élèves en attente
     const [pendingStudents, setPendingStudents] = useState<User[]>(
         classroom.eleves?.filter(s => s.validationStatus === ValidationStatus.PENDING) || []
     );
@@ -56,17 +55,17 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
         'ClassPageClient'
     );
 
-    // 🔹 Écoute des nouveaux élèves en attente via le CANAL GLOBAL
-    const ablyClient = useAbly();
+    const ablyClient = useAbly('ClassPageClient-GlobalListener');
     useEffect(() => {
         if (!ablyClient) return;
 
-        const channelName = getPendingStudentsChannelName(); // Utilise le canal global
+        const channelName = getPendingStudentsChannelName();
+        console.log(`🎧 [CLIENT CLASSE] - Écoute des nouveaux élèves sur le canal global: ${channelName}`);
         const channel = ablyClient.client.channels.get(channelName);
 
         const listener = (message: any) => {
+            console.log("📨 [CLIENT CLASSE] - Événement 'student-pending' reçu!", message.data);
             const data = message.data;
-            // 🔹 ✅ Respect complet du type Prisma `User`
             const newStudent: User = {
                 id: data.studentId,
                 name: data.studentName,
@@ -79,15 +78,16 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                 validationStatus: 'PENDING',
                 points: 0,
                 ambition: null,
-                classeId: null, // Un nouvel élève n'a pas encore de classe assignée
+                classeId: null,
             };
 
             setPendingStudents(prev => {
                 if (prev.some(s => s.id === newStudent.id)) return prev;
                 toast({
-                    title: "Nouvel élève en attente !",
+                    title: "🔔 Nouvel élève en attente !",
                     description: `${newStudent.name} vient de s'inscrire et attend votre validation.`
                 });
+                console.log(`  -> ✨ Ajout de ${newStudent.name} à la liste d'attente.`);
                 return [...prev, newStudent];
             });
         };
@@ -95,12 +95,12 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
         channel.subscribe(AblyEvents.STUDENT_PENDING, listener);
 
         return () => {
+            console.log(`🛑 [CLIENT CLASSE] - Arrêt de l'écoute sur ${channelName}`);
             channel.unsubscribe(AblyEvents.STUDENT_PENDING, listener);
             channel.detach();
         };
     }, [ablyClient, toast]);
 
-    // 🔹 Entrée en présence du professeur
     useEffect(() => {
         if (isConnected && classroom?.id && teacher && !hasEnteredPresence && !isLoading) {
             const enterPresenceWithRetry = async () => {
@@ -128,7 +128,6 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
         }
     }, [isConnected, classroom?.id, teacher, enterPresence, isLoading, hasEnteredPresence, presenceEnterAttempts]);
 
-    // 🔹 Mapping des élèves en ligne
     const { onlineStudentIds } = useMemo(() => {
         const ids: string[] = [];
         onlineMembers.forEach(member => {
@@ -142,11 +141,10 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
         return { onlineStudentIds: [...new Set(ids)] };
     }, [onlineMembers, classroom.eleves]);
 
-    // 🔹 Validation d'un élève
     const handleValidateStudent = (studentId: string) => {
+        console.log(`▶️ [CLIENT CLASSE] - Le professeur clique sur 'Valider' pour l'élève ${studentId}`);
         startValidationTransition(async () => {
             try {
-                // L'action `validateStudent` assignera aussi l'élève à la classe actuelle
                 await validateStudent(studentId, classroom.id);
                 toast({ title: 'Élève validé !', description: "L'élève a été ajouté à votre classe." });
                 setPendingStudents(prev => prev.filter(s => s.id !== studentId));
@@ -156,7 +154,6 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
         });
     };
 
-    // 🔹 Gestion des erreurs Ably
     useEffect(() => {
         if (presenceError) {
             console.error('❌ [CLIENT CLASSE] - Erreur Ably:', presenceError);
@@ -220,7 +217,10 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                         <div className="space-y-3">
                             {pendingStudents.map(student => (
                                 <div key={student.id} className="flex items-center justify-between p-3 border rounded-lg bg-card">
-                                    <p className="font-medium">{student.name}</p>
+                                    <div>
+                                        <p className="font-medium">{student.name}</p>
+                                        <p className="text-sm text-muted-foreground">{student.email}</p>
+                                    </div>
                                     <Button onClick={() => handleValidateStudent(student.id)} disabled={isPendingValidation}>
                                         {isPendingValidation ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <UserCheck className="mr-2 h-4 w-4"/>}
                                         Valider et ajouter
