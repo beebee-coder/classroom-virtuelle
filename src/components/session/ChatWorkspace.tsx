@@ -344,5 +344,3 @@ export function ChatWorkspace({ classroomId, userId, userRole }: ChatWorkspacePr
     </div>
   );
 }
-
-    
