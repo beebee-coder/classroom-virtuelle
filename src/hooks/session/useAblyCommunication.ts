@@ -93,7 +93,7 @@ export function useAblyCommunication({
   const handlePresenceUpdate = useCallback(() => {
     if (!channelRef.current) return;
     
-    channelRef.current.presence.get((err, members) => {
+    channelRef.current.presence.get((err: Ably.ErrorInfo | null, members: Ably.PresenceMessage[] | null) => {
       if (err || !members) {
         console.warn('⚠️ [PRESENCE] - Erreur ou membres non disponibles:', err);
         return;

@@ -23,10 +23,9 @@ export async function getPresenceMembers(channelName: string): Promise<AblyPrese
         }
         const channel = ablyServer.channels.get(channelName);
         
-        const presencePage = await channel.presence.get();
+        const presencePage: Ably.PaginatedResult<Ably.PresenceMessage> = await channel.presence.get();
         
-        // Correctly handle PaginatedResult
-        const presenceMembers: Ably.PresenceMessage[] = presencePage.items;
+        const presenceMembers = presencePage.items;
         
         if (!Array.isArray(presenceMembers)) {
             return [];
