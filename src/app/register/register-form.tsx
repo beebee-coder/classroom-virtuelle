@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { signIn } from 'next-auth/react';
+import { Role } from '@prisma/client';
 
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -43,6 +44,8 @@ export default function RegisterForm() {
                 body: JSON.stringify(values),
             });
 
+            const data = await response.json();
+
             if (response.ok) {
                 // Inscription réussie, connecter l'utilisateur
                 const signInResponse = await signIn('credentials', {
@@ -50,19 +53,25 @@ export default function RegisterForm() {
                     password: values.password,
                     redirect: false,
                 });
+
                 if (signInResponse?.ok) {
-                    router.push('/student/validation-pending');
+                    // Rediriger en fonction du rôle retourné par l'API
+                    if (data.user.role === Role.PROFESSEUR) {
+                        router.push('/teacher/dashboard');
+                    } else {
+                        router.push('/student/validation-pending');
+                    }
                 } else {
                     setError("Erreur lors de la connexion après l'inscription.");
                 }
             } else {
-                const data = await response.json();
                 setError(data.error || 'Une erreur est survenue.');
             }
         });
     };
     
     const handleGoogleLogin = () => {
+        // La redirection post-connexion sera gérée par le `useEffect` dans LoginForm
         signIn("google", { callbackUrl: "/student/dashboard" });
     };
 

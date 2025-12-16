@@ -50,21 +50,8 @@ export const authOptions: NextAuthOptions = {
         const ownerEmail = process.env.OWNER_EMAIL?.toLowerCase().trim();
         const userEmail = profile.email.toLowerCase().trim();
 
-        // Si c'est le propriétaire → PROFESSEUR + VALIDATED
-        if (ownerEmail && userEmail === ownerEmail) {
-          return {
-            id: profile.sub,
-            name: profile.name,
-            email: profile.email,
-            image: profile.picture,
-            role: "PROFESSEUR" as Role,
-            validationStatus: "VALIDATED" as ValidationStatus,
-          };
-        }
-        
-        // Si ce n'est pas le propriétaire, vérifier si c'est un nouvel utilisateur ou un utilisateur existant
+        // 1. Vérifier si l'utilisateur existe déjà
         const existingUser = await prisma.user.findUnique({ where: { email: userEmail } });
-        
         if (existingUser) {
             // L'utilisateur existe déjà, on retourne ses informations actuelles pour ne pas écraser son statut/rôle
              return {
@@ -77,7 +64,20 @@ export const authOptions: NextAuthOptions = {
             };
         }
 
-        // Nouvel utilisateur → ELEVE + PENDING
+        // 2. Si c'est un nouvel utilisateur, déterminer son rôle
+        // Si c'est le propriétaire → PROFESSEUR + VALIDATED
+        if (ownerEmail && userEmail === ownerEmail) {
+          return {
+            id: profile.sub,
+            name: profile.name,
+            email: profile.email,
+            image: profile.picture,
+            role: "PROFESSEUR" as Role,
+            validationStatus: "VALIDATED" as ValidationStatus,
+          };
+        }
+        
+        // Nouvel utilisateur (non-propriétaire) → ELEVE + PENDING
         return {
           id: profile.sub,
           name: profile.name,
