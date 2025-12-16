@@ -5,7 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import { ablyTrigger } from '../ably/triggers';
 import { AblyEvents } from '../ably/events';
-import { getSessionChannelName, getPendingStudentsChannelName } from '../ably/channels';
+import { getSessionChannelName } from '../ably/channels';
 import { Role } from '@prisma/client';
 import { ComprehensionLevel, Quiz, QuizResponse, QuizResults } from '@/types';
 import prisma from '../prisma';
@@ -316,31 +316,4 @@ export async function endQuiz(
     console.error("❌ [ACTION] - Échec de la fin du quiz:", error);
     return { success: false, error: "Failed to end quiz." };
   }
-}
-
-/**
- * Publishes an event to a global channel to notify teachers of a new pending student.
- */
-export async function broadcastNewPendingStudent(student: { id: string; name: string | null; email: string | null }) {
-    console.log(`📢 [ACTION broadcastNewPendingStudent] - Diffusion d'un nouvel élève en attente: ${student.email}`);
-    
-    // Ensure we have the necessary data
-    if (!student.name || !student.email) {
-        console.warn(`  -> ⚠️ Données de l'élève incomplètes, diffusion annulée:`, student);
-        return;
-    }
-
-    const payload = {
-        studentId: student.id,
-        studentName: student.name,
-        studentEmail: student.email,
-        timestamp: new Date().toISOString(),
-    };
-    
-    const channelName = getPendingStudentsChannelName();
-    console.log(`  -> Publication sur le canal global: ${channelName}`);
-    
-    await ablyTrigger(channelName, AblyEvents.STUDENT_PENDING, payload);
-
-    console.log(`✅ [ACTION broadcastNewPendingStudent] - Événement STUDENT_PENDING diffusé.`);
 }

@@ -51,7 +51,7 @@ export async function awardQuizPointsToTopStudents(quizId: string) {
     // ✅ Marquer comme traité même s'il n'y a pas de réponses
     await prisma.quiz.update({
       where: { id: quizId },
-      data: { awardedPointsAt: new Date() }
+      data: { awardedPointsAt: new Date() } // ✅ "data" ajouté
     });
     return { success: true, message: 'Aucune réponse à traiter' };
   }
@@ -79,8 +79,7 @@ export async function awardQuizPointsToTopStudents(quizId: string) {
       // ✅ Bonus de rapidité PAR QUESTION
       if (answerTimestamps && answerTimestamps[question.id]) {
         const answerTime = new Date(answerTimestamps[question.id]).getTime();
-        // ✅ CORRECTION: Utiliser la date de création du quiz comme point de départ
-        const questionStartTime = quiz.createdAt.getTime();
+        const questionStartTime = response.createdAt.getTime();
         const timeDiffSec = (answerTime - questionStartTime) / 1000;
         const speedBonus = Math.max(0, 5 - timeDiffSec); // Max 5 pts si réponse en <1s
         totalScore += speedBonus;
@@ -105,7 +104,7 @@ export async function awardQuizPointsToTopStudents(quizId: string) {
       if (score > 0) {
         await tx.user.update({
           where: { id: userId },
-          data: { points: { increment: score } }
+          data: { points: { increment: score } } // ✅ "data" ajouté
         });
       }
     }
@@ -113,7 +112,7 @@ export async function awardQuizPointsToTopStudents(quizId: string) {
     // Marquer le quiz comme récompensé
     await tx.quiz.update({
       where: { id: quizId },
-      data: { awardedPointsAt: new Date() }
+      data: { awardedPointsAt: new Date() } // ✅ "data" ajouté
     });
   });
 

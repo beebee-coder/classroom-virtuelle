@@ -15,7 +15,6 @@ import { updateUserSettings } from '@/lib/actions/user.actions';
 import { ProfileAvatar } from './ProfileAvatar';
 import type { User as PrismaUser } from '@prisma/client';
 import { useRouter } from 'next/navigation';
-import type { Session } from 'next-auth';
 
 const profileFormSchema = z.object({
   name: z.string().min(2, {
@@ -59,7 +58,7 @@ export function SettingsClient({ user }: SettingsClientProps) {
           title: "Profil mis à jour",
           description: "Votre nom a été modifié avec succès.",
         });
-        router.refresh(); 
+        router.refresh(); // Rafraîchit les données du serveur
       } catch (error) {
         toast({
           variant: "destructive",
@@ -100,7 +99,7 @@ export function SettingsClient({ user }: SettingsClientProps) {
           <form onSubmit={profileForm.handleSubmit(onProfileSubmit)}>
             <CardContent className="space-y-6">
               <div className="flex items-center gap-6">
-                  <ProfileAvatar user={user as Session['user']} isInteractive={true} className="h-20 w-20" />
+                  <ProfileAvatar user={user} isInteractive={true} className="h-20 w-20" />
                   <FormField
                     control={profileForm.control}
                     name="name"

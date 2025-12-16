@@ -1,4 +1,3 @@
-
 // src/app/login/login-form.tsx
 'use client';
 
@@ -31,8 +30,6 @@ export default function LoginForm() {
   useEffect(() => {
     if (errorParam === 'CredentialsSignin') {
       setError("Identifiants ou mot de passe incorrects. Veuillez réessayer.");
-    } else if (errorParam === 'OAuthAccountNotLinked') {
-      setError("Cet email est déjà utilisé avec une autre méthode de connexion. Essayez de vous connecter avec email/mot de passe.");
     } else if (errorParam) {
       setError("Une erreur de connexion est survenue. Veuillez réessayer.");
     }
@@ -41,22 +38,22 @@ export default function LoginForm() {
   // Redirection après authentification
   useEffect(() => {
     if (status === "authenticated" && session?.user) {
-      console.log('🔵 [LOGIN FORM] - Utilisateur authentifié, vérification du statut...');
+      console.log('🔵 [LOGIN FORM] - Utilisateur authentifié, vérification du statut.');
 
       // 🔹 Si élève non validé → page d'attente
       if (session.user.role === 'ELEVE' && session.user.validationStatus !== 'VALIDATED') {
-        console.log('⏳ [LOGIN FORM] - Élève non validé, redirection vers /student/validation-pending');
-        router.replace('/student/validation-pending');
+        console.log(' redirecting to /student/validation-pending');
+        router.push('/student/validation-pending');
         return;
       }
 
-      // Sinon → dashboard approprié
+      // Sinon → dashboard
       const targetUrl =
         session.user.role === 'PROFESSEUR'
           ? '/teacher/dashboard'
           : '/student/dashboard';
-      console.log(`✅ [LOGIN FORM] - Redirection vers: ${targetUrl}`);
-      router.replace(targetUrl);
+      console.log(`[LOGIN FORM] Redirection vers: ${targetUrl}`);
+      router.push(targetUrl);
     }
   }, [status, session, router]);
 
@@ -81,10 +78,11 @@ export default function LoginForm() {
 
     console.log('🔵 [LOGIN FORM] - Résultat de signIn:', result);
 
-    if (result?.ok) {
-      // La redirection sera gérée par le useEffect
-      router.refresh(); 
-    } else {
+    if (result?.ok && !result.error) {
+        console.log('✅ [LOGIN FORM] - Connexion réussie. La redirection sera gérée par le useEffect.');
+        // Forcer le rechargement de la session pour déclencher le useEffect de redirection.
+        router.refresh();
+      } else {
       setError(
         result?.error === 'CredentialsSignin'
           ? "Identifiants ou mot de passe incorrects."
@@ -96,11 +94,10 @@ export default function LoginForm() {
   };
 
   const handleGoogleLogin = () => {
-    setLoading(true);
     signIn("google", { callbackUrl });
   };
-  
-  if (status === "loading" || status === "authenticated") {
+
+  if (status === "loading" || (status === 'authenticated' && !session.user.role)) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader2 className="h-12 w-12 animate-spin" />
@@ -147,6 +144,7 @@ export default function LoginForm() {
                 </Alert>
               )}
 
+              {/* Champ Email */}
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-sm font-medium">Email</Label>
                 <div className="relative">
@@ -163,6 +161,7 @@ export default function LoginForm() {
                 </div>
               </div>
 
+              {/* Champ Mot de passe */}
               <div className="space-y-2">
                 <Label htmlFor="password" className="text-sm font-medium">Mot de passe</Label>
                 <div className="relative">
@@ -179,15 +178,11 @@ export default function LoginForm() {
                 </div>
               </div>
 
-              <div className="relative my-4">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">
-                    Ou continuer avec
-                  </span>
-                </div>
+              {/* Séparateur et bouton Google */}
+              <div className="flex items-center my-4">
+                <div className="flex-grow border-t border-muted"></div>
+                <span className="px-4 text-sm text-muted-foreground">ou</span>
+                <div className="flex-grow border-t border-muted"></div>
               </div>
 
               <Button
@@ -203,7 +198,7 @@ export default function LoginForm() {
                   <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
                   <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                 </svg>
-                Google
+                Continuer avec Google
               </Button>
             </CardContent>
             <CardFooter className="bg-background/20 p-6 flex-col gap-4">
@@ -233,4 +228,3 @@ export default function LoginForm() {
     </div>
   );
 }
-

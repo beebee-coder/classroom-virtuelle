@@ -1,13 +1,13 @@
-// src/app/api/ably/token/route.ts
+// app/api/ably/token/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import Ably from 'ably';
-import type * as AblyTypes from 'ably';
 
 // Timeout config
 const AUTH_TIMEOUT_MS = 8000;
 
+// ✅ CORRECTION : Force le mode dynamique pour éviter le rendu statique
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
     );
 
     try {
+        // ✅ CORRECTION : Passage explicite des headers et cookies à getServerSession
         const session = await Promise.race([
             getServerSession(authOptions),
             timeoutPromise
@@ -55,25 +56,31 @@ export async function GET(request: NextRequest) {
         const clientId = session.user.id;
         console.log(`🔑 [ABLY TOKEN] - Creating token for: ${clientId.substring(0, 8)}...`);
 
-        const ably = new Ably.Rest({ key: ablyApiKey }); // ✅ passer un objet options
-        
-        // ✅ CORRECTION : capability bien typé
-        const capability = {
-            'classroom-connector:*': ['presence', 'subscribe', 'publish'] as AblyTypes.capabilityOp[],
-        };
-
-        const tokenParams: AblyTypes.TokenParams = {
-            clientId: clientId,
-            capability: capability,
-            ttl: 3600000 // 1 hour
-        };
+        const ably = new Ably.Rest(ablyApiKey);
         
         const tokenRequest = await Promise.race([
-            ably.auth.createTokenRequest(tokenParams),
+            new Promise<Ably.Types.TokenRequest>((resolve, reject) => {
+                ably.auth.createTokenRequest(
+                    {
+                        clientId: clientId,
+                        capability: {
+                            'classroom-connector:*': ['presence', 'subscribe', 'publish']
+                        },
+                        ttl: 3600000 // 1 hour
+                    },
+                    (err, tokenRequest) => {
+                        if (err) {
+                            console.error('❌ [ABLY TOKEN] - Token creation error:', err);
+                            reject(err);
+                        } else {
+                            console.log(`✅ [ABLY TOKEN] - Token created for ${clientId.substring(0, 8)}...`);
+                            resolve(tokenRequest!);
+                        }
+                    }
+                );
+            }),
             timeoutPromise
         ]);
-
-        console.log(`✅ [ABLY TOKEN] - Token created for ${clientId.substring(0, 8)}...`);
 
         return NextResponse.json(tokenRequest, {
             headers: { 

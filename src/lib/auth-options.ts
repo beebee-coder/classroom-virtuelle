@@ -6,7 +6,8 @@ import Credentials from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { Role, ValidationStatus } from "@prisma/client";
-import { broadcastNewPendingStudent } from '@/lib/actions/ably-session.actions';
+import { ablyTrigger } from "./ably/triggers";
+import { AblyEvents } from "./ably/events";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
@@ -45,10 +46,11 @@ export const authOptions: NextAuthOptions = {
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       authorization: { params: { prompt: "select_account" } },
-      profile(profile) {
+      async profile(profile) {
         const ownerEmail = process.env.OWNER_EMAIL?.toLowerCase().trim();
         const userEmail = profile.email.toLowerCase().trim();
 
+        // 🔑 Si c'est le propriétaire → PROFESSEUR + VALIDATED
         if (ownerEmail && userEmail === ownerEmail) {
           return {
             id: profile.sub,
@@ -59,7 +61,23 @@ export const authOptions: NextAuthOptions = {
             validationStatus: "VALIDATED" as ValidationStatus,
           };
         }
+        
+        // Si ce n'est pas le propriétaire, vérifier si c'est un nouvel utilisateur ou un utilisateur existant
+        const existingUser = await prisma.user.findUnique({ where: { email: userEmail } });
+        
+        if (existingUser) {
+            // L'utilisateur existe déjà, on retourne ses informations actuelles pour ne pas écraser son statut/rôle
+             return {
+                id: existingUser.id,
+                name: existingUser.name,
+                email: existingUser.email,
+                image: existingUser.image,
+                role: existingUser.role,
+                validationStatus: existingUser.validationStatus,
+            };
+        }
 
+        // ✅ Nouvel utilisateur → ELEVE + PENDING
         return {
           id: profile.sub,
           name: profile.name,
@@ -73,68 +91,32 @@ export const authOptions: NextAuthOptions = {
   ],
   session: { strategy: "jwt" },
   pages: { signIn: "/login", error: "/login" },
-  events: {
-    async createUser({ user }) {
-      console.log(`🎉 [AUTH EVENT] - Événement 'createUser' déclenché pour: ${user.email}`);
-      if (user.role === 'ELEVE') {
-        console.log(`  -> 🔔 L'utilisateur est un élève, appel de la notification...`);
-        await broadcastNewPendingStudent({
-          id: user.id,
-          name: user.name ?? null,
-          email: user.email ?? null,
-        });
-      } else {
-        console.log(`  -> L'utilisateur est un ${user.role}, aucune notification envoyée.`);
-      }
-    }
-  },
   callbacks: {
-    async signIn({ user, account }) {
-      // ✅ Logique de liaison de compte pour OAuth
-      if (account && account.provider !== 'credentials') {
-        const userByEmail = await prisma.user.findUnique({
-          where: { email: user.email! },
-        });
-
-        // Si l'utilisateur existe déjà avec cet email, mais que le compte OAuth n'est pas lié
-        if (userByEmail) {
-          const accountLinked = await prisma.account.findFirst({
-            where: {
-              provider: account.provider,
-              providerAccountId: account.providerAccountId,
-            },
-          });
-          
-          if (!accountLinked) {
-            console.log(`🔗 [SIGN_IN] - Liaison du nouveau compte ${account.provider} à l'utilisateur existant: ${user.email}`);
-            await prisma.account.create({
-              data: {
-                userId: userByEmail.id,
-                type: account.type,
-                provider: account.provider,
-                providerAccountId: account.providerAccountId,
-                access_token: account.access_token,
-                expires_at: account.expires_at,
-                token_type: account.token_type,
-                scope: account.scope,
-                id_token: account.id_token,
-              },
-            });
-          }
+    async signIn({ user, account, profile }) {
+        if (user.validationStatus === 'PENDING') {
+            console.log(`[SIGN IN CALLBACK] - Utilisateur ${user.email} est PENDING. Connexion autorisée, la redirection gérera le reste.`);
         }
-      }
-      return true;
+        return true; // Toujours autoriser la connexion, la redirection est gérée côté client
     },
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id;
-        token.role = user.role as Role;
-        token.classeId = user.classeId;
-        token.image = user.image;
-        token.validationStatus = user.validationStatus as ValidationStatus;
-      }
-      return token;
+
+    async jwt({ token, user, trigger, session }) {
+        // Au moment de la création du JWT (connexion)
+        if (user) {
+            token.id = user.id;
+            token.role = user.role as Role;
+            token.classeId = user.classeId;
+            token.image = user.image;
+            token.validationStatus = user.validationStatus as ValidationStatus;
+        }
+
+        // Si la session est mise à jour (ex: par useSession().update())
+        if (trigger === "update" && session?.validationStatus) {
+            token.validationStatus = session.validationStatus as ValidationStatus;
+        }
+        
+        return token;
     },
+
     async session({ session, token }) {
       if (token) {
         session.user.id = token.id as string;
@@ -145,6 +127,26 @@ export const authOptions: NextAuthOptions = {
       }
       return session;
     },
+  },
+  events: {
+    async createUser(message) {
+        const user = message.user;
+        // Si un nouvel élève est créé (ex: 1ère connexion Google) et qu'il est en attente
+        if (user.role === Role.ELEVE && user.validationStatus === ValidationStatus.PENDING) {
+            console.log(`[CREATE USER EVENT] Nouvel élève créé via provider: ${user.id}. Diffusion de l'événement.`);
+            try {
+                 await ablyTrigger('classroom-connector:pending-students', AblyEvents.STUDENT_PENDING, {
+                    id: user.id,
+                    name: user.name,
+                    email: user.email,
+                    createdAt: new Date().toISOString()
+                });
+                console.log(`[CREATE USER EVENT] Événement Ably diffusé avec succès.`);
+            } catch (ablyError) {
+                 console.error('[CREATE USER EVENT] Erreur lors de la diffusion de l\'événement Ably:', ablyError);
+            }
+        }
+    }
   },
 
   debug: process.env.NODE_ENV === "development",

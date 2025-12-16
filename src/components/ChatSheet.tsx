@@ -1,4 +1,4 @@
-// src/components/ChatSheet.tsx
+// src/components/ChatSheet.tsx - VERSION CORRIGÉE SANS ERREURS TYPESCRIPT
 'use client';
 
 import { useState, useEffect, useRef, useTransition, useCallback } from 'react';
@@ -16,11 +16,10 @@ import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import type { Message, Reaction, User, Role } from '@prisma/client';
-import { useNamedAbly } from '@/hooks/useNamedAbly';
+import { useNamedAbly } from '@/hooks/useNamedAbly'; // ✅ CORRECTION: Utilisation du hook nommé
 import { getClassChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
-// ✅ Ajout de l'import des types Ably
-import type * as Ably from 'ably';
+import Ably from 'ably';
 
 const EMOJIS = ['👍', '❤️', '😂', '😯', '😢', '🤔'];
 
@@ -45,15 +44,19 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   
-  const channelRef = useRef<Ably.RealtimeChannel | null>(null);
-  const listenersRef = useRef<Map<string, (message: Ably.Message) => void>>(new Map());
+  // ✅ CORRECTION : Références unifiées pour la gestion Ably
+  const channelRef = useRef<Ably.Types.RealtimeChannelCallbacks | null>(null);
+  const listenersRef = useRef<Map<string, (message: Ably.Types.Message) => void>>(new Map());
   const isMountedRef = useRef(true);
 
+  // ✅ CORRECTION: Utilisation du hook nommé
   const { client: ablyClient, isConnected: ablyConnected, connectionState } = useNamedAbly('ChatSheet');
   
+  // ✅ CORRECTION : Logique de chargement améliorée
   const ablyLoading = connectionState === 'initialized' || connectionState === 'connecting';
   const ablyReady = ablyClient && ablyConnected && !ablyLoading;
 
+  // ✅ CORRECTION : Fonction de récupération des messages avec gestion d'erreur améliorée
   const fetchMessages = useCallback(async () => {
     if (!classroomId || !isMountedRef.current) return;
     
@@ -84,25 +87,30 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
     }
   }, [classroomId, toast]);
 
+  // ✅ CORRECTION : Effet simplifié pour charger les messages - SUPPRIME hasInitializedRef
   useEffect(() => {
     if (isOpen && classroomId) {
       fetchMessages();
     }
   }, [isOpen, classroomId, fetchMessages]);
 
+  // ✅ CORRECTION : Gestion du cycle de vie simplifiée
   useEffect(() => {
     isMountedRef.current = true;
     
     return () => {
       isMountedRef.current = false;
+      // ✅ CORRECTION : Nettoyage à la fermeture du composant
       cleanupAbly();
     };
   }, []);
 
+  // ✅ CORRECTION : Fonction de nettoyage centralisée DÉCLARÉE AVANT UTILISATION
   const cleanupAbly = useCallback(() => {
     if (channelRef.current) {
       console.log(`🔕 [CHAT] Nettoyage du canal: ${channelRef.current.name}`);
       
+      // Désabonner tous les listeners enregistrés
       listenersRef.current.forEach((handler, eventName) => {
         try {
           channelRef.current?.unsubscribe(eventName, handler);
@@ -116,28 +124,40 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
     }
   }, []);
 
+  // ✅ CORRECTION : Configuration Ably robuste avec gestion d'état AMÉLIORÉE
   useEffect(() => {
+    // ✅ CORRECTION : Conditions simplifiées et plus permissives
     if (!classroomId || !isOpen || !ablyReady) {
+      console.log(`⏳ [CHAT] - Configuration Ably différée:`, {
+        hasClassroomId: !!classroomId,
+        isOpen,
+        hasAblyClient: !!ablyClient,
+        ablyLoading,
+        ablyConnected
+      });
       return;
     }
 
     const channelName = getClassChannelName(classroomId);
     
+    // ✅ CORRECTION : Vérifier si déjà configuré
     if (channelRef.current?.name === channelName) {
+      console.log(`🔁 [CHAT] Canal ${channelName} déjà configuré`);
       return;
     }
 
     console.log(`🔔 [CHAT] Configuration Ably pour le canal: ${channelName}`);
 
     try {
+      // ✅ CORRECTION : Nettoyer l'ancienne configuration
       cleanupAbly();
 
       const channel = ablyClient.channels.get(channelName);
       channelRef.current = channel;
       
+      // ✅ CORRECTION : Définir les handlers avec encapsulation
       const createMessageHandler = () => {
-        // ✅ CORRECTION : Types.Message → Ably.Message
-        const handler = (message: Ably.Message) => {
+        const handler = (message: Ably.Types.Message) => {
           if (!isMountedRef.current) return;
           
           const data = message.data as MessageWithReactions;
@@ -154,8 +174,7 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
       };
 
       const createReactionHandler = () => {
-        // ✅ CORRECTION : Types.Message → Ably.Message
-        const handler = (message: Ably.Message) => {
+        const handler = (message: Ably.Types.Message) => {
           if (!isMountedRef.current) return;
           
           const data = message.data as { 
@@ -204,6 +223,7 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
         return handler;
       };
 
+      // ✅ CORRECTION : S'abonner avec les handlers créés
       channel.subscribe(AblyEvents.NEW_MESSAGE, createMessageHandler());
       channel.subscribe(AblyEvents.REACTION_UPDATE, createReactionHandler());
       channel.subscribe(AblyEvents.HISTORY_CLEARED, createHistoryHandler());
@@ -222,6 +242,7 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
     return cleanupAbly;
   }, [classroomId, isOpen, toast, ablyClient, ablyReady, cleanupAbly, ablyLoading, ablyConnected]);
 
+  // ✅ CORRECTION : Auto-scroll optimisé
   useEffect(() => {
     if (scrollAreaRef.current && messages.length > 0 && isMountedRef.current) {
       const scrollToBottom = () => {
@@ -238,11 +259,13 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
         }
       };
 
+      // ✅ CORRECTION : Délai pour laisser le DOM se mettre à jour
       const timeoutId = setTimeout(scrollToBottom, 100);
       return () => clearTimeout(timeoutId);
     }
   }, [messages]);
 
+  // ✅ CORRECTION : Fonction d'envoi avec gestion d'état améliorée
   const handleSendMessage = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || isSending || !classroomId) return;
@@ -277,11 +300,13 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
     });
   }, [newMessage, isSending, classroomId, toast]);
 
+  // ✅ CORRECTION : Fonction de réaction avec rollback sécurisé
   const handleReactionClick = useCallback(async (messageId: string, emoji: string) => {
     if (!isMountedRef.current) return;
     
     const originalMessages = [...messages];
     
+    // Mise à jour optimiste
     setMessages(prev => prev.map(msg => {
       if (msg.id === messageId) {
         const existingReaction = msg.reactions.find(
@@ -320,6 +345,7 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
     }
   }, [messages, userId, toast]);
 
+  // ✅ CORRECTION : Fonction de suppression avec confirmation
   const handleDeleteHistory = useCallback(async () => {
     try {
       console.log('🗑️ [CHAT] Suppression de l\'historique');
@@ -338,6 +364,7 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
     }
   }, [classroomId, toast]);
 
+  // ✅ CORRECTION : Fonction utilitaire mémoïsée
   const getReactionSummary = useCallback((reactions: ReactionWithUser[]) => {
     const summary: Record<string, number> = {};
     reactions.forEach((reaction: ReactionWithUser) => {
@@ -415,6 +442,7 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
                           {format(new Date(msg.createdAt), 'HH:mm', { locale: fr })}
                         </p>
                         
+                        {/* Réactions */}
                         <div className={cn(
                           'absolute -bottom-3 flex gap-1',
                           isOwnMessage ? 'right-2' : 'left-2'

@@ -13,7 +13,7 @@ export const AblyEvents = {
 
     // Real-time interaction events
     HAND_RAISE_UPDATE: 'hand-raise-update',
-    HAND_ACKNOWLEDGED: 'hand-acknowledged',
+    HAND_ACKNOWLEDGED: 'hand-acknowledged', // Ajout du nouvel événement
     UNDERSTANDING_UPDATE: 'understanding-update',
 
     // Tool-related events
@@ -47,14 +47,11 @@ export const AblyEvents = {
     QUIZ_STARTED: 'quiz-started',
     QUIZ_RESPONSE: 'quiz-response',
     QUIZ_ENDED: 'quiz-ended',
-    QUIZ_CLOSED: 'quiz-closed',
+    QUIZ_CLOSED: 'quiz-closed', // Ajout de l'événement de fermeture
 
     // Breakout Rooms events
     BREAKOUT_ROOMS_STARTED: 'breakout-rooms-started',
     BREAKOUT_ROOMS_ENDED: 'breakout-rooms-ended',
-
-    // 👇 NOUVEAU : Événement pour les élèves en attente
-    STUDENT_PENDING: 'student-pending',
 } as const;
 
 export type AblyEventName = typeof AblyEvents[keyof typeof AblyEvents];

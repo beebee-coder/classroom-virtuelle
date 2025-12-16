@@ -3,7 +3,6 @@
 
 import { getAblyChannel } from './server';
 import type { AblyEventName } from './events';
-import { AblyEvents } from './events';
 
 interface AblyTriggerOptions {
   socket_id?: string;
@@ -11,7 +10,7 @@ interface AblyTriggerOptions {
 
 /**
  * Publishes an event to one or more Ably channels.
- * ✅ Server Action sécurisée pour publier des événements Ably
+ * ✅ CORRECTION : Fonction Server Action pure
  */
 export async function ablyTrigger<T>(
   channel: string | string[],
@@ -59,20 +58,4 @@ export async function ablyTrigger<T>(
     });
     return false;
   }
-}
-
-// ✅ Fonction utilitaire dédiée pour les élèves en attente
-export async function publishStudentPending(
-  classroomId: string,
-  studentData: {
-    studentId: string;
-    studentName: string;
-    studentEmail: string;
-  }
-) {
-  return await ablyTrigger(
-    `classroom:${classroomId}:student.pending`,
-    AblyEvents.STUDENT_PENDING,
-    studentData
-  );
 }

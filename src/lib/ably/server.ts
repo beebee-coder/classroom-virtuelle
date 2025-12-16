@@ -1,4 +1,6 @@
 // src/lib/ably/server.ts
+// ❌ SUPPRIMER 'use server' - Ce n'est pas une Server Action
+
 import Ably from 'ably';
 
 declare global {
@@ -8,6 +10,7 @@ declare global {
 
 const ablyApiKey = process.env.ABLY_API_KEY;
 
+// ✅ CORRECTION : Fonction pure pour obtenir l'instance Ably
 export function initializeAblyServer(): Ably.Rest | null {
   if (typeof window !== 'undefined') {
     return null;
@@ -24,10 +27,11 @@ export function initializeAblyServer(): Ably.Rest | null {
   }
 
   try {
+    // ✅ CORRECTION : Retourner une nouvelle instance ou l'existante
     if (process.env.NODE_ENV === 'production' || !global.ablyServerInstance) {
-      const clientOptions: Ably.ClientOptions = {
+      const clientOptions: Ably.Types.ClientOptions = {
         key: ablyApiKey,
-        logLevel: process.env.NODE_ENV === 'development' ? 2 : 1,
+        logLevel: (process.env.NODE_ENV === 'development' ? 2 : 1) as any,
         tls: true,
         httpMaxRetryCount: 5,
         httpOpenTimeout: 15000,
@@ -37,11 +41,11 @@ export function initializeAblyServer(): Ably.Rest | null {
       };
 
       const instance = new Ably.Rest(clientOptions);
-
+      
       if (process.env.NODE_ENV !== 'production') {
         global.ablyServerInstance = instance;
       }
-
+      
       return instance;
     } else {
       return global.ablyServerInstance;
@@ -52,6 +56,7 @@ export function initializeAblyServer(): Ably.Rest | null {
   }
 }
 
+// ✅ CORRECTION : Fonction helper pour les Server Actions
 export async function getAblyChannel(channelName: string) {
   const ablyServer = initializeAblyServer();
   if (!ablyServer) {

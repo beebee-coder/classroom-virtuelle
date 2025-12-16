@@ -1,132 +1,145 @@
+
 // src/app/teacher/validations/ValidationConsoleClient.tsx
 'use client';
-import { useState, useTransition, useEffect } from 'react';
+
+import { useState, useTransition } from 'react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Check, Loader2, UserCheck } from 'lucide-react';
+import { Check, Loader2, X, Star } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { validateStudent } from '@/lib/actions/teacher.actions';
-import type { User, Classroom } from '@prisma/client';
-import { useNamedAbly } from '@/hooks/useNamedAbly';
-import { getPendingStudentsChannelName } from '@/lib/ably/channels';
-import { AblyEvents } from '@/lib/ably/events';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ProfessorValidationPayload, validateTaskByProfessor } from '@/lib/actions/teacher.actions';
+import Image from 'next/image';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import type { Task, StudentProgress, User } from '@prisma/client';
+export const dynamic = 'force-dynamic';
+
+type TaskForProfessorValidation = StudentProgress & {
+  task: Task;
+  student: Pick<User, 'id' | 'name'>;
+};
 
 interface ValidationConsoleClientProps {
-  initialPendingStudents: User[];
-  teacherClasses: Pick<Classroom, 'id' | 'nom'>[];
+  initialTasks: TaskForProfessorValidation[];
 }
 
-export function ValidationConsoleClient({ initialPendingStudents, teacherClasses }: ValidationConsoleClientProps) {
-  const [pendingStudents, setPendingStudents] = useState(initialPendingStudents);
-  const [selectedClasses, setSelectedClasses] = useState<Record<string, string>>({});
+export function ValidationConsoleClient({ initialTasks }: ValidationConsoleClientProps) {
+  const [tasks, setTasks] = useState(initialTasks);
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
+  
+  // State for custom points modal
+  const [selectedTask, setSelectedTask] = useState<TaskForProfessorValidation | null>(null);
+  const [customPoints, setCustomPoints] = useState<number | undefined>(undefined);
 
-  // Utilisation du hook Ably pour la connexion temps réel
-  const { client: ablyClient } = useNamedAbly('ValidationConsoleClient');
-
-  useEffect(() => {
-    if (!ablyClient) {
-      console.warn('⚠️ [ValidationConsoleClient] Ably client non disponible.');
-      return;
-    }
-
-    const channelName = getPendingStudentsChannelName();
-    const channel = ablyClient.channels.get(channelName);
-
-    const listener = (message: any) => {
-      console.log("📨 [CONSOLE VALIDATION] - Événement 'student-pending' reçu!", message.data);
-      const { studentId, studentName, studentEmail } = message.data;
-      if (!studentId || !studentName || !studentEmail) {
-        console.warn('⚠️ Données élèves invalides reçues via Ably:', message.data);
-        return;
-      }
-      const newStudent: User = {
-        id: studentId,
-        name: studentName,
-        email: studentEmail,
-        emailVerified: null,
-        image: null,
-        password: null,
-        parentPassword: null,
-        role: 'ELEVE',
-        validationStatus: 'PENDING',
-        points: 0,
-        ambition: null,
-        classeId: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      setPendingStudents(prev => {
-        // Éviter les doublons
-        if (prev.some(s => s.id === newStudent.id)) return prev;
-        toast({
-          title: "🔔 Nouvel élève en attente !",
-          description: `${newStudent.name} vient de s'inscrire et attend votre validation.`,
-        });
-        return [...prev, newStudent];
-      });
-    };
-
-    channel.subscribe(AblyEvents.STUDENT_PENDING, listener);
-
-    // Nettoyage de l'abonnement lors du démontage du composant
-    return () => {
-      channel.unsubscribe(AblyEvents.STUDENT_PENDING, listener);
-    };
-  }, [ablyClient, toast]);
-
-  const handleValidate = (student: User) => {
-    const classroomId = selectedClasses[student.id];
-    if (!classroomId) {
-      toast({ variant: 'destructive', title: 'Classe requise', description: 'Veuillez sélectionner une classe pour cet élève.' });
-      return;
-    }
+  const handleValidation = (payload: ProfessorValidationPayload) => {
     startTransition(async () => {
       try {
-        const validated = await validateStudent(student.id, classroomId);
-        toast({ title: 'Élève validé !', description: `${validated.name} a été ajouté à la classe.` });
-        setPendingStudents(prev => prev.filter(s => s.id !== student.id));
+        const result = await validateTaskByProfessor(payload);
+        toast({
+          title: `Tâche ${payload.approved ? 'approuvée' : 'rejetée'} !`,
+          description: `La tâche "${result.taskTitle}" de ${result.studentName} a été traitée.`,
+        });
+        setTasks(currentTasks => currentTasks.filter(t => t.id !== payload.progressId));
+        if(selectedTask) setSelectedTask(null);
       } catch (error) {
-        toast({ variant: 'destructive', title: 'Erreur de validation', description: 'Impossible de valider cet élève.' });
+        toast({
+          variant: 'destructive',
+          title: 'Erreur',
+          description: 'Impossible de traiter la tâche.',
+        });
       }
     });
   };
 
-  const handleClassSelection = (studentId: string, classroomId: string) => {
-    setSelectedClasses(prev => ({ ...prev, [studentId]: classroomId }));
-  };
+  const handleCustomPointsSubmit = () => {
+      if (!selectedTask || customPoints === undefined) return;
+      handleValidation({ progressId: selectedTask.id, approved: true, pointsAwarded: customPoints });
+  }
 
-  if (pendingStudents.length === 0) {
-    return <p className="text-muted-foreground text-center py-4">Aucun nouvel élève en attente de validation. Bravo !</p>;
+  if (tasks.length === 0) {
+    return <p className="text-muted-foreground text-center">Aucune tâche en attente de validation. Bravo !</p>;
   }
 
   return (
-    <div className="space-y-4">
-      {pendingStudents.map(student => (
-        <div key={student.id} className="flex flex-col sm:flex-row items-center justify-between p-3 border rounded-lg bg-card gap-4">
-          <div>
-            <p className="font-medium">{student.name}</p>
-            <p className="text-sm text-muted-foreground">{student.email}</p>
-          </div>
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <Select onValueChange={(value) => handleClassSelection(student.id, value)} disabled={isPending}>
-              <SelectTrigger className="flex-1 min-w-[200px]">
-                <SelectValue placeholder="Choisir une classe..." />
-              </SelectTrigger>
-              <SelectContent>
-                {teacherClasses.map(c => (
-                  <SelectItem key={c.id} value={c.id}>{c.nom}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button onClick={() => handleValidate(student)} disabled={isPending || !selectedClasses[student.id]}>
-              {isPending ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <UserCheck className="mr-2 h-4 w-4" />}
-              Valider et Assigner
+    <div className="space-y-6">
+      {tasks.map(progress => (
+        <Card key={progress.id}>
+          <CardHeader>
+            <CardTitle>{progress.task.title}</CardTitle>
+            <CardDescription>
+              Soumis par <span className="font-semibold">{progress.student.name}</span> pour {progress.task.points} points.
+            </CardDescription>
+          </CardHeader>
+          {progress.submissionUrl && (
+            <CardContent>
+                <p className='text-sm font-medium mb-2'>Preuve soumise :</p>
+                <div className="relative w-full h-64 rounded-lg overflow-hidden border">
+                     <Image
+                        src={progress.submissionUrl}
+                        alt={`Preuve pour ${progress.task.title}`}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    />
+                </div>
+            </CardContent>
+          )}
+          <CardFooter className="flex flex-col sm:flex-row gap-2">
+            <Button
+              onClick={() => handleValidation({ progressId: progress.id, approved: true })}
+              disabled={isPending}
+              className="bg-green-600 hover:bg-green-700 w-full sm:w-auto flex-1"
+            >
+              <Check className="mr-2" /> Approuver
             </Button>
-          </div>
-        </div>
+            <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <Button variant="secondary" disabled={isPending} className='w-full sm:w-auto'>
+                         <Star className="mr-2" /> Approuver avec bonus/malus
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Points personnalisés pour "{progress.task.title}"</AlertDialogTitle>
+                    </AlertDialogHeader>
+                    <div>
+                        <p className='text-sm text-muted-foreground mb-2'>Points par défaut : {progress.task.points}. Modifiez si nécessaire.</p>
+                        <Label htmlFor="custom-points">Points à attribuer</Label>
+                        <Input 
+                            id="custom-points"
+                            type="number" 
+                            defaultValue={progress.task.points}
+                            onChange={(e) => setCustomPoints(Number(e.target.value))}
+                        />
+                    </div>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Annuler</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleValidation({ progressId: progress.id, approved: true, pointsAwarded: customPoints ?? progress.task.points })}>
+                            Valider
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+            <Button
+              onClick={() => handleValidation({ progressId: progress.id, approved: false })}
+              disabled={isPending}
+              variant="destructive"
+              className="w-full sm:w-auto"
+            >
+              <X className="mr-2" /> Rejeter
+            </Button>
+          </CardFooter>
+        </Card>
       ))}
+      {isPending && (
+          <div className="fixed inset-0 bg-black/20 flex items-center justify-center">
+              <Loader2 className="h-10 w-10 text-white animate-spin" />
+          </div>
+      )}
     </div>
   );
 }
+
+    

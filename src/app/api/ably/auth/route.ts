@@ -1,9 +1,8 @@
-// src/app/api/ably/auth/route.ts
+// src/app/api/ably/auth/route.ts - VERSION CORRIGÉE ET STABILISÉE
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import Ably from 'ably';
-import type * as AblyTypes from 'ably';
 
 // Timeout global pour la fonction serverless
 export const maxDuration = 10;
@@ -32,20 +31,27 @@ export async function POST(request: NextRequest) {
 
         const ably = new Ably.Rest({ key: ablyApiKey });
 
-        const channelPrefix = process.env.ABLY_CHANNEL_PREFIX || 'classroom-connector';
-        
-        // ✅ CORRECTION ULTIME : cast explicite vers capabilityOp[] (mutable)
-        const capability = {
-          [`${channelPrefix}:*`]: ['presence', 'subscribe', 'publish'] as AblyTypes.capabilityOp[],
-        };
-
-        const tokenParams: AblyTypes.TokenParams = {
+        const tokenParams: Ably.Types.TokenParams = {
             clientId: clientId,
-            capability,
+            capability: {
+                // Permissions granulaires et sécurisées
+                [`${process.env.ABLY_CHANNEL_PREFIX || 'classroom-connector'}:*`]: ["presence", "subscribe", "publish"],
+            },
             ttl: 3600000, // 1 heure
         };
 
-        const tokenRequest = await ably.auth.createTokenRequest(tokenParams);
+        // ✅ CORRECTION : Utiliser explicitement une promesse pour éviter l'erreur "callback is not a function"
+        const tokenRequest = await new Promise<Ably.Types.TokenRequest>((resolve, reject) => {
+            ably.auth.createTokenRequest(tokenParams, (err, token) => {
+                if (err) {
+                    return reject(err);
+                }
+                if (!token) {
+                    return reject(new Error("Génération du token Ably a échoué sans erreur explicite."));
+                }
+                resolve(token);
+            });
+        });
         
         console.log(`✅ [ABLY AUTH] - Jeton créé avec succès pour ${clientId}.`);
 

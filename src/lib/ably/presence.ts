@@ -1,11 +1,17 @@
 // src/lib/ably/presence.ts
-'use server';
-
+import Ably from 'ably';
 import type { AblyPresenceMember } from './types';
 import { initializeAblyServer } from './server';
-// ✅ CORRECTION : Importer les types Ably pour le typage
-import type * as Ably from 'ably';
+import { Types } from 'ably';
 
+/**
+ * Retrieves the list of presence members for a given channel.
+ * This function must be called from the server-side.
+ * 
+ * @param channelName The name of the channel to query.
+ * @returns A promise that resolves to an array of presence members.
+ * @throws Will throw an error if the Ably API call fails.
+ */
 export async function getPresenceMembers(channelName: string): Promise<AblyPresenceMember[]> {
     console.log(`[ABLY PRESENCE] - Fetching members for channel: ${channelName}`);
     
@@ -21,16 +27,14 @@ export async function getPresenceMembers(channelName: string): Promise<AblyPrese
         }
         const channel = ablyServer.channels.get(channelName);
         
-        const presencePage = await channel.presence.get();
-        const presenceMembers = presencePage.items;
+        const presenceMembers = await channel.presence.get();
         
         if (!Array.isArray(presenceMembers)) {
             console.warn('[ABLY PRESENCE] - Presence.get() did not return an array:', presenceMembers);
             return [];
         }
 
-        // ✅ CORRECTION : typer avec Ably.PresenceMessage
-        const members = presenceMembers.map((member: Ably.PresenceMessage) => {
+        const members = presenceMembers.map((member: Ably.Types.PresenceMessage) => {
             const memberData = member.data as any;
             
             return {
@@ -39,7 +43,7 @@ export async function getPresenceMembers(channelName: string): Promise<AblyPrese
                 role: memberData?.role || 'UNKNOWN',
                 image: memberData?.image || null,
                 ...(memberData?.timestamp && { timestamp: memberData.timestamp })
-            } satisfies AblyPresenceMember;
+            } as AblyPresenceMember;
         });
 
         console.log(`[ABLY PRESENCE] - Found ${members.length} members on ${channelName}.`);
