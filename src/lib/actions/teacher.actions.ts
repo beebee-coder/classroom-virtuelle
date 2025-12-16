@@ -135,3 +135,15 @@ export async function resetAllStudentData() {
   
   return { success: true, message: "Toutes les données des élèves ont été réinitialisées avec succès." };
 }
+
+export async function validateStudent(studentId: string, classroomId: string): Promise<{ success: boolean }> {
+  console.log(`✅ [ACTION] Validation de l'élève ${studentId}`);
+  
+  await prisma.user.update({
+    where: { id: studentId },
+    data: { validationStatus: 'VALIDATED' }
+  });
+
+  revalidatePath(`/teacher/class/${classroomId}`);
+  return { success: true };
+}

@@ -35,25 +35,43 @@ export default function LoginForm() {
     }
   }, [errorParam]);
 
-  // Redirection après authentification
+  // 🔴 REDIRECTION IMMÉDIATE si déjà authentifié
   useEffect(() => {
     if (status === "authenticated" && session?.user) {
       console.log('🔵 [LOGIN FORM] - Utilisateur déjà authentifié');
 
-      // 🔹 Si élève non validé → page d'attente
       if (session.user.role === 'ELEVE' && session.user.validationStatus !== 'VALIDATED') {
-        router.push('/student/validation-pending');
+        router.replace('/student/validation-pending');
         return;
       }
 
-      // Sinon → dashboard
       const targetUrl =
         session.user.role === 'PROFESSEUR'
           ? '/teacher/dashboard'
           : '/student/dashboard';
-      router.push(targetUrl);
+      router.replace(targetUrl);
     }
   }, [status, session, router]);
+
+  // Si l'utilisateur est en cours de vérification ou déjà authentifié, ne rien afficher (ou loader)
+  if (status === "loading") {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <Loader2 className="h-12 w-12 animate-spin" />
+        <p className="ml-2 text-muted-foreground">Chargement de la session...</p>
+      </div>
+    );
+  }
+
+  // 🔴 Si déjà authentifié, ne jamais afficher le formulaire
+  if (status === "authenticated") {
+    // La redirection a déjà été déclenchée par useEffect, mais au cas où, on affiche uniquement un loader silencieux
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,15 +111,6 @@ export default function LoginForm() {
   const handleGoogleLogin = () => {
     signIn("google", { callbackUrl });
   };
-
-  if (status === "loading" || status === "authenticated") {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <Loader2 className="h-12 w-12 animate-spin" />
-        <p className="ml-2 text-muted-foreground">Chargement de la session...</p>
-      </div>
-    );
-  }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4 relative bg-background">

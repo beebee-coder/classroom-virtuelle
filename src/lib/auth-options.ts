@@ -74,18 +74,10 @@ export const authOptions: NextAuthOptions = {
   pages: { signIn: "/login", error: "/login" },
   callbacks: {
     async signIn({ user, account, profile }) {
-      if (account?.provider === 'google') {
-        const userExists = await prisma.user.findUnique({
-          where: { email: user.email! },
-        });
-        if (userExists) {
-          return true; // L'utilisateur existe, on autorise la connexion
-        }
-      }
-      return true; // Autoriser pour les autres cas
+      return true; // Autoriser tous les sign-in (liés ou non)
     },
 
-    async jwt({ token, user }) {
+    async jwt({ token, user, account, profile }) {
       if (user) {
         token.id = user.id;
         token.role = user.role as Role;
@@ -106,8 +98,22 @@ export const authOptions: NextAuthOptions = {
       }
       return session;
     },
+
+    // ✅ 🔑 Callback de redirection centralisé
+    async redirect({ url, baseUrl }) {
+      // Ne pas permettre de redirection vers des URLs externes
+      if (url.startsWith(baseUrl)) return url;
+      if (url.startsWith("/")) return url;
+
+      // Redirection par défaut par rôle (après auth)
+      // Note: on ne peut pas accéder à `session` ici, mais on peut deviner via URL de callback ou stocker dans state
+      // Alternative: toujours rediriger vers `/` et laisser le client router → mais vous avez vu que ça échoue.
+
+      // ⚠️ MAIS : on ne connaît pas le rôle ici !
+      // Donc : on redirige vers une page neutre qui fera la redirection côté client : `/auth-callback`
+      return `${baseUrl}/auth-callback`;
+    },
   },
   debug: process.env.NODE_ENV === "development",
-  // ✅ Correction clé : autorise le lien email/provider pour le compte propriétaire
   allowDangerousEmailAccountLinking: true,
 };

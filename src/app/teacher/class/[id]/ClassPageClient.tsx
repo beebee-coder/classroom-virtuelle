@@ -1,19 +1,22 @@
 // src/app/teacher/class/[id]/ClassPageClient.tsx - VERSION CORRIGÉE POUR LA PRÉSENCE
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { CreateAnnouncementForm } from '@/components/CreateAnnouncementForm';
 import { AddStudentForm } from './AddStudentForm';
 import { BackButton } from '@/components/BackButton';
 import { AnnouncementCarousel } from '@/components/AnnouncementCarousel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Video } from 'lucide-react';
+import { Users, Video, UserCheck } from 'lucide-react';
 import { SessionLauncher } from './SessionLauncher';
 import { StudentGrid } from './StudentGrid';
-import { type User, type Announcement, Role } from '@prisma/client';
+import { type User, type Announcement, Role, ValidationStatus } from '@prisma/client';
 import type { ClassroomWithDetails } from '@/types';
 import { useAblyPresence } from '@/hooks/useAblyPresence';
+import { validateStudent } from '@/lib/actions/teacher.actions';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
 
 type AnnouncementWithAuthor = Announcement & { author: { name: string | null } };
 
@@ -26,6 +29,8 @@ interface ClassPageClientProps {
 export default function ClassPageClient({ classroom, teacher, announcements }: ClassPageClientProps) {
     const [hasEnteredPresence, setHasEnteredPresence] = useState(false);
     const [presenceEnterAttempts, setPresenceEnterAttempts] = useState(0);
+    const { toast } = useToast();
+    const [isPendingValidation, startValidationTransition] = useTransition();
     
     const { 
         onlineMembers, 
@@ -177,22 +182,29 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
         };
     }, [onlineMembers, classroom.eleves, teacher.id]);
 
-    // ✅ CORRECTION : Calcul des statistiques de présence amélioré
-    const presenceStats = useMemo(() => {
-        const totalStudents = classroom.eleves?.length || 0;
-        const onlineStudents = onlineStudentIds.length;
-        const teachersOnline = onlineTeacherIds.length;
-        const totalOnline = onlineMembers.length;
-        
-        return {
-            totalStudents,
-            onlineStudents,
-            teachersOnline,
-            totalOnline,
-            // ✅ NOUVEAU : Pourcentage de présence
-            onlinePercentage: totalStudents > 0 ? Math.round((onlineStudents / totalStudents) * 100) : 0
-        };
-    }, [onlineMembers, onlineStudentIds, onlineTeacherIds, classroom.eleves]);
+    const { validatedStudents, pendingStudents } = useMemo(() => {
+        const validated = classroom.eleves?.filter(s => s.validationStatus === ValidationStatus.VALIDATED) || [];
+        const pending = classroom.eleves?.filter(s => s.validationStatus === ValidationStatus.PENDING) || [];
+        return { validatedStudents: validated, pendingStudents: pending };
+    }, [classroom.eleves]);
+
+    const handleValidateStudent = (studentId: string) => {
+        startValidationTransition(async () => {
+            try {
+                await validateStudent(studentId, classroom.id);
+                toast({
+                    title: 'Élève validé !',
+                    description: 'L\'élève a maintenant accès au tableau de bord.',
+                });
+            } catch (error) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Erreur de validation',
+                    description: 'Impossible de valider l\'élève.',
+                });
+            }
+        });
+    };
 
     // ✅ CORRECTION : Gestion améliorée des erreurs de présence
     useEffect(() => {
@@ -207,20 +219,6 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
         }
     }, [presenceError]);
 
-    // ✅ CORRECTION : Statut de connexion détaillé
-    const getConnectionStatus = () => {
-        if (isLoading) return { text: '⚡ Connexion en cours...', color: 'text-yellow-600' };
-        if (!isConnected) return { text: '🔌 Déconnecté', color: 'text-red-600' };
-        if (presenceError) return { text: '⚠️ Connexion instable', color: 'text-orange-600' };
-        
-        return { 
-            text: `● En ligne (${presenceStats.totalOnline} membres, ${presenceStats.onlineStudents}/${presenceStats.totalStudents} élèves, ${presenceStats.teachersOnline} prof${presenceStats.teachersOnline > 1 ? 's' : ''})`,
-            color: 'text-green-600' 
-        };
-    };
-
-    const connectionStatus = getConnectionStatus();
-    
     return (
         <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
@@ -232,14 +230,6 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                         </h1>
                         <p className="text-muted-foreground">
                             Gérez vos élèves, annonces et sessions pour cette classe.
-                            <span className={`ml-2 ${connectionStatus.color}`}>
-                                {connectionStatus.text}
-                            </span>
-                            {presenceStats.onlinePercentage > 0 && (
-                                <span className="ml-2 text-blue-600">
-                                    {presenceStats.onlinePercentage}% de présence
-                                </span>
-                            )}
                         </p>
                     </div>
                 </div>
@@ -259,10 +249,14 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
             )}
             
             <Tabs defaultValue="manage" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="manage">
                         <Users className="mr-2 h-4 w-4" />
-                        Gérer les Élèves ({presenceStats.onlineStudents}/{presenceStats.totalStudents} en ligne)
+                        Élèves ({validatedStudents.length})
+                    </TabsTrigger>
+                     <TabsTrigger value="pending">
+                        <UserCheck className="mr-2 h-4 w-4" />
+                        En attente ({pendingStudents.length})
                     </TabsTrigger>
                     <TabsTrigger value="launch">
                         <Video className="mr-2 h-4 w-4" />
@@ -271,9 +265,26 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                 </TabsList>
                 <TabsContent value="manage" className="mt-6">
                     <StudentGrid 
-                        students={classroom.eleves || []} 
+                        students={validatedStudents} 
                         onlineStudentIds={onlineStudentIds}
                     />
+                </TabsContent>
+                <TabsContent value="pending" className="mt-6">
+                    {pendingStudents.length === 0 ? (
+                        <p className="text-center text-muted-foreground py-8">Aucun élève en attente de validation.</p>
+                    ) : (
+                        <div className="space-y-3">
+                            {pendingStudents.map(student => (
+                                <div key={student.id} className="flex items-center justify-between p-3 border rounded-lg bg-card">
+                                    <p className="font-medium">{student.name}</p>
+                                    <Button onClick={() => handleValidateStudent(student.id)} disabled={isPendingValidation}>
+                                        {isPendingValidation ? <Loader2 className="animate-spin" /> : <UserCheck className="mr-2"/>}
+                                        Valider
+                                    </Button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </TabsContent>
                 <TabsContent value="launch" className="mt-6">
                     <SessionLauncher 

@@ -5,7 +5,7 @@ import { CareerThemeWrapper } from '@/components/CareerThemeWrapper';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { getStudentData } from '@/lib/actions/student.actions';
-import { getStudentAnnouncements } from '@/lib/actions/announcement.actions'; // IMPORT MANQUANT AJOUTÉ
+import { getStudentAnnouncements } from '@/lib/actions/announcement.actions';
 import StudentPageClient from '@/components/StudentPageClient';
 import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import Menu from '@/components/Menu';
@@ -16,7 +16,6 @@ import { SessionInvitationListener } from '@/components/SessionInvitationListene
 
 export const dynamic = 'force-dynamic';
 
-// Type cohérent avec ce que retourne getStudentData
 type StudentWithDetails = User & {
     classe: Classroom | null;
     etat: (EtatEleve & { metier: Metier | null }) | null;
@@ -32,16 +31,32 @@ export default async function StudentDashboardPage() {
 
     try {
         const session = await getServerSession(authOptions);
-        if (!session?.user?.email || session.user.role !== 'ELEVE') {
-            console.log('🔒 [PAGE ELEVE] - Redirection: utilisateur non authentifié ou non élève');
+        
+        // 🔹 Vérification stricte : pas de session → /login
+        if (!session?.user?.email) {
+            console.log('🔒 [PAGE ELEVE] - Aucune session active. Redirection vers /login.');
             redirect('/login');
+        }
+
+        // 🔹 Vérification du rôle : seulement les ELEVES peuvent accéder
+        if (session.user.role !== 'ELEVE') {
+            console.log(`🔒 [PAGE ELEVE] - Accès refusé pour rôle: ${session.user.role}. Redirection vers dashboard approprié.`);
+            if (session.user.role === 'PROFESSEUR') {
+                redirect('/teacher/dashboard');
+            }
+            redirect('/login');
+        }
+
+        // 🔴 NOUVELLE VÉRIFICATION : statut de validation
+        if (session.user.validationStatus !== 'VALIDATED') {
+            console.log(`⏳ [PAGE ELEVE] - Élève non validé (${session.user.email}). Redirection vers /student/validation-pending.`);
+            redirect('/student/validation-pending');
         }
 
         console.log(`✅ [PAGE ELEVE] - Session trouvée pour: ${session.user.name} (${session.user.email})`);
 
         let student: StudentWithDetails | null = null;
         try {
-            // CORRECTION : Trouver l'élève par email d'abord
             const studentByEmail = await prisma.user.findUnique({
                 where: { 
                     email: session.user.email,
@@ -76,37 +91,38 @@ export default async function StudentDashboardPage() {
 
         const metier = student.etat?.metier;
         
-        // CORRECTION : Utiliser l'ID élève pour les annonces
         const [announcementsResult, tasksResult, allCareersResult] = await Promise.allSettled([
-            getStudentAnnouncements(student.id).catch((err: Error) => { // TYPE AJOUTÉ
+            getStudentAnnouncements(student.id).catch((err: Error) => {
                 console.error('❌ [PAGE ELEVE] - Erreur lors du chargement des annonces:', err);
                 return [] as AnnouncementWithAuthor[];
             }),
             
             prisma.task.findMany({ 
                 where: { isActive: true } 
-            }).catch((err: Error) => { // TYPE AJOUTÉ
+            }).catch((err: Error) => {
                 console.error('❌ [PAGE ELEVE] - Erreur lors du chargement des tâches:', err);
                 return [] as Task[];
             }),
             
-            prisma.metier.findMany().catch((err: Error) => { // TYPE AJOUTÉ
+            prisma.metier.findMany().catch((err: Error) => {
                 console.error('❌ [PAGE ELEVE] - Erreur lors du chargement des métiers:', err);
                 return [] as Metier[];
             })
         ]);
-// CORRECTION COMPLÈTE ET SÉCURISÉE :
-const announcementsData = announcementsResult.status === 'fulfilled' 
-    ? announcementsResult.value 
-    : [] as AnnouncementWithAuthor[];
 
-const tasksData = tasksResult.status === 'fulfilled' 
-    ? tasksResult.value 
-    : [] as Task[];
+        const announcementsData = announcementsResult.status === 'fulfilled' 
+            ? announcementsResult.value 
+            : [] as AnnouncementWithAuthor[];
 
-const allCareersData = allCareersResult.status === 'fulfilled' 
-    ? allCareersResult.value 
-    : [] as Metier[];        console.log(`📦 [PAGE ELEVE] - Données supplémentaires chargées: ${announcementsData.length} annonces, ${tasksData.length} tâches, ${allCareersData.length} métiers.`);
+        const tasksData = tasksResult.status === 'fulfilled' 
+            ? tasksResult.value 
+            : [] as Task[];
+
+        const allCareersData = allCareersResult.status === 'fulfilled' 
+            ? allCareersResult.value 
+            : [] as Metier[];
+
+        console.log(`📦 [PAGE ELEVE] - Données supplémentaires chargées: ${announcementsData.length} annonces, ${tasksData.length} tâches, ${allCareersData.length} métiers.`);
 
         return (
             <CareerThemeWrapper career={metier ?? undefined}>
