@@ -19,14 +19,15 @@ export default async function TeacherClassesPage() {
   const user = session.user;
 
   try {
+    // Simplification de la requête pour garantir la stabilité
     const classrooms = await prisma.classroom.findMany({
       where: { 
         professeurId: user.id 
       },
-      include: {
-        _count: {
-          select: { eleves: true }
-        }
+      select: {
+        id: true,
+        nom: true,
+        // Le comptage sera ré-intégré dans une future version stable
       }
     });
 
@@ -75,14 +76,14 @@ export default async function TeacherClassesPage() {
                       <div>
                         <CardTitle>{classroom.nom}</CardTitle>
                         <CardDescription>
-                          {classroom._count.eleves} élève{classroom._count.eleves !== 1 ? 's' : ''}
+                          Gérer la classe
                         </CardDescription>
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-muted-foreground">
-                      Accéder à la liste des élèves, gérer les annonces et démarrer une session.
+                      Accédez à la liste des élèves, démarrez des sessions et gérez les annonces.
                     </p>
                   </CardContent>
                 </Card>
