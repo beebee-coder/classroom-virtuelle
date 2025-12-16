@@ -1,8 +1,9 @@
+
 // src/lib/ably/presence.ts
 import Ably from 'ably';
 import type { AblyPresenceMember } from './types';
 import { initializeAblyServer } from './server';
-import { Types } from 'ably';
+import type { Types } from 'ably';
 
 /**
  * Retrieves the list of presence members for a given channel.
@@ -13,10 +14,7 @@ import { Types } from 'ably';
  * @throws Will throw an error if the Ably API call fails.
  */
 export async function getPresenceMembers(channelName: string): Promise<AblyPresenceMember[]> {
-    console.log(`[ABLY PRESENCE] - Fetching members for channel: ${channelName}`);
-    
     if (!channelName) {
-        console.error('[ABLY PRESENCE] - Channel name is required.');
         throw new Error('Channel name is required.');
     }
 
@@ -27,14 +25,14 @@ export async function getPresenceMembers(channelName: string): Promise<AblyPrese
         }
         const channel = ablyServer.channels.get(channelName);
         
-        const presenceMembers: Types.PresenceMessage[] = await channel.presence.get();
+        const presencePage = await channel.presence.get();
+        const presenceMembers = presencePage.items;
         
         if (!Array.isArray(presenceMembers)) {
-            console.warn('[ABLY PRESENCE] - Presence.get() did not return an array:', presenceMembers);
             return [];
         }
 
-        const members = presenceMembers.map((member: Ably.Types.PresenceMessage) => {
+        const members = presenceMembers.map((member: Types.PresenceMessage) => {
             const memberData = member.data as any;
             
             return {
@@ -42,17 +40,14 @@ export async function getPresenceMembers(channelName: string): Promise<AblyPrese
                 name: memberData?.name || 'Unknown User',
                 role: memberData?.role || 'UNKNOWN',
                 image: memberData?.image || null,
-                data: memberData?.data || {}, // ✅ CORRECTION: S'assurer que data est toujours un objet
+                data: memberData?.data || {},
                 ...(memberData?.timestamp && { timestamp: memberData.timestamp })
             } as AblyPresenceMember;
         });
 
-        console.log(`[ABLY PRESENCE] - Found ${members.length} members on ${channelName}.`);
         return members;
 
     } catch (error) {
-        console.error(`[ABLY PRESENCE] - Failed to get presence members for ${channelName}:`, error);
-        
         if (error instanceof Error && error.message.includes('browser context')) {
             throw new Error('getPresenceMembers can only be called server-side');
         }

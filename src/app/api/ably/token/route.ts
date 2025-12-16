@@ -1,13 +1,13 @@
+
 // app/api/ably/token/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
-import Ably from 'ably';
+import Ably, { type Types } from 'ably';
 
 // Timeout config
 const AUTH_TIMEOUT_MS = 8000;
 
-// ✅ CORRECTION : Force le mode dynamique pour éviter le rendu statique
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
@@ -18,7 +18,6 @@ export async function GET(request: NextRequest) {
     );
 
     try {
-        // ✅ CORRECTION : Passage explicite des headers et cookies à getServerSession
         const session = await Promise.race([
             getServerSession(authOptions),
             timeoutPromise
@@ -56,10 +55,10 @@ export async function GET(request: NextRequest) {
         const clientId = session.user.id;
         console.log(`🔑 [ABLY TOKEN] - Creating token for: ${clientId.substring(0, 8)}...`);
 
-        const ably = new Ably.Rest({ key: ablyApiKey }); // ✅ CORRECTION: Utiliser Rest et non Realtime
+        const ably = new Ably.Rest({ key: ablyApiKey });
         
         const tokenRequest = await Promise.race([
-            new Promise<Ably.Types.TokenRequest>((resolve, reject) => {
+            new Promise<Types.TokenRequest>((resolve, reject) => {
                 ably.auth.createTokenRequest(
                     {
                         clientId: clientId,
@@ -68,11 +67,11 @@ export async function GET(request: NextRequest) {
                         },
                         ttl: 3600000 // 1 hour
                     },
-                    (err, tokenRequest) => {
+                    (err: Types.ErrorInfo | null, tokenRequest: Types.TokenRequest | null) => {
                         if (err) {
                             console.error('❌ [ABLY TOKEN] - Token creation error:', err);
                             reject(err);
-                        } else if (tokenRequest) { // ✅ CORRECTION: Vérifier que tokenRequest existe
+                        } else if (tokenRequest) {
                             console.log(`✅ [ABLY TOKEN] - Token created for ${clientId.substring(0, 8)}...`);
                             resolve(tokenRequest);
                         } else {

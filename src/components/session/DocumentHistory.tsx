@@ -1,4 +1,5 @@
-// src/components/session/DocumentHistory.tsx - VERSION CORRIGÉE
+
+// src/components/session/DocumentHistory.tsx
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -172,15 +173,12 @@ export function DocumentHistory({ documents, onSelectDocument, onReshare, sessio
                     key={doc.id} 
                     className="flex flex-col p-3 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors gap-3"
                 >
-                    {/* Section supérieure : Contenu du document */}
                     <div className="flex items-start gap-3 w-full min-w-0">
                         <FileText className="h-5 w-5 flex-shrink-0 text-muted-foreground mt-0.5" />
                         <div className="min-w-0 flex-1">
-                            {/* Nom du document avec rupture de ligne */}
                             <p className="text-sm font-medium break-words leading-relaxed" title={doc.name}>
                                 {doc.name}
                             </p>
-                            {/* Métadonnées avec rupture de ligne */}
                             <p className="text-xs text-muted-foreground break-words leading-relaxed mt-1">
                                 Partagé {formatDate(doc.createdAt)}
                                 {doc.sharedBy && ` par ${doc.sharedBy}`}
@@ -188,9 +186,7 @@ export function DocumentHistory({ documents, onSelectDocument, onReshare, sessio
                         </div>
                     </div>
 
-                    {/* Section inférieure : Actions - s'aligne en bas quand nécessaire */}
                     <div className="flex items-center justify-between gap-2 w-full">
-                        {/* Actions principales - visibles sur desktop */}
                         <div className="hidden sm:flex items-center gap-1 flex-shrink-0 ml-auto">
                             <Button 
                                 size="icon" 
@@ -244,7 +240,6 @@ export function DocumentHistory({ documents, onSelectDocument, onReshare, sessio
                             </AlertDialog>
                         </div>
 
-                        {/* Menu déroulant pour mobile */}
                         <div className="sm:hidden flex-shrink-0 ml-auto">
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>

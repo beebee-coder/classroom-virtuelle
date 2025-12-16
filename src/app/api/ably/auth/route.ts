@@ -1,8 +1,9 @@
-// src/app/api/ably/auth/route.ts - VERSION CORRIGÉE ET STABILISÉE
+
+// src/app/api/ably/auth/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
-import Ably from 'ably';
+import Ably, { type Types } from 'ably';
 
 // Timeout global pour la fonction serverless
 export const maxDuration = 10;
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
 
         const ably = new Ably.Rest({ key: ablyApiKey });
 
-        const tokenParams: Ably.Types.TokenParams = {
+        const tokenParams: Types.TokenParams = {
             clientId: clientId,
             capability: {
                 // Permissions granulaires et sécurisées
@@ -39,10 +40,9 @@ export async function POST(request: NextRequest) {
             },
             ttl: 3600000, // 1 heure
         };
-
-        // ✅ CORRECTION : Utiliser explicitement une promesse pour éviter l'erreur "callback is not a function"
-        const tokenRequest = await new Promise<Ably.Types.TokenRequest>((resolve, reject) => {
-            ably.auth.createTokenRequest(tokenParams, (err, token) => {
+        
+        const tokenRequest = await new Promise<Types.TokenRequest>((resolve, reject) => {
+            ably.auth.createTokenRequest(tokenParams, (err: Types.ErrorInfo | null, token: Types.TokenRequest | null) => {
                 if (err) {
                     return reject(err);
                 }

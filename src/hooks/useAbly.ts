@@ -1,4 +1,5 @@
-// src/hooks/useAbly.ts - VERSION CORRIGÉE POUR STABILITÉ AVANCÉE
+
+// src/hooks/useAbly.ts
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';

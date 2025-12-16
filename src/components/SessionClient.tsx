@@ -1,3 +1,4 @@
+
 // src/components/SessionClient.tsx
 'use client';
 
@@ -5,7 +6,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { User, Role } from '@prisma/client';
-import { SessionClientProps, DocumentInHistory, WhiteboardOperation, Quiz, QuizResponse, QuizResults, ComprehensionLevel } from '@/types';
+import { SessionClientProps, DocumentInHistory, WhiteboardOperation, Quiz, QuizResponse, QuizResults, ComprehensionLevel, BreakoutRoom } from '@/types';
 import SessionLoading from './SessionLoading';
 import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';
@@ -119,7 +120,7 @@ export default function SessionClient({
     return remoteStreams.get(spotlightedParticipantId) || null;
   }, [spotlightedParticipantId, currentUserId, activeStream, remoteStreams]);
 
-  const remoteParticipants = useMemo(() => Array.from(remoteStreams.entries()).map(([id, stream]) => ({ id, stream })), [remoteStreams]);
+  const remoteParticipants: { id: string; stream: MediaStream }[] = useMemo(() => Array.from(remoteStreams.entries()).map(([id, stream]) => ({ id, stream })), [remoteStreams]);
   const isHandRaised = useMemo(() => handRaiseQueue.includes(currentUserId), [handRaiseQueue, currentUserId]);
   const raisedHandUsers = useMemo(() => handRaiseQueue.map(userId => allSessionUsers.find(u => u.id === userId)).filter(Boolean) as User[], [handRaiseQueue, allSessionUsers]);
 
@@ -208,7 +209,6 @@ export default function SessionClient({
     }
   }, [sessionId, toast]);
 
-  // ✅ SIMPLIFIÉ : Seulement appeler endQuiz — pas de célébration ici
   const handleOnEndQuiz = useCallback(async (quizId: string, responses: Map<string, QuizResponse>) => {
     if (!isMountedRef.current) return { success: false, error: 'Composant non monté' };
     try {
@@ -226,7 +226,6 @@ export default function SessionClient({
     }
   }, [sessionId, toast]);
 
-  // ✅ Fermeture des résultats (après célébration dans les vues enfants)
   const handleOnCloseQuizResults = useCallback(async () => {
     if (!isMountedRef.current) return;
     try {

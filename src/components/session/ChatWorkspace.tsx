@@ -1,7 +1,8 @@
-// src/components/session/ChatWorkspace.tsx - VERSION CORRIGÉE
+
+// src/components/session/ChatWorkspace.tsx
 'use client';
 
-import { useState, useEffect, useRef, useTransition, useCallback, useMemo } from 'react'; // ✅ CORRECTION: Ajout de useMemo
+import { useState, useEffect, useRef, useTransition, useCallback, useMemo } from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { ScrollArea } from '../ui/scroll-area';
@@ -15,10 +16,10 @@ import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
 import type { Message, Reaction, User, Role } from '@prisma/client';
-import { useNamedAbly } from '@/hooks/useNamedAbly'; // ✅ CORRECTION: Utilisation du hook nommé
+import { useNamedAbly } from '@/hooks/useNamedAbly';
 import { getClassChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
-import Ably from 'ably';
+import type { Types } from 'ably';
 
 const EMOJIS = ['👍', '❤️', '😂', '😯', '😢', '🤔'];
 
@@ -42,11 +43,10 @@ export function ChatWorkspace({ classroomId, userId, userRole }: ChatWorkspacePr
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   
-  const channelRef = useRef<Ably.Types.RealtimeChannelCallbacks | null>(null);
-  const listenersRef = useRef<Map<string, (message: Ably.Types.Message) => void>>(new Map());
+  const channelRef = useRef<Types.RealtimeChannelCallbacks | null>(null);
+  const listenersRef = useRef<Map<string, (message: Types.Message) => void>>(new Map());
   const isMountedRef = useRef(true);
 
-  // ✅ CORRECTION: Utilisation du hook nommé
   const { client: ablyClient, isConnected: ablyConnected, connectionState } = useNamedAbly('ChatWorkspace');
   
   const ablyLoading = connectionState === 'initialized' || connectionState === 'connecting';
@@ -93,7 +93,6 @@ export function ChatWorkspace({ classroomId, userId, userRole }: ChatWorkspacePr
     };
   }, []);
 
-  // ✅ CORRECTION: Déplacer cleanupAbly AVANT le useEffect qui l'utilise
   const cleanupAbly = useCallback(() => {
     if (channelRef.current) {
       listenersRef.current.forEach((handler, eventName) => {
@@ -115,14 +114,13 @@ export function ChatWorkspace({ classroomId, userId, userRole }: ChatWorkspacePr
     }
   }, []);
 
-  // ✅ CORRECTION: Mémorisation des handlers pour éviter récréation
-  const messageHandler = useCallback((message: Ably.Types.Message) => {
+  const messageHandler = useCallback((message: Types.Message) => {
     if (!isMountedRef.current) return;
     const data = message.data as MessageWithReactions;
     setMessages((prev) => prev.some(msg => msg.id === data.id) ? prev : [...prev, data]);
   }, []);
 
-  const reactionHandler = useCallback((message: Ably.Types.Message) => {
+  const reactionHandler = useCallback((message: Types.Message) => {
     if (!isMountedRef.current) return;
     const data = message.data as { messageId: string; reaction: ReactionWithUser; action: 'added' | 'removed'; };
     setMessages(prev => prev.map(msg => {
@@ -147,14 +145,12 @@ export function ChatWorkspace({ classroomId, userId, userRole }: ChatWorkspacePr
     toast({ title: "Historique effacé", description: "Le professeur a effacé l'historique de la conversation." });
   }, [toast]);
 
-  // ✅ CORRECTION: Mémorisation des handlers dans un objet stable
   const eventHandlers = useMemo(() => ({
     [AblyEvents.NEW_MESSAGE]: messageHandler,
     [AblyEvents.REACTION_UPDATE]: reactionHandler,
     [AblyEvents.HISTORY_CLEARED]: historyHandler,
   }), [messageHandler, reactionHandler, historyHandler]);
 
-  // ✅ CORRECTION: useEffect principal avec gestion correcte des dépendances
   useEffect(() => {
     if (!classroomId || !ablyReady) {
       return;
@@ -162,31 +158,24 @@ export function ChatWorkspace({ classroomId, userId, userRole }: ChatWorkspacePr
 
     const channelName = getClassChannelName(classroomId);
     
-    // Éviter les réinitialisations inutiles si le channel est le même
     if (channelRef.current?.name === channelName) {
       return;
     }
 
-    // Nettoyer l'ancien channel
     cleanupAbly();
 
     const channel = ablyClient.channels.get(channelName);
     channelRef.current = channel;
 
-    // S'abonner aux événements
     Object.entries(eventHandlers).forEach(([event, handler]) => {
       channel.subscribe(event, handler);
       listenersRef.current.set(event, handler);
     });
 
-    console.log(`🔔 [CHAT WORKSPACE] Abonné au channel: ${channelName}`);
-
-    // ✅ CORRECTION: Nettoyage avec référence stable
     return () => {
-      console.log(`🧹 [CHAT WORKSPACE] Nettoyage channel: ${channelName}`);
       cleanupAbly();
     };
-  }, [classroomId, ablyReady, ablyClient, eventHandlers, cleanupAbly]); // ✅ Dépendances correctes
+  }, [classroomId, ablyReady, ablyClient, eventHandlers, cleanupAbly]);
 
   useEffect(() => {
     if (scrollAreaRef.current && messages.length > 0 && isMountedRef.current) {

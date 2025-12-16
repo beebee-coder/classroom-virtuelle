@@ -1,4 +1,5 @@
-// src/hooks/session/useAblyCommunication.ts - VERSION COMPLÈTE CORRIGÉE
+
+// src/hooks/session/useAblyCommunication.ts
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -80,18 +81,16 @@ export function useAblyCommunication({
     return () => { if (timerInterval) clearInterval(timerInterval); };
   }, [isTimerRunning, timerTimeLeft]);
 
-  // ✅ CORRECTION CRITIQUE : Passage du paramètre isReturnSignal
   const handleSignalEvent = useCallback((message: AblyTypes.Message) => {
     if (message.data.target === currentUserId) {
       onSignalReceivedRef.current(
         message.data.userId, 
         message.data.signal,
-        message.data.isReturnSignal // ✅ CORRECTION : Passage du paramètre manquant
+        message.data.isReturnSignal
       );
     }
   }, [currentUserId]);
 
-  // ✅ CORRECTION : Gestion sécurisée de la présence avec vérification de undefined
   const handlePresenceUpdate = useCallback(() => {
     if (!channelRef.current) return;
     
@@ -101,7 +100,6 @@ export function useAblyCommunication({
         return;
       }
       
-      // ✅ CORRECTION : Vérification que members est défini et mapping sécurisé
       const userIds = members
         .map(member => member.clientId)
         .filter((clientId): clientId is string => clientId !== undefined && clientId !== null);
@@ -240,30 +238,24 @@ export function useAblyCommunication({
       { event: AblyEvents.BREAKOUT_ROOMS_ENDED, handler: handleBreakoutRoomsEnded },
     ];
 
-    // Souscrire aux événements
     subscriptions.forEach(({ event, handler }) => {
       channel.subscribe(event, handler);
     });
 
-    // Souscrire aux mises à jour de présence
     channel.presence.subscribe(['enter', 'leave', 'update'], handlePresenceUpdate);
 
-    // Entrer en présence
     enterPresence(channel);
 
     return () => {
       isMountedRef.current = false;
       
       if (channelRef.current) {
-        // Se désabonner de tous les événements
         subscriptions.forEach(({ event, handler }) => {
           channelRef.current!.unsubscribe(event, handler);
         });
         
-        // Se désabonner de la présence
         channelRef.current.presence.unsubscribe();
         
-        // Quitter la présence
         leavePresence(channelRef.current);
         
         channelRef.current = null;

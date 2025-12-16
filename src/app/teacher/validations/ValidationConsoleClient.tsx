@@ -1,4 +1,4 @@
-// src/app/teacher/validations/ValidationConsoleClient.tsx - VERSION CORRIGÉE
+// src/app/teacher/validations/ValidationConsoleClient.tsx
 'use client';
 
 import { useState, useTransition, useEffect, useCallback } from 'react';
@@ -22,12 +22,10 @@ export function ValidationConsoleClient({ initialStudents }: ValidationConsoleCl
   const [students, setStudents] = useState<User[]>(initialStudents);
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
-  // ✅ CORRECTION: Utilisation du hook Ably nommé pour le debug
   const { client: ablyClient, isConnected } = useNamedAbly('ValidationConsole');
 
   const handleNewPendingStudent = useCallback((newStudent: User) => {
     console.log('🔔 [VALIDATION CONSOLE] - Nouvel élève reçu via Ably:', newStudent);
-    // ✅ Ajout d'une vérification pour éviter les doublons à l'écran
     setStudents(prev => {
       if (prev.some(s => s.id === newStudent.id)) {
         return prev;
@@ -41,13 +39,11 @@ export function ValidationConsoleClient({ initialStudents }: ValidationConsoleCl
   }, [toast]);
 
   useEffect(() => {
-    // ✅ CORRECTION: Utiliser ablyClient directement, et non ablyClient.client
     if (!ablyClient || !isConnected) {
         console.log('[VALIDATION CONSOLE] - Ably non connecté, abonnement reporté.');
         return;
     };
     
-    // ✅ Utiliser la fonction du factory pour garantir la cohérence
     const channelName = getGlobalPendingStudentsChannel();
     console.log(`[VALIDATION CONSOLE] - Tentative d'abonnement au canal : ${channelName}`);
     
@@ -71,7 +67,6 @@ export function ValidationConsoleClient({ initialStudents }: ValidationConsoleCl
     startTransition(async () => {
       try {
         const studentName = students.find(s => s.id === studentId)?.name || 'L\'élève';
-        // Note: L'assignation à une classe se fera dans une étape ultérieure de l'interface
         await validateStudent(studentId, 'unassigned', approve); 
         toast({
           title: `Action effectuée !`,
