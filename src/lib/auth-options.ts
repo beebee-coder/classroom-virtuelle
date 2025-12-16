@@ -6,8 +6,6 @@ import Credentials from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { Role, ValidationStatus } from "@prisma/client";
-
-// 🔹 Import pour publier un événement Ably
 import { broadcastNewPendingStudent } from '@/lib/actions/ably-session.actions';
 
 export const authOptions: NextAuthOptions = {
@@ -47,49 +45,10 @@ export const authOptions: NextAuthOptions = {
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       authorization: { params: { prompt: "select_account" } },
-      async profile(profile, tokens) {
+      profile(profile) {
         const ownerEmail = process.env.OWNER_EMAIL?.toLowerCase().trim();
         const userEmail = profile.email.toLowerCase().trim();
 
-        // Tenter de lier le compte Google à un utilisateur existant par email
-        const existingUser = await prisma.user.findUnique({ where: { email: userEmail } });
-        if (existingUser) {
-          // Si l'utilisateur existe, lier le compte sans changer le rôle
-          await prisma.account.upsert({
-            where: {
-              provider_providerAccountId: {
-                provider: 'google',
-                providerAccountId: profile.sub,
-              },
-            },
-            update: {
-              access_token: tokens.access_token,
-              expires_at: tokens.expires_at,
-              refresh_token: tokens.refresh_token,
-              scope: tokens.scope,
-              token_type: tokens.token_type,
-            },
-            create: {
-              userId: existingUser.id,
-              type: 'oauth',
-              provider: 'google',
-              providerAccountId: profile.sub,
-              access_token: tokens.access_token,
-              expires_at: tokens.expires_at,
-              refresh_token: tokens.refresh_token,
-              scope: tokens.scope,
-              token_type: tokens.token_type,
-            },
-          });
-          return {
-            ...existingUser,
-            id: existingUser.id,
-            role: existingUser.role, // Conserver le rôle existant
-            validationStatus: existingUser.validationStatus,
-          };
-        }
-
-        // Si l'utilisateur n'existe pas, créer un nouveau profil
         if (ownerEmail && userEmail === ownerEmail) {
           return {
             id: profile.sub,
@@ -116,23 +75,44 @@ export const authOptions: NextAuthOptions = {
   pages: { signIn: "/login", error: "/login" },
   events: {
     async createUser({ user }) {
-      if (user.role === "ELEVE") {
-        try {
-          await broadcastNewPendingStudent({
-            id: user.id,
-            name: user.name ?? null,
-            email: user.email ?? null,
-          });
-          console.log(`🔔 [AUTH EVENT] Événement temps réel envoyé pour le nouvel élève en attente : ${user.email}`);
-        } catch (error) {
-          console.error(`❌ [AUTH EVENT] Échec de la diffusion de l'événement pour le nouvel élève:`, error);
+        if (user.role === 'ELEVE' && user.email && user.name) {
+            console.log(`🔔 [AUTH EVENT] - Nouvel élève créé: ${user.email}. Déclenchement de la notification.`);
+            await broadcastNewPendingStudent({
+                studentId: user.id,
+                studentName: user.name,
+                studentEmail: user.email,
+            });
         }
-      }
     },
   },
   callbacks: {
-    async signIn({ user, account }) {
-      return true;
+    // @ts-ignore
+    async signIn({ user, account, profile }) {
+        if (account?.provider === "google" && user.email) {
+            const userExists = await prisma.user.findUnique({
+                where: { email: user.email },
+                include: { accounts: true }
+            });
+
+            // Si l'utilisateur existe mais n'a pas de compte Google lié
+            if (userExists && !userExists.accounts.some(acc => acc.provider === "google")) {
+                console.log(`🔗 [SIGN_IN] - Liaison du compte Google à l'utilisateur existant: ${user.email}`);
+                await prisma.account.create({
+                    data: {
+                        userId: userExists.id,
+                        provider: account.provider,
+                        type: account.type,
+                        providerAccountId: account.providerAccountId,
+                        access_token: account.access_token,
+                        expires_at: account.expires_at,
+                        token_type: account.token_type,
+                        scope: account.scope,
+                        id_token: account.id_token,
+                    }
+                });
+            }
+        }
+        return true;
     },
     async jwt({ token, user }) {
       if (user) {
@@ -145,7 +125,7 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
-      if (token && session.user) {
+      if (token) {
         session.user.id = token.id as string;
         session.user.role = token.role as Role;
         session.user.classeId = token.classeId as string | null;
@@ -154,11 +134,7 @@ export const authOptions: NextAuthOptions = {
       }
       return session;
     },
-    async redirect({ url, baseUrl }) {
-      if (url.startsWith(baseUrl)) return url;
-      if (url.startsWith("/")) return new URL(url, baseUrl).toString();
-      return baseUrl;
-    },
   },
+
   debug: process.env.NODE_ENV === "development",
 };
