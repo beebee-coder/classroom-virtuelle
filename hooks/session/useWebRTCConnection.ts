@@ -1,4 +1,5 @@
-// src/hooks/session/useWebRTCConnection.ts
+
+// hooks/session/useWebRTCConnection.ts
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
@@ -44,11 +45,13 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
     }
   }, []);
 
-  const createPeer = useCallback((targetUserId: string, initiator: boolean, stream: MediaStream): PeerInstance | null => {
-    if (!isComponentMounted) return null;
+  const createPeer = useCallback((targetUserId: string, initiator: boolean, stream: MediaStream): PeerInstance => {
     
     if (peersRef.current.has(targetUserId)) {
-      return peersRef.current.get(targetUserId)!;
+      const existingPeer = peersRef.current.get(targetUserId);
+      if (existingPeer && !existingPeer.destroyed) {
+        return existingPeer;
+      }
     }
 
     const peer = new SimplePeer({
@@ -86,7 +89,7 @@ export function useWebRTCConnection(sessionId: string, currentUserId: string, lo
     
     let peer = peersRef.current.get(fromUserId);
     
-    if (!peer) {
+    if (!peer || peer.destroyed) {
       if (isReturnSignal) {
         return;
       }

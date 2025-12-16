@@ -70,7 +70,6 @@ export const getAblyClient = (): Ably.Realtime => {
     },
     httpRequestTimeout: 30000,
     httpMaxRetryCount: 3,
-    log: { level: process.env.NODE_ENV === 'development' ? 2 : 1 },
     maxMessageSize: 65536,
     fallbackHosts: ['a.ably-realtime.com', 'b.ably-realtime.com', 'c.ably-realtime.com']
   };
