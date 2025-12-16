@@ -75,15 +75,17 @@ export const authOptions: NextAuthOptions = {
   pages: { signIn: "/login", error: "/login" },
   events: {
     async createUser({ user }) {
-        if (user.role === 'ELEVE' && user.email && user.name) {
-            console.log(`🔔 [AUTH EVENT] - Nouvel élève créé: ${user.email}. Déclenchement de la notification.`);
-            await broadcastNewPendingStudent({
-                studentId: user.id,
-                studentName: user.name,
-                studentEmail: user.email,
-            });
-        }
-    },
+      // Pour les comptes créés via Google ou un formulaire, si c'est un élève
+      if (user.role === 'ELEVE') {
+        console.log(`🔔 [AUTH EVENT] - Nouvel élève créé: ${user.email}. Déclenchement de la notification.`);
+        // Garantir que name et email ne sont pas undefined
+        await broadcastNewPendingStudent({
+          id: user.id,
+          name: user.name ?? null,
+          email: user.email ?? null,
+        });
+      }
+    }
   },
   callbacks: {
     // @ts-ignore
