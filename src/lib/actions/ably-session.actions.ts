@@ -5,7 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import { ablyTrigger } from '../ably/triggers';
 import { AblyEvents } from '../ably/events';
-import { getSessionChannelName } from '../ably/channels';
+import { getSessionChannelName, getGlobalPendingStudentsChannel } from '../ably/channels';
 import { Role } from '@prisma/client';
 import { ComprehensionLevel, Quiz, QuizResponse, QuizResults } from '@/types';
 import prisma from '../prisma';
@@ -79,6 +79,19 @@ export async function updateStudentSessionStatus(sessionId: string, status: { is
 
   await Promise.all(promises);
   return { success: true };
+}
+
+// --- Notification pour nouvel élève ---
+export async function broadcastNewPendingStudent(student: {id: string, name: string | null, email: string | null}) {
+    console.log(`📢 [ACTION] - Diffusion de la notification pour le nouvel élève: ${student.name}`);
+    const channel = getGlobalPendingStudentsChannel();
+    await ablyTrigger(channel, AblyEvents.STUDENT_PENDING, {
+        id: student.id,
+        name: student.name,
+        email: student.email,
+        createdAt: new Date().toISOString()
+    });
+    return { success: true };
 }
 
 // --- Tool-related Actions ---

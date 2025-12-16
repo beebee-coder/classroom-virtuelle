@@ -6,12 +6,13 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { validateStudent } from '@/lib/actions/teacher.actions';
 import type { User } from '@prisma/client';
-import { Role } from '@prisma/client';
 import { useNamedAbly } from '@/hooks/useNamedAbly';
 import { AblyEvents } from '@/lib/ably/events';
+import { getGlobalPendingStudentsChannel } from '@/lib/ably/channels';
 import { Loader2, Check, X, ShieldCheck } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import type { Types as AblyTypes } from 'ably';
 
 interface ValidationConsoleClientProps {
   initialStudents: User[];
@@ -21,12 +22,13 @@ export function ValidationConsoleClient({ initialStudents }: ValidationConsoleCl
   const [students, setStudents] = useState<User[]>(initialStudents);
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
+  // ✅ CORRECTION: Utilisation du hook Ably nommé pour le debug
   const { client: ablyClient, isConnected } = useNamedAbly('ValidationConsole');
 
   const handleNewPendingStudent = useCallback((newStudent: User) => {
     console.log('🔔 [VALIDATION CONSOLE] - Nouvel élève reçu via Ably:', newStudent);
+    // ✅ Ajout d'une vérification pour éviter les doublons à l'écran
     setStudents(prev => {
-      // Éviter les doublons
       if (prev.some(s => s.id === newStudent.id)) {
         return prev;
       }
@@ -39,28 +41,38 @@ export function ValidationConsoleClient({ initialStudents }: ValidationConsoleCl
   }, [toast]);
 
   useEffect(() => {
-    if (!ablyClient || !isConnected) return;
+    // ✅ CORRECTION: Utiliser ablyClient directement, et non ablyClient.client
+    if (!ablyClient || !isConnected) {
+        console.log('[VALIDATION CONSOLE] - Ably non connecté, abonnement reporté.');
+        return;
+    };
     
-    const channelName = 'classroom-connector:pending-students';
-    const channel = ablyClient.channels.get(channelName);
+    // ✅ Utiliser la fonction du factory pour garantir la cohérence
+    const channelName = getGlobalPendingStudentsChannel();
+    console.log(`[VALIDATION CONSOLE] - Tentative d'abonnement au canal : ${channelName}`);
     
-    console.log(`[VALIDATION CONSOLE] - Abonnement au canal : ${channelName}`);
-    channel.subscribe(AblyEvents.STUDENT_PENDING, (message) => {
+    const channel: AblyTypes.RealtimeChannelCallbacks = ablyClient.channels.get(channelName);
+    
+    const onNewStudent = (message: AblyTypes.Message) => {
         handleNewPendingStudent(message.data);
-    });
+    };
+
+    channel.subscribe(AblyEvents.STUDENT_PENDING, onNewStudent);
+    console.log(`[VALIDATION CONSOLE] - Abonnement à l'événement '${AblyEvents.STUDENT_PENDING}' réussi.`);
 
     return () => {
         console.log(`[VALIDATION CONSOLE] - Désabonnement du canal : ${channelName}`);
-        channel.unsubscribe();
+        channel.unsubscribe(AblyEvents.STUDENT_PENDING, onNewStudent);
     };
   }, [ablyClient, isConnected, handleNewPendingStudent]);
 
 
-  const handleValidation = (studentId: string, classroomId: string, approve: boolean) => {
+  const handleValidation = (studentId: string, approve: boolean) => {
     startTransition(async () => {
       try {
         const studentName = students.find(s => s.id === studentId)?.name || 'L\'élève';
-        await validateStudent(studentId, classroomId, approve);
+        // Note: L'assignation à une classe se fera dans une étape ultérieure de l'interface
+        await validateStudent(studentId, 'unassigned', approve); 
         toast({
           title: `Action effectuée !`,
           description: `${studentName} a été ${approve ? 'validé(e)' : 'rejeté(e)'}.`
@@ -98,12 +110,11 @@ export function ValidationConsoleClient({ initialStudents }: ValidationConsoleCl
             </p>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
-            {/* Note: La logique d'assignation à une classe n'est pas encore implémentée */}
-            <Button onClick={() => handleValidation(student.id, student.classeId || '', true)} disabled={isPending} className="flex-1 bg-green-600 hover:bg-green-700">
+            <Button onClick={() => handleValidation(student.id, true)} disabled={isPending} className="flex-1 bg-green-600 hover:bg-green-700">
               {isPending ? <Loader2 className="animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
               Approuver
             </Button>
-            <Button onClick={() => handleValidation(student.id, student.classeId || '', false)} disabled={isPending} variant="destructive" className="flex-1">
+            <Button onClick={() => handleValidation(student.id, false)} disabled={isPending} variant="destructive" className="flex-1">
                {isPending ? <Loader2 className="animate-spin" /> : <X className="mr-2 h-4 w-4" />}
                Rejeter
             </Button>

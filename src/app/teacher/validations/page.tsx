@@ -8,7 +8,7 @@ import { ValidationConsoleClient } from "./ValidationConsoleClient";
 import { CheckCircle } from "lucide-react";
 import prisma from "@/lib/prisma";
 import type { User } from "@prisma/client";
-import { ValidationStatus } from '@prisma/client';
+import { ValidationStatus, Role } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,11 +18,11 @@ export default async function ProfessorValidationPage() {
     redirect("/login");
   }
 
-  // ✅ CORRECTION : Requête simplifiée et correcte.
+  // ✅ CORRECTION : Requête Prisma précise pour ne récupérer que les élèves en attente.
   const pendingStudents = await prisma.user.findMany({
     where: {
       validationStatus: ValidationStatus.PENDING,
-      role: 'ELEVE'
+      role: Role.ELEVE
     },
     orderBy: {
       createdAt: 'desc' // Les plus récents en premier
