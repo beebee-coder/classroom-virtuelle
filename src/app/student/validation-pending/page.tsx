@@ -13,17 +13,21 @@ export default function ValidationPendingPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
+  // 🔴 Redirection proactive selon l'état
   useEffect(() => {
     if (status === 'authenticated' && session?.user) {
       if (session.user.role !== 'ELEVE' || session.user.validationStatus === 'VALIDATED') {
         router.replace('/student/dashboard');
+        return;
       }
     } else if (status === 'unauthenticated') {
       router.replace('/login');
+      return;
     }
   }, [session, status, router]);
 
-  if (status === 'loading' || (status === 'authenticated' && session.user.validationStatus !== 'PENDING')) {
+  // 🔴 Ne jamais afficher la page si on ne devrait pas y être
+  if (status === 'loading') {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-4">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
@@ -32,6 +36,21 @@ export default function ValidationPendingPage() {
     );
   }
 
+  // 🔴 Si on n'est pas dans le cas PENDING, on ne devrait pas être ici → loader silencieux
+  if (
+    status !== 'authenticated' ||
+    !session?.user ||
+    session.user.role !== 'ELEVE' ||
+    session.user.validationStatus !== 'PENDING'
+  ) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // ✅ Seul cas autorisé : élève authentifié avec statut PENDING
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4 relative bg-background">
         <Image
@@ -49,7 +68,7 @@ export default function ValidationPendingPage() {
                     </div>
                     <CardTitle className="text-2xl">Compte en attente de validation</CardTitle>
                     <CardDescription>
-                        Bonjour {session?.user?.name || 'élève'}, votre inscription est presque terminée !
+                        Bonjour {session.user.name || 'élève'}, votre inscription est presque terminée !
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="text-center space-y-4">
