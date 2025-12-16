@@ -9,6 +9,7 @@
  * - getSessionChannelName: Generates the channel name for a real-time session.
  * - getClassChannelName: Generates the channel name for a classroom.
  * - getUserChannelName: Generates the channel name for a specific user.
+ * - getGlobalPendingStudentsChannel: Generates a global channel for all pending students notifications.
  */
 
 const PRODUCT_PREFIX = 'classroom-connector';
@@ -44,4 +45,13 @@ export function getClassChannelName(classroomId: string): string {
 export function getUserChannelName(userId: string): string {
     if (!userId) throw new Error('userId cannot be empty');
     return `${PRODUCT_PREFIX}:user:${userId}`;
+}
+
+/**
+ * Generates the global channel name for pending student notifications.
+ * All teachers listen to this to get real-time updates on new sign-ups.
+ * @returns The Ably channel name string.
+ */
+export function getGlobalPendingStudentsChannel(): string {
+    return `${PRODUCT_PREFIX}:pending-students`;
 }
