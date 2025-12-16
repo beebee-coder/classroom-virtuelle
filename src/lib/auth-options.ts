@@ -1,11 +1,14 @@
 // src/lib/auth-options.ts
-import { NextAuthOptions, User } from "next-auth";
+import { NextAuthOptions } from "next-auth";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import prisma from "./prisma";
 import Credentials from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { Role, ValidationStatus } from "@prisma/client";
+
+// 🔹 Import pour publier un événement Ably
+import { broadcastNewPendingStudent } from '@/lib/actions/ably-session.actions';
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
@@ -73,11 +76,10 @@ export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
   pages: { signIn: "/login", error: "/login" },
   callbacks: {
-    async signIn({ user, account, profile }) {
-      return true; // Autoriser tous les sign-in (liés ou non)
+    async signIn({ user, account }) {
+      return true;
     },
-
-    async jwt({ token, user, account, profile }) {
+    async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
         token.role = user.role as Role;
@@ -87,7 +89,6 @@ export const authOptions: NextAuthOptions = {
       }
       return token;
     },
-
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.id as string;
@@ -98,20 +99,25 @@ export const authOptions: NextAuthOptions = {
       }
       return session;
     },
-
-    // ✅ 🔑 Callback de redirection centralisé
     async redirect({ url, baseUrl }) {
-      // Ne pas permettre de redirection vers des URLs externes
       if (url.startsWith(baseUrl)) return url;
-      if (url.startsWith("/")) return url;
-
-      // Redirection par défaut par rôle (après auth)
-      // Note: on ne peut pas accéder à `session` ici, mais on peut deviner via URL de callback ou stocker dans state
-      // Alternative: toujours rediriger vers `/` et laisser le client router → mais vous avez vu que ça échoue.
-
-      // ⚠️ MAIS : on ne connaît pas le rôle ici !
-      // Donc : on redirige vers une page neutre qui fera la redirection côté client : `/auth-callback`
-      return `${baseUrl}/auth-callback`;
+      if (url.startsWith("/")) return new URL(url, baseUrl).toString();
+      return baseUrl;
+    },
+  },
+  // 🔑 ÉVÉNEMENT CRUCIAL : notifier en temps réel de la création d'un élève
+  events: {
+    async createUser({ user }) {
+      // Si un nouvel utilisateur avec le rôle ELEVE est créé...
+      if (user.role === "ELEVE") {
+        try {
+          // ... on diffuse l'information sur un canal global.
+          await broadcastNewPendingStudent(user);
+          console.log(`🔔 [AUTH EVENT] Événement temps réel envoyé pour le nouvel élève en attente : ${user.email}`);
+        } catch (error) {
+          console.error(`❌ [AUTH EVENT] Échec de la diffusion de l'événement pour le nouvel élève:`, error);
+        }
+      }
     },
   },
   debug: process.env.NODE_ENV === "development",

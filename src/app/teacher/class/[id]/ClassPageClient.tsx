@@ -1,4 +1,4 @@
-// src/app/teacher/class/[id]/ClassPageClient.tsx - VERSION CORRIGÉE POUR LA PRÉSENCE
+// src/app/teacher/class/[id]/ClassPageClient.tsx
 'use client';
 
 import { useEffect, useMemo, useState, useTransition } from 'react';
@@ -17,6 +17,9 @@ import { useAblyPresence } from '@/hooks/useAblyPresence';
 import { validateStudent } from '@/lib/actions/teacher.actions';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { useAbly } from '@/hooks/useAbly';
+import { AblyEvents } from '@/lib/ably/events';
+import { getPendingStudentsChannelName } from '@/lib/ably/channels'; // Nouvelle importation
 
 type AnnouncementWithAuthor = Announcement & { author: { name: string | null } };
 
@@ -32,6 +35,15 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
     const { toast } = useToast();
     const [isPendingValidation, startValidationTransition] = useTransition();
     
+    // État local pour les élèves en attente
+    const [pendingStudents, setPendingStudents] = useState<User[]>(
+        classroom.eleves?.filter(s => s.validationStatus === ValidationStatus.PENDING) || []
+    );
+
+    const validatedStudents = useMemo(() => {
+        return classroom.eleves?.filter(s => s.validationStatus === ValidationStatus.VALIDATED) || [];
+    }, [classroom.eleves]);
+
     const { 
         onlineMembers, 
         isConnected, 
@@ -44,11 +56,53 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
         'ClassPageClient'
     );
 
-    // ✅ CORRECTION : Entrer dans la présence avec gestion robuste des erreurs
+    // 🔹 Écoute des nouveaux élèves en attente via le CANAL GLOBAL
+    const ablyClient = useAbly();
+    useEffect(() => {
+        if (!ablyClient) return;
+
+        const channelName = getPendingStudentsChannelName(); // Utilise le canal global
+        const channel = ablyClient.client.channels.get(channelName);
+
+        const listener = (message: any) => {
+            const data = message.data;
+            // 🔹 ✅ Respect complet du type Prisma `User`
+            const newStudent: User = {
+                id: data.studentId,
+                name: data.studentName,
+                email: data.studentEmail,
+                emailVerified: null,
+                image: null,
+                password: null,
+                parentPassword: null,
+                role: 'ELEVE',
+                validationStatus: 'PENDING',
+                points: 0,
+                ambition: null,
+                classeId: null, // Un nouvel élève n'a pas encore de classe assignée
+            };
+
+            setPendingStudents(prev => {
+                if (prev.some(s => s.id === newStudent.id)) return prev;
+                toast({
+                    title: "Nouvel élève en attente !",
+                    description: `${newStudent.name} vient de s'inscrire et attend votre validation.`
+                });
+                return [...prev, newStudent];
+            });
+        };
+
+        channel.subscribe(AblyEvents.STUDENT_PENDING, listener);
+
+        return () => {
+            channel.unsubscribe(AblyEvents.STUDENT_PENDING, listener);
+            channel.detach();
+        };
+    }, [ablyClient, toast]);
+
+    // 🔹 Entrée en présence du professeur
     useEffect(() => {
         if (isConnected && classroom?.id && teacher && !hasEnteredPresence && !isLoading) {
-            console.log('👨‍🏫 [CLASSE] - Professeur entre dans la présence');
-            
             const enterPresenceWithRetry = async () => {
                 try {
                     await enterPresence({
@@ -57,165 +111,55 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                         image: teacher.image,
                         data: {
                             userId: teacher.id,
-                            role: Role.PROFESSEUR, // ✅ CORRECTION : Ajout du rôle dans data
+                            role: Role.PROFESSEUR,
                             classroomId: classroom.id
                         }
                     });
-                    console.log('✅ [CLASSE] - Professeur entré avec succès dans la présence');
                     setHasEnteredPresence(true);
-                    setPresenceEnterAttempts(0); // Réinitialiser les tentatives en cas de succès
+                    setPresenceEnterAttempts(0);
                 } catch (error) {
-                    console.error('❌ [CLASSE] - Erreur lors de l\'entrée en présence:', error);
                     setPresenceEnterAttempts(prev => prev + 1);
-                    
-                    // ✅ CORRECTION : Stratégie de réessai intelligente
                     if (presenceEnterAttempts < 3) {
-                        const retryDelay = Math.min(1000 * Math.pow(2, presenceEnterAttempts), 10000); // Exponential backoff
-                        console.log(`🔄 [CLASSE] - Nouvelle tentative dans ${retryDelay}ms (tentative ${presenceEnterAttempts + 1}/3)`);
-                        setTimeout(() => {
-                            setHasEnteredPresence(false);
-                        }, retryDelay);
-                    } else {
-                        console.error('💥 [CLASSE] - Échec après 3 tentatives d\'entrée en présence');
+                        setTimeout(() => setHasEnteredPresence(false), Math.min(1000 * Math.pow(2, presenceEnterAttempts), 10000));
                     }
                 }
             };
-
             enterPresenceWithRetry();
         }
     }, [isConnected, classroom?.id, teacher, enterPresence, isLoading, hasEnteredPresence, presenceEnterAttempts]);
 
-    // ✅ CORRECTION : Logique de mapping améliorée avec gestion des professeurs
-    const { onlineStudentIds, onlineTeacherIds } = useMemo(() => {
-        console.log('🔍 [CLASSE] - Online members from Ably:', onlineMembers);
-        
-        const onlineStudentIds: string[] = [];
-        const onlineTeacherIds: string[] = [];
-        
+    // 🔹 Mapping des élèves en ligne
+    const { onlineStudentIds } = useMemo(() => {
+        const ids: string[] = [];
         onlineMembers.forEach(member => {
-            // ✅ CORRECTION : Vérification plus robuste du rôle et de l'identité
             const memberRole = member.data?.role || member.role;
-            const memberUserId = member.data?.userId || member.id;
-
-            if (memberRole === Role.PROFESSEUR) {
-                // Gestion des professeurs
-                if (memberUserId === teacher.id) {
-                    console.log(`👨‍🏫 [CLASSE] - Professeur connecté: ${teacher.name}`);
-                    onlineTeacherIds.push(memberUserId);
-                } else {
-                    console.log(`👨‍🏫 [CLASSE] - Autre professeur connecté: ${member.name} (${memberUserId})`);
-                    onlineTeacherIds.push(memberUserId);
-                }
-            } else if (memberRole === Role.ELEVE) {
-                // ✅ CORRECTION : Mapping des élèves avec plusieurs stratégies
-                let studentFound = false;
-
-                // Stratégie 1: Recherche par userId exact
-                if (memberUserId) {
-                    const student = classroom.eleves?.find(s => s.id === memberUserId);
-                    if (student) {
-                        console.log(`✅ [CLASSE] - Mapped Ably member ${member.id} to student ${memberUserId} (${student.name}) via userId`);
-                        onlineStudentIds.push(memberUserId);
-                        studentFound = true;
-                    }
-                }
-
-                // Stratégie 2: Recherche par nom (fallback)
-                if (!studentFound && member.name) {
-                    const matchingStudent = classroom.eleves?.find(student => {
-                        // Comparaison flexible des noms
-                        const studentName = student.name?.toLowerCase().trim();
-                        const memberName = member.name?.toLowerCase().trim();
-                        
-                        return studentName === memberName || 
-                               (studentName && memberName && (
-                                   studentName.includes(memberName) || 
-                                   memberName.includes(studentName) ||
-                                   student.name?.toLowerCase().includes(member.name?.toLowerCase() || '')
-                               ));
-                    });
-                    
-                    if (matchingStudent) {
-                        console.log(`✅ [CLASSE] - Mapped Ably member ${member.id} to student ${matchingStudent.id} (${matchingStudent.name}) via name matching`);
-                        onlineStudentIds.push(matchingStudent.id);
-                        studentFound = true;
-                    }
-                }
-
-                // Stratégie 3: Recherche par email (fallback supplémentaire)
-                if (!studentFound && member.data?.email) {
-                    const matchingStudent = classroom.eleves?.find(student => 
-                        student.email?.toLowerCase() === member.data?.email?.toLowerCase()
-                    );
-                    
-                    if (matchingStudent) {
-                        console.log(`✅ [CLASSE] - Mapped Ably member ${member.id} to student ${matchingStudent.id} (${matchingStudent.name}) via email`);
-                        onlineStudentIds.push(matchingStudent.id);
-                        studentFound = true;
-                    }
-                }
-
-                if (!studentFound) {
-                    console.warn(`⚠️ [CLASSE] - No matching student found for Ably member:`, {
-                        memberId: member.id,
-                        memberName: member.name,
-                        memberRole: memberRole,
-                        memberUserId: memberUserId,
-                        availableStudents: classroom.eleves?.map(s => ({ id: s.id, name: s.name }))
-                    });
-                }
-            } else {
-                console.warn(`⚠️ [CLASSE] - Membre avec rôle inconnu:`, member);
+            const userId = member.data?.userId || member.id;
+            if (memberRole === Role.ELEVE) {
+                const student = classroom.eleves?.find(s => s.id === userId);
+                if (student) ids.push(student.id);
             }
         });
-        
-        // ✅ CORRECTION : Déduplication des IDs (au cas où)
-        const uniqueStudentIds = [...new Set(onlineStudentIds)];
-        const uniqueTeacherIds = [...new Set(onlineTeacherIds)];
-        
-        console.log(`📊 [CLASSE] - Online student IDs:`, uniqueStudentIds);
-        console.log(`👨‍🏫 [CLASSE] - Online teacher IDs:`, uniqueTeacherIds);
-        
-        return {
-            onlineStudentIds: uniqueStudentIds,
-            onlineTeacherIds: uniqueTeacherIds
-        };
-    }, [onlineMembers, classroom.eleves, teacher.id]);
+        return { onlineStudentIds: [...new Set(ids)] };
+    }, [onlineMembers, classroom.eleves]);
 
-    const { validatedStudents, pendingStudents } = useMemo(() => {
-        const validated = classroom.eleves?.filter(s => s.validationStatus === ValidationStatus.VALIDATED) || [];
-        const pending = classroom.eleves?.filter(s => s.validationStatus === ValidationStatus.PENDING) || [];
-        return { validatedStudents: validated, pendingStudents: pending };
-    }, [classroom.eleves]);
-
+    // 🔹 Validation d'un élève
     const handleValidateStudent = (studentId: string) => {
         startValidationTransition(async () => {
             try {
+                // L'action `validateStudent` assignera aussi l'élève à la classe actuelle
                 await validateStudent(studentId, classroom.id);
-                toast({
-                    title: 'Élève validé !',
-                    description: 'L\'élève a maintenant accès au tableau de bord.',
-                });
+                toast({ title: 'Élève validé !', description: "L'élève a été ajouté à votre classe." });
+                setPendingStudents(prev => prev.filter(s => s.id !== studentId));
             } catch (error) {
-                toast({
-                    variant: 'destructive',
-                    title: 'Erreur de validation',
-                    description: 'Impossible de valider l\'élève.',
-                });
+                toast({ variant: 'destructive', title: 'Erreur de validation' });
             }
         });
     };
 
-    // ✅ CORRECTION : Gestion améliorée des erreurs de présence
+    // 🔹 Gestion des erreurs Ably
     useEffect(() => {
         if (presenceError) {
-            console.error('❌ [CLIENT CLASSE] - Erreur de connexion temps réel Ably:', presenceError);
-            
-            // Tentative de récupération automatique
-            if (presenceError?.includes('disconnected') || presenceError?.includes('timeout')) {
-                console.log('🔄 [CLIENT CLASSE] - Tentative de récupération de la connexion...');
-                // La reconnexion sera gérée automatiquement par useAblyPresence
-            }
+            console.error('❌ [CLIENT CLASSE] - Erreur Ably:', presenceError);
         }
     }, [presenceError]);
 
@@ -254,7 +198,7 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                         <Users className="mr-2 h-4 w-4" />
                         Élèves ({validatedStudents.length})
                     </TabsTrigger>
-                     <TabsTrigger value="pending">
+                    <TabsTrigger value="pending">
                         <UserCheck className="mr-2 h-4 w-4" />
                         En attente ({pendingStudents.length})
                     </TabsTrigger>
@@ -278,8 +222,8 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                                 <div key={student.id} className="flex items-center justify-between p-3 border rounded-lg bg-card">
                                     <p className="font-medium">{student.name}</p>
                                     <Button onClick={() => handleValidateStudent(student.id)} disabled={isPendingValidation}>
-                                        {isPendingValidation ? <Loader2 className="animate-spin" /> : <UserCheck className="mr-2"/>}
-                                        Valider
+                                        {isPendingValidation ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <UserCheck className="mr-2 h-4 w-4"/>}
+                                        Valider et ajouter
                                     </Button>
                                 </div>
                             ))}

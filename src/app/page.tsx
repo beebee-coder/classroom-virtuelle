@@ -16,19 +16,38 @@ export default function HomePage() {
 
   useEffect(() => {
     if (status === 'authenticated' && session?.user) {
-      console.log('🔵 [HOMEPAGE] - Utilisateur authentifié, redirection vers dashboard');
-      const targetUrl = session.user.role === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard';
-      router.push(targetUrl);
+      console.log('🔵 [HOMEPAGE] - Utilisateur authentifié, vérification du rôle et statut...');
+
+      if (session.user.role === 'PROFESSEUR') {
+        router.replace('/teacher/dashboard');
+      } else if (session.user.role === 'ELEVE') {
+        if (session.user.validationStatus === 'PENDING') {
+          console.log('⏳ [HOMEPAGE] - Élève en attente → redirection vers /student/validation-pending');
+          router.replace('/student/validation-pending');
+        } else {
+          console.log('✅ [HOMEPAGE] - Élève validé → redirection vers /student/dashboard');
+          router.replace('/student/dashboard');
+        }
+      }
     }
   }, [session, status, router]);
 
-  if (status === 'loading' || status === 'authenticated') {
+  if (status === 'loading') {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-4">
         <Loader2 className="h-10 w-10 animate-spin text-primary" aria-hidden="true" />
         <p className="text-muted-foreground text-center max-w-md px-4">
           Chargement de votre session…
         </p>
+      </div>
+    );
+  }
+
+  // Ne jamais afficher la home si l'utilisateur est déjà authentifié
+  if (status === 'authenticated') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" aria-hidden="true" />
       </div>
     );
   }
