@@ -50,7 +50,7 @@ export const authOptions: NextAuthOptions = {
         const ownerEmail = process.env.OWNER_EMAIL?.toLowerCase().trim();
         const userEmail = profile.email.toLowerCase().trim();
 
-        // 🔑 Si c'est le propriétaire → PROFESSEUR + VALIDATED
+        // Si c'est le propriétaire → PROFESSEUR + VALIDATED
         if (ownerEmail && userEmail === ownerEmail) {
           return {
             id: profile.sub,
@@ -77,7 +77,7 @@ export const authOptions: NextAuthOptions = {
             };
         }
 
-        // ✅ Nouvel utilisateur → ELEVE + PENDING
+        // Nouvel utilisateur → ELEVE + PENDING
         return {
           id: profile.sub,
           name: profile.name,
@@ -92,7 +92,7 @@ export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
   pages: { signIn: "/login", error: "/login" },
   callbacks: {
-    async signIn({ user, account, profile }) {
+    async signIn({ user }) {
         if (user.validationStatus === 'PENDING') {
             console.log(`[SIGN IN CALLBACK] - Utilisateur ${user.email} est PENDING. Connexion autorisée, la redirection gérera le reste.`);
         }
@@ -100,7 +100,6 @@ export const authOptions: NextAuthOptions = {
     },
 
     async jwt({ token, user, trigger, session }) {
-        // Au moment de la création du JWT (connexion)
         if (user) {
             token.id = user.id;
             token.role = user.role as Role;
@@ -109,7 +108,6 @@ export const authOptions: NextAuthOptions = {
             token.validationStatus = user.validationStatus as ValidationStatus;
         }
 
-        // Si la session est mise à jour (ex: par useSession().update())
         if (trigger === "update" && session?.validationStatus) {
             token.validationStatus = session.validationStatus as ValidationStatus;
         }
@@ -131,7 +129,6 @@ export const authOptions: NextAuthOptions = {
   events: {
     async createUser(message) {
         const user = message.user;
-        // Si un nouvel élève est créé (ex: 1ère connexion Google) et qu'il est en attente
         if (user.role === Role.ELEVE && user.validationStatus === ValidationStatus.PENDING) {
             console.log(`[CREATE USER EVENT] Nouvel élève créé via provider: ${user.id}. Diffusion de l'événement.`);
             try {

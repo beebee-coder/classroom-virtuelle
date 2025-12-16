@@ -2,6 +2,9 @@
 import { Suspense } from 'react';
 import RegisterForm from './register-form';
 
+// Forcer le rendu dynamique pour éviter les conflits de session
+export const dynamic = 'force-dynamic';
+
 export default function RegisterPage() {
   return (
     <Suspense fallback={
