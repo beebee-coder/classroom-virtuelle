@@ -1,4 +1,3 @@
-
 // src/app/teacher/class/[id]/SessionLauncher.tsx
 'use client';
 
@@ -158,5 +157,3 @@ export function SessionLauncher({ classroom, teacher, onlineStudents }: SessionL
         </Card>
     );
 }
-
-    

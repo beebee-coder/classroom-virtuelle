@@ -119,7 +119,7 @@ function ParticipantComponent({
                  {canShowWhiteboardControlButton && (
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="secondary" size="icon" className={cn(
+                      <Button variant="secondary" size="icon" onClick={handleSetController} className={cn(
                           "bg-black/50 hover:bg-black/80 border-none", 
                           compact ? "h-5 w-5" : "h-10 w-10" // ✅ CORRECTION : Boutons plus grands
                       )}>
@@ -135,7 +135,7 @@ function ParticipantComponent({
                  {isTeacher && onSpotlightParticipant && (
                     <Tooltip>
                         <TooltipTrigger asChild>
-                             <Button variant="secondary" size="icon" className={cn(
+                             <Button variant="secondary" size="icon" onClick={handleSpotlight} className={cn(
                                  "bg-black/50 hover:bg-black/80 border-none", 
                                  compact ? "h-5 w-5" : "h-10 w-10" // ✅ CORRECTION : Boutons plus grands
                              )}>
