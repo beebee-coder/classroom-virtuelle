@@ -26,13 +26,13 @@ export function ValidationConsoleClient({ initialPendingStudents, teacherClasses
   const { client: ablyClient } = useNamedAbly('ValidationConsoleClient');
 
   useEffect(() => {
-    if (!ablyClient?.client) {
+    if (!ablyClient) {
       console.warn('⚠️ [ValidationConsoleClient] Ably client non disponible.');
       return;
     }
 
     const channelName = getPendingStudentsChannelName();
-    const channel = ablyClient.client.channels.get(channelName);
+    const channel = ablyClient.channels.get(channelName);
 
     const listener = (message: any) => {
       console.log("📨 [CONSOLE VALIDATION] - Événement 'student-pending' reçu!", message.data);
@@ -74,7 +74,7 @@ export function ValidationConsoleClient({ initialPendingStudents, teacherClasses
     return () => {
       channel.unsubscribe(AblyEvents.STUDENT_PENDING, listener);
     };
-  }, [ablyClient?.client, toast]);
+  }, [ablyClient, toast]);
 
   const handleValidate = (student: User) => {
     const classroomId = selectedClasses[student.id];
