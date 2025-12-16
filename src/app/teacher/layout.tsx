@@ -9,6 +9,7 @@ import { Header } from '@/components/Header';
 import Menu from '@/components/Menu';
 import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Role } from '@prisma/client';
+import { getTasksForProfessorValidation } from '@/lib/actions/teacher.actions'; // Import de l'action
 
 export const dynamic = 'force-dynamic';
 
@@ -30,15 +31,9 @@ export default async function TeacherLayout({
       orderBy: { nom: 'asc' }
     });
 
-    const tasksToValidate = await prisma.studentProgress.count({
-      where: {
-        status: 'PENDING_VALIDATION',
-        task: { validationType: 'PROFESSOR' },
-        student: { classe: { professeurId: session.user.id } }
-      }
-    });
-
-    const validationCount = tasksToValidate || 0;
+    // ✅ CORRECTION : Utiliser l'action serveur stable au lieu d'une requête complexe
+    const tasksToValidate = await getTasksForProfessorValidation(session.user.id);
+    const validationCount = tasksToValidate.length;
 
     return (
       <SidebarProvider>
