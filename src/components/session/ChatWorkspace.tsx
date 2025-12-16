@@ -1,3 +1,4 @@
+
 // src/components/session/ChatWorkspace.tsx
 'use client';
 
@@ -343,3 +344,5 @@ export function ChatWorkspace({ classroomId, userId, userRole }: ChatWorkspacePr
     </div>
   );
 }
+
+    
