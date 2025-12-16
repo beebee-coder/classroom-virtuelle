@@ -47,10 +47,49 @@ export const authOptions: NextAuthOptions = {
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       authorization: { params: { prompt: "select_account" } },
-      profile(profile) {
+      async profile(profile, tokens) {
         const ownerEmail = process.env.OWNER_EMAIL?.toLowerCase().trim();
         const userEmail = profile.email.toLowerCase().trim();
 
+        // Tenter de lier le compte Google à un utilisateur existant par email
+        const existingUser = await prisma.user.findUnique({ where: { email: userEmail } });
+        if (existingUser) {
+          // Si l'utilisateur existe, lier le compte sans changer le rôle
+          await prisma.account.upsert({
+            where: {
+              provider_providerAccountId: {
+                provider: 'google',
+                providerAccountId: profile.sub,
+              },
+            },
+            update: {
+              access_token: tokens.access_token,
+              expires_at: tokens.expires_at,
+              refresh_token: tokens.refresh_token,
+              scope: tokens.scope,
+              token_type: tokens.token_type,
+            },
+            create: {
+              userId: existingUser.id,
+              type: 'oauth',
+              provider: 'google',
+              providerAccountId: profile.sub,
+              access_token: tokens.access_token,
+              expires_at: tokens.expires_at,
+              refresh_token: tokens.refresh_token,
+              scope: tokens.scope,
+              token_type: tokens.token_type,
+            },
+          });
+          return {
+            ...existingUser,
+            id: existingUser.id,
+            role: existingUser.role, // Conserver le rôle existant
+            validationStatus: existingUser.validationStatus,
+          };
+        }
+
+        // Si l'utilisateur n'existe pas, créer un nouveau profil
         if (ownerEmail && userEmail === ownerEmail) {
           return {
             id: profile.sub,
@@ -75,6 +114,22 @@ export const authOptions: NextAuthOptions = {
   ],
   session: { strategy: "jwt" },
   pages: { signIn: "/login", error: "/login" },
+  events: {
+    async createUser({ user }) {
+      if (user.role === "ELEVE") {
+        try {
+          await broadcastNewPendingStudent({
+            id: user.id,
+            name: user.name ?? null,
+            email: user.email ?? null,
+          });
+          console.log(`🔔 [AUTH EVENT] Événement temps réel envoyé pour le nouvel élève en attente : ${user.email}`);
+        } catch (error) {
+          console.error(`❌ [AUTH EVENT] Échec de la diffusion de l'événement pour le nouvel élève:`, error);
+        }
+      }
+    },
+  },
   callbacks: {
     async signIn({ user, account }) {
       return true;
@@ -105,21 +160,5 @@ export const authOptions: NextAuthOptions = {
       return baseUrl;
     },
   },
-  // 🔑 ÉVÉNEMENT CRUCIAL : notifier en temps réel de la création d'un élève
-  events: {
-    async createUser({ user }) {
-      // Si un nouvel utilisateur avec le rôle ELEVE est créé...
-      if (user.role === "ELEVE") {
-        try {
-          // ... on diffuse l'information sur un canal global.
-          await broadcastNewPendingStudent(user);
-          console.log(`🔔 [AUTH EVENT] Événement temps réel envoyé pour le nouvel élève en attente : ${user.email}`);
-        } catch (error) {
-          console.error(`❌ [AUTH EVENT] Échec de la diffusion de l'événement pour le nouvel élève:`, error);
-        }
-      }
-    },
-  },
   debug: process.env.NODE_ENV === "development",
-  allowDangerousEmailAccountLinking: true,
 };
