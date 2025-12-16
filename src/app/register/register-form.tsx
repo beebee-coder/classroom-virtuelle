@@ -38,6 +38,7 @@ export default function RegisterForm() {
     const onSubmit = async (values: z.infer<typeof registerSchema>) => {
         startTransition(async () => {
             setError('');
+            console.log("📝 [REGISTER FORM] Tentative d'inscription pour:", values.email);
             const response = await fetch('/api/auth/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -47,6 +48,7 @@ export default function RegisterForm() {
             const data = await response.json();
 
             if (response.ok) {
+                console.log("✅ [REGISTER FORM] Inscription réussie. Tentative de connexion...");
                 // Inscription réussie, connecter l'utilisateur
                 const signInResponse = await signIn('credentials', {
                     email: values.email,
@@ -55,6 +57,7 @@ export default function RegisterForm() {
                 });
 
                 if (signInResponse?.ok) {
+                    console.log("✅ [REGISTER FORM] Connexion post-inscription réussie. Redirection...");
                     // Rediriger en fonction du rôle retourné par l'API
                     if (data.user.role === Role.PROFESSEUR) {
                         router.push('/teacher/dashboard');
@@ -62,15 +65,18 @@ export default function RegisterForm() {
                         router.push('/student/validation-pending');
                     }
                 } else {
+                    console.error("❌ [REGISTER FORM] Erreur de connexion post-inscription:", signInResponse?.error);
                     setError("Erreur lors de la connexion après l'inscription.");
                 }
             } else {
+                console.error("❌ [REGISTER FORM] Erreur de l'API d'inscription:", data.error);
                 setError(data.error || 'Une erreur est survenue.');
             }
         });
     };
     
     const handleGoogleLogin = () => {
+        console.log("🔵 [REGISTER FORM] Lancement de la connexion Google...");
         // La redirection post-connexion sera gérée par le `useEffect` dans LoginForm
         signIn("google", { callbackUrl: "/student/dashboard" });
     };

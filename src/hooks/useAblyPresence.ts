@@ -5,14 +5,14 @@ import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useNamedAbly } from './useNamedAbly';
 import type { AblyPresenceMember } from '@/lib/ably/types';
 import { getClassChannelName } from '@/lib/ably/channels';
-import Ably from 'ably';
+import Ably, { type Types } from 'ably';
 import { Role } from '@prisma/client';
 import { useAblyHealth } from './useAblyHealth';
 
-type AblyChannel = Ably.RealtimeChannel;
-type AblyChannelStateChange = Ably.ChannelStateChange;
-type AblyPresenceMessage = Ably.PresenceMessage;
-type AblyErrorInfo = Ably.ErrorInfo;
+type AblyChannel = Types.RealtimeChannel;
+type AblyChannelStateChange = Types.ChannelStateChange;
+type AblyPresenceMessage = Types.PresenceMessage;
+type AblyErrorInfo = Types.ErrorInfo;
 
 interface UseAblyPresenceReturn {
   onlineMembers: AblyPresenceMember[];

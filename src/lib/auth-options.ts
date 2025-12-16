@@ -47,14 +47,14 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       authorization: { params: { prompt: "select_account" } },
       async profile(profile) {
-        const ownerEmail = process.env.OWNER_EMAIL?.toLowerCase().trim();
         const userEmail = profile.email.toLowerCase().trim();
+        console.log(`[AUTH PROFILE] Traitement du profil Google pour: ${userEmail}`);
 
         // 1. Vérifier si l'utilisateur existe déjà
         const existingUser = await prisma.user.findUnique({ where: { email: userEmail } });
         if (existingUser) {
-            // L'utilisateur existe déjà, on retourne ses informations actuelles pour ne pas écraser son statut/rôle
-             return {
+            console.log(`[AUTH PROFILE] -> Utilisateur existant trouvé: ${existingUser.id}. Retour des données actuelles.`);
+            return {
                 id: existingUser.id,
                 name: existingUser.name,
                 email: existingUser.email,
@@ -65,19 +65,20 @@ export const authOptions: NextAuthOptions = {
         }
 
         // 2. Si c'est un nouvel utilisateur, déterminer son rôle
-        // Si c'est le propriétaire → PROFESSEUR + VALIDATED
+        const ownerEmail = process.env.OWNER_EMAIL?.toLowerCase().trim();
         if (ownerEmail && userEmail === ownerEmail) {
-          return {
-            id: profile.sub,
-            name: profile.name,
-            email: profile.email,
-            image: profile.picture,
-            role: "PROFESSEUR" as Role,
-            validationStatus: "VALIDATED" as ValidationStatus,
+            console.log(`[AUTH PROFILE] -> Nouvel utilisateur est propriétaire. Création en tant que PROFESSEUR.`);
+            return {
+                id: profile.sub,
+                name: profile.name,
+                email: profile.email,
+                image: profile.picture,
+                role: "PROFESSEUR" as Role,
+                validationStatus: "VALIDATED" as ValidationStatus,
           };
         }
         
-        // Nouvel utilisateur (non-propriétaire) → ELEVE + PENDING
+        console.log(`[AUTH PROFILE] -> Nouvel utilisateur (non propriétaire). Création en tant qu'ELEVE PENDING.`);
         return {
           id: profile.sub,
           name: profile.name,
