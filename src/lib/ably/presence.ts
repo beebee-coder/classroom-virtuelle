@@ -2,7 +2,6 @@
 import Ably from 'ably';
 import type { AblyPresenceMember } from './types';
 import { initializeAblyServer } from './server';
-import type { Types as AblyTypes } from 'ably';
 
 /**
  * Retrieves the list of presence members for a given channel.
@@ -27,13 +26,13 @@ export async function getPresenceMembers(channelName: string): Promise<AblyPrese
         const presencePage = await channel.presence.get();
         
         // Correctly handle PaginatedResult
-        const presenceMembers: AblyTypes.PresenceMessage[] = presencePage.items;
+        const presenceMembers: Ably.PresenceMessage[] = presencePage.items;
         
         if (!Array.isArray(presenceMembers)) {
             return [];
         }
 
-        const members = presenceMembers.map((member: AblyTypes.PresenceMessage) => {
+        const members = presenceMembers.map((member: Ably.PresenceMessage) => {
             const memberData = member.data as any;
             
             return {

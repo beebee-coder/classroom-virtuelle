@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useTransition, useEffect, useCallback } from 'react';
+import Ably from 'ably';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { validateStudent } from '@/lib/actions/teacher.actions';
@@ -12,7 +13,6 @@ import { getGlobalPendingStudentsChannel } from '@/lib/ably/channels';
 import { Loader2, Check, X, ShieldCheck } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import type { Types as AblyTypes } from 'ably';
 
 interface ValidationConsoleClientProps {
   initialStudents: User[];
@@ -47,9 +47,9 @@ export function ValidationConsoleClient({ initialStudents }: ValidationConsoleCl
     const channelName = getGlobalPendingStudentsChannel();
     console.log(`[VALIDATION CONSOLE] - Tentative d'abonnement au canal : ${channelName}`);
     
-    const channel: AblyTypes.RealtimeChannelCallbacks = ablyClient.channels.get(channelName);
+    const channel: Ably.RealtimeChannel = ablyClient.channels.get(channelName);
     
-    const onNewStudent = (message: AblyTypes.Message) => {
+    const onNewStudent = (message: Ably.Message) => {
         handleNewPendingStudent(message.data);
     };
 

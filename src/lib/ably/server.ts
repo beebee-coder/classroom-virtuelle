@@ -1,6 +1,6 @@
 // src/lib/ably/server.ts
 
-import Ably, { type Types as AblyTypes } from 'ably';
+import Ably from 'ably';
 
 declare global {
   // eslint-disable-next-line no-var
@@ -26,7 +26,7 @@ export function initializeAblyServer(): Ably.Rest | null {
 
   try {
     if (process.env.NODE_ENV === 'production' || !global.ablyServerInstance) {
-      const clientOptions: AblyTypes.ClientOptions = {
+      const clientOptions: Ably.ClientOptions = {
         key: ablyApiKey,
         log: { level: (process.env.NODE_ENV === 'development' ? 2 : 1) as any },
         tls: true,

@@ -2,11 +2,11 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import Ably from 'ably';
 import { useNamedAbly } from '@/hooks/useNamedAbly';
 import { getSessionChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
 import { ComprehensionLevel, Quiz, QuizResponse, QuizResults, BreakoutRoom } from '@/types';
-import type { Types as AblyTypes } from 'ably';
 import { useToast } from '../use-toast';
 
 const validateTimerDuration = (duration: unknown): number => {
@@ -63,7 +63,7 @@ export function useAblyCommunication({
   const [timerTimeLeft, setTimerTimeLeft] = useState<number>(3600);
   const [breakoutRoomInfo, setBreakoutRoomInfo] = useState<BreakoutRoom | null>(null);
 
-  const channelRef = useRef<AblyTypes.RealtimeChannelCallbacks | null>(null);
+  const channelRef = useRef<Ably.RealtimeChannel | null>(null);
   const isMountedRef = useRef(true);
   
   const onSignalReceivedRef = useRef(onSignalReceived);
@@ -80,7 +80,7 @@ export function useAblyCommunication({
     return () => { if (timerInterval) clearInterval(timerInterval); };
   }, [isTimerRunning, timerTimeLeft]);
 
-  const handleSignalEvent = useCallback((message: AblyTypes.Message) => {
+  const handleSignalEvent = useCallback((message: Ably.Message) => {
     if (message.data.target === currentUserId) {
       onSignalReceivedRef.current(
         message.data.userId, 
@@ -111,30 +111,30 @@ export function useAblyCommunication({
     onSessionEndedRef.current?.(); 
   }, []);
 
-  const handleSpotlightEvent = useCallback((message: AblyTypes.Message) => {
+  const handleSpotlightEvent = useCallback((message: Ably.Message) => {
     setSpotlightedParticipantId(message.data.participantId);
   }, []);
 
-  const handleHandRaiseUpdateEvent = useCallback((message: AblyTypes.Message) => {
+  const handleHandRaiseUpdateEvent = useCallback((message: Ably.Message) => {
     setHandRaiseQueue(prev => {
       const newQueue = prev.filter(id => id !== message.data.userId);
       return message.data.isRaised ? [...newQueue, message.data.userId] : newQueue;
     });
   }, []);
 
-  const handleHandAcknowledgedEvent = useCallback((message: AblyTypes.Message) => {
+  const handleHandAcknowledgedEvent = useCallback((message: Ably.Message) => {
     setHandRaiseQueue(prev => prev.filter(id => id !== message.data.userId));
   }, []);
 
-  const handleUnderstandingUpdateEvent = useCallback((message: AblyTypes.Message) => {
+  const handleUnderstandingUpdateEvent = useCallback((message: Ably.Message) => {
     setUnderstandingStatus(prev => new Map(prev).set(message.data.userId, message.data.status));
   }, []);
 
-  const handleActiveToolChangeEvent = useCallback((message: AblyTypes.Message) => {
+  const handleActiveToolChangeEvent = useCallback((message: Ably.Message) => {
     setActiveTool(validateActiveTool(message.data.tool));
   }, [setActiveTool]);
 
-  const handleDocumentSharedEvent = useCallback((message: AblyTypes.Message) => {
+  const handleDocumentSharedEvent = useCallback((message: Ably.Message) => {
     if (message.data.sharedByUserId !== currentUserId) {
       setDocumentUrl(message.data.url);
       setActiveTool('document');
@@ -145,7 +145,7 @@ export function useAblyCommunication({
     }
   }, [currentUserId, setDocumentUrl, setActiveTool, toast]);
 
-  const handleWhiteboardControllerUpdateEvent = useCallback((message: AblyTypes.Message) => {
+  const handleWhiteboardControllerUpdateEvent = useCallback((message: Ably.Message) => {
     setWhiteboardControllerId(message.data.controllerId);
   }, []);
 
@@ -157,21 +157,21 @@ export function useAblyCommunication({
     setIsTimerRunning(false);
   }, []);
 
-  const handleTimerResetEvent = useCallback((message: AblyTypes.Message) => {
+  const handleTimerResetEvent = useCallback((message: Ably.Message) => {
     setTimerTimeLeft(validateTimerDuration(message.data.duration));
     setIsTimerRunning(false);
   }, []);
 
-  const handleQuizStartedEvent = useCallback((message: AblyTypes.Message) => {
+  const handleQuizStartedEvent = useCallback((message: Ably.Message) => {
     setActiveTool('quiz');
     setActiveQuiz(message.data.quiz as Quiz);
   }, [setActiveQuiz, setActiveTool]);
 
-  const handleQuizResponseEvent = useCallback((message: AblyTypes.Message) => {
+  const handleQuizResponseEvent = useCallback((message: Ably.Message) => {
     onNewQuizResponse(message.data as QuizResponse);
   }, [onNewQuizResponse]);
 
-  const handleQuizEndedEvent = useCallback((message: AblyTypes.Message) => {
+  const handleQuizEndedEvent = useCallback((message: Ably.Message) => {
     onQuizEnded(message.data.results as QuizResults);
   }, [onQuizEnded]);
 
@@ -179,7 +179,7 @@ export function useAblyCommunication({
     onQuizClosed();
   }, [onQuizClosed]);
 
-  const handleBreakoutRoomsStarted = useCallback((message: AblyTypes.Message) => {
+  const handleBreakoutRoomsStarted = useCallback((message: Ably.Message) => {
     const { rooms } = message.data as { rooms: BreakoutRoom[] };
     const myRoom = rooms.find(room => room.participants.some(p => p.id === currentUserId));
     if (myRoom) {
@@ -191,7 +191,7 @@ export function useAblyCommunication({
     setBreakoutRoomInfo(null);
   }, []);
 
-  const enterPresence = useCallback(async (channel: AblyTypes.RealtimeChannelCallbacks) => {
+  const enterPresence = useCallback(async (channel: Ably.RealtimeChannel) => {
     try {
       await channel.presence.enter();
     } catch (error) {
@@ -199,7 +199,7 @@ export function useAblyCommunication({
     }
   }, []);
 
-  const leavePresence = useCallback(async (channel: AblyTypes.RealtimeChannelCallbacks) => {
+  const leavePresence = useCallback(async (channel: Ably.RealtimeChannel) => {
     try {
       await channel.presence.leave();
     } catch (error) {
@@ -238,7 +238,7 @@ export function useAblyCommunication({
     ];
 
     subscriptions.forEach(({ event, handler }) => {
-      channel.subscribe(event, handler);
+      channel.subscribe(event, handler as (message: Ably.Message) => void);
     });
 
     channel.presence.subscribe(['enter', 'leave', 'update'], handlePresenceUpdate);
@@ -250,7 +250,7 @@ export function useAblyCommunication({
       
       if (channelRef.current) {
         subscriptions.forEach(({ event, handler }) => {
-          channelRef.current!.unsubscribe(event, handler);
+          channelRef.current!.unsubscribe(event, handler as (message: Ably.Message) => void);
         });
         
         channelRef.current.presence.unsubscribe();
