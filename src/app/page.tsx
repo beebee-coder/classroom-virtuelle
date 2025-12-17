@@ -1,14 +1,37 @@
 // src/app/page.tsx
-import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, School } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
-// Page d'accueil simplifiée - ne gère plus la session
+// Page d'accueil complètement statique pour garantir le rendu.
 export default function HomePage() {
   return (
     <div id="home-container" className="flex flex-col min-h-screen overflow-hidden">
+      {/* En-tête simplifié et autonome */}
+      <header className="bg-card/80 backdrop-blur-sm border-b shadow-sm sticky top-0 z-50">
+        <div className="flex items-center justify-between h-16 px-4 sm:px-6">
+          <Link
+            href="/"
+            aria-label="Accueil"
+            className="flex items-center gap-2 font-bold text-lg text-primary"
+          >
+            <School className="h-6 w-6" />
+            <span>Classroom Connector</span>
+          </Link>
+          <nav className="flex items-center gap-2">
+            <ThemeToggle />
+            <Button asChild>
+              <Link href="/login">
+                Connexion
+              </Link>
+            </Button>
+          </nav>
+        </div>
+      </header>
+
+      {/* Fond d'image */}
       <div className="fixed inset-0 overflow-hidden -z-10">
         <Image
           src="https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=3024&auto=format&fit=crop"
@@ -19,12 +42,10 @@ export default function HomePage() {
           className="object-cover"
           priority
         />
+        <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/60 to-background/80" />
       </div>
       
-      <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/60 to-background/80 -z-10" />
-
-      <Header user={null} />
-      
+      {/* Contenu principal */}
       <main className="flex-1 relative" role="main">
         <div className="container mx-auto px-4 py-20 sm:py-28">
           <div className="flex flex-col items-center justify-center">

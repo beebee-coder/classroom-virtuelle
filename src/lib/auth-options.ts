@@ -7,26 +7,26 @@ import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { Role, ValidationStatus } from "@prisma/client";
 
+// Définir l'URL de base pour NextAuth.js
+process.env.NEXTAUTH_URL = process.env.APP_HOST;
+
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
+  trustHost: true, // Nécessaire pour les environnements non-Vercel
 
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       profile(profile) {
-        // Logique pour déterminer le rôle lors de l'inscription via Google
         const isOwner = profile.email === process.env.OWNER_EMAIL;
-        const role = isOwner ? Role.PROFESSEUR : Role.ELEVE;
-        const validationStatus = isOwner ? ValidationStatus.VALIDATED : ValidationStatus.PENDING;
-
         return {
           id: profile.sub,
           name: profile.name,
           email: profile.email,
           image: profile.picture,
-          role: role,
-          validationStatus: validationStatus,
+          role: isOwner ? Role.PROFESSEUR : Role.ELEVE,
+          validationStatus: isOwner ? ValidationStatus.VALIDATED : ValidationStatus.PENDING,
         };
       },
     }),
@@ -44,9 +44,9 @@ export const authOptions: NextAuthOptions = {
         const user = await prisma.user.findUnique({
           where: { email: credentials.email.toLowerCase() },
         });
-        
+
         if (!user || !user.password) {
-           return null;
+          return null;
         }
 
         const isPasswordValid = await bcrypt.compare(
@@ -55,7 +55,7 @@ export const authOptions: NextAuthOptions = {
         );
 
         if (isPasswordValid) {
-          return user; 
+          return user;
         }
 
         return null;
@@ -69,45 +69,23 @@ export const authOptions: NextAuthOptions = {
   
   pages: {
     signIn: "/login",
-    error: "/login", 
+    error: "/login",
   },
   
   events: {
     createUser: async ({ user }) => {
-      console.log('🎉 [EVENT] - Nouvel utilisateur créé (formulaire ou 1ère connexion OAuth), ID:', user.id);
-      
-      const isFirstUser = (await prisma.user.count()) === 1;
-      const isOwnerByEmail = user.email === process.env.OWNER_EMAIL;
-
-      let role: Role = Role.ELEVE;
-      let validationStatus: ValidationStatus = ValidationStatus.PENDING;
-
-      if (isFirstUser || isOwnerByEmail) {
-        role = Role.PROFESSEUR;
-        validationStatus = ValidationStatus.VALIDATED;
-        console.log(`👑 [EVENT] - Promotion au rôle PROFESSEUR pour ${user.email}`);
-      } else {
-        console.log(`🧑‍🎓 [EVENT] - Assignation du rôle ELEVE pour ${user.email}`);
-      }
-
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { role, validationStatus },
-      });
-      
+      // S'assure que le champ `etat` est créé pour chaque nouvel utilisateur
       await prisma.etatEleve.create({
         data: {
           eleveId: user.id
         }
-      })
+      });
     },
   },
 
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        // Après une connexion/inscription, les données de l'utilisateur sont passées ici.
-        // On les ajoute au token JWT.
         token.id = user.id;
         token.role = user.role;
         token.validationStatus = user.validationStatus;
@@ -117,7 +95,6 @@ export const authOptions: NextAuthOptions = {
     },
 
     async session({ session, token }) {
-      // La session côté client est enrichie avec les données du token.
       if (token) {
         session.user.id = token.id as string;
         session.user.role = token.role as Role;
@@ -129,6 +106,4 @@ export const authOptions: NextAuthOptions = {
   },
 
   debug: process.env.NODE_ENV === "development",
-  // Ajout de la propriété issuer pour résoudre l'erreur Invalid URL de manière définitive
-  issuer: process.env.NEXTAUTH_URL,
 };
