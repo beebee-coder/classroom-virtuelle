@@ -2,9 +2,7 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider        = "prisma-client-js"
-  binaryTargets   = ["native", "debian-openssl-1.1.x"]
-  previewFeatures = ["prismaSchemaFolder"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -13,34 +11,35 @@ datasource db {
 }
 
 model User {
-  id                 String              @id @default(cuid())
-  name               String?
-  email              String?             @unique
-  emailVerified      DateTime?
-  image              String?
-  password           String?
-  role               Role                @default(ELEVE)
-  points             Int?                @default(0)
-  ambition           String?
-  parentPassword     String?
-  validationStatus   ValidationStatus    @default(PENDING)
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  sessions           CoursSession[]      @relation("SessionParticipants")
-  announcements      Announcement[]
-  messages           Message[]
-  reactions          Reaction[]
-  studentProgress    StudentProgress[]
-  sharedDocuments    SharedDocument[]
-  etat               EtatEleve?
-  classeId           String?
+  id                String            @id @default(cuid())
+  name              String?
+  email             String?           @unique
+  emailVerified     DateTime?
+  image             String?
+  password          String?
+  role              Role              @default(ELEVE)
+  points            Int?              @default(0)
+  ambition          String?
+  parentPassword    String?
+  validationStatus  ValidationStatus  @default(PENDING)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  sessions          CoursSession[]    @relation("SessionParticipants")
+  announcements     Announcement[]
+  messages          Message[]
+  reactions         Reaction[]
+  studentProgress   StudentProgress[]
+  sharedDocuments   SharedDocument[]
+  etat              EtatEleve?
+  classeId          String?
   // Relation pour l'élève appartenant à une classe
-  classe             Classroom?          @relation("StudentsInClassroom", fields: [classeId], references: [id])
+  classe            Classroom?        @relation("StudentsInClassroom", fields: [classeId], references: [id])
   // Relation pour le professeur gérant plusieurs classes
-  classesEnseignees  Classroom[]         @relation("TeacherToClassroom")
-  quizResponses      QuizResponse[]
-  quizzesCrees       Quiz[]              @relation("QuizCreator")
-  quizResults        QuizResult[]
+  classesEnseignees Classroom[]       @relation("TeacherToClassroom")
+  quizResponses     QuizResponse[]
+  quizzesCrees      Quiz[]            @relation("QuizCreator")
+  quizResults       QuizResult[]
+  CoursSession      CoursSession[]
 }
 
 model Classroom {
@@ -54,6 +53,7 @@ model Classroom {
   eleves       User[]         @relation("StudentsInClassroom")
   sessions     CoursSession[]
   annonces     Announcement[]
+  Message      Message[]
 }
 
 model CoursSession {
@@ -155,23 +155,23 @@ model Message {
 }
 
 model Reaction {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   emoji     String
   messageId String
   userId    String
-  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([messageId, userId, emoji])
 }
 
 model Quiz {
-  id              String        @id @default(cuid())
+  id              String         @id @default(cuid())
   title           String
   createdById     String
-  createdAt       DateTime      @default(now())
+  createdAt       DateTime       @default(now())
   awardedPointsAt DateTime?
-  createdBy       User          @relation("QuizCreator", fields: [createdById], references: [id])
+  createdBy       User           @relation("QuizCreator", fields: [createdById], references: [id])
   questions       QuizQuestion[]
   responses       QuizResponse[]
   results         QuizResult[]
@@ -208,17 +208,16 @@ model QuizResponse {
 }
 
 model QuizResult {
-  id      String @id @default(cuid())
-  quizId  String
-  userId  String
-  score   Int
-  total   Int
-  quiz    Quiz   @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  quizId String
+  userId String
+  score  Int
+  total  Int
+  quiz   Quiz   @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([quizId, userId])
 }
-
 
 enum Role {
   PROFESSEUR

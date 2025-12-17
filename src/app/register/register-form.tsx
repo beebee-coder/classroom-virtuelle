@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useSession } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -12,12 +12,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 import Image from 'next/image';
+import { FaGoogle } from 'react-icons/fa';
 
 export default function RegisterForm() {
   const router = useRouter();
   const { status } = useSession();
   const searchParams = useSearchParams();
   const messageParam = searchParams?.get('message');
+  const callbackUrl = searchParams?.get('callbackUrl') || '/';
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -77,6 +79,11 @@ export default function RegisterForm() {
       setLoading(false);
     }
   };
+  
+  const handleGoogleSignIn = () => {
+    signIn('google', { callbackUrl });
+  };
+
 
   if (status === "loading" || status === "authenticated") {
     return (
@@ -124,19 +131,41 @@ export default function RegisterForm() {
         <Card className="shadow-2xl bg-card/80 backdrop-blur-sm border-white/20">
           <form onSubmit={handleSubmit}>
             <CardContent className="p-8 space-y-6">
-              {error && (
+               {error && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
                   <AlertTitle>Erreur d'inscription</AlertTitle>
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
+              
+                <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full flex items-center justify-center gap-2"
+                    onClick={handleGoogleSignIn}
+                    disabled={loading}
+                >
+                    <FaGoogle className="h-5 w-5" style={{ color: 'transparent', background: 'linear-gradient(-135deg, #4285F4 25%, #34A853 25%, #34A853 50%, #FBBC05 50%, #FBBC05 75%, #EA4335 75%)', backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
+                    Continuer avec Google
+                </Button>
+
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-muted" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">
+                      ou
+                    </span>
+                  </div>
+                </div>
+
 
               <div className="space-y-2">
                 <Label htmlFor="name" className="text-sm font-medium">Nom complet</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  {/* 🔹 PAS de placeholder */}
                   <Input
                     id="name"
                     type="text"
@@ -153,7 +182,6 @@ export default function RegisterForm() {
                 <Label htmlFor="email" className="text-sm font-medium">Email</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  {/* 🔹 PAS de placeholder */}
                   <Input
                     id="email"
                     type="email"
@@ -170,7 +198,6 @@ export default function RegisterForm() {
                 <Label htmlFor="password" className="text-sm font-medium">Mot de passe</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  {/* 🔹 PAS de placeholder */}
                   <Input
                     id="password"
                     type="password"
