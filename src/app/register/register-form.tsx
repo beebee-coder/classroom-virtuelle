@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { signIn, useSession } from 'next-auth/react';
+import { signIn } from 'next-auth/react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -16,7 +16,6 @@ import { FaGoogle } from 'react-icons/fa';
 
 export default function RegisterForm() {
   const router = useRouter();
-  const { status } = useSession();
   const searchParams = useSearchParams();
   const messageParam = searchParams?.get('message');
   
@@ -26,12 +25,6 @@ export default function RegisterForm() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [contextMessage, setContextMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (status === 'authenticated') {
-      router.push('/teacher/dashboard');
-    }
-  }, [status, router]);
 
   useEffect(() => {
     if (messageParam === 'account_not_found') {
@@ -85,14 +78,6 @@ export default function RegisterForm() {
     // Redirige vers le dashboard après connexion/inscription
     signIn('google', { callbackUrl: '/teacher/dashboard' });
   };
-
-  if (status === "loading" || status === "authenticated") {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <Loader2 className="h-12 w-12 animate-spin" />
-      </div>
-    );
-  }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4 relative bg-background">

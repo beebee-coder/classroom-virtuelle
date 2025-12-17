@@ -1,38 +1,23 @@
 // src/app/page.tsx
-'use client';
-
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-options';
+import { redirect } from 'next/navigation';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, School, Loader2 } from 'lucide-react';
+import { ArrowRight, School } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useEffect } from 'react';
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 
-export default function HomePage() {
-  const { data: session, status } = useSession();
-  const router = useRouter();
+export default async function HomePage() {
+  const session = await getServerSession(authOptions);
 
-  useEffect(() => {
-    if (status === 'authenticated' && session?.user) {
-      console.log('🔵 [HOMEPAGE] - Utilisateur authentifié, redirection vers dashboard');
-      const targetUrl = session.user.role === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard';
-      router.push(targetUrl);
-    }
-  }, [session, status, router]);
-
-  if (status === 'loading' || status === 'authenticated') {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-4">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" aria-hidden="true" />
-        <p className="text-muted-foreground text-center max-w-md px-4">
-          Chargement de votre session…
-        </p>
-      </div>
-    );
+  // Logique de redirection côté serveur
+  if (session?.user) {
+    const targetUrl = session.user.role === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard';
+    redirect(targetUrl);
   }
-  
+
+  // Si aucune session, afficher la page d'accueil
   return (
     <div id="home-container" className="flex flex-col min-h-screen overflow-hidden">
       {/* Image de fond décorative */}
