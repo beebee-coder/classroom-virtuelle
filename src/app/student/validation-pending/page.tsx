@@ -1,32 +1,51 @@
 // src/app/student/validation-pending/page.tsx
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Hourglass, UserCheck, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { ValidationStatus } from '@prisma/client';
 
 export default function ValidationPendingPage() {
-  const { data: session, status, update } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
+  const [isChecking, setIsChecking] = useState(false);
 
   useEffect(() => {
-    if (status === 'authenticated') {
-      if (session.user.validationStatus === 'VALIDATED') {
-        router.push('/student/dashboard');
-        return;
-      }
-      
-      const interval = setInterval(async () => {
-        // Force une mise à jour de la session pour récupérer le nouveau statut
-        await update();
-      }, 5000); // Vérifie toutes les 5 secondes
-
-      return () => clearInterval(interval);
+    // Si l'utilisateur est déjà validé lors du chargement initial de la session
+    if (status === 'authenticated' && session.user.validationStatus === ValidationStatus.VALIDATED) {
+      router.push('/student/dashboard');
+      return;
     }
-  }, [status, session, router, update]);
+
+    // Met en place une vérification périodique
+    const interval = setInterval(async () => {
+      if (document.hidden || isChecking) return; // Ne pas vérifier si l'onglet est inactif ou si une vérification est déjà en cours
+
+      setIsChecking(true);
+      try {
+        const res = await fetch('/api/auth/status');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.validationStatus === ValidationStatus.VALIDATED) {
+            // Statut mis à jour ! Arrêter l'intervalle et rediriger.
+            clearInterval(interval);
+            router.push('/student/dashboard');
+          }
+        }
+      } catch (error) {
+        console.error("Erreur lors de la vérification du statut:", error);
+      } finally {
+        setIsChecking(false);
+      }
+    }, 5000); // Vérifie toutes les 5 secondes
+
+    return () => clearInterval(interval); // Nettoie l'intervalle lors du démontage du composant
+
+  }, [status, session, router, isChecking]);
 
   if (status === 'loading') {
     return (
@@ -36,8 +55,8 @@ export default function ValidationPendingPage() {
     );
   }
 
-  if (!session || session.user.role !== 'ELEVE' || session.user.validationStatus === 'VALIDATED') {
-    // Redirection si l'état est incohérent (déjà validé, pas un élève, etc.)
+  if (!session || session.user.role !== 'ELEVE') {
+    // Redirection si l'état est incohérent (pas un élève, etc.)
     router.push('/');
     return null;
   }
