@@ -7,12 +7,16 @@ import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { Role, ValidationStatus } from "@prisma/client";
 
-// Définir l'URL de base pour NextAuth.js
-process.env.NEXTAUTH_URL = process.env.APP_HOST;
+// Forcer l'URL de base en HTTPS pour la compatibilité OAuth
+if (process.env.APP_HOST && process.env.APP_HOST.startsWith('http://')) {
+  process.env.NEXTAUTH_URL = process.env.APP_HOST.replace('http://', 'https://');
+} else {
+  process.env.NEXTAUTH_URL = process.env.APP_HOST;
+}
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
-  trustHost: true, // Nécessaire pour les environnements non-Vercel
+  trustHost: true,
 
   providers: [
     GoogleProvider({
