@@ -7,15 +7,7 @@ import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { Role, ValidationStatus } from "@prisma/client";
 
-// Forcer la définition de l'URL pour les environnements de développement hébergés
-if (process.env.APP_HOST && !process.env.NEXTAUTH_URL) {
-  const host = process.env.APP_HOST;
-  const protocol = host.startsWith('localhost') ? 'http' : 'https';
-  process.env.NEXTAUTH_URL = `${protocol}://${host}`;
-}
-
-console.log("NEXTAUTH_URL used by NextAuth:", process.env.NEXTAUTH_URL);
-
+console.log("NEXTAUTH_URL utilisé par NextAuth:", process.env.NEXTAUTH_URL);
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),

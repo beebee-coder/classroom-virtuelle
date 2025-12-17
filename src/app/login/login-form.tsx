@@ -21,8 +21,7 @@ export default function LoginForm() {
 
   const errorParam = searchParams?.get('error');
   const messageParam = searchParams?.get('message');
-  const callbackUrl = searchParams?.get('callbackUrl') || '/';
-
+  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -86,7 +85,8 @@ export default function LoginForm() {
 
   const handleGoogleSignIn = () => {
     setLoading(true);
-    signIn('google', { callbackUrl: '/teacher/dashboard' });
+    // La redirection est gérée par le useEffect après authentification
+    signIn('google');
   };
 
   if (status === "loading" || status === "authenticated") {

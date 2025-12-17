@@ -75,8 +75,8 @@ export default function RegisterForm() {
   
   const handleGoogleSignIn = () => {
     setLoading(true);
-    // Redirige vers le dashboard après connexion/inscription
-    signIn('google', { callbackUrl: '/teacher/dashboard' });
+    // La redirection est gérée par le useEffect après authentification
+    signIn('google');
   };
 
   return (
