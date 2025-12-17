@@ -74,7 +74,7 @@ export default async function StudentProfilePage({ params }: { params: { id: str
       <CareerThemeWrapper career={metier ?? undefined}>
         <SidebarProvider>
           <div className="flex flex-col min-h-screen">
-            <Header user={viewingUser}>
+            <Header >
                 {classeId && viewingUser.role === 'ELEVE' && (
                   <ChatSheet classroomId={classeId} userId={viewingUser.id} userRole={viewingUser.role} />
                 )}

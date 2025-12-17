@@ -6,12 +6,13 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { Role, ValidationStatus } from "@prisma/client";
+import { JWT } from "next-auth/jwt";
+import { Session, User } from "next-auth";
 
 console.log("NEXTAUTH_URL utilisé par NextAuth:", process.env.NEXTAUTH_URL);
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
-  trustHost: true,
 
   providers: [
     GoogleProvider({
@@ -72,18 +73,17 @@ export const authOptions: NextAuthOptions = {
   },
   
   events: {
-    createUser: async ({ user }) => {
-      // S'assure que le champ `etat` est créé pour chaque nouvel utilisateur
+    createUser: async ({ user }: { user: User }) => {
       await prisma.etatEleve.create({
         data: {
-          eleveId: user.id
-        }
+          eleveId: user.id,
+        },
       });
     },
   },
 
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user }: { token: JWT; user?: User }) {
       if (user) {
         token.id = user.id;
         token.role = user.role;
@@ -93,7 +93,7 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
 
-    async session({ session, token }) {
+    async session({ session, token }: { session: Session; token: JWT }) {
       if (token) {
         session.user.id = token.id as string;
         session.user.role = token.role as Role;

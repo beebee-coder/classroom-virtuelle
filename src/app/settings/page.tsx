@@ -1,4 +1,3 @@
-
 // src/app/settings/page.tsx - VERSION CORRIGÉE
 import { redirect } from 'next/navigation';
 import { getServerSession } from "next-auth";
@@ -32,7 +31,7 @@ export default async function SettingsPage() {
   return (
     <SidebarProvider>
       <div className="flex flex-col min-h-screen w-full">
-        <Header user={user}>
+        <Header> {/* ✅ Supprimé `user={user}` */}
           {isTeacher && <SidebarTrigger />}
         </Header>
         <div className="flex flex-1 overflow-hidden min-w-0">

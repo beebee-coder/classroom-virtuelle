@@ -56,7 +56,7 @@ export default async function StudentClassPage({ params }: { params: { id: strin
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Header user={session.user}>
+      <Header >
         {/* Le ChatSheet est maintenant directement dans StudentClassView */}
       </Header>
       {/* CORRECTION: Passage de l'utilisateur complet avec le bon type */}

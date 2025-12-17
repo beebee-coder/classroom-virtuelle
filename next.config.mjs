@@ -25,11 +25,15 @@ const nextConfig = {
   staticPageGenerationTimeout: 300,
   images: {
     remotePatterns: [
+      { 
+        protocol: 'https', 
+        hostname: 'res.cloudinary.com',
+        pathname: '/**', // CORRECTION: Ajouter cette ligne pour autoriser tous les chemins
+      },
       { protocol: 'https', hostname: 'placehold.co' },
       { protocol: 'https', hostname: 'images.unsplash.com' },
       { protocol: 'https', hostname: 'picsum.photos' },
       { protocol: 'https', hostname: 'api.dicebear.com' },
-      { protocol: 'https', hostname: 'res.cloudinary.com' }
     ],
   },
 };

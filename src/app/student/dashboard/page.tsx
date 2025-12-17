@@ -92,7 +92,7 @@ export default async function StudentDashboardPage() {
             <CareerThemeWrapper career={metier ?? undefined}>
                 <SidebarProvider>
                     <div className="flex flex-col min-h-screen w-full">
-                        <Header user={session.user}>
+                        <Header >
                            <SidebarTrigger />
                         </Header>
                         <div className="flex flex-1">

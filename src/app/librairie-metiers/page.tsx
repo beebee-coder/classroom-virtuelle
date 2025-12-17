@@ -1,10 +1,9 @@
-
 // src/app/librairie-metiers/page.tsx
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import { redirect } from 'next/navigation';
 import prisma from "@/lib/prisma";
-import { Header } from "@/components/Header";
+import { Header } from "@/components/Header"; // CORRECTION: Import correct du composant nommé
 import { BackButton } from "@/components/BackButton";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { BookOpen } from "lucide-react";
@@ -34,7 +33,7 @@ export default async function CareerLibraryPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Header user={session.user} />
+      <Header /> {/* ✅ Correct : utilisation sans props */}
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center gap-4 mb-8">
           <BackButton />
@@ -79,5 +78,3 @@ export default async function CareerLibraryPage() {
     </div>
   );
 }
-
-    
