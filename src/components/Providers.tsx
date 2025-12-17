@@ -12,15 +12,13 @@ function AppStructure({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { status } = useSession();
 
-  // N'affiche pas le Header sur la page d'accueil (/)
-  const showHeader = pathname !== '/';
+  // N'affiche pas le Header sur les pages non authentifiées principales
+  const showHeader = pathname !== '/' && pathname !== '/login' && pathname !== '/register';
 
   return (
     <>
-      {showHeader && <Header />}
+      {/* Le Header est maintenant géré par les layouts spécifiques (ex: teacher/layout) */}
       <main className="flex-1">{children}</main>
-      {/* Vous pouvez aussi rendre le Footer conditionnel si nécessaire */}
-      {/* {showHeader && <Footer />} */}
     </>
   );
 }
@@ -30,9 +28,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     return (
         <SessionProvider>
             <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-                <AppStructure>
-                    {children}
-                </AppStructure>
+                {children}
             </ThemeProvider>
         </SessionProvider>
     );

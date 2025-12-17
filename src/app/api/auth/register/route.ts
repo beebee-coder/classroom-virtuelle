@@ -63,6 +63,15 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Créer l'état de l'élève associé
+    if (user.role === Role.ELEVE) {
+      await prisma.etatEleve.create({
+        data: {
+          eleveId: user.id,
+        },
+      });
+    }
+
     return NextResponse.json({ user }, { status: 201 });
 
   } catch (error) {

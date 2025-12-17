@@ -33,7 +33,7 @@ export default function LoginForm() {
   useEffect(() => {
     if (errorParam) {
       if (errorParam === 'CredentialsSignin') {
-         router.push('/register?message=account_not_found');
+         setError("Email ou mot de passe incorrect. Si vous n'avez pas de compte, veuillez vous inscrire.");
       } else {
         setError("Une erreur de connexion est survenue. Veuillez réessayer.");
       }
@@ -41,7 +41,7 @@ export default function LoginForm() {
     if (messageParam === 'registration_success') {
       setInfoMessage("Inscription réussie ! Veuillez vous connecter avec vos identifiants.");
     }
-  }, [errorParam, messageParam, router]);
+  }, [errorParam, messageParam]);
 
   // Redirection après authentification réussie
   useEffect(() => {

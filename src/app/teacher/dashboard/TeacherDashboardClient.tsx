@@ -2,7 +2,7 @@
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, UserPlus, Megaphone, Edit } from 'lucide-react';
+import { Users, UserPlus, Megaphone, Edit, CheckSquare } from 'lucide-react';
 import Link from 'next/link';
 import { CreateAnnouncementForm } from '@/components/CreateAnnouncementForm';
 import type { Session } from 'next-auth';
@@ -25,21 +25,20 @@ interface TeacherDashboardClientProps {
   user: Session['user'];
   classrooms: ClassroomData[];
   initialTasksCount: number;
-  initialStudentsCount: number; // Renommé et utilisé
+  initialStudentsCount: number;
 }
 
 export default function TeacherDashboardClient({ 
   user, 
   classrooms, 
   initialTasksCount,
-  initialStudentsCount // Récupération de la prop
+  initialStudentsCount
 }: TeacherDashboardClientProps) {
   const hasLoggedRef = useRef(false);
   const { toast } = useToast();
   const [tasksCount, setTasksCount] = useState(initialTasksCount);
-  const [studentsCount, setStudentsCount] = useState(initialStudentsCount); // État pour le compteur d'élèves
+  const [studentsCount, setStudentsCount] = useState(initialStudentsCount);
   
-  // Le polling est conservé pour les notifications en temps réel, mais l'état initial est maintenant correct
   const [pendingStudents, setPendingStudents] = useState<PendingStudent[]>([]);
   const previousStudentsRef = useRef<PendingStudent[]>([]);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -51,7 +50,7 @@ export default function TeacherDashboardClient({
         user: user?.name,
         classroomsCount: classrooms.length,
         tasksCount: initialTasksCount,
-        studentsCount: initialStudentsCount // Log initial
+        studentsCount: initialStudentsCount
       });
       hasLoggedRef.current = true;
     }
@@ -95,7 +94,7 @@ export default function TeacherDashboardClient({
         }
     
         setPendingStudents(newStudents);
-        setStudentsCount(newStudents.length); // Mettre à jour le compteur d'élèves
+        setStudentsCount(newStudents.length);
         previousStudentsRef.current = newStudents;
       } catch (error: any) {
         if (error.name !== 'AbortError') {
@@ -106,7 +105,6 @@ export default function TeacherDashboardClient({
       }
     };
 
-    // On fait un premier appel puis on démarre l'intervalle
     fetchPendingStudents();
     intervalRef.current = setInterval(fetchPendingStudents, 20_000);
 
@@ -129,7 +127,7 @@ export default function TeacherDashboardClient({
         </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         
         <Card className="transition-all duration-300 hover:shadow-lg hover:-translate-y-1 h-full border-2 border-transparent hover:border-primary/20 min-w-0">
           <CardHeader className="pb-3">
@@ -196,6 +194,40 @@ export default function TeacherDashboardClient({
           </CardContent>
         </Card>
 
+        <Card className="transition-all duration-300 hover:shadow-lg hover:-translate-y-1 h-full border-2 border-transparent hover:border-green-200 min-w-0">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-4 min-w-0">
+              <div className="p-3 bg-green-100 rounded-full flex-shrink-0">
+                <CheckSquare className="h-6 w-6 text-green-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <CardTitle className="text-lg truncate">Tâches à valider</CardTitle>
+                <CardDescription className="mt-1 truncate">
+                  {tasksCount > 0 ? (
+                    <span className="text-green-600 font-semibold">
+                      {tasksCount} soumission(s) à examiner
+                    </span>
+                  ) : (
+                    "Aucune tâche à valider"
+                  )}
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="flex flex-col">
+            <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+              Examinez les preuves soumises par les élèves et attribuez des points.
+            </p>
+            <Link 
+              href="/teacher/validations" 
+              className="inline-flex items-center text-sm font-medium text-green-600 hover:underline mt-auto"
+              aria-label="Voir les tâches à valider"
+            >
+              Valider les tâches
+            </Link>
+          </CardContent>
+        </Card>
+
         <Card className="transition-all duration-300 h-full flex flex-col border-2 border-transparent hover:border-primary/20 min-w-0">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-4 min-w-0">
@@ -220,65 +252,6 @@ export default function TeacherDashboardClient({
           </CardContent>
         </Card>
       </div>
-
-      {classrooms.length > 0 && (
-        <div className="mt-12">
-          <h2 className="text-2xl font-bold mb-6 truncate">Vue d'ensemble</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="min-w-0">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground truncate">
-                  Total des Classes
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{classrooms.length}</div>
-                <p className="text-xs text-muted-foreground mt-1 truncate">
-                  Classes actives
-                </p>
-              </CardContent>
-            </Card>
-            
-            <Card className="min-w-0">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground truncate">
-                  Inscriptions en attente
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-orange-600">{studentsCount}</div>
-                <p className="text-xs text-muted-foreground mt-1 truncate">
-                  À valider et assigner
-                </p>
-              </CardContent>
-            </Card>
-            
-            <Card className="min-w-0">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground truncate">
-                  Actions Rapides
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 min-w-0">
-                  <Link 
-                    href="/teacher/tasks" 
-                    className="block text-sm text-primary hover:underline truncate"
-                  >
-                    Gérer les tâches
-                  </Link>
-                   <Link 
-                    href="/teacher/validations" 
-                    className="block text-sm text-primary hover:underline truncate"
-                  >
-                    Gérer les validations ({tasksCount})
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      )}
     </>
   );
 }
