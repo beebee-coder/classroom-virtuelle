@@ -32,7 +32,6 @@ export default function LoginForm() {
   // Gestion des messages et erreurs via les paramètres d'URL
   useEffect(() => {
     if (errorParam) {
-      // ✅ Gère le cas où l'utilisateur n'existe pas.
       if (errorParam === 'CredentialsSignin') {
          router.push('/register?message=account_not_found');
       } else {
@@ -73,19 +72,21 @@ export default function LoginForm() {
       return;
     }
 
-    // ✅ La redirection est gérée par NextAuth.js et le callback `redirect`
-    await signIn('credentials', {
+    const result = await signIn('credentials', {
       email: email.trim().toLowerCase(),
       password,
       redirect: false, // On gère la redirection manuellement après via le useEffect
     });
-    
-    // Le loading est arrêté par le changement de statut de la session
+
+    if (result && !result.ok) {
+       setError(result.error === 'CredentialsSignin' ? 'Email ou mot de passe incorrect.' : 'Une erreur est survenue.');
+       setLoading(false);
+    }
   };
 
   const handleGoogleSignIn = () => {
     setLoading(true);
-    signIn('google', { callbackUrl });
+    signIn('google', { callbackUrl: '/teacher/dashboard' });
   };
 
   if (status === "loading" || status === "authenticated") {

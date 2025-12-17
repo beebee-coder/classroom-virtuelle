@@ -1,26 +1,14 @@
 // src/app/page.tsx
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options';
-import { redirect } from 'next/navigation';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, School } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 
-export default async function HomePage() {
-  const session = await getServerSession(authOptions);
-
-  // Logique de redirection côté serveur
-  if (session?.user) {
-    const targetUrl = session.user.role === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard';
-    redirect(targetUrl);
-  }
-
-  // Si aucune session, afficher la page d'accueil
+// Page d'accueil simplifiée - ne gère plus la session
+export default function HomePage() {
   return (
     <div id="home-container" className="flex flex-col min-h-screen overflow-hidden">
-      {/* Image de fond décorative */}
       <div className="fixed inset-0 overflow-hidden -z-10">
         <Image
           src="https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=3024&auto=format&fit=crop"
@@ -33,7 +21,6 @@ export default async function HomePage() {
         />
       </div>
       
-      {/* Overlay pour améliorer la lisibilité du texte */}
       <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/60 to-background/80 -z-10" />
 
       <Header user={null} />
