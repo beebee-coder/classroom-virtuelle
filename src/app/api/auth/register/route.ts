@@ -8,7 +8,11 @@ export async function POST(req: NextRequest) {
   try {
     const { name, email, password } = await req.json();
 
+    // 🔹 LOG 1: Requête reçue
+    console.log("[REGISTER] Requête reçue", { name, email });
+
     if (!email || !password || !name) {
+      console.warn("[REGISTER] Champs manquants", { name: !!name, email: !!email, password: !!password });
       return NextResponse.json(
         { error: "Tous les champs sont requis" },
         { status: 400 }
@@ -16,6 +20,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (password.length < 6) {
+      console.warn("[REGISTER] Mot de passe trop court", { email });
       return NextResponse.json(
         { error: "Le mot de passe doit avoir au moins 6 caractères" },
         { status: 400 }
@@ -27,24 +32,28 @@ export async function POST(req: NextRequest) {
     });
 
     if (existingUser) {
+      console.warn("[REGISTER] Email déjà utilisé", { email });
       return NextResponse.json(
         { error: "Un compte avec cet email existe déjà" },
         { status: 409 }
       );
     }
 
-    // Déterminer si le premier utilisateur (professeur) a déjà été configuré
+    // 🔹 LOG 2: Vérification du professeur existant
     const existingTeacher = await prisma.user.findFirst({
-      where: { role: "PROFESSEUR" },
+      where: { role: Role.PROFESSEUR },
     });
+    console.log("[REGISTER] Professeur existant ?", { hasTeacher: !!existingTeacher });
 
     let userRole: Role = Role.ELEVE;
     let userStatus: ValidationStatus = ValidationStatus.PENDING;
 
-    // Si aucun professeur n'existe, ce nouvel utilisateur devient le professeur
     if (!existingTeacher) {
       userRole = Role.PROFESSEUR;
       userStatus = ValidationStatus.VALIDATED;
+      console.log("[REGISTER] Attribution du rôle PROFESSEUR (premier utilisateur)", { email });
+    } else {
+      console.log("[REGISTER] Attribution du rôle ELEVE (professeur déjà présent)", { email });
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
@@ -56,7 +65,7 @@ export async function POST(req: NextRequest) {
         password: hashedPassword,
         role: userRole,
         validationStatus: userStatus,
-        emailVerified: new Date(), // Marquer l'email comme vérifié lors de l'inscription manuelle
+        emailVerified: new Date(),
       },
       select: {
         id: true,
@@ -67,10 +76,22 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // 🔹 LOG 3: Utilisateur créé avec succès
+    console.log("[REGISTER] Utilisateur créé", {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      status: user.validationStatus,
+    });
+
     return NextResponse.json({ user }, { status: 201 });
 
   } catch (error) {
-    console.error("Erreur inscription:", error);
+    // 🔹 LOG 4: Erreur détaillée
+    console.error("[REGISTER] Erreur critique lors de l'inscription", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return NextResponse.json(
       { error: "Erreur serveur lors de l'inscription" },
       { status: 500 }

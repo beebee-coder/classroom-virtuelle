@@ -3,8 +3,28 @@ import { NextAuthOptions } from "next-auth";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import prisma from "./prisma";
 import Credentials from "next-auth/providers/credentials";
+import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
-import { Role } from "@prisma/client";
+import { Role, ValidationStatus } from "@prisma/client";
+
+// 🔹 Types étendus pour inclure validationStatus
+interface ExtendedUser {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+  role: Role;
+  classeId?: string | null;
+  validationStatus: ValidationStatus;
+}
+
+if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+  console.warn("[AUTH] Google OAuth non configuré (credentials manquants)");
+}
+const OWNER_EMAIL = process.env.OWNER_EMAIL?.toLowerCase().trim();
+if (!OWNER_EMAIL) {
+  console.warn("[AUTH] OWNER_EMAIL non défini – le premier utilisateur Google ne sera pas auto-promu professeur");
+}
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
@@ -17,24 +37,23 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          console.log("Missing credentials");
+          console.warn("[AUTH/CREDENTIALS] Champs manquants");
           return null;
         }
-        
+
         try {
-          console.log("Auth attempt for:", credentials.email);
-          
+          console.log("[AUTH/CREDENTIALS] Tentative de connexion", { email: credentials.email });
           const user = await prisma.user.findUnique({
             where: { email: credentials.email as string },
           });
 
           if (!user) {
-            console.log("User not found");
+            console.log("[AUTH/CREDENTIALS] Utilisateur non trouvé", { email: credentials.email });
             return null;
           }
 
           if (!user.password) {
-            console.log("User has no password");
+            console.log("[AUTH/CREDENTIALS] Utilisateur sans mot de passe (connexion OAuth uniquement)", { email: user.email });
             return null;
           }
 
@@ -43,9 +62,10 @@ export const authOptions: NextAuthOptions = {
             user.password
           );
 
-          console.log("Password valid:", isPasswordValid);
+          console.log("[AUTH/CREDENTIALS] Résultat vérification mot de passe", { email: user.email, valid: isPasswordValid });
 
           if (isPasswordValid) {
+            // ✅ Cast explicite vers ExtendedUser (sans password)
             return {
               id: user.id,
               email: user.email,
@@ -53,15 +73,47 @@ export const authOptions: NextAuthOptions = {
               image: user.image,
               role: user.role,
               classeId: user.classeId,
-            };
+              validationStatus: user.validationStatus,
+            } satisfies ExtendedUser;
           }
-          
           return null;
-
         } catch (error) {
-          console.error("Auth error:", error);
+          console.error("[AUTH/CREDENTIALS] Erreur d'authentification", {
+            email: credentials.email,
+            error: error instanceof Error ? error.message : String(error),
+          });
           return null;
         }
+      },
+    }),
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      profile(profile) {
+        const email = profile.email.toLowerCase().trim();
+        const isOwner = email === OWNER_EMAIL;
+
+        console.log("[AUTH/GOOGLE] Profil reçu", { email, isOwner, OWNER_EMAIL });
+
+        let role: Role = Role.ELEVE;
+        let validationStatus: ValidationStatus = ValidationStatus.PENDING;
+
+        if (isOwner) {
+          role = Role.PROFESSEUR;
+          validationStatus = ValidationStatus.VALIDATED;
+          console.log("[AUTH/GOOGLE] Attribution PROFESSEUR (OWNER_EMAIL)", { email });
+        } else {
+          console.log("[AUTH/GOOGLE] Attribution ELEVE (non propriétaire)", { email });
+        }
+
+        return {
+          id: profile.sub,
+          name: profile.name,
+          email: email,
+          image: profile.picture,
+          role,
+          validationStatus,
+        } satisfies ExtendedUser;
       },
     }),
   ],
@@ -75,10 +127,18 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id;
-        token.role = user.role as Role;
-        token.classeId = user.classeId;
-        token.image = user.image;
+        const extendedUser = user as ExtendedUser;
+        token.id = extendedUser.id;
+        token.role = extendedUser.role;
+        token.classeId = extendedUser.classeId;
+        token.image = extendedUser.image;
+        token.validationStatus = extendedUser.validationStatus; // ✅ OK maintenant
+        console.log("[AUTH/JWT] Token initialisé", {
+          userId: extendedUser.id,
+          email: extendedUser.email,
+          role: extendedUser.role,
+          validationStatus: extendedUser.validationStatus,
+        });
       }
       return token;
     },
@@ -88,6 +148,7 @@ export const authOptions: NextAuthOptions = {
         session.user.role = token.role as Role;
         session.user.classeId = token.classeId as string | null;
         session.user.image = token.image as string | null;
+        session.user.validationStatus = token.validationStatus as ValidationStatus;
       }
       return session;
     },

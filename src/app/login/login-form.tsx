@@ -11,7 +11,7 @@ import { AlertCircle, Loader2, User, Lock, School, ArrowLeft } from 'lucide-reac
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
-import type { Role } from '@prisma/client';
+import type { Role, ValidationStatus } from '@prisma/client';
 import Image from 'next/image';
 
 export default function LoginForm() {
@@ -30,17 +30,32 @@ export default function LoginForm() {
 
     useEffect(() => {
         if (errorParam === 'CredentialsSignin') {
-            setError("Identifiants ou mot de passe incorrects. Veuillez réessayer.");
+            // 🔹 REDIRECTION VERS /register si compte non trouvé
+            console.warn('🟡 [LOGIN FORM] - CredentialsSignin → rediriger vers /register');
+            router.push('/register?message=account_not_found');
+            return;
         } else if (errorParam) {
             setError("Une erreur de connexion est survenue. Veuillez réessayer.");
         }
-    }, [errorParam]);
+    }, [errorParam, router]);
 
-    // Redirection si l'utilisateur est déjà authentifié
+    // 🔹 REDIRECTION CONDITIONNELLE selon rôle ET statut de validation
     useEffect(() => {
         if (status === "authenticated" && session?.user) {
-            console.log('🔵 [LOGIN FORM] - Utilisateur déjà authentifié, redirection vers dashboard');
-            const targetUrl = session.user.role === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard';
+            const { role, validationStatus } = session.user;
+            let targetUrl = '/';
+
+            if (role === 'PROFESSEUR') {
+                targetUrl = '/teacher/dashboard';
+            } else if (role === 'ELEVE') {
+                if (validationStatus === 'PENDING') {
+                    targetUrl = '/student/validation-pending';
+                } else if (validationStatus === 'VALIDATED') {
+                    targetUrl = '/student/dashboard';
+                }
+            }
+
+            console.log('🔵 [LOGIN FORM] - Redirection conditionnelle', { role, validationStatus, targetUrl });
             router.push(targetUrl);
         }
     }, [status, session, router]);
@@ -63,24 +78,25 @@ export default function LoginForm() {
         const result = await signIn('credentials', {
             email: email.trim().toLowerCase(),
             password: password,
-            redirect: false, // Important: nous gérons la redirection manuellement
+            redirect: false,
         });
         
         console.log('🔵 [LOGIN FORM] - Résultat de signIn:', result);
 
         if (result?.ok && !result.error) {
-            console.log('✅ [LOGIN FORM] - Connexion réussie. Redirection en cours...');
-            // La redirection sera gérée par le `useEffect` ci-dessus ou par le rechargement de la page
-            // qui détectera la nouvelle session. Pour forcer, on peut utiliser router.refresh().
-            router.refresh();
+            console.log('✅ [LOGIN FORM] - Connexion réussie. Redirection gérée par useEffect.');
+            // La redirection est gérée par le useEffect ci-dessus
         } else {
-             if (result?.error === 'CredentialsSignin') {
-                setError("Identifiants ou mot de passe incorrects. Vérifiez vos informations et réessayez.");
+            // 🔹 Cas CredentialsSignin : déjà géré par le useEffect via query param
+            // Mais si appelé directement (sans query param), on redirige aussi
+            if (result?.error === 'CredentialsSignin') {
+                console.log('🟡 [LOGIN FORM] - CredentialsSignin détecté → redirection vers /register');
+                router.push('/register?message=account_not_found');
             } else {
-                 setError("Une erreur de connexion inattendue est survenue.");
+                setError("Une erreur de connexion inattendue est survenue.");
+                console.error('❌ [LOGIN FORM] - Échec de la connexion:', result?.error);
+                setLoading(false);
             }
-            console.error('❌ [LOGIN FORM] - Échec de la connexion:', result?.error);
-            setLoading(false);
         }
     };
 
@@ -96,8 +112,6 @@ export default function LoginForm() {
         console.log(`🔵 [LOGIN FORM] - Pré-remplissage pour le rôle: ${role}`);
     };
     
-    // Si l'utilisateur est authentifié ou si le statut est en chargement, on affiche un loader
-    // pour attendre que la redirection du `useEffect` s'effectue.
     if (status === "loading" || status === "authenticated") {
         return (
             <div className="flex items-center justify-center min-h-screen bg-background">
