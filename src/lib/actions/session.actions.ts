@@ -242,13 +242,21 @@ async function sendIndividualInvitations(sessionId: string, professeurId: string
 export async function endCoursSession(sessionId: string) {
     console.log(`🔚 [ACTION] - Fin de la session ${sessionId}`);
     
+    // CORRECTION : S'assurer de récupérer le classroomId
     const session = await prisma.coursSession.update({
         where: { id: sessionId },
-        data: { endTime: new Date() }
+        data: { endTime: new Date() },
+        select: { id: true, classroomId: true } // Récupérer l'ID de la classe
     });
+
+    if (!session || !session.classroomId) {
+        console.error(`❌ [ACTION] - Impossible de trouver la session ou l'ID de la classe pour ${sessionId}`);
+        throw new Error("Session or classroom data missing.");
+    }
 
     const eventData = { sessionId, endedAt: new Date().toISOString() };
     
+    // CORRECTION : Construire les noms de canaux avec des données valides
     const channels = [
         getSessionChannelName(sessionId),
         getClassChannelName(session.classroomId)
