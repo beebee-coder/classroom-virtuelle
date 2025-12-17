@@ -119,7 +119,7 @@ export interface SessionDetails {
   classroom: ClassroomWithDetails | null;
   startTime: string;
   endTime: string | null;
-  activeQuiz: QuizWithQuestions | null; // ✅ Utiliser le type hydraté
+  activeQuiz: QuizWithQuestions | null;
 }
 
 // Types pour Pusher

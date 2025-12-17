@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import { redirect } from 'next/navigation';
 import SessionLoading from '@/components/SessionLoading';
-import { type User, type ClassroomWithDetails, Role, type DocumentInHistory, type Quiz } from '@/types';
+import { type User, type ClassroomWithDetails, Role, type DocumentInHistory, type QuizWithQuestions } from '@/types';
 import prisma from '@/lib/prisma';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
@@ -27,7 +27,7 @@ interface SessionData {
   documentHistory: DocumentInHistory[];
   startTime: string;
   endTime: string | null;
-  activeQuiz: Quiz | null;
+  activeQuiz: QuizWithQuestions | null;
 }
 
 // ✅ CORRECTION : Composant client pour la gestion des erreurs
