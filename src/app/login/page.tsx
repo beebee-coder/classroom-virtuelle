@@ -1,12 +1,13 @@
-// src/app/login/page.tsx - VERSION CORRIGÉE
+// src/app/login/page.tsx
 import { Suspense } from 'react';
 import LoginForm from './login-form';
 
-// 🔥 FORCER LE RENDU DYNAMIQUE (CLIENT-SIDE ONLY)
-export const dynamic = 'force-dynamic';
-
+// Ce composant est maintenant un "Server Component" par défaut.
+// C'est la bonne pratique dans l'App Router.
 export default function LoginPage() {
   return (
+    // Le Suspense est utile ici pour afficher un chargement
+    // pendant que le composant client LoginForm est préparé.
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="flex items-center gap-2">
