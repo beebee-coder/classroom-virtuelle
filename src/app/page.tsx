@@ -1,11 +1,11 @@
-// src/app/page.tsx
+// src/app/page.tsx - VERSION CORRIGÉE
 import { Button } from '@/components/ui/button';
 import { ArrowRight, School } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ThemeToggle } from '@/components/ThemeToggle';
+import { ThemeToggle } from '@/components/ThemeToggle'; // Assurez-vous que ce composant est client
 
-// En-tête simplifié et autonome pour la page d'accueil statique
+// En-tête statique spécifique pour la page d'accueil
 function StaticHeader() {
   return (
     <header className="bg-card/80 backdrop-blur-sm border-b shadow-sm sticky top-0 z-50">
@@ -21,9 +21,7 @@ function StaticHeader() {
         <nav className="flex items-center gap-2">
           <ThemeToggle />
           <Button asChild>
-            <Link href="/login">
-              Connexion
-            </Link>
+            <Link href="/login">Connexion</Link>
           </Button>
         </nav>
       </div>
@@ -31,8 +29,7 @@ function StaticHeader() {
   );
 }
 
-
-// Page d'accueil complètement statique pour garantir le rendu.
+// La page d'accueil est maintenant un composant serveur pur
 export default function HomePage() {
   return (
     <div id="home-container" className="flex flex-col min-h-screen overflow-hidden">
