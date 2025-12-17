@@ -24,7 +24,7 @@ Le système est conçu pour qu'il n'y ait qu'un seul enseignant principal (`PROF
 
 Un mécanisme similaire existe si le premier utilisateur se connecte avec Google.
 
-1.  **Scénario :** L'utilisateur clique sur "Continuer avec Google" sur la page `/login`.
+1.  **Scénario :** L'utilisateur clique sur "Continuer avec Google" sur la page `/registre`.
 2.  **Fichier Clé :** `src/lib/auth-options.ts`
 3.  **Logique Côté Serveur :**
     *   La configuration de `GoogleProvider` contient une fonction `profile`.
@@ -46,7 +46,7 @@ Une fois que le compte `PROFESSEUR` est créé, le comportement du système chan
     *   **Cette fois, un professeur existe.**
     *   Le nouvel utilisateur se voit donc automatiquement assigner le rôle `ELEVE` et le statut `PENDING`.
 
-**Résultat :** L'élève est créé, mais son compte est en attente. Il est redirigé vers une page (`/student/validation-pending`) et ne peut pas accéder au tableau de bord tant que le professeur ne l'a pas validé et assigné à une classe.
+**Résultat :** L'élève est créé, mais son compte est en attente. Il est redirigé vers une page (`/student/validation-pending`) et une notification arrive dans dashboard professeur ,eleve ne peut pas accéder au tableau de bord tant que le professeur ne l'a pas validé et assigné à une classe a partire de page classe que le professeur a choisie .
 
 ### Flux de Connexion d'un Élève (via Google)
 
@@ -58,7 +58,7 @@ Une fois que le compte `PROFESSEUR` est créé, le comportement du système chan
     *   L'utilisateur se voit donc assigner le rôle `ELEVE` et le statut `PENDING`.
 
 ---
-
+si user (professeur ou eleve n'est pas deja inscrit et essay de passer a travers login page , il serait rediriger automatiquement vers page registre avec un message qui l'insite a s'enregistrer pour pouvoir s'authantifier et acceder)
 ## Résumé des Fichiers Impliqués
 
 -   **`src/app/api/auth/register/route.ts`**: Gère la création de comptes via le formulaire. C'est ici que se trouve la logique qui différencie le premier utilisateur (professeur) des suivants (élèves).

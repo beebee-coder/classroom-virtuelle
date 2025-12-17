@@ -14,9 +14,8 @@ Ce document liste les fichiers essentiels impliqués dans le processus complet, 
 
 - **`src/lib/auth-options.ts`**: Fichier central pour `next-auth`.
     - **`providers`**: Définit les stratégies `Credentials` (email/password) et `GoogleProvider`.
-    - **`GoogleProvider.profile()`**: Fonction cruciale qui assigne le rôle (`PROFESSEUR` ou `ELEVE`) et le statut (`VALIDATED` ou `PENDING`) lors d'une inscription/connexion via Google.
+    - **`GoogleProvider.profile()`**: Fonction cruciale qui assigne le rôle (`PROFESSEUR` ou `ELEVE`) et le statut (`VALIDATED` ou `PENDING`) lors d'une inscription/connexion via Google. Elle vérifie si l'utilisateur existe déjà avant d'en créer un nouveau.
     - **`callbacks (jwt, session)`**: Enrichit le jeton JWT et l'objet de session avec les données personnalisées de l'utilisateur (ID, rôle, statut).
-    - **`events.createUser()`**: Se déclenche uniquement à la création d'un nouvel utilisateur (par ex: première connexion Google). C'est ici que la notification `broadcastNewPendingStudent` est envoyée pour les nouveaux élèves.
 
 - **`src/app/api/auth/[...nextauth]/route.ts`**: La "catch-all route" qui expose la configuration de `next-auth` en tant que points d'API (`/api/auth/signin`, `/api/auth/callback`, etc.).
 
@@ -27,7 +26,10 @@ Ce document liste les fichiers essentiels impliqués dans le processus complet, 
     2.  Déterminer le rôle (`PROFESSEUR` si c'est le premier, sinon `ELEVE`).
     3.  Hacher le mot de passe.
     4.  Créer l'utilisateur en base de données.
-    5.  Déclencher la notification `broadcastNewPendingStudent` pour les nouveaux élèves.
+    
+- **`src/lib/prisma.ts` (Middleware Prisma)** : C'est le nouveau cœur de la notification temps réel.
+    - Un middleware est configuré pour intercepter chaque création (`create`) d'un `User`.
+    - Si le nouvel utilisateur est un `ELEVE` avec le statut `PENDING`, le middleware déclenche l'action serveur `broadcastNewPendingStudent`. Cette approche garantit que la notification est envoyée de manière fiable, quelle que soit la méthode d'inscription (formulaire ou Google).
 
 ## 4. Gestion des Notifications Temps Réel
 
