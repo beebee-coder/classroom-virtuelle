@@ -22,6 +22,7 @@ import { useSessionState } from '@/hooks/session/useSessionState';
 import { TeacherSessionView } from './session/TeacherSessionView';
 import { StudentSessionView } from './session/StudentSessionView';
 import { useAblyWhiteboardSync } from '@/hooks/useAblyWhiteboardSync';
+import type { SignalData as PeerSignalData } from 'simple-peer';
 
 export default function SessionClient({
   sessionId,
@@ -50,10 +51,11 @@ export default function SessionClient({
     handleUploadSuccess, handleStartQuiz, handleEndQuiz: useSessionStateEndQuiz, handleNewQuizResponse, handleCloseQuizResults: useSessionStateClose, handleQuizClosed,
   } = useSessionState({ initialDocumentHistory, initialActiveQuiz, sessionId });
 
-  const handleSignalReceived = useCallback((fromUserId: string, signal: any) => {
+  const handleSignalReceived = useCallback((fromUserId: string, signal: unknown, isReturnSignal?: boolean) => {
     if (!isMountedRef.current) return;
     try {
-      handleIncomingSignal(fromUserId, signal);
+      // ✅ CORRECTION : Assurer que 'signal' est du bon type avant de l'envoyer
+      handleIncomingSignal(fromUserId, signal as PeerSignalData, isReturnSignal);
     } catch (error) {
       console.error('❌ [SIGNAL HANDLER] - Erreur lors du traitement du signal:', error);
     }
