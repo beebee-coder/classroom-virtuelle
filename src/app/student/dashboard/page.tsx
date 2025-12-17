@@ -95,20 +95,18 @@ export default async function StudentDashboardPage() {
                 return [] as Metier[];
             })
         ]);
-        
-        const announcementsData = announcementsResult.status === 'fulfilled' 
-            ? announcementsResult.value 
-            : [] as AnnouncementWithAuthor[];
+// CORRECTION COMPLÈTE ET SÉCURISÉE :
+const announcementsData = announcementsResult.status === 'fulfilled' 
+    ? announcementsResult.value 
+    : [] as AnnouncementWithAuthor[];
 
-        const tasksData = tasksResult.status === 'fulfilled' 
-            ? tasksResult.value 
-            : [] as Task[];
+const tasksData = tasksResult.status === 'fulfilled' 
+    ? tasksResult.value 
+    : [] as Task[];
 
-        const allCareersData = allCareersResult.status === 'fulfilled' 
-            ? allCareersResult.value 
-            : [] as Metier[];
-
-        console.log(`📦 [PAGE ELEVE] - Données supplémentaires chargées: ${announcementsData.length} annonces, ${tasksData.length} tâches, ${allCareersData.length} métiers.`);
+const allCareersData = allCareersResult.status === 'fulfilled' 
+    ? allCareersResult.value 
+    : [] as Metier[];        console.log(`📦 [PAGE ELEVE] - Données supplémentaires chargées: ${announcementsData.length} annonces, ${tasksData.length} tâches, ${allCareersData.length} métiers.`);
 
         return (
             <CareerThemeWrapper career={metier ?? undefined}>

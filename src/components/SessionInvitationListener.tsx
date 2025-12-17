@@ -1,13 +1,13 @@
-// src/components/SessionInvitationListener.tsx
+// src/components/SessionInvitationListener.tsx - VERSION CORRIGÉE POUR ABLY V2+
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import Ably from 'ably';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { useNamedAbly } from '@/hooks/useNamedAbly';
 import { getUserChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
+import type { RealtimeChannel, Message } from 'ably'; // ✅ Import direct
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Video, XCircle, Clock, X } from 'lucide-react';
@@ -37,7 +37,7 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
   
   const processedInvitationsRef = useRef<Set<string>>(new Set());
   const mountedRef = useRef(true);
-  const channelRef = useRef<Ably.RealtimeChannel | null>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null); // ✅ Typé correctement
   const initializationStateRef = useRef({
     hasInitialized: false,
     hasCheckedPending: false,
@@ -50,9 +50,11 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
     const invitationId = data.sessionId;
     
     if (processedInvitationsRef.current.has(invitationId)) {
+      console.log(`🔄 [INVITE LISTENER] - Invitation ${invitationId} déjà traitée`);
       return;
     }
     
+    console.log(`✅ [INVITE LISTENER] - Nouvelle invitation reçue: ${invitationId}`);
     processedInvitationsRef.current.add(invitationId);
     
     setSessionInvitation(data);
@@ -72,23 +74,25 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
     initializationStateRef.current.hasCheckedPending = true;
     
     try {
+      console.log(`🔍 [INVITE LISTENER] - Vérification des invitations en attente pour: ${currentStudentId}`);
       const response = await fetch(`/api/session/pending-invitations?studentId=${currentStudentId}`);
       
       if (!mountedRef.current) return;
       
       if (response.ok) {
         const pendingSessions = await response.json();
+        console.log(`📥 [INVITE LISTENER] - ${pendingSessions.length} sessions en attente trouvées`);
         
         if (pendingSessions.length > 0 && mountedRef.current) {
           const latestSession = pendingSessions[0];
-          if (latestSession && latestSession.id && !processedInvitationsRef.current.has(latestSession.id)) {
+          if (latestSession && !processedInvitationsRef.current.has(latestSession.id)) {
             const invitation: SessionInvitation = {
-              sessionId: latestSession.id,
-              teacherId: latestSession.data.teacherId,
-              classroomId: latestSession.data.classroomId,
-              classroomName: latestSession.data.classroomName || 'Classe',
-              teacherName: latestSession.data.teacherName || 'Professeur',
-              timestamp: latestSession.data.timestamp || new Date().toISOString(),
+              sessionId: latestSession.id || latestSession.sessionId,
+              teacherId: latestSession.teacherId,
+              classroomId: latestSession.classroomId,
+              classroomName: latestSession.classroomName || 'Classe',
+              teacherName: latestSession.teacherName || 'Professeur',
+              timestamp: latestSession.timestamp || new Date().toISOString(),
               type: 'session-invitation'
             };
             
@@ -104,7 +108,7 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
 
   useEffect(() => {
     mountedRef.current = true;
-    let channel: Ably.RealtimeChannel | null = null;
+    let channel: RealtimeChannel | null = null; // ✅ Typé
 
     const initializeListener = async () => {
       const currentStudentId = studentId;
@@ -113,17 +117,21 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
       }
 
       if (initializationStateRef.current.hasInitialized && initializationStateRef.current.currentStudentId === currentStudentId) {
+        console.log(`🔁 [INVITE LISTENER] - Déjà initialisé pour ${currentStudentId}`);
         return;
       }
 
       try {
         const channelName = getUserChannelName(currentStudentId);
+        console.log(`📡 [INVITE LISTENER] - Configuration Ably: ${channelName}`);
         
         channel = ablyClient.channels.get(channelName);
         channelRef.current = channel;
         
-        const invitationHandler = (message: Ably.Message) => {
+        // ✅ Handler avec Message typé
+        const invitationHandler = (message: Message) => {
           if (mountedRef.current && message.name === AblyEvents.SESSION_INVITATION) {
+            console.log(`📨 [INVITE LISTENER] - Invitation temps réel: ${message.data.sessionId}`);
             handleInvitation(message.data);
           }
         };
@@ -139,6 +147,8 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
           hasCheckedPending: initializationStateRef.current.hasCheckedPending,
           currentStudentId
         };
+        
+        console.log(`✅ [INVITE LISTENER] - Abonnement réussi: ${channelName}`);
         
         if (!initializationStateRef.current.hasCheckedPending) {
           await checkPendingInvitations(currentStudentId);
@@ -159,6 +169,7 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
       if (channel) {
         try {
           channel.unsubscribe();
+          console.log(`🧹 [INVITE LISTENER] - Nettoyage canal Ably`);
         } catch (error) {
           console.warn('⚠️ [INVITE LISTENER] - Erreur lors du nettoyage:', error);
         }
@@ -173,6 +184,8 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
     setIsJoiningSession(true);
     
     try {
+      console.log(`🎯 [INVITE LISTENER] - Acceptation invitation: ${invitation.sessionId}`);
+      
       const response = await fetch('/api/session/student-joined', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -195,6 +208,8 @@ export function SessionInvitationListener({ studentId, className = '' }: Session
           title: 'Connexion...', 
           description: 'Redirection vers la session vidéo...' 
         });
+        
+        console.log(`🔄 [INVITE LISTENER] - Navigation vers session: ${invitation.sessionId}`);
         
         setTimeout(() => {
           if (mountedRef.current) {

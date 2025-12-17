@@ -1,6 +1,8 @@
 // src/lib/ably/server.ts
+// ❌ SUPPRIMER 'use server' - Ce n'est pas une Server Action
 
 import Ably from 'ably';
+import type { ClientOptions } from 'ably'; // ✅ Import direct du type
 
 declare global {
   // eslint-disable-next-line no-var
@@ -9,6 +11,7 @@ declare global {
 
 const ablyApiKey = process.env.ABLY_API_KEY;
 
+// ✅ CORRECTION : Fonction pure pour obtenir l'instance Ably
 export function initializeAblyServer(): Ably.Rest | null {
   if (typeof window !== 'undefined') {
     return null;
@@ -25,33 +28,32 @@ export function initializeAblyServer(): Ably.Rest | null {
   }
 
   try {
-    if (process.env.NODE_ENV === 'production' || !global.ablyServerInstance) {
-      const clientOptions: Ably.ClientOptions = {
-        key: ablyApiKey,
-        tls: true,
-        httpMaxRetryCount: 5,
-        httpOpenTimeout: 15000,
-        httpRequestTimeout: 30000,
-        fallbackHosts: ['a.ably-realtime.com', 'b.ably-realtime.com', 'c.ably-realtime.com'],
-        idempotentRestPublishing: true,
-      };
+    // ✅ CORRECTION : Utilisation du type importé directement
+    const clientOptions: ClientOptions = {
+      key: ablyApiKey,
+      logLevel: (process.env.NODE_ENV === 'development' ? 2 : 1) as any,
+      tls: true,
+      httpMaxRetryCount: 5,
+      httpOpenTimeout: 15000,
+      httpRequestTimeout: 30000,
+      fallbackHosts: ['a.ably-realtime.com', 'b.ably-realtime.com', 'c.ably-realtime.com'],
+      idempotentRestPublishing: true,
+    };
 
-      const instance = new Ably.Rest(clientOptions);
-      
-      if (process.env.NODE_ENV !== 'production') {
-        global.ablyServerInstance = instance;
-      }
-      
-      return instance;
-    } else {
-      return global.ablyServerInstance;
+    const instance = new Ably.Rest(clientOptions);
+    
+    if (process.env.NODE_ENV !== 'production') {
+      global.ablyServerInstance = instance;
     }
+    
+    return instance;
   } catch (error) {
     console.error('❌ [ABLY SERVER] Critical error initializing Ably client:', error);
     return null;
   }
 }
 
+// ✅ CORRECTION : Fonction helper pour les Server Actions
 export async function getAblyChannel(channelName: string) {
   const ablyServer = initializeAblyServer();
   if (!ablyServer) {

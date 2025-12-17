@@ -1,4 +1,4 @@
-// src/components/session/DocumentHistory.tsx
+// src/components/session/DocumentHistory.tsx - VERSION CORRIGÉE POUR ABLY V2+
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,10 +23,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { useNamedAbly } from '@/hooks/useNamedAbly';
+import { useAbly } from '@/hooks/useAbly';
 import { AblyEvents } from '@/lib/ably/events';
 import { getSessionChannelName } from '@/lib/ably/channels';
-import Ably from 'ably';
+import type { Message } from 'ably'; // ✅ CORRECTION : import direct
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,7 +48,7 @@ export function DocumentHistory({ documents, onSelectDocument, onReshare, sessio
     const { toast } = useToast();
     const [isDeleting, startDeleteTransition] = useTransition();
     const [localDocuments, setLocalDocuments] = useState<DocumentInHistory[]>([]);
-    const { client: ablyClient } = useNamedAbly('DocumentHistory');
+    const { client: ablyClient } = useAbly();
 
     useEffect(() => {
         setLocalDocuments(documents || []);
@@ -60,7 +60,7 @@ export function DocumentHistory({ documents, onSelectDocument, onReshare, sessio
         const channelName = getSessionChannelName(sessionId);
         const channel = ablyClient.channels.get(channelName);
         
-        const handleDocumentDeleted = (message: Ably.Message) => {
+        const handleDocumentDeleted = (message: Message) => { // ✅ CORRECTION : typage direct
             const { documentId, deletedBy } = message.data;
             if (deletedBy !== currentUserId) {
                 setLocalDocuments(prev => prev.filter(doc => doc.id !== documentId));
@@ -172,12 +172,15 @@ export function DocumentHistory({ documents, onSelectDocument, onReshare, sessio
                     key={doc.id} 
                     className="flex flex-col p-3 bg-muted/50 rounded-lg hover:bg-muted/70 transition-colors gap-3"
                 >
+                    {/* Section supérieure : Contenu du document */}
                     <div className="flex items-start gap-3 w-full min-w-0">
                         <FileText className="h-5 w-5 flex-shrink-0 text-muted-foreground mt-0.5" />
                         <div className="min-w-0 flex-1">
+                            {/* Nom du document avec rupture de ligne */}
                             <p className="text-sm font-medium break-words leading-relaxed" title={doc.name}>
                                 {doc.name}
                             </p>
+                            {/* Métadonnées avec rupture de ligne */}
                             <p className="text-xs text-muted-foreground break-words leading-relaxed mt-1">
                                 Partagé {formatDate(doc.createdAt)}
                                 {doc.sharedBy && ` par ${doc.sharedBy}`}
@@ -185,7 +188,9 @@ export function DocumentHistory({ documents, onSelectDocument, onReshare, sessio
                         </div>
                     </div>
 
+                    {/* Section inférieure : Actions - s'aligne en bas quand nécessaire */}
                     <div className="flex items-center justify-between gap-2 w-full">
+                        {/* Actions principales - visibles sur desktop */}
                         <div className="hidden sm:flex items-center gap-1 flex-shrink-0 ml-auto">
                             <Button 
                                 size="icon" 
@@ -239,6 +244,7 @@ export function DocumentHistory({ documents, onSelectDocument, onReshare, sessio
                             </AlertDialog>
                         </div>
 
+                        {/* Menu déroulant pour mobile */}
                         <div className="sm:hidden flex-shrink-0 ml-auto">
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>

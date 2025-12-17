@@ -1,26 +1,33 @@
-// app/api/ably/token/route.ts
+// src/app/api/ably/token/route.ts - VERSION CORRIGÉE POUR ABLY v2+
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
-import Ably from 'ably';
+import Ably, {
+  type TokenRequest,
+  type ErrorInfo,
+} from 'ably';
 
 // Timeout config
 const AUTH_TIMEOUT_MS = 8000;
 
+// ✅ CORRECTION : Force le mode dynamique pour éviter le rendu statique
 export const dynamic = 'force-dynamic';
+
+// Helper pour gérer le timeout avec typage propre
+const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Authentication timeout')), ms)
+    ),
+  ]);
+};
 
 export async function GET(request: NextRequest) {
     console.log('🚪 [ABLY TOKEN] - Token request received');
 
-    const timeoutPromise = new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('Authentication timeout')), AUTH_TIMEOUT_MS)
-    );
-
     try {
-        const session = await Promise.race([
-            getServerSession(authOptions),
-            timeoutPromise
-        ]);
+        const session = await withTimeout(getServerSession(authOptions), AUTH_TIMEOUT_MS);
 
         console.log('🔍 [ABLY TOKEN] - Session verified:', {
             hasSession: !!session,
@@ -54,20 +61,30 @@ export async function GET(request: NextRequest) {
         const clientId = session.user.id;
         console.log(`🔑 [ABLY TOKEN] - Creating token for: ${clientId.substring(0, 8)}...`);
 
-        const ably = new Ably.Rest({ key: ablyApiKey });
-        
-        const tokenParams: Ably.TokenParams = {
-            clientId: clientId,
-            capability: {
-                'classroom-connector:*': ['presence', 'subscribe', 'publish']
-            },
-            ttl: 3600000 // 1 hour
-        };
-        
-        const tokenRequest = await Promise.race([
-            ably.auth.createTokenRequest(tokenParams),
-            timeoutPromise
-        ]);
+        const ably = new Ably.Rest(ablyApiKey);
+
+        // ✅ CORRECTION MAJEURE : utiliser la version promise-based de createTokenRequest
+        let tokenRequest: TokenRequest;
+        try {
+            tokenRequest = await withTimeout(
+                ably.auth.createTokenRequest({
+                    clientId: clientId,
+                    capability: {
+                        'classroom-connector:*': ['presence', 'subscribe', 'publish']
+                    },
+                    ttl: 3600000 // 1 hour
+                }),
+                AUTH_TIMEOUT_MS
+            );
+        } catch (err) {
+            // En contexte serveur, Ably rejette avec un objet Error standard
+            const error = err as Error;
+            console.error('❌ [ABLY TOKEN] - Token creation error:', {
+                message: error.message,
+                stack: error.stack?.split('\n').slice(0, 3)
+            });
+            throw error;
+        }
 
         console.log(`✅ [ABLY TOKEN] - Token created for ${clientId.substring(0, 8)}...`);
 

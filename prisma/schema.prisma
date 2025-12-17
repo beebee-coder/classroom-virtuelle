@@ -239,6 +239,7 @@ model QuizResponse {
   answers          Json // { "questionId": "selectedOptionId", ... }
   answerTimestamps Json? // { "questionId": "iso-timestamp", ... }
   submittedAt      DateTime @default(now())
+  createdAt        DateTime  @default(now())
 
   @@unique([quizId, userId])
 }

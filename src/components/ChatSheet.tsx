@@ -1,8 +1,7 @@
-// src/components/ChatSheet.tsx
+// src/components/ChatSheet.tsx - VERSION CORRIGÉE POUR ABLY v2+
 'use client';
 
 import { useState, useEffect, useRef, useTransition, useCallback } from 'react';
-import Ably from 'ably';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from '@/components/ui/sheet';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -16,15 +15,19 @@ import { fr } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
-import type { Message, Reaction, User, Role } from '@prisma/client';
+import type { Message as PrismaMessage, Reaction, User, Role } from '@prisma/client';
 import { useNamedAbly } from '@/hooks/useNamedAbly';
 import { getClassChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
+import Ably, {
+  type RealtimeChannel,
+  type Message as AblyMessage,
+} from 'ably';
 
 const EMOJIS = ['👍', '❤️', '😂', '😯', '😢', '🤔'];
 
 type ReactionWithUser = Reaction & { user: Pick<User, 'id' | 'name'> };
-type MessageWithReactions = Message & {
+type MessageWithReactions = PrismaMessage & {
     sender: Pick<User, 'id' | 'name' | 'image'>;
     reactions: ReactionWithUser[];
 };
@@ -44,8 +47,8 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   
-  const channelRef = useRef<Ably.RealtimeChannel | null>(null);
-  const listenersRef = useRef<Map<string, (message: Ably.Message) => void>>(new Map());
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const listenersRef = useRef<Map<string, (message: AblyMessage) => void>>(new Map());
   const isMountedRef = useRef(true);
 
   const { client: ablyClient, isConnected: ablyConnected, connectionState } = useNamedAbly('ChatSheet');
@@ -58,14 +61,18 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
     
     try {
       setIsLoading(true);
+      console.log(`📥 [CHAT] Chargement des messages pour la classe: ${classroomId}`);
       const initialMessages = await getMessages(classroomId);
       
       if (Array.isArray(initialMessages)) {
         setMessages(initialMessages);
+        console.log(`✅ [CHAT] ${initialMessages.length} messages chargés`);
       } else {
+        console.error('❌ [CHAT] Format de réponse invalide:', initialMessages);
         setMessages([]);
       }
     } catch (error) {
+      console.error('❌ [CHAT] Erreur lors du chargement des messages:', error);
       toast({ 
         variant: 'destructive', 
         title: 'Erreur', 
@@ -96,6 +103,8 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
 
   const cleanupAbly = useCallback(() => {
     if (channelRef.current) {
+      console.log(`🔕 [CHAT] Nettoyage du canal: ${channelRef.current.name}`);
+      
       listenersRef.current.forEach((handler, eventName) => {
         try {
           channelRef.current?.unsubscribe(eventName, handler);
@@ -111,91 +120,115 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
 
   useEffect(() => {
     if (!classroomId || !isOpen || !ablyReady) {
+      console.log(`⏳ [CHAT] - Configuration Ably différée:`, {
+        hasClassroomId: !!classroomId,
+        isOpen,
+        hasAblyClient: !!ablyClient,
+        ablyLoading,
+        ablyConnected
+      });
       return;
     }
 
     const channelName = getClassChannelName(classroomId);
     
     if (channelRef.current?.name === channelName) {
+      console.log(`🔁 [CHAT] Canal ${channelName} déjà configuré`);
       return;
     }
 
-    cleanupAbly();
+    console.log(`🔔 [CHAT] Configuration Ably pour le canal: ${channelName}`);
 
-    const channel = ablyClient.channels.get(channelName);
-    channelRef.current = channel;
+    try {
+      cleanupAbly();
+
+      const channel = ablyClient.channels.get(channelName);
+      channelRef.current = channel;
       
-    const createMessageHandler = () => {
-      const handler = (message: Ably.Message) => {
-        if (!isMountedRef.current) return;
-        
-        const data = message.data as MessageWithReactions;
-        setMessages((prev) => {
-          if (prev.some(msg => msg.id === data.id)) {
-            return prev;
-          }
-          return [...prev, data];
-        });
-      };
-      listenersRef.current.set(AblyEvents.NEW_MESSAGE, handler);
-      return handler;
-    };
-
-    const createReactionHandler = () => {
-      const handler = (message: Ably.Message) => {
-        if (!isMountedRef.current) return;
-        
-        const data = message.data as { 
-          messageId: string; 
-          reaction: ReactionWithUser; 
-          action: 'added' | 'removed'; 
-        };
-        setMessages(prev => prev.map(msg => {
-          if (msg.id === data.messageId) {
-            let newReactions = [...msg.reactions];
-            
-            if (data.action === 'added') {
-              const existingIndex = newReactions.findIndex(
-                (r: ReactionWithUser) => r.emoji === data.reaction.emoji && r.userId === data.reaction.userId
-              );
-              if (existingIndex === -1) {
-                newReactions.push(data.reaction);
-              }
-            } else {
-              newReactions = newReactions.filter(
-                (r: ReactionWithUser) => !(r.emoji === data.reaction.emoji && r.userId === data.reaction.userId)
-              );
+      const createMessageHandler = () => {
+        const handler = (message: AblyMessage) => {
+          if (!isMountedRef.current) return;
+          
+          const data = message.data as MessageWithReactions;
+          console.log('📨 [CHAT] Nouveau message reçu:', data);
+          setMessages((prev) => {
+            if (prev.some(msg => msg.id === data.id)) {
+              return prev;
             }
-            return { ...msg, reactions: newReactions };
-          }
-          return msg;
-        }));
+            return [...prev, data];
+          });
+        };
+        listenersRef.current.set(AblyEvents.NEW_MESSAGE, handler);
+        return handler;
       };
-      listenersRef.current.set(AblyEvents.REACTION_UPDATE, handler);
-      return handler;
-    };
+
+      const createReactionHandler = () => {
+        const handler = (message: AblyMessage) => {
+          if (!isMountedRef.current) return;
+          
+          const data = message.data as { 
+            messageId: string; 
+            reaction: ReactionWithUser; 
+            action: 'added' | 'removed'; 
+          };
+          console.log('😊 [CHAT] Réaction mise à jour:', data);
+          setMessages(prev => prev.map(msg => {
+            if (msg.id === data.messageId) {
+              let newReactions = [...msg.reactions];
+              
+              if (data.action === 'added') {
+                const existingIndex = newReactions.findIndex(
+                  (r: ReactionWithUser) => r.emoji === data.reaction.emoji && r.userId === data.reaction.userId
+                );
+                if (existingIndex === -1) {
+                  newReactions.push(data.reaction);
+                }
+              } else {
+                newReactions = newReactions.filter(
+                  (r: ReactionWithUser) => !(r.emoji === data.reaction.emoji && r.userId === data.reaction.userId)
+                );
+              }
+              return { ...msg, reactions: newReactions };
+            }
+            return msg;
+          }));
+        };
+        listenersRef.current.set(AblyEvents.REACTION_UPDATE, handler);
+        return handler;
+      };
       
-    const createHistoryHandler = () => {
-      const handler = () => {
-        if (!isMountedRef.current) return;
-        
-        setMessages([]);
-        toast({ 
-          title: "Historique effacé", 
-          description: "Le professeur a effacé l'historique de la conversation." 
-        });
+      const createHistoryHandler = () => {
+        const handler = () => {
+          if (!isMountedRef.current) return;
+          
+          console.log('🗑️ [CHAT] Historique effacé');
+          setMessages([]);
+          toast({ 
+            title: "Historique effacé", 
+            description: "Le professeur a effacé l'historique de la conversation." 
+          });
+        };
+        listenersRef.current.set(AblyEvents.HISTORY_CLEARED, handler);
+        return handler;
       };
-      listenersRef.current.set(AblyEvents.HISTORY_CLEARED, handler);
-      return handler;
-    };
 
-    channel.subscribe(AblyEvents.NEW_MESSAGE, createMessageHandler());
-    channel.subscribe(AblyEvents.REACTION_UPDATE, createReactionHandler());
-    channel.subscribe(AblyEvents.HISTORY_CLEARED, createHistoryHandler());
+      channel.subscribe(AblyEvents.NEW_MESSAGE, createMessageHandler());
+      channel.subscribe(AblyEvents.REACTION_UPDATE, createReactionHandler());
+      channel.subscribe(AblyEvents.HISTORY_CLEARED, createHistoryHandler());
 
+      console.log(`✅ [CHAT] Abonnement Ably réussi pour ${channelName}`);
+
+    } catch (error) {
+      console.error('❌ [CHAT] Erreur d\'abonnement Ably:', error);
+      toast({ 
+        variant: 'destructive', 
+        title: 'Erreur de connexion', 
+        description: 'Impossible de se connecter au chat en temps réel.' 
+      });
+    }
 
     return cleanupAbly;
-  }, [classroomId, isOpen, toast, ablyClient, ablyReady, cleanupAbly]);
+  }, [classroomId, isOpen, toast, ablyClient, ablyReady, cleanupAbly, ablyLoading, ablyConnected]);
 
   useEffect(() => {
     if (scrollAreaRef.current && messages.length > 0 && isMountedRef.current) {
@@ -227,6 +260,7 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
     
     startSending(async () => {
       try {
+        console.log('📤 [CHAT] Envoi du message:', messageToSend);
         const formData = new FormData();
         formData.append('message', messageToSend);
         formData.append('classroomId', classroomId);
@@ -236,7 +270,9 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
           throw new Error(result.error || 'Erreur lors de l\'envoi');
         }
 
+        console.log('✅ [CHAT] Message envoyé avec succès');
       } catch (error) {
+        console.error('❌ [CHAT] Erreur d\'envoi:', error);
         toast({ 
           variant: 'destructive', 
           title: 'Erreur', 
@@ -280,6 +316,7 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
     try {
       await toggleReaction(messageId, emoji);
     } catch (error) {
+      console.error('❌ [CHAT] Erreur de réaction:', error);
       if (isMountedRef.current) {
         setMessages(originalMessages);
       }
@@ -293,12 +330,14 @@ export function ChatSheet({ classroomId, userId, userRole }: ChatSheetProps) {
 
   const handleDeleteHistory = useCallback(async () => {
     try {
+      console.log('🗑️ [CHAT] Suppression de l\'historique');
       await deleteChatHistory(classroomId);
       toast({ 
         title: 'Succès', 
         description: "L'historique du chat a été effacé." 
       });
     } catch (error) {
+      console.error('❌ [CHAT] Erreur de suppression:', error);
       toast({ 
         variant: 'destructive', 
         title: 'Erreur', 

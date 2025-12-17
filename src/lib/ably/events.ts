@@ -15,7 +15,6 @@ export const AblyEvents = {
     HAND_RAISE_UPDATE: 'hand-raise-update',
     HAND_ACKNOWLEDGED: 'hand-acknowledged', // Ajout du nouvel événement
     UNDERSTANDING_UPDATE: 'understanding-update',
-    STUDENT_PENDING: 'student-pending', // Événement pour un nouvel élève
 
     // Tool-related events
     ACTIVE_TOOL_CHANGED: 'active-tool-changed',

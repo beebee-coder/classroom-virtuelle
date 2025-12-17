@@ -1,31 +1,36 @@
-// src/hooks/useAbly.ts
+// src/hooks/useAbly.ts - VERSION CORRIGÉE POUR STABILITÉ AVANCÉE
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import Ably from 'ably';
 import { getAblyClient, getAblyClientUsage } from '@/lib/ably/client';
+import Ably, {
+  type Realtime,
+  type ConnectionState,
+  type ErrorInfo,
+  type ConnectionStateChange,
+} from 'ably';
 
 interface UseAblyReturn {
   client: Ably.Realtime;
-  connectionState: Ably.ConnectionState;
+  connectionState: ConnectionState;
   isConnected: boolean;
-  connectionError: Ably.ErrorInfo | null;
+  connectionError: ErrorInfo | null;
 }
 
-let globalConnectionState: Ably.ConnectionState = 'initialized';
+let globalConnectionState: ConnectionState = 'initialized';
 let globalIsConnected = false;
-let globalConnectionError: Ably.ErrorInfo | null = null;
+let globalConnectionError: ErrorInfo | null = null;
 
 interface GlobalListener {
   id: symbol;
-  callback: (state: Ably.ConnectionState, isConnected: boolean, error: Ably.ErrorInfo | null) => void;
+  callback: (state: ConnectionState, isConnected: boolean, error: ErrorInfo | null) => void;
   componentName: string;
 }
 
 let globalListeners: Map<symbol, GlobalListener> = new Map();
 const componentStack = new Map<symbol, string>();
 
-const updateAllListeners = (state: Ably.ConnectionState, isConnected: boolean, error: Ably.ErrorInfo | null) => {
+const updateAllListeners = (state: ConnectionState, isConnected: boolean, error: ErrorInfo | null) => {
   globalConnectionState = state;
   globalIsConnected = isConnected;
   globalConnectionError = error;
@@ -74,25 +79,25 @@ const getCallingComponentName = (): string => {
 export const useAbly = (componentName?: string): UseAblyReturn => {
   const resolvedComponentName = useRef(componentName || getCallingComponentName());
 
-  const [connectionState, setConnectionState] = useState<Ably.ConnectionState>(globalConnectionState);
+  const [connectionState, setConnectionState] = useState<ConnectionState>(globalConnectionState);
   const [isConnected, setIsConnected] = useState<boolean>(globalIsConnected);
-  const [connectionError, setConnectionError] = useState<Ably.ErrorInfo | null>(globalConnectionError);
+  const [connectionError, setConnectionError] = useState<ErrorInfo | null>(globalConnectionError);
   
   const listenerIdRef = useRef<symbol>(Symbol(`useAbly-${resolvedComponentName.current}`));
 
   const ablyClient = useRef(getAblyClient());
 
   const handleGlobalStateUpdate = useCallback((
-    state: Ably.ConnectionState, 
+    state: ConnectionState, 
     connected: boolean, 
-    error: Ably.ErrorInfo | null
+    error: ErrorInfo | null
   ) => {
     setConnectionState(state);
     setIsConnected(connected);
     setConnectionError(error);
   }, []);
 
-  const handleConnectionStateChange = useCallback((stateChange: Ably.ConnectionStateChange) => {
+  const handleConnectionStateChange = useCallback((stateChange: ConnectionStateChange) => {
     const newState = stateChange.current;
     const newIsConnected = newState === 'connected';
     const newError = stateChange.reason || null;

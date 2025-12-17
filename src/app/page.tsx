@@ -15,28 +15,16 @@ export default function HomePage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Si la session est authentifiée et qu'on a bien les infos utilisateur
-    if (status === 'authenticated' && session?.user?.role) {
-      console.log('🔵 [HOMEPAGE] - Utilisateur authentifié, redirection en cours...');
-      
-      // Gérer le cas de l'élève en attente de validation
-      if (session.user.role === 'ELEVE' && session.user.validationStatus !== 'VALIDATED') {
-        router.push('/student/validation-pending');
-        return;
-      }
-
-      // Redirection vers le dashboard approprié
-      const targetUrl = session.user.role === 'PROFESSEUR' 
-        ? '/teacher/dashboard' 
-        : '/student/dashboard';
+    if (status === 'authenticated' && session?.user) {
+      console.log('🔵 [HOMEPAGE] - Utilisateur authentifié, redirection vers dashboard');
+      const targetUrl = session.user.role === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard';
       router.push(targetUrl);
     }
   }, [session, status, router]);
 
-  // Afficher un écran de chargement pendant la vérification de la session
   if (status === 'loading' || status === 'authenticated') {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-background">
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4">
         <Loader2 className="h-10 w-10 animate-spin text-primary" aria-hidden="true" />
         <p className="text-muted-foreground text-center max-w-md px-4">
           Chargement de votre session…
@@ -45,9 +33,9 @@ export default function HomePage() {
     );
   }
   
-  // Afficher la page d'accueil uniquement si l'utilisateur n'est pas connecté
   return (
     <div id="home-container" className="flex flex-col min-h-screen overflow-hidden">
+      {/* Image de fond décorative */}
       <div className="fixed inset-0 overflow-hidden -z-10">
         <Image
           src="https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=3024&auto=format&fit=crop"
@@ -60,6 +48,7 @@ export default function HomePage() {
         />
       </div>
       
+      {/* Overlay pour améliorer la lisibilité du texte */}
       <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/60 to-background/80 -z-10" />
 
       <Header user={null} />

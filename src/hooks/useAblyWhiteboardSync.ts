@@ -1,12 +1,16 @@
-// src/hooks/useAblyWhiteboardSync.ts
+// src/hooks/useAblyWhiteboardSync.ts - VERSION CORRIGÉE POUR ABLY v2+
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import type { WhiteboardOperation } from '@/types';
 import { useNamedAbly } from './useNamedAbly';
 import { getSessionChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
-import Ably from 'ably';
+import Ably, {
+  type RealtimeChannel,
+  type Message as AblyMessage,
+  type ChannelStateChange,
+} from 'ably';
 
 const BATCH_DELAY_MS = 100;
 const MAX_BATCH_SIZE = 20;
@@ -29,9 +33,9 @@ export const useAblyWhiteboardSync = (
     const pendingOperations = useRef<WhiteboardOperation[]>([]);
     const batchTimeout = useRef<NodeJS.Timeout | null>(null);
     const processedOperationIds = useRef<Set<string>>(new Set());
-    const channelRef = useRef<Ably.RealtimeChannel | null>(null);
-    const batchOperationsListenerRef = useRef<((message: Ably.Message) => void) | null>(null);
-    const channelStateListenerRef = useRef<((stateChange: Ably.ChannelStateChange) => void) | null>(null);
+    const channelRef = useRef<RealtimeChannel | null>(null);
+    const batchOperationsListenerRef = useRef<((message: AblyMessage) => void) | null>(null);
+    const channelStateListenerRef = useRef<((stateChange: ChannelStateChange) => void) | null>(null);
     
     const rateLimitTracker = useRef<number[]>([]);
     const isRateLimited = useRef(false);
@@ -50,6 +54,7 @@ export const useAblyWhiteboardSync = (
         
         if (rateLimitTracker.current.length >= MAX_OPS_PER_SECOND) {
             if (!isRateLimited.current) {
+                console.warn(`⚠️ [WHITEBOARD SYNC] - Rate limiting activated, ${rateLimitTracker.current.length} ops in last second`);
                 isRateLimited.current = true;
             }
             return false;
@@ -71,6 +76,7 @@ export const useAblyWhiteboardSync = (
         if (opsToSend.length === 0) return;
         
         if (!checkRateLimit()) {
+            console.warn(`⏸️ [WHITEBOARD SYNC] - Rate limited, requeuing ${opsToSend.length} operations`);
             pendingOperations.current.unshift(...opsToSend);
             
             batchTimeout.current = setTimeout(() => {
@@ -99,8 +105,10 @@ export const useAblyWhiteboardSync = (
                         userId: userId,
                         sessionId: sessionId
                     });
+                    console.log(`✅ [WHITEBOARD SYNC] - Sent batch of ${chunk.length} operations`);
                 }
             } else {
+                console.warn(`⚠️ [WHITEBOARD SYNC] - Channel not ready, state: ${channel?.state}, requeuing ${opsToSend.length} ops`);
                 pendingOperations.current.unshift(...opsToSend);
                 return;
             }
@@ -190,9 +198,10 @@ export const useAblyWhiteboardSync = (
         }, BATCH_DELAY_MS);
     }, [flushBatch]);
 
-    const attachChannel = useCallback(async (channel: Ably.RealtimeChannel) => {
+    const attachChannel = useCallback(async (channel: RealtimeChannel) => {
         try {
             await channel.attach();
+            console.log(`✅ [WHITEBOARD SYNC] - Successfully attached to whiteboard channel: ${channel.name}`);
             if (isMounted.current) {
                 setIsInitialized(true);
             }
@@ -203,6 +212,7 @@ export const useAblyWhiteboardSync = (
                 
                 setTimeout(() => {
                     if (isMounted.current && channelRef.current === channel) {
+                        console.log("🔄 [WHITEBOARD SYNC] - Retrying channel attachment...");
                         attachChannel(channel);
                     }
                 }, 2000);
@@ -219,9 +229,15 @@ export const useAblyWhiteboardSync = (
         }
 
         const channelName = getSessionChannelName(sessionId);
+        console.log(`🔧 [WHITEBOARD SYNC] - Setting up for channel: ${channelName}, user: ${userId}`);
 
         const currentChannel = channelRef.current;
+        const shouldReinitialize = !currentChannel || 
+                                 currentChannel.name !== channelName || 
+                                 currentChannel.state !== 'attached';
+
         if (currentChannel && currentChannel.name === channelName && currentChannel.state === 'attached') {
+            console.log(`⏭️ [WHITEBOARD SYNC] - Already attached to correct channel, skipping setup`);
             if (isMounted.current && !isInitialized) {
                 setIsInitialized(true);
             }
@@ -229,6 +245,7 @@ export const useAblyWhiteboardSync = (
         }
 
         if (currentChannel && currentChannel.name !== channelName) {
+            console.log(`🔄 [WHITEBOARD SYNC] - Channel changed from ${currentChannel.name} to ${channelName}, reinitializing`);
             if (batchOperationsListenerRef.current) {
                 currentChannel.unsubscribe(AblyEvents.WHITEBOARD_OPERATION_BATCH, batchOperationsListenerRef.current);
             }
@@ -240,7 +257,7 @@ export const useAblyWhiteboardSync = (
         const channel = client.channels.get(channelName);
         channelRef.current = channel;
 
-        const handleBatchOperations = (message: Ably.Message) => {
+        const handleBatchOperations = (message: AblyMessage) => {
             if (!isMounted.current) return;
             
             try {
@@ -251,6 +268,7 @@ export const useAblyWhiteboardSync = (
                 };
                 
                 if (!data || !Array.isArray(data.operations)) {
+                    console.warn('⚠️ [WHITEBOARD SYNC] - Invalid operation batch received');
                     return;
                 }
 
@@ -261,6 +279,8 @@ export const useAblyWhiteboardSync = (
                 if (data.userId === userId) {
                     return;
                 }
+
+                console.log(`📥 [WHITEBOARD SYNC] - Received ${data.operations.length} operations from user ${data.userId}`);
 
                 const externalOps = data.operations.filter(op => {
                     if (processedOperationIds.current.has(op.id)) {
@@ -278,7 +298,9 @@ export const useAblyWhiteboardSync = (
             }
         };
 
-        const handleChannelState = (stateChange: Ably.ChannelStateChange) => {
+        const handleChannelState = (stateChange: ChannelStateChange) => {
+            console.log(`🔧 [WHITEBOARD SYNC] - Channel state change: ${stateChange.previous} -> ${stateChange.current}`);
+            
             if (stateChange.current === 'attached') {
                 if (isMounted.current) {
                     setIsInitialized(true);
@@ -291,6 +313,7 @@ export const useAblyWhiteboardSync = (
                 if (stateChange.current === 'failed' && isMounted.current) {
                     setTimeout(() => {
                         if (isMounted.current && channelRef.current === channel) {
+                            console.log("🔄 [WHITEBOARD SYNC] - Reattaching after failure...");
                             attachChannel(channel);
                         }
                     }, 2000);
@@ -313,10 +336,14 @@ export const useAblyWhiteboardSync = (
             attachChannel(channel);
         }
 
+        return () => {
+            console.log(`🧹 [WHITEBOARD SYNC] - Cleanup effect for channel: ${channelName}`);
+        };
     }, [sessionId, userId, client, isLoading, isConnected, isInitialized, attachChannel]);
 
     const sendOperation = useCallback((operations: WhiteboardOperation | WhiteboardOperation[]) => {
         if (!sessionId || !isMounted.current || !isInitialized) {
+            console.warn(`⚠️ [WHITEBOARD SYNC] - Cannot send operations, initialized: ${isInitialized}, session: ${sessionId}`);
             return;
         }
         
@@ -329,16 +356,20 @@ export const useAblyWhiteboardSync = (
         });
         
         if (isRateLimited.current && pendingOperations.current.length > 10) {
+            console.warn(`⏸️ [WHITEBOARD SYNC] - Rate limited, dropping ${opsArray.length} operations`);
             return;
         }
         
         pendingOperations.current.push(...opsArray);
         scheduleBatch();
 
+        console.log(`📤 [WHITEBOARD SYNC] - Queued ${opsArray.length} operations, pending: ${pendingOperations.current.length}, rateLimited: ${isRateLimited.current}`);
+
     }, [sessionId, isInitialized, scheduleBatch]);
 
     const flushOperations = useCallback(() => {
         if (isMounted.current && isInitialized && pendingOperations.current.length > 0) {
+            console.log(`🚀 [WHITEBOARD SYNC] - Flushing ${pendingOperations.current.length} operations`);
             flushBatch();
         }
     }, [flushBatch, isInitialized]);

@@ -4,30 +4,13 @@
 import { revalidatePath } from 'next/cache';
 import prisma from '../prisma';
 import type { StudentProgress, Task, User } from '@prisma/client';
-import { ProgressStatus, ValidationStatus } from '@prisma/client';
+import { ProgressStatus } from '@prisma/client';
 
 
 export type TaskForProfessorValidation = StudentProgress & {
   task: Task;
   student: Pick<User, 'id' | 'name'>;
 };
-
-// Nouvelle fonction pour valider un élève
-export async function validateStudent(studentId: string, classroomId: string, approve: boolean) {
-    if (approve) {
-      await prisma.user.update({
-        where: { id: studentId },
-        data: { validationStatus: ValidationStatus.VALIDATED }
-      });
-      console.log(`✅ [ACTION] - Élève ${studentId} validé.`);
-    } else {
-      await prisma.user.delete({
-        where: { id: studentId }
-      });
-      console.log(`❌ [ACTION] - Élève ${studentId} rejeté et supprimé.`);
-    }
-    revalidatePath('/teacher/validations');
-}
 
 
 export async function getTasksForProfessorValidation(teacherId: string): Promise<TaskForProfessorValidation[]> {

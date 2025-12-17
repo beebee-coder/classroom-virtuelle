@@ -1,9 +1,11 @@
-// src/app/login/page.tsx
+
+// src/app/login/page.tsx - VERSION CORRIGÉE
 import { Suspense } from 'react';
 import LoginForm from './login-form';
 
-// Forcer le rendu dynamique pour éviter les conflits de session
+// 🔥 FORCER LE RENDU DYNAMIQUE (CLIENT-SIDE ONLY)
 export const dynamic = 'force-dynamic';
+export const runtime = 'edge'; // Optionnel, pour meilleures performances
 
 export default function LoginPage() {
   return (
@@ -19,3 +21,5 @@ export default function LoginPage() {
     </Suspense>
   );
 }
+
+    

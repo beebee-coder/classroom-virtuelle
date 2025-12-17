@@ -1,18 +1,23 @@
-// src/hooks/useAblyPresence.ts
+// src/hooks/useAblyPresence.ts - VERSION CORRIGÉE POUR ABLY v2+
 'use client';
 
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useNamedAbly } from './useNamedAbly';
 import type { AblyPresenceMember } from '@/lib/ably/types';
 import { getClassChannelName } from '@/lib/ably/channels';
-import Ably, { type Types } from 'ably';
+import Ably, {
+  type RealtimeChannel,
+  type ChannelStateChange,
+  type PresenceMessage,
+  type ErrorInfo,
+} from 'ably';
 import { Role } from '@prisma/client';
 import { useAblyHealth } from './useAblyHealth';
 
-type AblyChannel = Types.RealtimeChannel;
-type AblyChannelStateChange = Types.ChannelStateChange;
-type AblyPresenceMessage = Types.PresenceMessage;
-type AblyErrorInfo = Types.ErrorInfo;
+type AblyChannel = RealtimeChannel;
+type AblyChannelStateChange = ChannelStateChange;
+type AblyPresenceMessage = PresenceMessage;
+type AblyErrorInfo = ErrorInfo;
 
 interface UseAblyPresenceReturn {
   onlineMembers: AblyPresenceMember[];
@@ -73,6 +78,7 @@ export const useAblyPresence = (
     const now = Date.now();
     
     if (now - lastPresenceUpdateRef.current < PRESENCE_UPDATE_DELAY_MS) {
+      console.warn(`⏸️ [PRESENCE HOOK] - Délai trop court depuis dernière update: ${now - lastPresenceUpdateRef.current}ms`);
       return false;
     }
     return true;
@@ -84,6 +90,7 @@ export const useAblyPresence = (
 
   const extractPresenceData = useCallback((message: AblyPresenceMessage): AblyPresenceMember | null => {
     if (!message.clientId) {
+      console.warn('⚠️ [PRESENCE HOOK] - Message de présence sans clientId:', message);
       return null;
     }
 
@@ -126,6 +133,7 @@ export const useAblyPresence = (
       }
 
       if (!isValidRole(presenceData.role)) {
+        console.warn(`⚠️ [PRESENCE HOOK] - Rôle invalide: ${presenceData.role}, utilisation de ELEVE par défaut`);
         presenceData.role = Role.ELEVE;
       }
 
@@ -168,9 +176,11 @@ export const useAblyPresence = (
       channelInfo.listeners.delete(componentIdRef.current);
       
       if (channelInfo.refCount === 0) {
+        console.log(`⏳ [PRESENCE HOOK] - Plus de composants actifs pour ${channelName}, planification du nettoyage.`);
         setTimeout(() => {
           const currentChannelInfo = globalThis.activePresenceChannels.get(channelName);
           if (currentChannelInfo && currentChannelInfo.refCount === 0) {
+            console.log(`🧹 [PRESENCE HOOK] - Détachement du canal ${channelName}`);
             try {
               currentChannelInfo.channel.detach();
             } catch (error) {
@@ -193,6 +203,8 @@ export const useAblyPresence = (
     const channelName = getClassChannelName(channelId);
     currentChannelNameRef.current = channelName;
 
+    console.log(`🎯 [PRESENCE HOOK] - Initialisation pour canal: ${channelName} (${actualComponentName})`);
+
     const initializePresence = async () => {
       if (!mountedRef.current) return;
 
@@ -201,6 +213,7 @@ export const useAblyPresence = (
         let channelInfo = globalThis.activePresenceChannels.get(channelName);
         
         if (!channelInfo) {
+          console.log(`🆕 [PRESENCE HOOK] - Création nouveau canal global: ${channelName}`);
           const channel = client.channels.get(channelName);
           channelRef.current = channel;
           
@@ -215,6 +228,8 @@ export const useAblyPresence = (
           
           const stateHandler = (stateChange: AblyChannelStateChange) => {
             if (!mountedRef.current) return;
+            
+            console.log(`🔌 [PRESENCE HOOK] - État du canal: ${stateChange.previous} → ${stateChange.current} pour ${channelName}`);
             
             if (stateChange.current === 'attached') {
               setIsConnected(true);
@@ -233,6 +248,7 @@ export const useAblyPresence = (
               setIsConnected(false);
               if (stateChange.reason) {
                 setError(stateChange.reason.message);
+                console.error(`❌ [PRESENCE HOOK] - Erreur de canal ${channelName}:`, stateChange.reason);
               }
             }
           };
@@ -264,34 +280,45 @@ export const useAblyPresence = (
             setTimeout(updateOnlineMembers, 100);
           };
 
-          const initializePresenceData = async (targetChannel: AblyChannel, targetChannelInfo: any) => {
+          const initializePresenceData = async (
+            targetChannel: AblyChannel,
+            targetChannelInfo: {
+              refCount: number;
+              channel: AblyChannel;
+              members: Map<string, AblyPresenceMember>;
+              listeners: Set<string>;
+              lastPresenceUpdate: number;
+            }
+          ) => {
             if (!targetChannelInfo) {
+              console.error('❌ [PRESENCE HOOK] - targetChannelInfo est undefined');
               return;
             }
-        
+          
             try {
-                const members = await targetChannel.presence.get();
-                if (!mountedRef.current) return;
-        
-                if (members && Array.isArray(members)) {
-                    targetChannelInfo.members.clear();
-                    members.forEach((member: AblyPresenceMessage) => {
-                        const presenceMember = extractPresenceData(member);
-                        if (presenceMember) {
-                            targetChannelInfo.members.set(member.clientId!, presenceMember);
-                        }
-                    });
-                    updateOnlineMembers();
-                } else {
-                    targetChannelInfo.members.clear();
-                    updateOnlineMembers();
-                }
+              const members = await targetChannel.presence.get();
+              if (!mountedRef.current) return;
+          
+              if (Array.isArray(members)) {
+                console.log(`🔍 [PRESENCE HOOK] - Récupération de ${members.length} membres présents`);
+                targetChannelInfo.members.clear();
+                members.forEach((member: AblyPresenceMessage) => {
+                  const presenceMember = extractPresenceData(member);
+                  if (presenceMember) {
+                    targetChannelInfo.members.set(member.clientId!, presenceMember);
+                  }
+                });
+                updateOnlineMembers();
+              } else {
+                targetChannelInfo.members.clear();
+                updateOnlineMembers();
+              }
             } catch (err) {
-                if (mountedRef.current) {
-                    console.error('❌ [PRESENCE HOOK] - Erreur getPresence:', err);
-                }
+              if (mountedRef.current) {
+                console.error('❌ [PRESENCE HOOK] - Erreur récupération de la présence:', err);
+              }
             }
-        };
+          };
 
           channel.on(stateHandler);
           channel.presence.subscribe(onPresenceUpdate);
@@ -300,6 +327,7 @@ export const useAblyPresence = (
             await channel.attach();
           }
         } else {
+          console.log(`🔁 [PRESENCE HOOK] - Réutilisation canal global: ${channelName}`);
           channelRef.current = channelInfo.channel;
           
           if (channelInfo.channel.state === 'attached') {
@@ -312,6 +340,7 @@ export const useAblyPresence = (
 
       } catch (err) {
         if (mountedRef.current) {
+          console.error(`❌ [PRESENCE HOOK] - Échec initialisation pour ${channelName}:`, err);
           setError((err as AblyErrorInfo).message);
           setIsConnected(false);
         }
@@ -325,6 +354,7 @@ export const useAblyPresence = (
       
       const channelNameToCleanup = currentChannelNameRef.current;
       if (channelNameToCleanup) {
+        console.log(`🧹 [PRESENCE HOOK] - Nettoyage pour canal: ${channelNameToCleanup}`);
         manageChannelRefCount(channelNameToCleanup, false);
         channelRef.current = null;
         currentChannelNameRef.current = null;
@@ -335,15 +365,19 @@ export const useAblyPresence = (
   const enterPresence = useCallback(async (userData: Omit<AblyPresenceMember, 'id'>) => {
     const channel = channelRef.current;
     if (!channel || !isConnected || isEnteringRef.current) {
+      console.warn('⚠️ [PRESENCE HOOK] - Impossible d\'entrer en présence: canal pas prêt');
       throw new Error('Canal de présence non disponible');
     }
     
     if (!canUpdatePresence()) {
+      console.warn('⏸️ [PRESENCE HOOK] - Rate limiting activé, report de l\'entrée en présence');
       return;
     }
     
     isEnteringRef.current = true;
     try {
+      console.log(`➡️ [PRESENCE HOOK] - Entrée en présence pour: ${client?.auth.clientId}`);
+      
       const presenceData = {
         name: userData.name || 'Utilisateur',
         role: userData.role || Role.ELEVE,
@@ -363,33 +397,38 @@ export const useAblyPresence = (
         }
       }
     } catch (err) {
+      console.error('❌ [PRESENCE HOOK] - Erreur d\'entrée en présence:', err);
       setError((err as AblyErrorInfo).message);
       throw err;
     } finally {
       isEnteringRef.current = false;
     }
-  }, [isConnected, canUpdatePresence]);
+  }, [client?.auth.clientId, isConnected, canUpdatePresence]);
   
   const leavePresence = useCallback(async () => {
     const channel = channelRef.current;
     if (!channel || !isConnected) {
+      console.warn('⚠️ [PRESENCE HOOK] - Impossible de quitter la présence: canal non disponible');
       return;
     }
     
     try {
+      console.log(`⬅️ [PRESENCE HOOK] - Sortie de présence pour: ${client?.auth.clientId}`);
       await channel.presence.leave();
     } catch (err) {
       console.error('❌ [PRESENCE HOOK] - Erreur de sortie:', err);
     }
-  }, [isConnected]);
+  }, [client?.auth.clientId, isConnected]);
 
   const updatePresence = useCallback(async (userData: Omit<AblyPresenceMember, 'id'>) => {
     const channel = channelRef.current;
     if (!channel || !isConnected) {
+      console.warn('⚠️ [PRESENCE HOOK] - Impossible de mettre à jour la présence: canal non disponible');
       return;
     }
     
     if (!canUpdatePresence()) {
+      console.warn('⏸️ [PRESENCE HOOK] - Rate limiting activé, report de la mise à jour');
       return;
     }
     
@@ -406,6 +445,7 @@ export const useAblyPresence = (
         }
       }
     } catch (err) {
+      console.error('❌ [PRESENCE HOOK] - Erreur de mise à jour:', err);
       setError((err as AblyErrorInfo).message);
     }
   }, [isConnected, canUpdatePresence]);

@@ -1,4 +1,4 @@
-// src/components/session/ChatWorkspace.tsx
+// src/components/session/ChatWorkspace.tsx - VERSION CORRIGÉE POUR ABLY v2+
 'use client';
 
 import { useState, useEffect, useRef, useTransition, useCallback, useMemo } from 'react';
@@ -14,16 +14,19 @@ import { fr } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '../ui/alert-dialog';
-import type { Message, Reaction, User, Role } from '@prisma/client';
+import type { Message as PrismaMessage, Reaction, User, Role } from '@prisma/client';
 import { useNamedAbly } from '@/hooks/useNamedAbly';
 import { getClassChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
-import Ably from 'ably';
+import Ably, {
+  type RealtimeChannel,
+  type Message as AblyMessage,
+} from 'ably';
 
 const EMOJIS = ['👍', '❤️', '😂', '😯', '😢', '🤔'];
 
 type ReactionWithUser = Reaction & { user: Pick<User, 'id' | 'name'> };
-type MessageWithReactions = Message & {
+type MessageWithReactions = PrismaMessage & {
     sender: Pick<User, 'id' | 'name' | 'image'>;
     reactions: ReactionWithUser[];
 };
@@ -42,8 +45,8 @@ export function ChatWorkspace({ classroomId, userId, userRole }: ChatWorkspacePr
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   
-  const channelRef = useRef<Ably.RealtimeChannel | null>(null);
-  const listenersRef = useRef<Map<string, (message: Ably.Message) => void>>(new Map());
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const listenersRef = useRef<Map<string, (message: AblyMessage) => void>>(new Map());
   const isMountedRef = useRef(true);
 
   const { client: ablyClient, isConnected: ablyConnected, connectionState } = useNamedAbly('ChatWorkspace');
@@ -113,13 +116,13 @@ export function ChatWorkspace({ classroomId, userId, userRole }: ChatWorkspacePr
     }
   }, []);
 
-  const messageHandler = useCallback((message: Ably.Message) => {
+  const messageHandler = useCallback((message: AblyMessage) => {
     if (!isMountedRef.current) return;
     const data = message.data as MessageWithReactions;
     setMessages((prev) => prev.some(msg => msg.id === data.id) ? prev : [...prev, data]);
   }, []);
 
-  const reactionHandler = useCallback((message: Ably.Message) => {
+  const reactionHandler = useCallback((message: AblyMessage) => {
     if (!isMountedRef.current) return;
     const data = message.data as { messageId: string; reaction: ReactionWithUser; action: 'added' | 'removed'; };
     setMessages(prev => prev.map(msg => {
@@ -171,7 +174,10 @@ export function ChatWorkspace({ classroomId, userId, userRole }: ChatWorkspacePr
       listenersRef.current.set(event, handler);
     });
 
+    console.log(`🔔 [CHAT WORKSPACE] Abonné au channel: ${channelName}`);
+
     return () => {
+      console.log(`🧹 [CHAT WORKSPACE] Nettoyage channel: ${channelName}`);
       cleanupAbly();
     };
   }, [classroomId, ablyReady, ablyClient, eventHandlers, cleanupAbly]);

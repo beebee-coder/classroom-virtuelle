@@ -1,4 +1,4 @@
-// src/app/student/class/[id]/page.tsx
+// src/app/student/class/[id]/page.tsx - VERSION CORRIGÉE
 import { notFound, redirect } from 'next/navigation';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
@@ -56,13 +56,13 @@ export default async function StudentClassPage({ params }: { params: { id: strin
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Header user={currentUser}>
+      <Header user={session.user}>
         {/* Le ChatSheet est maintenant directement dans StudentClassView */}
       </Header>
       {/* CORRECTION: Passage de l'utilisateur complet avec le bon type */}
       <StudentClassView 
         classroom={classroom as ClassroomWithStudents} 
-        currentUser={currentUser}
+        currentUser={currentUser as User}
       />
     </div>
   );

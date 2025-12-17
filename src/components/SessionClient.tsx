@@ -5,11 +5,11 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { User, Role } from '@prisma/client';
-import { SessionClientProps, DocumentInHistory, WhiteboardOperation, Quiz, QuizResponse, QuizResults, ComprehensionLevel, BreakoutRoom } from '@/types';
+import { SessionClientProps, DocumentInHistory, WhiteboardOperation, Quiz, QuizResponse, QuizResults, ComprehensionLevel } from '@/types';
 import SessionLoading from './SessionLoading';
 import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';
-import { endCoursSession, saveAndShareDocument, shareDocumentToStudents } from '@/lib/actions/session.actions';
+import { endCoursSession, saveAndShareDocument } from '@/lib/actions/session.actions';
 import { ablyTrigger } from '@/lib/ably/triggers';
 import { AblyEvents } from '@/lib/ably/events';
 import { getSessionChannelName } from '@/lib/ably/channels';
@@ -50,10 +50,10 @@ export default function SessionClient({
     handleUploadSuccess, handleStartQuiz, handleEndQuiz: useSessionStateEndQuiz, handleNewQuizResponse, handleCloseQuizResults: useSessionStateClose, handleQuizClosed,
   } = useSessionState({ initialDocumentHistory, initialActiveQuiz, sessionId });
 
-  const handleSignalReceived = useCallback((fromUserId: string, signal: any, isReturnSignal?: boolean) => {
+  const handleSignalReceived = useCallback((fromUserId: string, signal: any) => {
     if (!isMountedRef.current) return;
     try {
-      handleIncomingSignal(fromUserId, signal, isReturnSignal);
+      handleIncomingSignal(fromUserId, signal);
     } catch (error) {
       console.error('❌ [SIGNAL HANDLER] - Erreur lors du traitement du signal:', error);
     }
@@ -96,7 +96,7 @@ export default function SessionClient({
         createPeer(userId, true, activeStream);
       });
 
-      remoteStreams.forEach((stream, userId) => {
+      remoteStreams.forEach((_, userId) => {
         if (!onlineUserIds.includes(userId)) {
           cleanupPeerConnection(userId);
         }
@@ -119,7 +119,7 @@ export default function SessionClient({
     return remoteStreams.get(spotlightedParticipantId) || null;
   }, [spotlightedParticipantId, currentUserId, activeStream, remoteStreams]);
 
-  const remoteParticipants: { id: string; stream: MediaStream }[] = useMemo(() => Array.from(remoteStreams.entries()).map(([id, stream]) => ({ id, stream })), [remoteStreams]);
+  const remoteParticipants = useMemo(() => Array.from(remoteStreams.entries()).map(([id, stream]) => ({ id, stream })), [remoteStreams]);
   const isHandRaised = useMemo(() => handRaiseQueue.includes(currentUserId), [handRaiseQueue, currentUserId]);
   const raisedHandUsers = useMemo(() => handRaiseQueue.map(userId => allSessionUsers.find(u => u.id === userId)).filter(Boolean) as User[], [handRaiseQueue, allSessionUsers]);
 
@@ -208,6 +208,7 @@ export default function SessionClient({
     }
   }, [sessionId, toast]);
 
+  // ✅ SIMPLIFIÉ : Seulement appeler endQuiz — pas de célébration ici
   const handleOnEndQuiz = useCallback(async (quizId: string, responses: Map<string, QuizResponse>) => {
     if (!isMountedRef.current) return { success: false, error: 'Composant non monté' };
     try {
@@ -225,6 +226,7 @@ export default function SessionClient({
     }
   }, [sessionId, toast]);
 
+  // ✅ Fermeture des résultats (après célébration dans les vues enfants)
   const handleOnCloseQuizResults = useCallback(async () => {
     if (!isMountedRef.current) return;
     try {
