@@ -89,8 +89,8 @@ export default function RegisterForm() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4 relative bg-background">
       <Image
-        src="https://images.unsplash.com/photo-1491841550275-5b462bf93923?q=80&w=2970&auto=format&fit=crop"
-        alt="Library background"
+        src="https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=3024&auto=format&fit=crop"
+        alt="Classroom background"
         fill
         className="object-cover -z-10 opacity-20"
         priority
