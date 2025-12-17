@@ -35,6 +35,7 @@ model User {
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
   sessions          CoursSession[]    @relation("participants")
+  sessionsEnseignees CoursSession[]  @relation("SessionProfesseur") // ✅ Relation explicite comme professeur
   announcements     Announcement[]
   messages          Message[]
   reactions         Reaction[]
@@ -46,7 +47,7 @@ model User {
   classesEnseignees Classroom[]       @relation("ProfesseurPourClasse")
   quizResponses     QuizResponse[]
   quizzesCrees      Quiz[]            @relation("QuizCreator")
-  CoursSession      CoursSession[] // Un professeur peut avoir plusieurs sessions
+  // ❌ Supprimé : CoursSession      CoursSession[]
 }
 
 model Classroom {
@@ -80,7 +81,7 @@ model Metier {
 
 model CoursSession {
   id           String    @id @default(cuid())
-  professeur   User      @relation(fields: [professeurId], references: [id])
+  professeur   User      @relation("SessionProfesseur", fields: [professeurId], references: [id]) // ✅ Relation nommée
   professeurId String
   classroomId  String
   classe       Classroom @relation(fields: [classroomId], references: [id])

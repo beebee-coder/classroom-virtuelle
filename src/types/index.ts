@@ -1,4 +1,4 @@
-//src/types/index.tsx
+// src/types/index.tsx
 // Importer les types depuis notre source de vérité unique
 import type { 
   User as PrismaUser,
@@ -92,6 +92,7 @@ export interface DocumentInHistory {
   coursSessionId: string;
   sharedByUserId?: string; // ✅ Optionnel pour éviter les breaking changes
 }
+
 // CORRECTION: Utiliser directement le type PrismaRole pour la cohérence
 export type User = Omit<PrismaUser, 'role'> & {
   role: PrismaRole;
@@ -118,7 +119,7 @@ export interface SessionDetails {
   classroom: ClassroomWithDetails | null;
   startTime: string;
   endTime: string | null;
-  activeQuiz: Quiz | null;
+  activeQuiz: QuizWithQuestions | null; // ✅ Utiliser le type hydraté
 }
 
 // Types pour Pusher
@@ -161,24 +162,22 @@ export interface SessionClientProps {
   currentUserId: string;
   classroom: ClassroomWithDetails | null;
   initialDocumentHistory: DocumentInHistory[];
-  initialActiveQuiz?: Quiz | null;
+  initialActiveQuiz?: QuizWithQuestions | null; // ✅ Utiliser le type hydraté
 }
 
-// Nouveaux types pour le Quiz
+// ✅ NOUVEAUX TYPES POUR LES OBJETS HYDRATÉS (avec relations)
 export type QuizOption = PrismaQuizOption;
 
-export type QuizQuestion = PrismaQuizQuestion & {
-  id: string; // Assurer que l'ID est toujours présent
-  text: string;
+export type QuizQuestionWithOptions = PrismaQuizQuestion & {
   options: QuizOption[];
-  correctOptionId: string;
 };
 
-export type Quiz = PrismaQuiz & {
-  id: string; // Assurer que l'ID est toujours présent
-  title: string;
-  questions: QuizQuestion[];
+export type QuizWithQuestions = PrismaQuiz & {
+  questions: QuizQuestionWithOptions[];
 };
+
+// ⚠️ NE PLUS REDÉFINIR `Quiz` ou `QuizQuestion` ici
+// Les types ci-dessus sont explicites et sans conflit
 
 export interface QuizResponse {
   userId: string;
@@ -202,7 +201,6 @@ export interface BreakoutRoom {
   documentName: string | null;
   documentUrl: string | null;
 }
-
 
 // CORRECTION: Types pour la compatibilité avec les composants
 export type { PeerInstance, PeerSignalData };
