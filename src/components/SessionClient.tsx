@@ -3,13 +3,14 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { useToast } from '@/hooks/use-toast';
 import { User, Role } from '@prisma/client';
-import { SessionClientProps, DocumentInHistory, WhiteboardOperation, QuizWithQuestions, QuizResponse, QuizResults, ComprehensionLevel } from '@/types'; // CORRECTION: Utiliser QuizWithQuestions
+import { SessionDetails, ComprehensionLevel, WhiteboardOperation, QuizResponse, QuizResults, QuizWithQuestions, DocumentInHistory } from '@/types';
 import SessionLoading from './SessionLoading';
 import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';
-import { endCoursSession, saveAndShareDocument } from '@/lib/actions/session.actions';
+import { endCoursSession, saveAndShareDocument, getSessionDetails } from '@/lib/actions/session.actions';
 import { ablyTrigger } from '@/lib/ably/triggers';
 import { AblyEvents } from '@/lib/ably/events';
 import { getSessionChannelName } from '@/lib/ably/channels';
@@ -23,8 +24,83 @@ import { TeacherSessionView } from './session/TeacherSessionView';
 import { StudentSessionView } from './session/StudentSessionView';
 import { useAblyWhiteboardSync } from '@/hooks/useAblyWhiteboardSync';
 import type { SignalData as PeerSignalData } from 'simple-peer';
+import { SessionErrorFallback } from './SessionErrorFallback';
 
-export default function SessionClient({
+// Déplacer la définition de l'interface ici
+interface SessionClientWrapperProps {
+  sessionId: string;
+}
+
+export default function SessionClientWrapper({ sessionId }: SessionClientWrapperProps) {
+  const { data: userSession, status } = useSession();
+  const [sessionData, setSessionData] = useState<SessionDetails | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (status === 'authenticated') {
+      const fetchData = async () => {
+        try {
+          const data = await getSessionDetails(sessionId);
+          if (!data) {
+            setError("Session non trouvée ou accès non autorisé.");
+          } else {
+            setSessionData(data);
+          }
+        } catch (e) {
+          setError(e instanceof Error ? e.message : "Une erreur est survenue.");
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchData();
+    } else if (status === 'unauthenticated') {
+      // Rediriger si non authentifié, bien que la page devrait déjà le faire
+      const router = useRouter();
+      router.push(`/login?callbackUrl=/session/${sessionId}`);
+    }
+  }, [sessionId, status]);
+
+  if (loading || status === 'loading') {
+    return <SessionLoading />;
+  }
+
+  if (error) {
+    return <SessionErrorFallback error={error} sessionId={sessionId} />;
+  }
+
+  if (!sessionData) {
+    return <SessionErrorFallback error="Données de session non disponibles." sessionId={sessionId} />;
+  }
+
+  return (
+    <SessionClient
+      sessionId={sessionData.id}
+      initialStudents={sessionData.students}
+      initialTeacher={sessionData.teacher}
+      currentUserId={userSession!.user.id}
+      currentUserRole={userSession!.user.role as Role}
+      classroom={sessionData.classroom}
+      initialDocumentHistory={sessionData.documentHistory}
+      initialActiveQuiz={sessionData.activeQuiz}
+    />
+  );
+}
+
+
+interface SessionClientProps {
+  sessionId: string;
+  initialStudents: User[];
+  initialTeacher: User;
+  currentUserRole: Role;
+  currentUserId: string;
+  classroom: SessionDetails['classroom'];
+  initialDocumentHistory?: DocumentInHistory[];
+  initialActiveQuiz?: QuizWithQuestions | null;
+}
+
+
+function SessionClient({
   sessionId,
   initialStudents,
   initialTeacher,
@@ -54,7 +130,6 @@ export default function SessionClient({
   const handleSignalReceived = useCallback((fromUserId: string, signal: unknown, isReturnSignal?: boolean) => {
     if (!isMountedRef.current) return;
     try {
-      // ✅ CORRECTION : Assurer que 'signal' est du bon type avant de l'envoyer
       handleIncomingSignal(fromUserId, signal as PeerSignalData, isReturnSignal);
     } catch (error) {
       console.error('❌ [SIGNAL HANDLER] - Erreur lors du traitement du signal:', error);
@@ -210,7 +285,6 @@ export default function SessionClient({
     }
   }, [sessionId, toast]);
 
-  // ✅ SIMPLIFIÉ : Seulement appeler endQuiz — pas de célébration ici
   const handleOnEndQuiz = useCallback(async (quizId: string, responses: Map<string, QuizResponse>) => {
     if (!isMountedRef.current) return { success: false, error: 'Composant non monté' };
     try {
@@ -228,7 +302,6 @@ export default function SessionClient({
     }
   }, [sessionId, toast]);
 
-  // ✅ Fermeture des résultats (après célébration dans les vues enfants)
   const handleOnCloseQuizResults = useCallback(async () => {
     if (!isMountedRef.current) return;
     try {
