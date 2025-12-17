@@ -2,39 +2,120 @@
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, CheckCircle, Megaphone } from 'lucide-react';
+import { Users, UserPlus, Megaphone } from 'lucide-react';
 import Link from 'next/link';
 import { CreateAnnouncementForm } from '@/components/CreateAnnouncementForm';
 import type { Session } from 'next-auth';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useToast } from '@/hooks/use-toast'; // 🔹 ajout
 
 interface ClassroomData {
   id: string;
   nom: string;
 }
 
+interface PendingStudent {
+  id: string;
+  name: string;
+  email: string;
+  createdAt: string;
+}
+
 interface TeacherDashboardClientProps {
   user: Session['user'];
   classrooms: ClassroomData[];
-  validationCount: number;
+  validationCount: number; // valeur initiale SSR
 }
 
 export default function TeacherDashboardClient({ 
   user, 
   classrooms, 
-  validationCount 
+  validationCount: initialValidationCount 
 }: TeacherDashboardClientProps) {
   const hasLoggedRef = useRef(false);
+  const { toast } = useToast(); // 🔹 toast
+  const [validationCount, setValidationCount] = useState(initialValidationCount);
+  const [pendingStudents, setPendingStudents] = useState<PendingStudent[]>([]);
+  const previousStudentsRef = useRef<PendingStudent[]>([]);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // 🔹 Log initial
   useEffect(() => {
     if (!hasLoggedRef.current) {
-      console.log('👨‍🏫 [DASHBOARD CLIENT] Rendu du tableau de bord avec:', {
+      console.log('👨‍🏫 [DASHBOARD CLIENT] Rendu initial avec:', {
         user: user?.name,
         classroomsCount: classrooms.length,
-        validationCount
+        validationCount: initialValidationCount
       });
       hasLoggedRef.current = true;
     }
-  }, [user?.name, classrooms.length, validationCount]);
+  }, [user?.name, classrooms.length, initialValidationCount]);
+
+  // 🔹 Polling des élèves en attente
+  useEffect(() => {
+    const fetchPendingStudents = async () => {
+      try {
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+        }
+        abortControllerRef.current = new AbortController();
+    
+        const res = await fetch('/api/teacher/pending-students', {
+          method: 'GET',
+          signal: abortControllerRef.current.signal,
+          headers: { 'Cache-Control': 'no-cache' },
+        });
+    
+        if (!res.ok) {
+          console.warn('[DASHBOARD CLIENT] Échec du polling des élèves', { status: res.status });
+          return;
+        }
+    
+        // 🔹 Typage explicite de la réponse
+        const data: { students: PendingStudent[] } = await res.json();
+        const newStudents = data.students || [];
+    
+        // 🔹 Comparaison avec l'état précédent
+        const previousStudents = previousStudentsRef.current;
+        if (newStudents.length > previousStudents.length) {
+          const previousIds = new Set(previousStudents.map(s => s.id));
+          const newEntries = newStudents.filter(s => !previousIds.has(s.id)); // ✅ s est maintenant PendingStudent
+    
+          if (newEntries.length > 0) {
+            const studentNames = newEntries.map(s => s.name).join(', ');
+            toast({
+              title: "Nouvel(s) élève(s) inscrit(s) !",
+              description: `${newEntries.length} nouvel(s) élève(s) en attente de validation : ${studentNames}.`,
+              duration: 8000,
+            });
+            console.log('🔔 [DASHBOARD CLIENT] Toast affiché pour nouveaux élèves', {
+              count: newEntries.length,
+              names: studentNames,
+            });
+          }
+        }
+    
+        setPendingStudents(newStudents);
+        setValidationCount(newStudents.length);
+        previousStudentsRef.current = newStudents;
+      } catch (error: any) {
+        if (error.name !== 'AbortError') {
+          console.error('[DASHBOARD CLIENT] Erreur lors du polling des élèves', {
+            message: error.message,
+          });
+        }
+      }
+    };
+
+    fetchPendingStudents(); // immédiat
+    intervalRef.current = setInterval(fetchPendingStudents, 20_000); // puis toutes les 20s
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+    };
+  }, [toast]);
 
   return (
     <>
@@ -85,26 +166,26 @@ export default function TeacherDashboardClient({
           </CardContent>
         </Card>
 
-        {/* Carte: Validations en attente */}
-        <Card className="transition-all duration-300 hover:shadow-lg hover:-translate-y-1 h-full border-2 border-transparent hover:border-primary/20 min-w-0">
+        {/* Carte: Inscriptions en attente */}
+        <Card className="transition-all duration-300 hover:shadow-lg hover:-translate-y-1 h-full border-2 border-transparent hover:border-orange-200 min-w-0">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-4 min-w-0">
-              <div className="p-3 bg-primary/10 rounded-full group-hover:bg-primary/20 transition-colors flex-shrink-0">
-                <CheckCircle className="h-6 w-6 text-primary" />
+              <div className="p-3 bg-orange-100 rounded-full group-hover:bg-orange-200 transition-colors flex-shrink-0">
+                <UserPlus className="h-6 w-6 text-orange-600" />
               </div>
               <div className="min-w-0 flex-1">
-                <CardTitle className="text-lg truncate">Validations</CardTitle>
+                <CardTitle className="text-lg truncate">Inscriptions en attente</CardTitle>
                 <CardDescription className="mt-1 truncate">
                   {validationCount > 0 ? (
-                    <span className="text-red-500 font-semibold [
+                    <span className="text-orange-600 font-semibold [
                       @media (prefers-reduced-motion: no-preference) {
                         animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
                       }
                     ]">
-                      {validationCount} tâche(s) à valider
+                      {validationCount} élève(s) à valider
                     </span>
                   ) : (
-                    "Aucune tâche à valider"
+                    "Aucune inscription en attente"
                   )}
                 </CardDescription>
               </div>
@@ -112,14 +193,14 @@ export default function TeacherDashboardClient({
           </CardHeader>
           <CardContent className="flex flex-col">
             <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-              Examinez les soumissions de vos élèves et attribuez-leur des points.
+              Validez les nouveaux comptes élèves et assignez-les à une classe.
             </p>
             <Link 
               href="/teacher/validations" 
-              className="inline-flex items-center text-sm font-medium text-primary hover:underline mt-auto"
-              aria-label="Voir les validations en attente"
+              className="inline-flex items-center text-sm font-medium text-orange-600 hover:underline mt-auto"
+              aria-label="Voir les inscriptions en attente"
             >
-              Voir les validations
+              Gérer les inscriptions
             </Link>
           </CardContent>
         </Card>
@@ -150,7 +231,7 @@ export default function TeacherDashboardClient({
         </Card>
       </div>
 
-      {/* Section statistiques supplémentaires */}
+      {/* Section statistiques */}
       {classrooms.length > 0 && (
         <div className="mt-12">
           <h2 className="text-2xl font-bold mb-6 truncate">Vue d'ensemble</h2>
@@ -172,13 +253,13 @@ export default function TeacherDashboardClient({
             <Card className="min-w-0">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground truncate">
-                  Validations en Attente
+                  Inscriptions en attente
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{validationCount}</div>
+                <div className="text-2xl font-bold text-orange-600">{validationCount}</div>
                 <p className="text-xs text-muted-foreground mt-1 truncate">
-                  Tâches à examiner
+                  À valider et assigner
                 </p>
               </CardContent>
             </Card>
