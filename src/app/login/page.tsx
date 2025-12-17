@@ -1,22 +1,11 @@
 // src/app/login/page.tsx
-import { Suspense } from 'react';
-import LoginForm from './login-form';
+'use client'; // ✅ CORRECTION: Transformer en composant client
 
-// Ce composant est maintenant un "Server Component" par défaut.
-// C'est la bonne pratique dans l'App Router.
+import LoginForm from './login-form';
+import { Suspense } from 'react';
+
+// Le Suspense est conservé au cas où, mais le composant est maintenant client
+// pour assurer un chargement plus simple et éviter les ChunkLoadErrors.
 export default function LoginPage() {
-  return (
-    // Le Suspense est utile ici pour afficher un chargement
-    // pendant que le composant client LoginForm est préparé.
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="flex items-center gap-2">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-          <p className="text-muted-foreground">Chargement...</p>
-        </div>
-      </div>
-    }>
-      <LoginForm />
-    </Suspense>
-  );
+  return <LoginForm />;
 }

@@ -3,13 +3,40 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight, School } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Header } from '@/components/Header';
+import { ThemeToggle } from '@/components/ThemeToggle';
+
+// En-tête simplifié et autonome pour la page d'accueil statique
+function StaticHeader() {
+  return (
+    <header className="bg-card/80 backdrop-blur-sm border-b shadow-sm sticky top-0 z-50">
+      <div className="flex items-center justify-between h-16 px-4 sm:px-6">
+        <Link
+          href="/"
+          aria-label="Accueil"
+          className="flex items-center gap-2 font-bold text-lg text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
+        >
+          <School className="h-6 w-6" aria-hidden="true" />
+          <span>Classroom Connector</span>
+        </Link>
+        <nav className="flex items-center gap-2">
+          <ThemeToggle />
+          <Button asChild>
+            <Link href="/login">
+              Connexion
+            </Link>
+          </Button>
+        </nav>
+      </div>
+    </header>
+  );
+}
+
 
 // Page d'accueil complètement statique pour garantir le rendu.
 export default function HomePage() {
   return (
     <div id="home-container" className="flex flex-col min-h-screen overflow-hidden">
-      <Header />
+      <StaticHeader />
       
       {/* Fond d'image */}
       <div className="fixed inset-0 overflow-hidden -z-10">

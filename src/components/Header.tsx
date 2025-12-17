@@ -10,7 +10,6 @@ import type { Session } from 'next-auth';
 import { useSession } from 'next-auth/react';
 
 interface HeaderProps {
-  user?: Session['user'] | null;
   children?: React.ReactNode;
 }
 
