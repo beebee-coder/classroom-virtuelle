@@ -7,6 +7,14 @@ import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { Role, ValidationStatus } from "@prisma/client";
 
+// ✅ AJOUT : Vérification robuste des variables d'environnement
+if (!process.env.NEXTAUTH_URL) {
+  throw new Error("La variable d'environnement NEXTAUTH_URL est manquante ou vide.");
+}
+if (!process.env.NEXTAUTH_SECRET) {
+  throw new Error("La variable d'environnement NEXTAUTH_SECRET est manquante ou vide. Générez-en une avec `openssl rand -base64 32`");
+}
+
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
@@ -48,7 +56,6 @@ export const authOptions: NextAuthOptions = {
         const userEmail = profile.email.toLowerCase().trim();
         console.log(`[AUTH PROFILE] Traitement du profil Google pour: ${userEmail}`);
 
-        // 1. Vérifier si l'utilisateur existe déjà
         const existingUser = await prisma.user.findUnique({ where: { email: userEmail } });
         if (existingUser) {
             console.log(`[AUTH PROFILE] -> Utilisateur existant trouvé: ${existingUser.id}. Retour des données actuelles.`);
@@ -63,7 +70,6 @@ export const authOptions: NextAuthOptions = {
             };
         }
 
-        // 2. Si c'est un nouvel utilisateur, déterminer son rôle
         const teacherCount = await prisma.user.count({ where: { role: 'PROFESSEUR' } });
         const isFirstUser = teacherCount === 0;
 
@@ -89,7 +95,7 @@ export const authOptions: NextAuthOptions = {
         if (user.validationStatus === 'PENDING') {
             console.log(`[SIGN IN CALLBACK] - Utilisateur ${user.email} est PENDING. Connexion autorisée, la redirection gérera le reste.`);
         }
-        return true; // Toujours autoriser la connexion, la redirection est gérée côté client
+        return true; 
     },
 
     async jwt({ token, user, trigger, session }) {
@@ -119,8 +125,6 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
-  // Le bloc `events` est maintenant géré par le middleware Prisma, on peut le supprimer
-  // pour s'assurer qu'il n'y a pas d'import serveur ici.
-
   debug: process.env.NODE_ENV === "development",
+  secret: process.env.NEXTAUTH_SECRET,
 };
