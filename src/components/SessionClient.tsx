@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { User, Role } from '@prisma/client';
-import { SessionClientProps, DocumentInHistory, WhiteboardOperation, Quiz, QuizResponse, QuizResults, ComprehensionLevel } from '@/types';
+import { SessionClientProps, DocumentInHistory, WhiteboardOperation, QuizWithQuestions, QuizResponse, QuizResults, ComprehensionLevel } from '@/types'; // CORRECTION: Utiliser QuizWithQuestions
 import SessionLoading from './SessionLoading';
 import { SessionHeader } from './session/SessionHeader';
 import { PermissionPrompt } from './PermissionPrompt';

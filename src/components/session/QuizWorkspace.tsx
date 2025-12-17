@@ -5,12 +5,12 @@ import React from 'react';
 import { Award } from 'lucide-react';
 import { QuizLauncher } from './quiz/QuizLauncher';
 import { QuizView } from './quiz/QuizView';
-import type { Quiz, QuizResponse, QuizResults, User } from '@/types';
+import type { QuizResponse, QuizResults, User, QuizWithQuestions } from '@/types'; // CORRECTION: Utiliser QuizWithQuestions
 import type { CreateQuizData } from '@/lib/actions/ably-session.actions';
 
 interface QuizWorkspaceProps {
     sessionId: string;
-    activeQuiz: Quiz | null;
+    activeQuiz: QuizWithQuestions | null; // CORRECTION: Utiliser QuizWithQuestions
     quizResponses: Map<string, QuizResponse>;
     quizResults: QuizResults | null;
     onStartQuiz: (quiz: CreateQuizData) => Promise<{ success: boolean; error?: string; }>;
@@ -29,15 +29,24 @@ export function QuizWorkspace({
     onCloseResults,
     students,
 }: QuizWorkspaceProps) {
-    console.log("🛠️ [QUIZ WORKSPACE] - Affichage de l'espace de travail du quiz", { hasActiveQuiz: !!activeQuiz, hasResults: !!quizResults });
+    console.log("🛠️ [QUIZ WORKSPACE] - Affichage de l'espace de travail du quiz", { 
+        hasActiveQuiz: !!activeQuiz, 
+        hasResults: !!quizResults,
+        activeQuiz // Ajouter pour le debug
+    });
+
+    // Vérifier si activeQuiz a les questions nécessaires
+    if (activeQuiz && !('questions' in activeQuiz)) {
+        console.error("❌ [QUIZ WORKSPACE] - activeQuiz ne contient pas de questions!", activeQuiz);
+    }
 
     // ✅ CORRECTION: Si les résultats sont affichés, on ne doit pas pouvoir lancer un nouveau quiz.
     // La logique de réinitialisation est gérée par onCloseResults.
-    if (quizResults) {
+    if (quizResults && activeQuiz) {
          return (
             <div className="h-full w-full p-4">
                 <QuizView
-                    quiz={activeQuiz!} // Si on a des résultats, on a forcément un quiz
+                    quiz={activeQuiz} // ✅ Maintenant c'est QuizWithQuestions
                     responses={quizResponses}
                     results={quizResults}
                     onEndQuiz={onEndQuiz}
@@ -54,7 +63,7 @@ export function QuizWorkspace({
         return (
             <div className="h-full w-full p-4">
                 <QuizView
-                    quiz={activeQuiz}
+                    quiz={activeQuiz} // ✅ Maintenant c'est QuizWithQuestions
                     responses={quizResponses}
                     results={null} // Pas de résultats pour l'instant
                     onEndQuiz={onEndQuiz}

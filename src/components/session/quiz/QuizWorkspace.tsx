@@ -6,12 +6,12 @@ import { Award } from 'lucide-react';
 import { QuizLauncher } from './QuizLauncher';
 import { QuizView } from './QuizView';
 import { QuizResultsView } from './QuizResultsView'; // ✅ IMPORT AJOUTÉ
-import type { Quiz, QuizResponse, QuizResults, User } from '@/types';
+import type { QuizWithQuestions, QuizResponse, QuizResults, User } from '@/types'; // CORRECTION: Utiliser QuizWithQuestions
 import type { CreateQuizData } from '@/lib/actions/ably-session.actions';
 
 interface QuizWorkspaceProps {
     sessionId: string;
-    activeQuiz: Quiz | null;
+    activeQuiz: QuizWithQuestions | null; // CORRECTION: Utiliser QuizWithQuestions
     quizResponses: Map<string, QuizResponse>;
     quizResults: QuizResults | null;
     onStartQuiz: (quiz: CreateQuizData) => Promise<{ success: boolean; error?: string; }>;
@@ -30,7 +30,16 @@ export function QuizWorkspace({
     onCloseResults,
     students,
 }: QuizWorkspaceProps) {
-    console.log("🛠️ [QUIZ WORKSPACE] - Affichage de l'espace de travail du quiz", { hasActiveQuiz: !!activeQuiz, hasResults: !!quizResults });
+    console.log("🛠️ [QUIZ WORKSPACE] - Affichage de l'espace de travail du quiz", { 
+        hasActiveQuiz: !!activeQuiz, 
+        hasResults: !!quizResults,
+        activeQuiz 
+    });
+
+    // Vérifier si activeQuiz a les questions nécessaires
+    if (activeQuiz && !('questions' in activeQuiz)) {
+        console.error("❌ [QUIZ WORKSPACE] - activeQuiz ne contient pas de questions!", activeQuiz);
+    }
 
     // ✅ CORRECTION: Si les résultats sont disponibles, on utilise QuizResultsView
     if (quizResults && activeQuiz) {

@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNamedAbly } from '@/hooks/useNamedAbly';
 import { getSessionChannelName } from '@/lib/ably/channels';
 import { AblyEvents } from '@/lib/ably/events';
-import { ComprehensionLevel, Quiz, QuizResponse, QuizResults, BreakoutRoom } from '@/types';
+import { ComprehensionLevel, QuizWithQuestions, QuizResponse, QuizResults, BreakoutRoom } from '@/types'; // CORRECTION: Utiliser QuizWithQuestions
 import type { RealtimeChannel, Message, PresenceMessage } from 'ably'; // ✅ Import direct
 import { useToast } from '../use-toast';
 
@@ -32,7 +32,7 @@ interface AblyCommunicationProps {
   onSignalReceived: (fromUserId: string, signal: unknown, isReturnSignal?: boolean) => void; // ✅ signal: unknown au lieu de any
   setActiveTool: (tool: string) => void;
   setDocumentUrl: (url: string | null) => void;
-  setActiveQuiz: (quiz: Quiz) => void;
+  setActiveQuiz: (quiz: QuizWithQuestions) => void; // CORRECTION: Utiliser QuizWithQuestions
   onNewQuizResponse: (response: QuizResponse) => void;
   onQuizEnded: (results: QuizResults) => void;
   onQuizClosed: () => void;
@@ -165,7 +165,13 @@ export function useAblyCommunication({
 
   const handleQuizStartedEvent = useCallback((message: Message) => {
     setActiveTool('quiz');
-    setActiveQuiz(message.data.quiz as Quiz);
+    // CORRECTION: Vérifier si le quiz contient des questions, sinon ajouter un tableau vide
+    const quizData = message.data.quiz;
+    const quizWithQuestions: QuizWithQuestions = {
+      ...quizData,
+      questions: quizData.questions || [] // S'assurer que questions existe
+    };
+    setActiveQuiz(quizWithQuestions);
   }, [setActiveQuiz, setActiveTool]);
 
   const handleQuizResponseEvent = useCallback((message: Message) => {

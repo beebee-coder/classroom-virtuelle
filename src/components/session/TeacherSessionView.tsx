@@ -4,7 +4,7 @@
 import React, { useState, type ReactNode, useEffect, useMemo, useCallback, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { User, Role } from '@prisma/client';
-import type { SessionParticipant, ClassroomWithDetails, DocumentInHistory, Html5CanvasScene, ComprehensionLevel, WhiteboardOperation, Quiz, QuizResponse, QuizResults } from '@/types';
+import type { SessionParticipant, ClassroomWithDetails, DocumentInHistory, Html5CanvasScene, ComprehensionLevel, WhiteboardOperation, QuizWithQuestions, QuizResponse, QuizResults } from '@/types'; // CORRECTION: Utiliser QuizWithQuestions
 import { Participant } from '@/components/Participant';
 import { StudentPlaceholder } from '../StudentPlaceholder';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
@@ -606,7 +606,7 @@ interface TeacherSessionViewProps {
     flushWhiteboardOperations?: () => void;
     documentHistory: DocumentInHistory[];
     onDocumentShared: (doc: { name: string; url: string }) => void;
-    activeQuiz: Quiz | null;
+    activeQuiz: QuizWithQuestions | null; // CORRECTION: Utiliser QuizWithQuestions
     quizResponses: Map<string, QuizResponse>;
     quizResults: QuizResults | null;
     onStartQuiz: (quiz: CreateQuizData) => Promise<{ success: boolean; error?: string; }>;

@@ -8,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { BarChart, Users, CheckCircle, XCircle, Loader2, Info, Trophy, AlertCircle } from 'lucide-react';
-import type { QuizResponse, User, QuizQuestion, QuizOption, QuizResults, QuizWithQuestions } from '@/types';
+import type { QuizResponse, User, QuizQuestion, QuizOption, QuizResults, QuizWithQuestions, QuizQuestionWithOptions } from '@/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -48,7 +48,7 @@ export function QuizView({
                     <Info className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
                     <CardTitle className="text-lg">Quiz non disponible</CardTitle>
                     <CardDescription className="text-sm">
-                        Aucun quiz n'est actuellement actif ou il est mal configuré.
+                        Aucun quiz n'est activement actif ou il est mal configuré.
                     </CardDescription>
                 </CardHeader>
             </Card>
@@ -66,7 +66,6 @@ export function QuizView({
             />
         );
     }
-
 
     const currentQuestion = quiz.questions[currentQuestionIndex];
     const totalQuestions = quiz.questions.length;
@@ -229,7 +228,7 @@ function TeacherQuizDashboard({ quiz, responses = new Map(), onEndQuiz, students
 
         responses.forEach((response, userId) => {
             let userScore = 0;
-            quiz.questions.forEach((q: QuizQuestion) => {
+            quiz.questions.forEach((q: QuizQuestionWithOptions) => { // CORRECTION: Utiliser QuizQuestionWithOptions
                 if (response.answers[q.id] === q.correctOptionId) {
                     userScore++;
                 }
@@ -276,7 +275,7 @@ function TeacherQuizDashboard({ quiz, responses = new Map(), onEndQuiz, students
                     </h3>
                     <ScrollArea className="flex-1 pr-3 -mr-3">
                         <div className="space-y-3">
-                            {quiz.questions.map((q: QuizQuestion) => (
+                            {quiz.questions.map((q: QuizQuestionWithOptions) => ( // CORRECTION: Utiliser QuizQuestionWithOptions
                                 <QuestionStats key={q.id} question={q} responses={responses} />
                             ))}
                         </div>
@@ -331,7 +330,7 @@ function TeacherQuizDashboard({ quiz, responses = new Map(), onEndQuiz, students
 function QuestionStats({ question, responses }: { question: QuizQuestionWithOptions; responses: Map<string, QuizResponse> }) {
     const optionCounts = useMemo(() => {
         const counts: Record<string, number> = {};
-        question.options.forEach(o => counts[o.id] = 0);
+        question.options.forEach((o: QuizOption) => counts[o.id] = 0); // CORRECTION: Type explicite
         
         let totalResponses = 0;
         responses.forEach(response => {

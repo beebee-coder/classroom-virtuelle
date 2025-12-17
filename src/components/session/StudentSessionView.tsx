@@ -4,7 +4,7 @@
 import { useState, type ReactNode, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Participant } from '@/components/Participant';
-import { DocumentInHistory, Html5CanvasScene, ComprehensionLevel, WhiteboardOperation, Role, BreakoutRoom } from '@/types';
+import { DocumentInHistory, Html5CanvasScene, ComprehensionLevel, WhiteboardOperation, Role, BreakoutRoom, QuizWithQuestions } from '@/types'; // CORRECTION: Ajouter QuizWithQuestions
 import { Card, CardContent, CardHeader } from '../ui/card';
 import { Loader2, File, Video, VideoOff, PanelLeftClose, PanelLeftOpen, Timer, Wrench, Users } from 'lucide-react';
 import { StudentSessionControls } from './StudentSessionControls';
@@ -44,7 +44,7 @@ interface StudentSessionViewProps {
     flushWhiteboardOperations?: () => void;
     onlineMembersCount: number;
     isPresenceConnected: boolean;
-    activeQuiz: Quiz | null;
+    activeQuiz: QuizWithQuestions | null; // CORRECTION: Changer Quiz en QuizWithQuestions
     onSubmitQuizResponse: (response: QuizResponse) => Promise<{ success: boolean; }>;
     quizResults: QuizResults | null;
     breakoutRoomInfo: BreakoutRoom | null;

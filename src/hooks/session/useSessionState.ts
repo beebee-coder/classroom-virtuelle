@@ -2,12 +2,12 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import type { DocumentInHistory, WhiteboardOperation, Quiz, QuizResponse, QuizResults } from '@/types';
+import type { DocumentInHistory, WhiteboardOperation, QuizWithQuestions, QuizResponse, QuizResults } from '@/types'; // CORRECTION: Utiliser QuizWithQuestions
 import { closeQuiz } from '@/lib/actions/ably-session.actions'; // Importer l'action
 
 interface UseSessionStateProps {
     initialDocumentHistory?: DocumentInHistory[];
-    initialActiveQuiz?: Quiz | null;
+    initialActiveQuiz?: QuizWithQuestions | null; // CORRECTION: Utiliser QuizWithQuestions
     sessionId: string; // Ajouter sessionId aux props
 }
 
@@ -22,7 +22,7 @@ export function useSessionState({
     const [whiteboardOperations, setWhiteboardOperations] = useState<WhiteboardOperation[]>([]);
     
     // Quiz State
-    const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(initialActiveQuiz);
+    const [activeQuiz, setActiveQuiz] = useState<QuizWithQuestions | null>(initialActiveQuiz); // CORRECTION: Utiliser QuizWithQuestions
     const [quizResponses, setQuizResponses] = useState<Map<string, QuizResponse>>(new Map());
     const [quizResults, setQuizResults] = useState<QuizResults | null>(null);
 
@@ -41,7 +41,7 @@ export function useSessionState({
         setActiveTool('document');
     }, []);
 
-    const handleStartQuiz = useCallback((quiz: Quiz) => {
+    const handleStartQuiz = useCallback((quiz: QuizWithQuestions) => { // CORRECTION: Utiliser QuizWithQuestions
         setActiveQuiz(quiz);
         setQuizResponses(new Map());
         setQuizResults(null);
