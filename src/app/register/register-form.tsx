@@ -1,13 +1,13 @@
 // src/app/register/register-form.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle, Loader2, User, Mail, Lock, School, ArrowLeft, Info } from 'lucide-react';
+import { AlertCircle, Loader2, User, Mail, Lock, School, ArrowLeft } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
@@ -16,22 +16,12 @@ import { FaGoogle } from 'react-icons/fa';
 
 export default function RegisterForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const messageParam = searchParams?.get('message');
-  
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [contextMessage, setContextMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (messageParam === 'account_not_found') {
-      setContextMessage("Il semble que vous n'ayez pas encore de compte. Veuillez vous inscrire pour continuer.");
-    }
-  }, [messageParam]);
-  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -75,7 +65,6 @@ export default function RegisterForm() {
   
   const handleGoogleSignIn = () => {
     setLoading(true);
-    // La redirection est gérée par le useEffect après authentification
     signIn('google');
   };
 
@@ -105,15 +94,7 @@ export default function RegisterForm() {
           </div>
           <p className="text-lg text-muted-foreground">Créez votre compte pour commencer.</p>
         </div>
-
-        {contextMessage && (
-          <Alert className="mb-6 max-w-md mx-auto">
-            <Info className="h-4 w-4" />
-            <AlertTitle>Information</AlertTitle>
-            <AlertDescription>{contextMessage}</AlertDescription>
-          </Alert>
-        )}
-
+        
         <Card className="shadow-2xl bg-card/80 backdrop-blur-sm border-white/20">
           <form onSubmit={handleSubmit}>
             <CardContent className="p-8 space-y-6">

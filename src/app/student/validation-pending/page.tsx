@@ -1,39 +1,54 @@
 // src/app/student/validation-pending/page.tsx
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-options";
-import { redirect } from "next/navigation";
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Hourglass, UserCheck } from "lucide-react";
+import { Hourglass, UserCheck, Loader2 } from "lucide-react";
 import Link from "next/link";
 
-export const dynamic = "force-dynamic";
+export default function ValidationPendingPage() {
+  const { data: session, status, update } = useSession();
+  const router = useRouter();
 
-export default async function ValidationPendingPage() {
-  const session = await getServerSession(authOptions);
+  useEffect(() => {
+    if (status === 'authenticated') {
+      if (session.user.validationStatus === 'VALIDATED') {
+        router.push('/student/dashboard');
+        return;
+      }
+      
+      const interval = setInterval(async () => {
+        // Force une mise à jour de la session pour récupérer le nouveau statut
+        await update();
+      }, 5000); // Vérifie toutes les 5 secondes
 
-  // 🔹 Redirige si non authentifié
-  if (!session?.user) {
-    redirect("/login");
+      return () => clearInterval(interval);
+    }
+  }, [status, session, router, update]);
+
+  if (status === 'loading') {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <Loader2 className="h-12 w-12 animate-spin" />
+      </div>
+    );
   }
 
-  // 🔹 Redirige si ce n'est pas un élève
-  if (session.user.role !== "ELEVE") {
-    redirect("/teacher/dashboard");
+  if (!session || session.user.role !== 'ELEVE' || session.user.validationStatus === 'VALIDATED') {
+    // Redirection si l'état est incohérent (déjà validé, pas un élève, etc.)
+    router.push('/');
+    return null;
   }
-
-  // 🔹 Redirige si déjà validé
-  if (session.user.validationStatus === "VALIDATED") {
-    redirect("/student/dashboard");
-  }
-
-  // 🔹 À ce stade : élève authentifié + PENDING
+  
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4 bg-background">
       <div className="w-full max-w-md">
         <Card className="bg-card/80 backdrop-blur-sm border-white/20 shadow-2xl">
           <CardHeader className="text-center">
             <div className="mx-auto mb-4 p-3 bg-orange-100 rounded-full">
-              <Hourglass className="h-8 w-8 text-orange-600" />
+              <Hourglass className="h-8 w-8 text-orange-600 animate-pulse" />
             </div>
             <CardTitle className="text-2xl font-bold">Validation en cours</CardTitle>
             <CardDescription className="text-muted-foreground">
@@ -42,7 +57,7 @@ export default async function ValidationPendingPage() {
           </CardHeader>
           <CardContent className="text-center space-y-4">
             <p className="text-sm text-muted-foreground">
-              Vous recevrez un email (ou une notification dans l'application) dès que votre inscription sera approuvée.
+              La page se rafraîchira automatiquement dès que votre compte sera approuvé.
             </p>
             <div className="bg-muted/50 p-3 rounded-md">
               <p className="text-xs text-muted-foreground flex items-center justify-center gap-2">
@@ -50,9 +65,6 @@ export default async function ValidationPendingPage() {
                 Compte : <span className="font-mono">{session.user.email}</span>
               </p>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Besoin d'aide ? Contactez votre enseignant directement.
-            </p>
             <Link
               href="/"
               className="inline-block mt-2 text-sm text-primary hover:underline"
