@@ -129,4 +129,6 @@ export const authOptions: NextAuthOptions = {
   },
 
   debug: process.env.NODE_ENV === "development",
+  // Ajout de la propriété issuer pour résoudre l'erreur Invalid URL de manière définitive
+  issuer: process.env.NEXTAUTH_URL,
 };

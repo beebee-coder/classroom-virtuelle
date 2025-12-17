@@ -15,7 +15,6 @@ interface ProfileAvatarProps {
   user: Session['user'] | null;
   isInteractive?: boolean;
   className?: string;
-  // 🔴 Suppression de `children` pour éviter les usages ambigus et non accessibles
 }
 
 export function ProfileAvatar({ user, isInteractive = false, className }: ProfileAvatarProps) {
@@ -28,6 +27,11 @@ export function ProfileAvatar({ user, isInteractive = false, className }: Profil
   if (!user) {
     return null;
   }
+  
+  // ✅ CORRECTION : S'assurer que l'ID existe avant de générer l'URL
+  const fallbackAvatarUrl = user.id 
+    ? `https://api.dicebear.com/7.x/pixel-art/svg?seed=${user.id}`
+    : ''; // Fournir une chaîne vide si pas d'ID, que Next.js ignore sans erreur.
 
   const handleUploadSuccess = (result: any) => {
     if (result.event === 'success') {
@@ -55,8 +59,8 @@ export function ProfileAvatar({ user, isInteractive = false, className }: Profil
           });
         } catch (error) {
           toast({
-            variant: 'destructive',
-            title: 'Erreur',
+            variant: "destructive",
+            title: "Erreur",
             description: error instanceof Error ? error.message : "Impossible de mettre à jour l'image de profil.",
           });
         } finally {
@@ -83,7 +87,6 @@ export function ProfileAvatar({ user, isInteractive = false, className }: Profil
       <CloudinaryUploadWidget onUpload={handleUploadSuccess}>
         {({ open, loaded }) => (
           <div
-            // 🔧 Accessibilité : élément cliquable sémantique
             role="button"
             tabIndex={0}
             onClick={(e) => {
@@ -106,26 +109,18 @@ export function ProfileAvatar({ user, isInteractive = false, className }: Profil
                 className
               )}
             >
-              {currentImageUrl ? (
-                <>
-                  <AvatarImage
-                    src={currentImageUrl}
-                    alt={user.name || 'Avatar'}
-                    className="object-cover"
-                  />
-                  <AvatarFallback className="bg-gray-100">
-                    {user.name?.charAt(0) || 'U'}
-                  </AvatarFallback>
-                </>
-              ) : (
-                <AvatarFallback className="bg-gray-100">
-                  {isUploading ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-                  ) : (
-                    user.name?.charAt(0) || 'U'
-                  )}
-                </AvatarFallback>
-              )}
+              <AvatarImage
+                src={currentImageUrl || fallbackAvatarUrl}
+                alt={user.name || 'Avatar'}
+                className="object-cover"
+              />
+              <AvatarFallback className="bg-gray-100">
+                {isUploading ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                ) : (
+                  user.name?.charAt(0) || 'U'
+                )}
+              </AvatarFallback>
             </Avatar>
 
             {loaded && !isUploading && (
@@ -147,18 +142,12 @@ export function ProfileAvatar({ user, isInteractive = false, className }: Profil
 
   const staticAvatar = (
     <Avatar className={cn("h-10 w-10", className)}>
-      {currentImageUrl ? (
-        <>
-          <AvatarImage
-            src={currentImageUrl}
-            alt={user.name || 'Avatar'}
-            className="object-cover"
-          />
-          <AvatarFallback>{user.name?.charAt(0) || 'U'}</AvatarFallback>
-        </>
-      ) : (
-        <AvatarFallback>{user.name?.charAt(0) || 'U'}</AvatarFallback>
-      )}
+      <AvatarImage
+        src={currentImageUrl || fallbackAvatarUrl}
+        alt={user.name || 'Avatar'}
+        className="object-cover"
+      />
+      <AvatarFallback>{user.name?.charAt(0) || 'U'}</AvatarFallback>
     </Avatar>
   );
 
