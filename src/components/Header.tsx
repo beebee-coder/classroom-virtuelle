@@ -14,12 +14,13 @@ interface HeaderProps {
   children?: React.ReactNode;
 }
 
-// Ce Header est maintenant destiné à être utilisé dans des layouts où la session est disponible.
 export function Header({ children }: HeaderProps) {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+  
+  const user = session?.user;
 
   return (
-    <header className="bg-card border-b shadow-sm sticky top-0 z-50">
+    <header className="bg-card/80 backdrop-blur-sm border-b shadow-sm sticky top-0 z-50">
       <div className="flex items-center justify-between h-16 px-4 sm:px-6 min-w-0">
         <Link
           href="/"
@@ -30,7 +31,7 @@ export function Header({ children }: HeaderProps) {
           <span>Classroom Connector</span>
         </Link>
         <nav className="flex items-center gap-2 sm:gap-4 min-w-0">
-          {session?.user?.role === 'PROFESSEUR' && (
+          {user?.role === 'PROFESSEUR' && (
             <Button variant="ghost" asChild>
               <Link
                 href="/librairie-metiers"
@@ -42,7 +43,7 @@ export function Header({ children }: HeaderProps) {
           )}
           {children}
           <ThemeToggle />
-          <UserNav user={session?.user} />
+          <UserNav user={user} />
         </nav>
       </div>
     </header>

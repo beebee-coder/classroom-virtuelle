@@ -137,26 +137,26 @@ export default function LoginForm() {
           </Alert>
         )}
 
-        {error && (
-          <Alert variant="destructive" className="mb-6 max-w-md mx-auto">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Erreur de connexion</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
         <Card className="shadow-2xl bg-card/80 backdrop-blur-sm border-white/20">
           <form onSubmit={handleSubmit}>
             <CardContent className="p-8 space-y-6">
-              <div className="space-y-4">
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Erreur de connexion</AlertTitle>
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+              
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full"
+                  className="w-full flex items-center justify-center gap-2"
                   onClick={handleGoogleSignIn}
                   disabled={loading}
                 >
-                  <FaGoogle className="mr-2 h-4 w-4" /> Continuer avec Google
+                  <FaGoogle className="h-4 w-4 mr-2" />
+                  Continuer avec Google
                 </Button>
 
                 <div className="relative">
@@ -169,7 +169,6 @@ export default function LoginForm() {
                     </span>
                   </div>
                 </div>
-              </div>
 
               <div className="space-y-4">
                 <div className="space-y-2">
