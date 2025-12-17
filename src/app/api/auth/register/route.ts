@@ -2,10 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient, Role, ValidationStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { ablyTrigger } from "@/lib/ably/triggers";
-import { AblyEvents } from "@/lib/ably/events";
-
-const prisma = new PrismaClient();
+import prisma from "@/lib/prisma"; // Utiliser l'instance Prisma configurée
 
 export async function POST(req: NextRequest) {
   try {
@@ -48,6 +45,8 @@ export async function POST(req: NextRequest) {
 
     console.log(`[REGISTER API] Création utilisateur: ${name} (${userEmail}) avec Rôle: ${role}, Statut: ${validationStatus}`);
 
+    // La création de l'utilisateur va maintenant déclencher automatiquement la notification
+    // via le middleware Prisma si c'est un élève en attente.
     const user = await prisma.user.create({
       data: {
         name,
@@ -66,23 +65,6 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Si un nouvel élève s'inscrit, notifier le professeur
-    if (user.role === Role.ELEVE && user.validationStatus === ValidationStatus.PENDING) {
-        console.log(`[REGISTER API] Nouvel élève en attente: ${user.id}. Diffusion de l'événement.`);
-        try {
-            await ablyTrigger('classroom-connector:pending-students', AblyEvents.STUDENT_PENDING, {
-                id: user.id,
-                name: user.name,
-                email: user.email,
-                createdAt: new Date().toISOString()
-            });
-            console.log(`[REGISTER API] Événement Ably diffusé avec succès.`);
-        } catch (ablyError) {
-            console.error('[REGISTER API] Erreur lors de la diffusion de l\'événement Ably:', ablyError);
-        }
-    }
-
-
     return NextResponse.json({ user }, { status: 201 });
 
   } catch (error) {
@@ -91,7 +73,5 @@ export async function POST(req: NextRequest) {
       { error: "Erreur serveur lors de l'inscription" },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

@@ -6,8 +6,6 @@ import Credentials from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { Role, ValidationStatus } from "@prisma/client";
-import { ablyTrigger } from "./ably/triggers";
-import { AblyEvents } from "./ably/events";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
@@ -61,31 +59,25 @@ export const authOptions: NextAuthOptions = {
                 image: existingUser.image,
                 role: existingUser.role,
                 validationStatus: existingUser.validationStatus,
+                classeId: existingUser.classeId,
             };
         }
 
         // 2. Si c'est un nouvel utilisateur, déterminer son rôle
-        const ownerEmail = process.env.OWNER_EMAIL?.toLowerCase().trim();
-        if (ownerEmail && userEmail === ownerEmail) {
-            console.log(`[AUTH PROFILE] -> Nouvel utilisateur est propriétaire. Création en tant que PROFESSEUR.`);
-            return {
-                id: profile.sub,
-                name: profile.name,
-                email: profile.email,
-                image: profile.picture,
-                role: "PROFESSEUR" as Role,
-                validationStatus: "VALIDATED" as ValidationStatus,
-          };
-        }
+        const teacherCount = await prisma.user.count({ where: { role: 'PROFESSEUR' } });
+        const isFirstUser = teacherCount === 0;
+
+        const role = isFirstUser ? Role.PROFESSEUR : Role.ELEVE;
+        const validationStatus = isFirstUser ? ValidationStatus.VALIDATED : ValidationStatus.PENDING;
         
-        console.log(`[AUTH PROFILE] -> Nouvel utilisateur (non propriétaire). Création en tant qu'ELEVE PENDING.`);
+        console.log(`[AUTH PROFILE] -> Nouvel utilisateur. Création avec Rôle: ${role} et Statut: ${validationStatus}`);
         return {
           id: profile.sub,
           name: profile.name,
           email: profile.email,
           image: profile.picture,
-          role: "ELEVE" as Role,
-          validationStatus: "PENDING" as ValidationStatus,
+          role: role,
+          validationStatus: validationStatus,
         };
       },
     }),
@@ -127,25 +119,8 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
-  events: {
-    async createUser(message) {
-        const user = message.user;
-        if (user.role === Role.ELEVE && user.validationStatus === ValidationStatus.PENDING) {
-            console.log(`[CREATE USER EVENT] Nouvel élève créé via provider: ${user.id}. Diffusion de l'événement.`);
-            try {
-                 await ablyTrigger('classroom-connector:pending-students', AblyEvents.STUDENT_PENDING, {
-                    id: user.id,
-                    name: user.name,
-                    email: user.email,
-                    createdAt: new Date().toISOString()
-                });
-                console.log(`[CREATE USER EVENT] Événement Ably diffusé avec succès.`);
-            } catch (ablyError) {
-                 console.error('[CREATE USER EVENT] Erreur lors de la diffusion de l\'événement Ably:', ablyError);
-            }
-        }
-    }
-  },
+  // Le bloc `events` est maintenant géré par le middleware Prisma, on peut le supprimer
+  // pour s'assurer qu'il n'y a pas d'import serveur ici.
 
   debug: process.env.NODE_ENV === "development",
 };
