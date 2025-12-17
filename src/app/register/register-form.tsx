@@ -19,7 +19,7 @@ export default function RegisterForm() {
   const { status } = useSession();
   const searchParams = useSearchParams();
   const messageParam = searchParams?.get('message');
-  const callbackUrl = searchParams?.get('callbackUrl') || '/';
+  const callbackUrl = searchParams?.get('callbackUrl') || '/login?message=registration_success';
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -36,51 +36,50 @@ export default function RegisterForm() {
 
   useEffect(() => {
     if (messageParam === 'account_not_found') {
-      setContextMessage("Il semble que vous n'ayez pas encore de compte. Veuillez vous inscrire ci-dessous.");
+      setContextMessage("Il semble que vous n'ayez pas encore de compte. Veuillez vous inscrire pour continuer.");
     }
   }, [messageParam]);
-
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    console.log(`🔵 [REGISTER FORM] - Tentative d'inscription pour: ${email}`);
 
+    // Pré-validation
     if (!name || !email || !password) {
       setError('Veuillez remplir tous les champs.');
       setLoading(false);
       return;
     }
-
-    try {
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        const errorMessage = data.error || 'Une erreur est survenue lors de l’inscription.';
-        setError(errorMessage);
-        console.error('❌ [REGISTER FORM] - Échec inscription:', errorMessage);
-        setLoading(false);
-        return;
-      }
-
-      console.log('✅ [REGISTER FORM] - Inscription réussie. Redirection vers /login.');
-      router.push('/login?message=registration_success');
-    } catch (err: any) {
-      const msg = err.message || 'Erreur inattendue.';
-      setError(msg);
-      console.error('❌ [REGISTER FORM] - Exception:', msg);
-    } finally {
+    if (password.length < 6) {
+      setError("Le mot de passe doit contenir au moins 6 caractères.");
       setLoading(false);
+      return;
     }
+
+    // ✅ On utilise signIn avec le provider 'credentials' et les données du formulaire.
+    // L'adapter Prisma et l'event `createUser` se chargeront de la création.
+    const result = await signIn('credentials', {
+      redirect: false, // Important: on gère la redirection nous-mêmes
+      name,
+      email: email.toLowerCase().trim(),
+      password,
+      callbackUrl, // Redirige vers la page de login après succès
+    });
+
+    if (result?.error) {
+      // ✅ Gère l'erreur si l'utilisateur existe déjà
+      setError("Un compte avec cet email existe déjà. Veuillez vous connecter.");
+    } else if (result?.ok) {
+      // Succès, la redirection est gérée par NextAuth.js
+      router.push(result.url || callbackUrl);
+    }
+    
+    setLoading(false);
   };
   
   const handleGoogleSignIn = () => {
+    setLoading(true);
     signIn('google', { callbackUrl });
   };
 
@@ -146,7 +145,7 @@ export default function RegisterForm() {
                     onClick={handleGoogleSignIn}
                     disabled={loading}
                 >
-                    <FaGoogle className="h-5 w-5" style={{ color: 'transparent', background: 'linear-gradient(-135deg, #4285F4 25%, #34A853 25%, #34A853 50%, #FBBC05 50%, #FBBC05 75%, #EA4335 75%)', backgroundClip: 'text', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }} />
+                    <FaGoogle className="h-4 w-4 mr-2" />
                     Continuer avec Google
                 </Button>
 
@@ -155,7 +154,7 @@ export default function RegisterForm() {
                     <div className="w-full border-t border-muted" />
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">
+                    <span className="bg-card px-2 text-muted-foreground">
                       ou
                     </span>
                   </div>
@@ -163,13 +162,13 @@ export default function RegisterForm() {
 
 
               <div className="space-y-2">
-                <Label htmlFor="name" className="text-sm font-medium">Nom complet</Label>
+                <Label htmlFor="name">Nom complet</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                   <Input
                     id="name"
                     type="text"
-                    className="pl-10 h-12 bg-muted/50 border-0 focus-visible:ring-primary text-base"
+                    className="pl-10"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     disabled={loading}
@@ -179,13 +178,13 @@ export default function RegisterForm() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium">Email</Label>
+                <Label htmlFor="email">Email</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                   <Input
                     id="email"
                     type="email"
-                    className="pl-10 h-12 bg-muted/50 border-0 focus-visible:ring-primary text-base"
+                    className="pl-10"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     disabled={loading}
@@ -195,13 +194,13 @@ export default function RegisterForm() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-sm font-medium">Mot de passe</Label>
+                <Label htmlFor="password">Mot de passe</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                   <Input
                     id="password"
                     type="password"
-                    className="pl-10 h-12 bg-muted/50 border-0 focus-visible:ring-primary text-base"
+                    className="pl-10"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={loading}
@@ -213,17 +212,10 @@ export default function RegisterForm() {
             <CardFooter className="bg-background/20 p-6 flex-col gap-4">
               <Button
                 type="submit"
-                className="w-full font-semibold text-lg py-7 shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow"
+                className="w-full font-semibold text-lg py-7"
                 disabled={loading || !name || !email || !password}
               >
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Création du compte...
-                  </>
-                ) : (
-                  "S'inscrire"
-                )}
+                {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : "S'inscrire"}
               </Button>
               <div className="text-center w-full">
                 <Link href="/login" className="text-sm text-primary hover:underline">
