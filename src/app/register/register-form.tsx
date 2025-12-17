@@ -19,8 +19,7 @@ export default function RegisterForm() {
   const { status } = useSession();
   const searchParams = useSearchParams();
   const messageParam = searchParams?.get('message');
-  const callbackUrl = searchParams?.get('callbackUrl') || '/login?message=registration_success';
-
+  
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -45,7 +44,6 @@ export default function RegisterForm() {
     setLoading(true);
     setError('');
 
-    // Pré-validation
     if (!name || !email || !password) {
       setError('Veuillez remplir tous les champs.');
       setLoading(false);
@@ -57,32 +55,36 @@ export default function RegisterForm() {
       return;
     }
 
-    // ✅ On utilise signIn avec le provider 'credentials' et les données du formulaire.
-    // L'adapter Prisma et l'event `createUser` se chargeront de la création.
-    const result = await signIn('credentials', {
-      redirect: false, // Important: on gère la redirection nous-mêmes
-      name,
-      email: email.toLowerCase().trim(),
-      password,
-      callbackUrl, // Redirige vers la page de login après succès
-    });
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          email: email.toLowerCase().trim(),
+          password,
+        }),
+      });
 
-    if (result?.error) {
-      // ✅ Gère l'erreur si l'utilisateur existe déjà
-      setError("Un compte avec cet email existe déjà. Veuillez vous connecter.");
-    } else if (result?.ok) {
-      // Succès, la redirection est gérée par NextAuth.js
-      router.push(result.url || callbackUrl);
+      if (res.ok) {
+        // Rediriger vers la page de login avec un message de succès
+        router.push('/login?message=registration_success');
+      } else {
+        const data = await res.json();
+        setError(data.error || "Une erreur est survenue lors de l'inscription.");
+      }
+    } catch (err) {
+      setError("Une erreur réseau est survenue.");
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
   
   const handleGoogleSignIn = () => {
     setLoading(true);
-    signIn('google', { callbackUrl });
+    // Redirige vers le dashboard après connexion/inscription
+    signIn('google', { callbackUrl: '/teacher/dashboard' });
   };
-
 
   if (status === "loading" || status === "authenticated") {
     return (
@@ -159,7 +161,6 @@ export default function RegisterForm() {
                     </span>
                   </div>
                 </div>
-
 
               <div className="space-y-2">
                 <Label htmlFor="name">Nom complet</Label>

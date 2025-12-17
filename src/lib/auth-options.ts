@@ -8,7 +8,6 @@ import bcrypt from "bcryptjs";
 import { Role, ValidationStatus } from "@prisma/client";
 
 export const authOptions: NextAuthOptions = {
-  // ✅ ADAPTATEUR CENTRALISÉ : Gère la création/liaison des utilisateurs
   adapter: PrismaAdapter(prisma),
 
   providers: [
@@ -19,7 +18,6 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: "credentials",
       credentials: {
-        name: { label: "Name", type: "text" }, // Pour l'inscription
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
@@ -31,16 +29,9 @@ export const authOptions: NextAuthOptions = {
         const user = await prisma.user.findUnique({
           where: { email: credentials.email.toLowerCase() },
         });
-
-        // Si l'utilisateur n'existe pas, c'est le `signIn` de la page d'inscription.
-        // On retourne null, mais l'événement `createUser` ci-dessous sera déclenché.
-        if (!user) {
-          return null;
-        }
         
-        // Si l'utilisateur existe mais n'a pas de mot de passe (inscrit via Google)
-        if (!user.password) {
-           // On ne l'autorise pas à se connecter avec des identifiants
+        // Si l'utilisateur n'existe pas ou n'a pas de mot de passe (inscrit via Google), refuser la connexion.
+        if (!user || !user.password) {
            return null;
         }
 
@@ -50,7 +41,8 @@ export const authOptions: NextAuthOptions = {
         );
 
         if (isPasswordValid) {
-          return user; // Retourne l'utilisateur complet si le mot de passe est valide
+          // Retourne l'utilisateur complet si le mot de passe est valide
+          return user; 
         }
 
         return null;
@@ -64,24 +56,23 @@ export const authOptions: NextAuthOptions = {
   
   pages: {
     signIn: "/login",
-    error: "/login", // Les erreurs (ex: identifiants incorrects) redirigent ici
+    error: "/login", 
   },
   
-  // ✅ LOGIQUE CENTRALISÉE : Les `events` et `callbacks` sont le cœur du système.
   events: {
-    // Déclenché à chaque fois qu'un nouvel utilisateur est créé (formulaire ou Google)
+    // Déclenché à chaque fois qu'un nouvel utilisateur est créé via un fournisseur OAuth (Google)
     createUser: async ({ user }) => {
-      console.log('🎉 [EVENT] - Nouvel utilisateur créé, ID:', user.id);
+      console.log('🎉 [EVENT] - Nouvel utilisateur OAuth créé, ID:', user.id);
 
       const existingTeacher = await prisma.user.findFirst({
-        where: { role: Role.PROFESSEUR, id: { not: user.id } },
+        where: { role: Role.PROFESSEUR },
       });
 
       let role: Role = Role.ELEVE;
       let validationStatus: ValidationStatus = ValidationStatus.PENDING;
 
       if (!existingTeacher) {
-        role = Role.PROFESSEUR;
+        role = Role.PROFESSESEUR;
         validationStatus = ValidationStatus.VALIDATED;
         console.log(`👑 [EVENT] - Promotion au rôle PROFESSEUR pour ${user.email}`);
       } else {
@@ -96,11 +87,11 @@ export const authOptions: NextAuthOptions = {
   },
 
   callbacks: {
-    // Après autorisation, enrichit le token JWT
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
-        // Au premier login, `user` est disponible
         token.id = user.id;
+        // Pour les nouveaux utilisateurs (après la création), `user` est présent.
+        // On récupère les données de la DB pour être sûr.
         const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
         if (dbUser) {
           token.role = dbUser.role;
@@ -111,7 +102,6 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
 
-    // Crée la session à partir du token JWT
     async session({ session, token }) {
       if (token) {
         session.user.id = token.id as string;
@@ -122,13 +112,11 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
 
-    // ✅ GESTION FINE DES REDIRECTIONS
     async redirect({ url, baseUrl }) {
-      // Si la connexion vient de la page d'inscription, on redirige vers le login avec un message.
-      if (new URL(url).pathname === '/register') {
-        return `${baseUrl}/login?message=registration_success`;
-      }
-      return url.startsWith(baseUrl) ? url : baseUrl;
+      // Pour la connexion normale, rediriger vers la page demandée ou le dashboard.
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      if (new URL(url).origin === baseUrl) return url;
+      return baseUrl;
     },
   },
 
