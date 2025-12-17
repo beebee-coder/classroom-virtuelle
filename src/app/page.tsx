@@ -3,9 +3,8 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight, School } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ThemeToggle } from '@/components/ThemeToggle';
 
-// En-tête statique spécifique pour la page d'accueil
+// En-tête 100% statique, sans aucune dépendance client (même pas ThemeToggle)
 function StaticHeader() {
   return (
     <header className="bg-card/80 backdrop-blur-sm border-b shadow-sm sticky top-0 z-50">
@@ -19,7 +18,6 @@ function StaticHeader() {
           <span>Classroom Connector</span>
         </Link>
         <nav className="flex items-center gap-2">
-          <ThemeToggle />
           <Button asChild>
             <Link href="/login">Connexion</Link>
           </Button>
@@ -29,7 +27,7 @@ function StaticHeader() {
   );
 }
 
-// La page d'accueil est maintenant un composant serveur pur
+// La page d'accueil est un composant serveur pur
 export default function HomePage() {
   return (
     <div id="home-container" className="flex flex-col min-h-screen overflow-hidden">

@@ -5,7 +5,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { Providers } from '@/components/Providers';
 import { cn } from '@/lib/utils';
-import { Header } from '@/components/Header'; // Import du Header dynamique
+// Le Header est retiré d'ici pour être géré par chaque page ou layout spécifique
 
 const inter = Inter({
   subsets: ['latin'],
@@ -31,7 +31,7 @@ export default function RootLayout({
         )}
       >
         <Providers>
-          {/* Le Header est retiré d'ici pour être géré par chaque page ou layout spécifique */}
+          {/* Le Header a été retiré. Les pages individuelles le géreront. */}
           {children}
           <Toaster />
         </Providers>
