@@ -4,34 +4,11 @@ import { ArrowRight, School } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 
-// En-tête 100% statique, sans aucune dépendance client (même pas ThemeToggle)
-function StaticHeader() {
-  return (
-    <header className="bg-card/80 backdrop-blur-sm border-b shadow-sm sticky top-0 z-50">
-      <div className="flex items-center justify-between h-16 px-4 sm:px-6">
-        <Link
-          href="/"
-          aria-label="Accueil"
-          className="flex items-center gap-2 font-bold text-lg text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
-        >
-          <School className="h-6 w-6" aria-hidden="true" />
-          <span>Classroom Connector</span>
-        </Link>
-        <nav className="flex items-center gap-2">
-          <Button asChild>
-            <Link href="/login">Connexion</Link>
-          </Button>
-        </nav>
-      </div>
-    </header>
-  );
-}
-
-// La page d'accueil est un composant serveur pur
+// Ce composant est maintenant pur et statique, sans aucune dépendance à des composants clients complexes.
 export default function HomePage() {
   return (
     <div id="home-container" className="flex flex-col min-h-screen overflow-hidden">
-      <StaticHeader />
+      {/* Le Header dynamique est géré par le layout des pages internes, pas par la page d'accueil */}
       
       {/* Fond d'image */}
       <div className="fixed inset-0 overflow-hidden -z-10">

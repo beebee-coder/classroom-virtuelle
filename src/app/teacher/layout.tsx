@@ -3,12 +3,10 @@ import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import prisma from '@/lib/prisma';
-import { Button } from '@/components/ui/button';
-import Link from 'next/link';
-import { Header } from '@/components/Header';
 import Menu from '@/components/Menu';
 import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Role } from '@prisma/client';
+import { Header } from '@/components/Header'; // Le Header est maintenant ici
 
 export const dynamic = 'force-dynamic';
 
@@ -43,7 +41,8 @@ export default async function TeacherLayout({
     return (
       <SidebarProvider>
         <div className="flex flex-col min-h-screen w-full">
-          <Header user={session.user}>
+          {/* Le Header est maintenant dans le layout spécifique à l'enseignant */}
+          <Header>
             <div className="flex items-center gap-4">
               <SidebarTrigger className="h-9 w-9" />
               <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
@@ -98,26 +97,12 @@ export default async function TeacherLayout({
     );
   } catch (error) {
     console.error("❌ [LAYOUT] Erreur dans le layout enseignant:", error);
+    // Affichage d'une page d'erreur simple si le layout ne peut pas être rendu
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <div className="text-center p-8 border rounded-lg bg-card shadow-sm max-w-md w-full">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-destructive/10 flex items-center justify-center">
-            <span className="text-2xl">⚠️</span>
-          </div>
-          <h1 className="text-xl font-bold text-card-foreground mb-3">
-            Erreur de chargement
-          </h1>
-          <p className="text-muted-foreground mb-6 text-sm">
-            Une erreur est survenue lors du chargement de l'interface enseignant.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button asChild variant="default">
-              <Link href="/teacher/dashboard">Réessayer</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/">Accueil</Link>
-            </Button>
-          </div>
+        <div className="text-center">
+          <h1 className="text-xl font-bold text-destructive">Erreur de chargement</h1>
+          <p className="text-muted-foreground">Impossible de charger l'interface enseignant.</p>
         </div>
       </div>
     );

@@ -13,9 +13,9 @@ interface HeaderProps {
   children?: React.ReactNode;
 }
 
+// Ce composant est maintenant un composant client pur
 export function Header({ children }: HeaderProps) {
   const { data: session, status } = useSession();
-  
   const user = session?.user;
 
   return (

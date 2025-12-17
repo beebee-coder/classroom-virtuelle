@@ -5,7 +5,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { Providers } from '@/components/Providers';
 import { cn } from '@/lib/utils';
-// Le Header est retiré d'ici pour être géré par chaque page ou layout spécifique
+// Le Header et le Footer sont retirés d'ici pour être gérés par Providers.tsx
 
 const inter = Inter({
   subsets: ['latin'],
@@ -31,7 +31,7 @@ export default function RootLayout({
         )}
       >
         <Providers>
-          {/* Le Header a été retiré. Les pages individuelles le géreront. */}
+          {/* Le layout principal délègue désormais toute la structure de la page, y compris Header et Footer, au composant client Providers. */}
           {children}
           <Toaster />
         </Providers>
