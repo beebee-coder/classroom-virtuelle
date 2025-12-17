@@ -30,17 +30,25 @@ interface SessionData {
   activeQuiz: Quiz | null;
 }
 
+// ✅ CORRECTION : Composant client pour la gestion des erreurs
 function SessionErrorFallback({ sessionId, error }: { sessionId: string; error: string }) {
+  'use client';
+  
+  const handleReload = () => window.location.reload();
+  
+  const handleGoToDashboard = () => {
+    // Essayer de deviner le rôle basé sur une information stockée localement (non critique)
+    // ou simplement rediriger vers la page d'accueil si non disponible.
+    const lastRole = typeof window !== 'undefined' ? localStorage.getItem('userRole') : null;
+    const dashboardUrl = lastRole === 'PROFESSEUR' ? '/teacher/dashboard' : '/student/dashboard';
+    window.location.href = dashboardUrl || '/';
+  };
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4 text-center">
       <div className="bg-card rounded-xl p-6 max-w-md w-full shadow-lg border">
         <div className="w-12 h-12 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-4">
-          <span 
-            className="text-destructive text-xl font-bold" 
-            aria-hidden="true"
-          >
-            !
-          </span>
+          <span className="text-destructive text-xl font-bold" aria-hidden="true">!</span>
         </div>
         <h1 className="text-xl font-semibold text-foreground mb-2">
           Impossible de rejoindre la session
@@ -54,27 +62,10 @@ function SessionErrorFallback({ sessionId, error }: { sessionId: string; error: 
           {error}
         </p>
         <div className="flex flex-col sm:flex-row gap-2 justify-center">
-          <Button 
-            onClick={() => window.location.reload()}
-            className="w-full sm:w-auto"
-            aria-label="Réessayer de charger la session"
-          >
+          <Button onClick={handleReload} className="w-full sm:w-auto" aria-label="Réessayer de charger la session">
             Réessayer
           </Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              const role = typeof window !== 'undefined' 
-                ? localStorage.getItem('userRole') 
-                : null;
-              const dashboardUrl = role === 'PROFESSEUR' 
-                ? '/teacher/dashboard' 
-                : '/student/dashboard';
-              window.location.href = dashboardUrl;
-            }}
-            className="w-full sm:w-auto"
-            aria-label="Retourner à mon tableau de bord"
-          >
+          <Button variant="outline" onClick={handleGoToDashboard} className="w-full sm:w-auto" aria-label="Retourner à mon tableau de bord">
             Tableau de bord
           </Button>
         </div>
@@ -83,6 +74,7 @@ function SessionErrorFallback({ sessionId, error }: { sessionId: string; error: 
   );
 }
 
+// ✅ CORRECTION : Pré-chargement léger
 async function fetchSessionPreview(sessionId: string) {
   try {
     const session = await prisma.coursSession.findUnique({
@@ -99,6 +91,7 @@ async function fetchSessionPreview(sessionId: string) {
   }
 }
 
+// ✅ CORRECTION : Composant de chargement enrichi
 function EnrichedSessionLoading({ preview }: { preview: Awaited<ReturnType<typeof fetchSessionPreview>> }) {
   return (
     <div className="h-screen flex flex-col items-center justify-center bg-background p-4">
@@ -124,73 +117,51 @@ function EnrichedSessionLoading({ preview }: { preview: Awaited<ReturnType<typeo
   );
 }
 
-async function fetchSessionData(sessionId: string): Promise<{ data: SessionData | null; error: string | null }> {
-    console.log(`[SESSION PAGE] 🚀 Démarrage fetchSessionData pour la session: ${sessionId}`);
-    
-    const timeoutPromise = new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout lors de la récupération des données')), 10000)
-    );
 
+// ✅ CORRECTION : Fonction de récupération de données refactorisée et sécurisée
+async function fetchSessionData(sessionId: string, userId: string): Promise<{ data: SessionData | null; error: string | null }> {
+    console.log(`[SESSION PAGE] 🚀 Démarrage fetchSessionData pour: ${sessionId}, utilisateur: ${userId}`);
+    
     try {
-        const sessionPromise = prisma.coursSession.findUnique({
+        const session = await prisma.coursSession.findUnique({
             where: { id: sessionId },
             include: {
                 professeur: true,
-                participants: true,
+                participants: { select: { id: true } }, // On ne récupère que les ID pour la vérification
                 classe: {
                     include: {
                         eleves: {
-                            include: {
-                                etat: {
-                                    include: {
-                                        metier: true
-                                    }
-                                }
-                            }
+                            include: { etat: { include: { metier: true } } }
                         }
                     }
                 },
                 activeQuiz: {
-                    include: {
-                        questions: {
-                            include: {
-                                options: true,
-                            }
-                        }
-                    }
+                    include: { questions: { include: { options: true } } }
                 }
             },
         });
 
-        const session = await Promise.race([sessionPromise, timeoutPromise]);
-
         if (!session) {
-            console.warn(`[SESSION PAGE] ⚠️ Session ${sessionId} non trouvée`);
             return { data: null, error: 'Session non trouvée' };
         }
-        
-        const userSession = await getServerSession(authOptions);
-        const currentUserId = userSession?.user?.id;
-        
-        if (!currentUserId) {
-            return { data: null, error: 'Utilisateur non authentifié' };
-        }
 
-        const participantIds = session.participants.map((p: User) => p.id);
-        const isParticipant = participantIds.includes(currentUserId) || 
-                            session.professeurId === currentUserId;
-        
+        // ✅ CORRECTION : Vérification des autorisations AVANT de tout charger
+        const isParticipant = session.participants.some(p => p.id === userId) || session.professeurId === userId;
         if (!isParticipant) {
-            console.warn(`[SESSION PAGE] 🚫 Accès refusé pour l'utilisateur ${currentUserId} à la session ${sessionId}`);
             return { data: null, error: 'Accès non autorisé à cette session' };
         }
-        
+
+        // Si l'utilisateur est autorisé, on récupère les données complètes des participants
+        const fullParticipants = await prisma.user.findMany({
+            where: {
+                id: { in: session.participants.map(p => p.id) }
+            }
+        });
+
         const teacherDocuments = await prisma.sharedDocument.findMany({
             where: { userId: session.professeurId },
             orderBy: { createdAt: 'desc' },
         });
-
-        const students = session.participants.filter((p: User) => p.role === Role.ELEVE);
 
         const serializableDocumentHistory: DocumentInHistory[] = teacherDocuments.map(doc => ({
             ...doc,
@@ -202,8 +173,8 @@ async function fetchSessionData(sessionId: string): Promise<{ data: SessionData 
         const responsePayload: SessionData = {
             id: session.id,
             teacher: session.professeur as User,
-            students: students as User[],
-            participants: session.participants as User[],
+            students: fullParticipants.filter((p: User) => p.role === Role.ELEVE) as User[],
+            participants: fullParticipants as User[],
             classroom: session.classe ? {
                 ...session.classe,
                 eleves: session.classe.eleves as any[],
@@ -220,34 +191,29 @@ async function fetchSessionData(sessionId: string): Promise<{ data: SessionData 
             } : null,
         };
 
-        console.log(`[SESSION PAGE] ✅ Données de session récupérées avec succès pour: ${sessionId}`);
-        console.log(`[SESSION PAGE] 📊 Détails: ${responsePayload.students.length} élèves, ${responsePayload.participants.length} participants, ${responsePayload.documentHistory.length} documents, Quiz actif: ${!!responsePayload.activeQuiz}`);
+        console.log(`[SESSION PAGE] ✅ Données récupérées pour: ${sessionId}`);
         return { data: responsePayload, error: null };
     } catch (e: any) {
         console.error("❌ [SESSION PAGE] Erreur critique dans fetchSessionData:", e);
-        
-        let errorMessage = 'Échec de la récupération des données';
-        if (e.message.includes('Timeout')) {
-            errorMessage = 'La récupération des données a pris trop de temps';
-        } else if (e.message.includes('prisma') || e.message.includes('database')) {
-            errorMessage = 'Erreur de base de données';
-        }
-        
-        return { data: null, error: errorMessage };
+        return { data: null, error: 'Échec de la récupération des données de la session' };
     }
 }
 
+// ✅ CORRECTION : Le composant serveur qui gère le flux de données
 async function SessionContent({ sessionId }: { sessionId: string }) {
-    const { data: sessionData, error } = await fetchSessionData(sessionId);
-
-    if (error || !sessionData) {
-        throw new Error(error || "Données de session non trouvées");
-    }
-
     const userSession = await getServerSession(authOptions);
     
     if (!userSession?.user) {
+        // Cette redirection est une sécurité, la page principale devrait déjà l'avoir gérée
         redirect(`/login?callbackUrl=/session/${sessionId}`);
+    }
+
+    const { data: sessionData, error } = await fetchSessionData(sessionId, userSession.user.id);
+
+    if (error || !sessionData) {
+        // On lance une erreur pour qu'elle soit attrapée par le ErrorBoundary de Next.js
+        // qui affichera le composant d'erreur de la page.
+        throw new Error(error || "Données de session non trouvées");
     }
 
     return (
@@ -264,26 +230,26 @@ async function SessionContent({ sessionId }: { sessionId: string }) {
     );
 }
 
+// ✅ CORRECTION : La page principale gère les états de chargement, d'erreur et de succès
 export default async function SessionPage({ params }: { params: { id: string } }) {
   console.log(`[SESSION PAGE] 📄 Chargement de la page pour la session: ${params.id}`);
   
   const userSession = await getServerSession(authOptions);
 
   if (!userSession?.user) {
-    console.log(`[SESSION PAGE] 🚫 Utilisateur non authentifié. Redirection vers /login.`);
     redirect(`/login?callbackUrl=/session/${params.id}`);
   }
 
   if (!params.id || typeof params.id !== 'string') {
-    console.error(`[SESSION PAGE] ❌ ID de session invalide: ${params.id}`);
     return <SessionErrorFallback sessionId="invalid" error="ID de session invalide" />;
   }
 
-  const preview = await fetchSessionPreview(params.id);
-
+  // Essayer de charger les données et gérer les erreurs
   try {
+    const preview = await fetchSessionPreview(params.id);
+    
+    // Le Suspense gère l'état de chargement en attendant que SessionContent soit prêt
     return (
-        // 🔧 Ajout de overflow-hidden pour garantir le comportement plein écran
         <div className="h-screen flex flex-col overflow-hidden">
             <Suspense fallback={<EnrichedSessionLoading preview={preview} />}>
                 <SessionContent sessionId={params.id} />
@@ -291,7 +257,8 @@ export default async function SessionPage({ params }: { params: { id: string } }
         </div>
     );
   } catch (error: any) {
-    console.error(`[SESSION PAGE] ❌ Erreur générale dans SessionPage:`, error);
+    console.error(`[SESSION PAGE] ❌ Erreur générale interceptée pour la session ${params.id}:`, error);
+    // Si une erreur est lancée par SessionContent, on l'affiche ici
     return <SessionErrorFallback sessionId={params.id} error={error.message || "Erreur inattendue"} />;
   }
 }
@@ -307,9 +274,7 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
     });
 
     if (!session) {
-      return {
-        title: 'Session non trouvée',
-      };
+      return { title: 'Session non trouvée' };
     }
 
     return {
@@ -317,8 +282,6 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
       description: `Session de cours avec ${session.professeur.name}`,
     };
   } catch (error) {
-    return {
-      title: 'Session de cours',
-    };
+    return { title: 'Session de cours' };
   }
 }
