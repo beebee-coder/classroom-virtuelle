@@ -1,9 +1,9 @@
-// src/app/page.tsx - VERSION CORRIGÉE
+// src/app/page.tsx
 import { Button } from '@/components/ui/button';
 import { ArrowRight, School } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ThemeToggle } from '@/components/ThemeToggle'; // Assurez-vous que ce composant est client
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 // En-tête statique spécifique pour la page d'accueil
 function StaticHeader() {

@@ -31,10 +31,7 @@ export default function RootLayout({
         )}
       >
         <Providers>
-          {/* Le Header dynamique est maintenant ici, mais il ne sera pas sur la page d'accueil 
-              si celle-ci n'est pas encapsulée par ce layout de manière standard. 
-              En pratique, la page d'accueil aura son propre header statique.
-          */}
+          {/* Le Header est retiré d'ici pour être géré par chaque page ou layout spécifique */}
           {children}
           <Toaster />
         </Providers>
