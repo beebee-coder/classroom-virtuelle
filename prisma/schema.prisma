@@ -1,16 +1,224 @@
-// prisma/schema.prisma
-
-datasource db {
-  provider     = "postgresql"
-  url          = env("DATABASE_URL")
-  relationMode = "prisma"
-}
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
   provider        = "prisma-client-js"
   binaryTargets   = ["native", "debian-openssl-1.1.x"]
-  previewFeatures = ["relationJoins"]
+  previewFeatures = ["prismaSchemaFolder"]
 }
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String              @id @default(cuid())
+  name               String?
+  email              String?             @unique
+  emailVerified      DateTime?
+  image              String?
+  password           String?
+  role               Role                @default(ELEVE)
+  points             Int?                @default(0)
+  ambition           String?
+  parentPassword     String?
+  validationStatus   ValidationStatus    @default(PENDING)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  sessions           CoursSession[]      @relation("SessionParticipants")
+  announcements      Announcement[]
+  messages           Message[]
+  reactions          Reaction[]
+  studentProgress    StudentProgress[]
+  sharedDocuments    SharedDocument[]
+  etat               EtatEleve?
+  classeId           String?
+  // Relation pour l'élève appartenant à une classe
+  classe             Classroom?          @relation("StudentsInClassroom", fields: [classeId], references: [id])
+  // Relation pour le professeur gérant plusieurs classes
+  classesEnseignees  Classroom[]         @relation("TeacherToClassroom")
+  quizResponses      QuizResponse[]
+  quizzesCrees       Quiz[]              @relation("QuizCreator")
+  quizResults        QuizResult[]
+}
+
+model Classroom {
+  id           String         @id @default(cuid())
+  nom          String
+  subject      TaskCategory?
+  professeurId String
+  // Relation pour le professeur de la classe
+  professeur   User           @relation("TeacherToClassroom", fields: [professeurId], references: [id], onDelete: Cascade)
+  // Relation pour les élèves dans la classe
+  eleves       User[]         @relation("StudentsInClassroom")
+  sessions     CoursSession[]
+  annonces     Announcement[]
+}
+
+model CoursSession {
+  id              String           @id @default(cuid())
+  professeurId    String
+  classroomId     String
+  startTime       DateTime         @default(now())
+  endTime         DateTime?
+  activeQuizId    String?          @unique
+  professeur      User             @relation(fields: [professeurId], references: [id])
+  classe          Classroom        @relation(fields: [classroomId], references: [id])
+  participants    User[]           @relation("SessionParticipants")
+  sharedDocuments SharedDocument[]
+  activeQuiz      Quiz?            @relation(fields: [activeQuizId], references: [id])
+}
+
+model SharedDocument {
+  id             String        @id @default(cuid())
+  name           String
+  url            String
+  createdAt      DateTime      @default(now())
+  userId         String
+  user           User          @relation(fields: [userId], references: [id])
+  coursSessionId String?
+  coursSession   CoursSession? @relation(fields: [coursSessionId], references: [id])
+}
+
+model EtatEleve {
+  id         String  @id @default(cuid())
+  eleveId    String  @unique
+  eleve      User    @relation(fields: [eleveId], references: [id], onDelete: Cascade)
+  isPunished Boolean @default(false)
+  metierId   String?
+  metier     Metier? @relation(fields: [metierId], references: [id], onDelete: SetNull)
+}
+
+model Metier {
+  id          String      @id @default(cuid())
+  nom         String      @unique
+  description String
+  icon        String?
+  theme       Json?
+  etatsEleves EtatEleve[]
+}
+
+model Task {
+  id              String            @id @default(cuid())
+  title           String
+  description     String
+  points          Int
+  type            TaskType          @default(DAILY)
+  category        TaskCategory      @default(HOME)
+  difficulty      TaskDifficulty    @default(EASY)
+  validationType  ValidationType    @default(AUTOMATIC)
+  requiresProof   Boolean           @default(false)
+  isActive        Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  studentProgress StudentProgress[]
+}
+
+model StudentProgress {
+  id             String         @id @default(cuid())
+  studentId      String
+  taskId         String
+  status         ProgressStatus @default(TODO)
+  completionDate DateTime?      @default(now())
+  submissionUrl  String?
+  pointsAwarded  Int?
+  feedback       Json?
+  recipeName     String?
+  student        User           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  task           Task           @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, taskId])
+}
+
+model Announcement {
+  id            String     @id @default(cuid())
+  title         String
+  content       String
+  authorId      String
+  classeId      String?
+  attachmentUrl String?
+  createdAt     DateTime   @default(now())
+  author        User       @relation(fields: [authorId], references: [id])
+  classe        Classroom? @relation(fields: [classeId], references: [id])
+}
+
+model Message {
+  id          String     @id @default(cuid())
+  message     String
+  createdAt   DateTime   @default(now())
+  classroomId String
+  senderId    String
+  classroom   Classroom  @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  sender      User       @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  reactions   Reaction[]
+}
+
+model Reaction {
+  id        String   @id @default(cuid())
+  emoji     String
+  messageId String
+  userId    String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+}
+
+model Quiz {
+  id              String        @id @default(cuid())
+  title           String
+  createdById     String
+  createdAt       DateTime      @default(now())
+  awardedPointsAt DateTime?
+  createdBy       User          @relation("QuizCreator", fields: [createdById], references: [id])
+  questions       QuizQuestion[]
+  responses       QuizResponse[]
+  results         QuizResult[]
+  activeSession   CoursSession?
+}
+
+model QuizQuestion {
+  id              String       @id @default(cuid())
+  text            String
+  quizId          String
+  correctOptionId String
+  quiz            Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  options         QuizOption[]
+}
+
+model QuizOption {
+  id         String       @id @default(cuid())
+  text       String
+  questionId String
+  question   QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+model QuizResponse {
+  id               String   @id @default(cuid())
+  quizId           String
+  userId           String
+  submittedAt      DateTime @default(now())
+  answers          Json
+  answerTimestamps Json
+  quiz             Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([quizId, userId])
+}
+
+model QuizResult {
+  id      String @id @default(cuid())
+  quizId  String
+  userId  String
+  score   Int
+  total   Int
+  quiz    Quiz   @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([quizId, userId])
+}
+
 
 enum Role {
   PROFESSEUR
@@ -21,153 +229,6 @@ enum ValidationStatus {
   PENDING
   VALIDATED
   REJECTED
-}
-
-model User {
-  id               String           @id @default(cuid())
-  name             String?
-  email            String?          @unique
-  emailVerified    DateTime?
-  image            String?
-  password         String?
-  role             Role             @default(ELEVE)
-  validationStatus ValidationStatus @default(PENDING)
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-  parentPassword   String?
-
-  // Relations
-  classeId         String?
-  classe           Classroom?       @relation("StudentsInClassroom", fields: [classeId], references: [id])
-  classesCreees    Classroom[]      @relation("TeacherToClassrooms")
-  sentMessages     Message[]        @relation("sentMessages")
-  reactions        Reaction[]
-  sessionsEnseignees CoursSession[]
-  sessionsParticipees CoursSession[] @relation("Participants")
-  announcements    Announcement[]
-  studentProgress  StudentProgress[]
-  etat             EtatEleve?
-  ambition         String?
-  points           Int?             @default(0)
-
-  // Champs de next-auth
-  accounts Account[]
-  sessions Session[]
-
-  // Ajouté pour le quiz
-  quizResponses    QuizResponse[]
-  quizzesCreated   Quiz[]
-}
-
-
-model Classroom {
-  id           String         @id @default(cuid())
-  nom          String
-  professeurId String
-  professeur   User           @relation("TeacherToClassrooms", fields: [professeurId], references: [id], onDelete: Cascade)
-  eleves       User[]         @relation("StudentsInClassroom")
-  sessions     CoursSession[]
-  annonces     Announcement[]
-  messages     Message[]
-  subject      String?        @default("DEFAULT")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([professeurId])
-}
-
-model CoursSession {
-  id              String           @id @default(cuid())
-  professeurId    String
-  professeur      User             @relation(fields: [professeurId], references: [id])
-  classroomId     String
-  classe          Classroom        @relation(fields: [classroomId], references: [id])
-  participants    User[]           @relation("Participants")
-  startTime       DateTime         @default(now())
-  endTime         DateTime?
-  sharedDocuments SharedDocument[]
-  activeQuizId    String?          @unique
-  activeQuiz      Quiz?            @relation(fields: [activeQuizId], references: [id])
-
-  @@index([professeurId])
-  @@index([classroomId])
-}
-
-model Message {
-  id          String     @id @default(cuid())
-  message     String
-  createdAt   DateTime   @default(now())
-  senderId    String
-  sender      User       @relation("sentMessages", fields: [senderId], references: [id])
-  classroomId String
-  classroom   Classroom  @relation(fields: [classroomId], references: [id])
-  reactions   Reaction[]
-
-  @@index([senderId])
-  @@index([classroomId])
-}
-
-model Reaction {
-  id        String   @id @default(cuid())
-  emoji     String
-  messageId String
-  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  createdAt DateTime @default(now())
-
-  @@index([messageId])
-  @@index([userId])
-}
-
-model Announcement {
-  id            String     @id @default(cuid())
-  title         String
-  content       String
-  createdAt     DateTime   @default(now())
-  authorId      String
-  author        User       @relation(fields: [authorId], references: [id])
-  classeId      String?
-  classe        Classroom? @relation(fields: [classeId], references: [id])
-  attachmentUrl String?
-
-  @@index([authorId])
-  @@index([classeId])
-}
-
-model SharedDocument {
-  id             String       @id @default(cEUC()))
-  name           String
-  url            String
-  createdAt      DateTime     @default(now())
-  userId         String
-  user           User         @relation(fields: [userId], references: [id])
-  coursSessionId String?
-  coursSession   CoursSession? @relation(fields: [coursSessionId], references: [id])
-
-  @@index([userId])
-  @@index([coursSessionId])
-}
-
-model EtatEleve {
-  id         String   @id @default(cuid())
-  eleveId    String   @unique
-  eleve      User     @relation(fields: [eleveId], references: [id], onDelete: Cascade)
-  isPunished Boolean  @default(false)
-  metierId   String?
-  metier     Metier?  @relation(fields: [metierId], references: [id])
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-}
-
-model Metier {
-  id          String      @id @default(cuid())
-  nom         String      @unique
-  description String
-  icon        String?
-  theme       Json?
-  eleves      EtatEleve[]
 }
 
 enum TaskType {
@@ -183,7 +244,7 @@ enum TaskCategory {
   SCIENCE
   ART
   SPORT
-  OTHER
+  SOCIAL
 }
 
 enum TaskDifficulty {
@@ -194,127 +255,13 @@ enum TaskDifficulty {
 
 enum ValidationType {
   AUTOMATIC
-  PROFESSOR
   PARENT
-}
-
-model Task {
-  id              String             @id @default(cuid())
-  title           String
-  description     String
-  points          Int
-  type            TaskType
-  category        TaskCategory
-  difficulty      TaskDifficulty
-  validationType  ValidationType
-  requiresProof   Boolean            @default(false)
-  isActive        Boolean            @default(true)
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
-  studentProgress StudentProgress[]
+  PROFESSOR
 }
 
 enum ProgressStatus {
+  TODO
   PENDING_VALIDATION
   VERIFIED
   REJECTED
-}
-
-model StudentProgress {
-  id             String         @id @default(cuid())
-  studentId      String
-  student        User           @relation(fields: [studentId], references: [id])
-  taskId         String
-  task           Task           @relation(fields: [taskId], references: [id])
-  status         ProgressStatus
-  completionDate DateTime       @default(now())
-  submissionUrl  String?
-  pointsAwarded  Int?
-  feedback       Json?
-  recipeName     String?
-
-  @@unique([studentId, taskId])
-  @@index([studentId])
-  @@index([taskId])
-}
-
-// Pour next-auth
-model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String?
-  access_token      String?
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String?
-  session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
-  @@index([userId])
-}
-
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-}
-
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
-
-  @@unique([identifier, token])
-}
-
-// Modèles pour les Quiz
-model Quiz {
-  id             String         @id @default(cuid())
-  title          String
-  questions      QuizQuestion[]
-  createdById    String
-  createdBy      User           @relation(fields: [createdById], references: [id])
-  createdAt      DateTime       @default(now())
-  responses      QuizResponse[]
-  awardedPointsAt DateTime?     @map("awarded_points_at")
-  session        CoursSession?
-}
-
-model QuizQuestion {
-  id              String       @id @default(cuid())
-  text            String
-  quizId          String
-  quiz            Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  options         QuizOption[]
-  correctOptionId String
-}
-
-model QuizOption {
-  id         String       @id @default(cuid())
-  text       String
-  questionId String
-  question   QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
-}
-
-model QuizResponse {
-  id               String   @id @default(cuid())
-  quizId           String
-  quiz             Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  userId           String
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  answers          Json     // { "questionId": "optionId", ... }
-  answerTimestamps Json?    // { "questionId": "isoTimestamp", ... }
-  submittedAt      DateTime @default(now())
-
-  @@unique([quizId, userId])
 }
