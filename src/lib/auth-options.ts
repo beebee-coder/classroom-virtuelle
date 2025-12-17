@@ -8,11 +8,19 @@ import bcrypt from "bcryptjs";
 import { Role, ValidationStatus } from "@prisma/client";
 
 // Forcer l'URL de base en HTTPS pour la compatibilité OAuth
-if (process.env.APP_HOST && process.env.APP_HOST.startsWith('http://')) {
-  process.env.NEXTAUTH_URL = process.env.APP_HOST.replace('http://', 'https://');
-} else {
-  process.env.NEXTAUTH_URL = process.env.APP_HOST;
+if (process.env.APP_HOST) {
+  let url = process.env.APP_HOST;
+  if (!url.startsWith('https://')) {
+    url = 'https://' + url.replace(/^http:\/\//, '');
+  }
+  // Supprimer les ports potentiels (ex: :3000)
+  url = url.split(':')[0] + (url.includes(':') ? ':' + url.split(':')[1].split('/')[0] : '');
+  url = url.replace(/:\d+$/, '');
+
+
+  process.env.NEXTAUTH_URL = url;
 }
+
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
