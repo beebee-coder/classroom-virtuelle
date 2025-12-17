@@ -185,7 +185,7 @@ export default function TeacherDashboardClient({
               Validez les nouveaux comptes élèves et assignez-les à une classe.
             </p>
             <Link 
-              href="/teacher/validations" 
+              href="/teacher/validations?tab=students" 
               className="inline-flex items-center text-sm font-medium text-orange-600 hover:underline mt-auto"
               aria-label="Voir les inscriptions en attente"
             >
@@ -219,7 +219,7 @@ export default function TeacherDashboardClient({
               Examinez les preuves soumises par les élèves et attribuez des points.
             </p>
             <Link 
-              href="/teacher/validations" 
+              href="/teacher/validations?tab=tasks" 
               className="inline-flex items-center text-sm font-medium text-green-600 hover:underline mt-auto"
               aria-label="Voir les tâches à valider"
             >
