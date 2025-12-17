@@ -8,6 +8,7 @@ import TeacherDashboardClient from './TeacherDashboardClient';
 import type { Classroom } from '@prisma/client';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { ValidationStatus, Role } from '@prisma/client'; // Importer les énumérations
 
 export const dynamic = 'force-dynamic';
 
@@ -33,13 +34,21 @@ export default async function TeacherDashboardPage() {
 
     console.log(`📚 [DASHBOARD] ${classroomsData.length} classes trouvées`);
 
+    // ✅ CORRECTION : Passer l'ID du professeur à la fonction
     const tasksToValidate = await getTasksForProfessorValidation(session.user.id);
-    const validationCount = tasksToValidate.length;
+    const tasksValidationCount = tasksToValidate.length;
     
-    console.log(`✅ [DASHBOARD] ${validationCount} tâches à valider`);
+    // ✅ OPTIMISATION : Utiliser prisma.count pour une requête plus performante
+    const studentValidationCount = await prisma.user.count({
+      where: {
+        role: Role.ELEVE,
+        validationStatus: ValidationStatus.PENDING,
+      },
+    });
+
+    console.log(`✅ [DASHBOARD] ${tasksValidationCount} tâches et ${studentValidationCount} inscriptions à valider`);
 
     return (
-      // ✅ Ajout de role="main" pour accessibilité
       <div 
         className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-w-0" 
         role="main"
@@ -47,7 +56,8 @@ export default async function TeacherDashboardPage() {
         <TeacherDashboardClient
           user={session.user}
           classrooms={classroomsData}
-          validationCount={validationCount}
+          initialTasksCount={tasksValidationCount}
+          initialStudentsCount={studentValidationCount} // Passer le compte initial
         />
       </div>
     );
@@ -67,7 +77,6 @@ export default async function TeacherDashboardPage() {
           <p className="text-muted-foreground mb-6 text-sm">
             Impossible de charger les données du tableau de bord. Veuillez réessayer plus tard.
           </p>
-          {/* ✅ Utilisation de Button pour cohérence UX */}
           <Button asChild>
             <Link href="/teacher/dashboard">
               Réessayer

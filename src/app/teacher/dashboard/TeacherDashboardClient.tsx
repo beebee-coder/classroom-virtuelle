@@ -2,12 +2,12 @@
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, UserPlus, Megaphone } from 'lucide-react';
+import { Users, UserPlus, Megaphone, Edit } from 'lucide-react';
 import Link from 'next/link';
 import { CreateAnnouncementForm } from '@/components/CreateAnnouncementForm';
 import type { Session } from 'next-auth';
 import { useEffect, useRef, useState } from 'react';
-import { useToast } from '@/hooks/use-toast'; // 🔹 ajout
+import { useToast } from '@/hooks/use-toast';
 
 interface ClassroomData {
   id: string;
@@ -24,35 +24,39 @@ interface PendingStudent {
 interface TeacherDashboardClientProps {
   user: Session['user'];
   classrooms: ClassroomData[];
-  validationCount: number; // valeur initiale SSR
+  initialTasksCount: number;
+  initialStudentsCount: number; // Renommé et utilisé
 }
 
 export default function TeacherDashboardClient({ 
   user, 
   classrooms, 
-  validationCount: initialValidationCount 
+  initialTasksCount,
+  initialStudentsCount // Récupération de la prop
 }: TeacherDashboardClientProps) {
   const hasLoggedRef = useRef(false);
-  const { toast } = useToast(); // 🔹 toast
-  const [validationCount, setValidationCount] = useState(initialValidationCount);
+  const { toast } = useToast();
+  const [tasksCount, setTasksCount] = useState(initialTasksCount);
+  const [studentsCount, setStudentsCount] = useState(initialStudentsCount); // État pour le compteur d'élèves
+  
+  // Le polling est conservé pour les notifications en temps réel, mais l'état initial est maintenant correct
   const [pendingStudents, setPendingStudents] = useState<PendingStudent[]>([]);
   const previousStudentsRef = useRef<PendingStudent[]>([]);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // 🔹 Log initial
   useEffect(() => {
     if (!hasLoggedRef.current) {
       console.log('👨‍🏫 [DASHBOARD CLIENT] Rendu initial avec:', {
         user: user?.name,
         classroomsCount: classrooms.length,
-        validationCount: initialValidationCount
+        tasksCount: initialTasksCount,
+        studentsCount: initialStudentsCount // Log initial
       });
       hasLoggedRef.current = true;
     }
-  }, [user?.name, classrooms.length, initialValidationCount]);
+  }, [user?.name, classrooms.length, initialTasksCount, initialStudentsCount]);
 
-  // 🔹 Polling des élèves en attente
   useEffect(() => {
     const fetchPendingStudents = async () => {
       try {
@@ -72,15 +76,13 @@ export default function TeacherDashboardClient({
           return;
         }
     
-        // 🔹 Typage explicite de la réponse
         const data: { students: PendingStudent[] } = await res.json();
         const newStudents = data.students || [];
     
-        // 🔹 Comparaison avec l'état précédent
         const previousStudents = previousStudentsRef.current;
         if (newStudents.length > previousStudents.length) {
           const previousIds = new Set(previousStudents.map(s => s.id));
-          const newEntries = newStudents.filter(s => !previousIds.has(s.id)); // ✅ s est maintenant PendingStudent
+          const newEntries = newStudents.filter(s => !previousIds.has(s.id));
     
           if (newEntries.length > 0) {
             const studentNames = newEntries.map(s => s.name).join(', ');
@@ -89,15 +91,11 @@ export default function TeacherDashboardClient({
               description: `${newEntries.length} nouvel(s) élève(s) en attente de validation : ${studentNames}.`,
               duration: 8000,
             });
-            console.log('🔔 [DASHBOARD CLIENT] Toast affiché pour nouveaux élèves', {
-              count: newEntries.length,
-              names: studentNames,
-            });
           }
         }
     
         setPendingStudents(newStudents);
-        setValidationCount(newStudents.length);
+        setStudentsCount(newStudents.length); // Mettre à jour le compteur d'élèves
         previousStudentsRef.current = newStudents;
       } catch (error: any) {
         if (error.name !== 'AbortError') {
@@ -108,8 +106,9 @@ export default function TeacherDashboardClient({
       }
     };
 
-    fetchPendingStudents(); // immédiat
-    intervalRef.current = setInterval(fetchPendingStudents, 20_000); // puis toutes les 20s
+    // On fait un premier appel puis on démarre l'intervalle
+    fetchPendingStudents();
+    intervalRef.current = setInterval(fetchPendingStudents, 20_000);
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
@@ -119,7 +118,6 @@ export default function TeacherDashboardClient({
 
   return (
     <>
-      {/* En-tête */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight truncate">
@@ -131,14 +129,12 @@ export default function TeacherDashboardClient({
         </div>
       </div>
       
-      {/* Grille des cartes */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         
-        {/* Carte: Gérer les classes */}
         <Card className="transition-all duration-300 hover:shadow-lg hover:-translate-y-1 h-full border-2 border-transparent hover:border-primary/20 min-w-0">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-4 min-w-0">
-              <div className="p-3 bg-primary/10 rounded-full group-hover:bg-primary/20 transition-colors flex-shrink-0">
+              <div className="p-3 bg-primary/10 rounded-full flex-shrink-0">
                 <Users className="h-6 w-6 text-primary" />
               </div>
               <div className="min-w-0 flex-1">
@@ -166,23 +162,18 @@ export default function TeacherDashboardClient({
           </CardContent>
         </Card>
 
-        {/* Carte: Inscriptions en attente */}
         <Card className="transition-all duration-300 hover:shadow-lg hover:-translate-y-1 h-full border-2 border-transparent hover:border-orange-200 min-w-0">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-4 min-w-0">
-              <div className="p-3 bg-orange-100 rounded-full group-hover:bg-orange-200 transition-colors flex-shrink-0">
+              <div className="p-3 bg-orange-100 rounded-full flex-shrink-0">
                 <UserPlus className="h-6 w-6 text-orange-600" />
               </div>
               <div className="min-w-0 flex-1">
                 <CardTitle className="text-lg truncate">Inscriptions en attente</CardTitle>
                 <CardDescription className="mt-1 truncate">
-                  {validationCount > 0 ? (
-                    <span className="text-orange-600 font-semibold [
-                      @media (prefers-reduced-motion: no-preference) {
-                        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-                      }
-                    ]">
-                      {validationCount} élève(s) à valider
+                  {studentsCount > 0 ? (
+                    <span className="text-orange-600 font-semibold animate-pulse">
+                      {studentsCount} élève(s) à valider
                     </span>
                   ) : (
                     "Aucune inscription en attente"
@@ -205,7 +196,6 @@ export default function TeacherDashboardClient({
           </CardContent>
         </Card>
 
-        {/* Carte: Créer une annonce */}
         <Card className="transition-all duration-300 h-full flex flex-col border-2 border-transparent hover:border-primary/20 min-w-0">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-4 min-w-0">
@@ -231,7 +221,6 @@ export default function TeacherDashboardClient({
         </Card>
       </div>
 
-      {/* Section statistiques */}
       {classrooms.length > 0 && (
         <div className="mt-12">
           <h2 className="text-2xl font-bold mb-6 truncate">Vue d'ensemble</h2>
@@ -257,7 +246,7 @@ export default function TeacherDashboardClient({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-orange-600">{validationCount}</div>
+                <div className="text-2xl font-bold text-orange-600">{studentsCount}</div>
                 <p className="text-xs text-muted-foreground mt-1 truncate">
                   À valider et assigner
                 </p>
@@ -278,11 +267,11 @@ export default function TeacherDashboardClient({
                   >
                     Gérer les tâches
                   </Link>
-                  <Link 
-                    href="/teacher/profile" 
+                   <Link 
+                    href="/teacher/validations" 
                     className="block text-sm text-primary hover:underline truncate"
                   >
-                    Modifier le profil
+                    Gérer les validations ({tasksCount})
                   </Link>
                 </div>
               </CardContent>

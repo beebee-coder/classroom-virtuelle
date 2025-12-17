@@ -21,32 +21,32 @@ enum ValidationStatus {
 }
 
 model User {
-  id               String            @id @default(cuid())
-  name             String?
-  email            String?           @unique
-  emailVerified    DateTime?
-  image            String?
-  password         String?
-  role             Role              @default(ELEVE)
-  points           Int               @default(0)
-  ambition         String?
-  parentPassword   String?
-  validationStatus ValidationStatus  @default(PENDING)
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  sessions         CoursSession[]    @relation("participants")
-  announcements    Announcement[]
-  messages         Message[]
-  reactions        Reaction[]
-  studentProgress  StudentProgress[]
-  sharedDocuments  SharedDocument[]
-  etat             EtatEleve?
-  classeId         String?
-  classe           Classroom?        @relation(fields: [classeId], references: [id])
-  classesEnseignees Classroom[]      @relation("ProfesseurPourClasse")
-  quizResponses    QuizResponse[]
-  quizzesCrees     Quiz[]            @relation("QuizCreator")
-  CoursSession     CoursSession[] // Un professeur peut avoir plusieurs sessions
+  id                String            @id @default(cuid())
+  name              String?
+  email             String?           @unique
+  emailVerified     DateTime?
+  image             String?
+  password          String?
+  role              Role              @default(ELEVE)
+  points            Int               @default(0)
+  ambition          String?
+  parentPassword    String?
+  validationStatus  ValidationStatus  @default(PENDING)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  sessions          CoursSession[]    @relation("participants")
+  announcements     Announcement[]
+  messages          Message[]
+  reactions         Reaction[]
+  studentProgress   StudentProgress[]
+  sharedDocuments   SharedDocument[]
+  etat              EtatEleve?
+  classeId          String?
+  classe            Classroom?        @relation(fields: [classeId], references: [id])
+  classesEnseignees Classroom[]       @relation("ProfesseurPourClasse")
+  quizResponses     QuizResponse[]
+  quizzesCrees      Quiz[]            @relation("QuizCreator")
+  CoursSession      CoursSession[] // Un professeur peut avoir plusieurs sessions
 }
 
 model Classroom {
@@ -61,12 +61,12 @@ model Classroom {
 }
 
 model EtatEleve {
-  id         String   @id @default(cuid())
-  eleve      User     @relation(fields: [eleveId], references: [id])
-  eleveId    String   @unique
-  isPunished Boolean  @default(false)
+  id         String  @id @default(cuid())
+  eleve      User    @relation(fields: [eleveId], references: [id])
+  eleveId    String  @unique
+  isPunished Boolean @default(false)
   metierId   String?
-  metier     Metier?  @relation(fields: [metierId], references: [id])
+  metier     Metier? @relation(fields: [metierId], references: [id])
 }
 
 model Metier {
@@ -79,16 +79,16 @@ model Metier {
 }
 
 model CoursSession {
-  id              String           @id @default(cuid())
-  professeur      User             @relation(fields: [professeurId], references: [id])
-  professeurId    String
-  classroomId     String
-  classe          Classroom        @relation(fields: [classroomId], references: [id])
-  startTime       DateTime         @default(now())
-  endTime         DateTime?
-  participants    User[]           @relation("participants")
-  activeQuiz      Quiz?            @relation("ActiveQuizInSession", fields: [activeQuizId], references: [id])
-  activeQuizId    String?
+  id           String    @id @default(cuid())
+  professeur   User      @relation(fields: [professeurId], references: [id])
+  professeurId String
+  classroomId  String
+  classe       Classroom @relation(fields: [classroomId], references: [id])
+  startTime    DateTime  @default(now())
+  endTime      DateTime?
+  participants User[]    @relation("participants")
+  activeQuiz   Quiz?     @relation("ActiveQuizInSession", fields: [activeQuizId], references: [id])
+  activeQuizId String?
 }
 
 // Modèles pour le système de Tâches et Gamification
@@ -154,8 +154,8 @@ model StudentProgress {
   completionDate DateTime?
   submissionUrl  String? // Pour les preuves visuelles (Cloudinary URL)
   pointsAwarded  Int?
-  feedback       Json?          // Pour les retours spécifiques
-  recipeName     String?        // Champ spécifique pour la tâche de cuisine
+  feedback       Json? // Pour les retours spécifiques
+  recipeName     String? // Champ spécifique pour la tâche de cuisine
 
   @@unique([studentId, taskId])
 }
@@ -173,12 +173,12 @@ model Message {
 }
 
 model Reaction {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   emoji     String
   messageId String
-  message   Message  @relation(fields: [messageId], references: [id])
+  message   Message @relation(fields: [messageId], references: [id])
   userId    String
-  user      User     @relation(fields: [userId], references: id)
+  user      User    @relation(fields: [userId], references: id)
 
   @@unique([messageId, userId, emoji])
 }
@@ -196,12 +196,12 @@ model Announcement {
 }
 
 model SharedDocument {
-  id             String   @id @default(cuid())
-  name           String
-  url            String
-  createdAt      DateTime @default(now())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id])
+  id        String   @id @default(cuid())
+  name      String
+  url       String
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 model Quiz {
@@ -238,8 +238,8 @@ model QuizResponse {
   quiz             Quiz     @relation(fields: [quizId], references: [id])
   userId           String
   user             User     @relation(fields: [userId], references: [id])
-  answers          Json     // { "questionId": "selectedOptionId", ... }
-  answerTimestamps Json?    // { "questionId": "timestamp", ... }
+  answers          Json // { "questionId": "selectedOptionId", ... }
+  answerTimestamps Json? // { "questionId": "timestamp", ... }
   submittedAt      DateTime @default(now())
 
   @@unique([quizId, userId])
