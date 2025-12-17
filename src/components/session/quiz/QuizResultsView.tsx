@@ -6,13 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { BarChart, CheckCircle, ArrowLeft, Users, Trophy } from 'lucide-react';
-import type { Quiz, QuizResults, QuizQuestion, QuizOption, User } from '@/types';
+import type { QuizResults, QuizQuestion, QuizOption, User, QuizWithQuestions } from '@/types';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface QuizResultsViewProps {
     results: QuizResults;
-    quiz: Quiz;
+    quiz: QuizWithQuestions;
     onClose: () => void;
     students: User[];
     isTeacherView: boolean;
@@ -78,7 +78,7 @@ export function QuizResultsView({ results, quiz, onClose, students, isTeacherVie
                                     <div key={q.id} className="p-4 border rounded-lg">
                                         <h4 className="font-semibold mb-3">{q.text}</h4>
                                         <div className="space-y-3">
-                                            {q.options.map((option: QuizOption) => {
+                                            {(q as any).options.map((option: QuizOption) => {
                                                 const count = questionResponses.filter(id => id === option.id).length;
                                                 const percentage = totalResponsesForQuestion > 0 ? (count / totalResponsesForQuestion) * 100 : 0;
                                                 const isCorrect = option.id === q.correctOptionId;

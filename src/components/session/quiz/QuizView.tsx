@@ -8,14 +8,14 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { BarChart, Users, CheckCircle, XCircle, Loader2, Info, Trophy, AlertCircle } from 'lucide-react';
-import type { Quiz, QuizResponse, User, QuizQuestion, QuizOption, QuizResults } from '@/types';
+import type { QuizResponse, User, QuizQuestion, QuizOption, QuizResults, QuizWithQuestions } from '@/types';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { QuizResultsView } from './QuizResultsView';
 
 interface QuizViewProps {
-    quiz: Quiz | null;
+    quiz: QuizWithQuestions | null;
     isTeacherView: boolean;
     onSubmitResponse?: (response: QuizResponse) => Promise<{ success: boolean; }>;
     onEndQuiz?: (quizId: string, responses: Map<string, QuizResponse>) => Promise<{ success: boolean; }>;
@@ -55,7 +55,6 @@ export function QuizView({
         );
     }
     
-    // ✅ CORRECTION : Si les résultats sont là, on affiche la vue des résultats
     if (isTeacherView && results) {
         return (
             <QuizResultsView 
@@ -210,7 +209,7 @@ export function QuizView({
 }
 
 function TeacherQuizDashboard({ quiz, responses = new Map(), onEndQuiz, studentsInSession = [] }: {
-    quiz: Quiz;
+    quiz: QuizWithQuestions;
     responses?: Map<string, QuizResponse>;
     onEndQuiz?: (quizId: string, responses: Map<string, QuizResponse>) => Promise<{ success: boolean; }>;
     studentsInSession?: User[];
@@ -230,7 +229,7 @@ function TeacherQuizDashboard({ quiz, responses = new Map(), onEndQuiz, students
 
         responses.forEach((response, userId) => {
             let userScore = 0;
-            quiz.questions.forEach(q => {
+            quiz.questions.forEach((q: QuizQuestion) => {
                 if (response.answers[q.id] === q.correctOptionId) {
                     userScore++;
                 }
@@ -329,7 +328,7 @@ function TeacherQuizDashboard({ quiz, responses = new Map(), onEndQuiz, students
     );
 }
 
-function QuestionStats({ question, responses }: { question: QuizQuestion; responses: Map<string, QuizResponse> }) {
+function QuestionStats({ question, responses }: { question: QuizQuestionWithOptions; responses: Map<string, QuizResponse> }) {
     const optionCounts = useMemo(() => {
         const counts: Record<string, number> = {};
         question.options.forEach(o => counts[o.id] = 0);

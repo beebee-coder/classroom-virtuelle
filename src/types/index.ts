@@ -176,8 +176,8 @@ export type QuizWithQuestions = PrismaQuiz & {
   questions: QuizQuestionWithOptions[];
 };
 
-// ⚠️ NE PLUS REDÉFINIR `Quiz` ou `QuizQuestion` ici
-// Les types ci-dessus sont explicites et sans conflit
+export type Quiz = PrismaQuiz;
+export type QuizQuestion = PrismaQuizQuestion;
 
 export interface QuizResponse {
   userId: string;

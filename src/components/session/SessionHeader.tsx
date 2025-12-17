@@ -59,9 +59,8 @@ export function SessionHeader({
         console.log("🚪 [SESSION HEADER] Clic sur 'Quitter la session'");
         onLeaveSession();
     }, [onLeaveSession]);
-
-    const subject = classroom?.subject || 'DEFAULT';
-    const teacherTools = toolPresets[subject] || toolPresets.DEFAULT;
+    
+    const teacherTools = toolPresets.DEFAULT;
     
     return (
         <header className="border-b bg-background/95 backdrop-blur-sm z-10 sticky top-0">

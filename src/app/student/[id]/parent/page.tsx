@@ -1,4 +1,3 @@
-
 // src/app/student/[id]/parent/page.tsx
 import { notFound, redirect } from 'next/navigation';
 import { getServerSession } from "next-auth";
@@ -44,7 +43,7 @@ export default async function ParentValidationPage({
 
   return (
     <>
-      <Header user={session?.user} />
+      <Header />
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="max-w-4xl mx-auto">
           <div className="mb-8">
@@ -77,5 +76,3 @@ export default async function ParentValidationPage({
     </>
   );
 }
-
-    
