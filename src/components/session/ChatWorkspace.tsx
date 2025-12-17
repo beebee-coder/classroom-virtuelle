@@ -48,6 +48,7 @@ export function ChatWorkspace({ classroomId, userId, userRole }: ChatWorkspacePr
   const channelRef = useRef<RealtimeChannel | null>(null);
   const listenersRef = useRef<Map<string, (message: AblyMessage) => void>>(new Map());
   const isMountedRef = useRef(true);
+  const operationLockRef = useRef(false); // ✅ Verrou pour éviter les race conditions
 
   const { client: ablyClient, isConnected: ablyConnected, connectionState } = useNamedAbly('ChatWorkspace');
   
@@ -95,33 +96,30 @@ export function ChatWorkspace({ classroomId, userId, userRole }: ChatWorkspacePr
     };
   }, []);
 
-  const cleanupAbly = useCallback(() => {
-    if (channelRef.current) {
-      const channel = channelRef.current;
-      console.log(`🧹 [CHAT WORKSPACE] Nettoyage du canal: ${channel.name}`);
-      
-      listenersRef.current.forEach((handler, eventName) => {
-        try {
+  const cleanupAbly = useCallback(async () => {
+    const channel = channelRef.current;
+    if (!channel) return;
+    
+    console.log(`🧹 [CHAT WORKSPACE] Nettoyage du canal: ${channel.name}`);
+    operationLockRef.current = true; // Verrouiller pendant le nettoyage
+
+    try {
+        listenersRef.current.forEach((handler, eventName) => {
           channel.unsubscribe(eventName, handler);
-        } catch (error) {
-          console.warn(`❌ [CHAT WORKSPACE] Erreur désabonnement ${eventName}:`, error);
-        }
-      });
-      listenersRef.current.clear();
-      
-      // Détacher explicitement si le canal est attaché ou en cours d'attachement
-      if (channel.state === 'attached' || channel.state === 'attaching') {
-          try {
-            channel.detach();
+        });
+        listenersRef.current.clear();
+        
+        if (channel.state === 'attached' || channel.state === 'attaching') {
+            await channel.detach();
             console.log(`✅ [CHAT WORKSPACE] Canal ${channel.name} détaché.`);
-          } catch (error) {
-            console.warn('❌ [CHAT WORKSPACE] Erreur détachement channel:', error);
-          }
-      }
-      
-      channelRef.current = null;
+        }
+    } catch (error) {
+        console.warn(`❌ [CHAT WORKSPACE] Erreur lors du nettoyage du canal ${channel.name}:`, error);
+    } finally {
+        channelRef.current = null;
+        operationLockRef.current = false; // Libérer le verrou
     }
-  }, []);
+}, []);
 
   const messageHandler = useCallback((message: AblyMessage) => {
     if (!isMountedRef.current) return;
@@ -162,23 +160,29 @@ export function ChatWorkspace({ classroomId, userId, userRole }: ChatWorkspacePr
 
   useEffect(() => {
     if (!classroomId || !ablyReady) {
-      return;
+        return;
     }
 
     const channelName = getClassChannelName(classroomId);
-    
-    // Si on est déjà sur le bon canal, on ne fait rien
+
     if (channelRef.current?.name === channelName) {
-      return;
+        return;
     }
 
-    // Nettoyer l'ancien canal avant de s'abonner au nouveau
-    cleanupAbly();
+    const setupChannel = async () => {
+        if (operationLockRef.current) {
+            console.warn(`[CHAT WORKSPACE] Opération en cours, tentative de configuration différée pour ${channelName}`);
+            setTimeout(setupChannel, 100);
+            return;
+        }
 
-    const channel = ablyClient.channels.get(channelName);
-    channelRef.current = channel;
+        operationLockRef.current = true;
 
-    const subscribe = async () => {
+        await cleanupAbly();
+
+        const channel = ablyClient.channels.get(channelName);
+        channelRef.current = channel;
+
         try {
             console.log(`🔔 [CHAT WORKSPACE] Tentative d'abonnement au canal: ${channelName}`);
             await channel.attach();
@@ -192,16 +196,22 @@ export function ChatWorkspace({ classroomId, userId, userRole }: ChatWorkspacePr
             }
         } catch (error) {
             console.error(`❌ [CHAT WORKSPACE] Échec de l'attachement au canal ${channelName}:`, error);
+        } finally {
+            operationLockRef.current = false;
         }
     };
     
-    subscribe();
+    setupChannel();
 
     return () => {
-      console.log(`🧹 [CHAT WORKSPACE] Nettoyage de l'effet pour le canal: ${channelName}`);
-      cleanupAbly();
+        console.log(`🧹 [CHAT WORKSPACE] Nettoyage de l'effet pour le canal: ${currentChannelNameRef.current}`);
+        const currentChannelName = channelRef.current?.name;
+        if(currentChannelName){
+            cleanupAbly();
+        }
     };
-  }, [classroomId, ablyReady, ablyClient, eventHandlers, cleanupAbly]);
+}, [classroomId, ablyReady, ablyClient, eventHandlers, cleanupAbly]);
+
 
   useEffect(() => {
     if (scrollAreaRef.current && messages.length > 0 && isMountedRef.current) {
