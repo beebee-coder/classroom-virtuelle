@@ -19,6 +19,7 @@ export function HomeClient() {
       if (user?.role === 'PROFESSEUR') {
         router.push('/teacher/dashboard');
       } else if (user?.role === 'ELEVE') {
+        // CORRECTION: Si le statut est validé, toujours aller au dashboard.
         if (user.validationStatus === 'VALIDATED') {
           router.push('/student/dashboard');
         } else {

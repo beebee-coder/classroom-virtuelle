@@ -51,6 +51,7 @@ export default function LoginForm() {
       if (role === 'PROFESSEUR') {
         targetUrl = '/teacher/dashboard';
       } else if (role === 'ELEVE') {
+        // CORRECTION: Redirige vers la bonne page en fonction du statut.
         targetUrl = validationStatus === 'PENDING' ? '/student/validation-pending' : '/student/dashboard';
       }
 
