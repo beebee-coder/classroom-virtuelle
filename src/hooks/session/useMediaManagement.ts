@@ -18,8 +18,7 @@ const MEDIA_CONSTRAINTS: MediaStreamConstraints = {
 
 const SCREEN_CONSTRAINTS: DisplayMediaStreamOptions = {
     video: { 
-        frameRate: { ideal: 30 },
-        cursor: "always"
+        frameRate: { ideal: 30 }
     },
     audio: true, // Permet de capturer l'audio du système/onglet
 };
