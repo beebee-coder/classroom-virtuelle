@@ -7,14 +7,19 @@ import { signIn, useSession } from 'next-auth/react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle, Loader2, User, Lock, School, ArrowLeft, Info } from 'lucide-react';
+import { AlertCircle, Loader2, Mail, Lock, School, ArrowLeft, Info } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 import Image from 'next/image';
 import { FaGoogle } from 'react-icons/fa';
+import { ValidationStatus } from '@prisma/client';
 
-export default function LoginForm() {
+type LoginFormProps = {
+  ownerExists: boolean;
+};
+
+export default function LoginForm({ ownerExists }: LoginFormProps) {
   const router = useRouter();
   const { data: session, status } = useSession();
   const searchParams = useSearchParams();
@@ -28,43 +33,56 @@ export default function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
-  // Gestion des messages et erreurs via les paramètres d'URL
+  // Redirection automatique si session active
   useEffect(() => {
-    if (errorParam) {
-      if (errorParam === 'CredentialsSignin') {
-         setError("Email ou mot de passe incorrect. Si vous n'avez pas de compte, veuillez vous inscrire.");
-      } else {
-        setError("Une erreur de connexion est survenue. Veuillez réessayer.");
-      }
-    }
-    if (messageParam === 'registration_success') {
-      setInfoMessage("Inscription réussie ! Veuillez vous connecter avec vos identifiants.");
-    }
-  }, [errorParam, messageParam]);
-
-  // Redirection après authentification réussie
-  useEffect(() => {
-    if (status === "authenticated" && session?.user) {
-      const { role, validationStatus } = session.user;
+    if (status === 'authenticated' && session?.user) {
+      console.log('[LOGIN_FORM] Session authentifiée, préparation à la redirection...');
+      const { role, validationStatus, isNewUser } = session.user as any;
       let targetUrl = '/';
 
       if (role === 'PROFESSEUR') {
         targetUrl = '/teacher/dashboard';
       } else if (role === 'ELEVE') {
-        // CORRECTION: Redirige vers la bonne page en fonction du statut.
-        targetUrl = validationStatus === 'PENDING' ? '/student/validation-pending' : '/student/dashboard';
+        if (isNewUser) {
+          targetUrl = '/student/onboarding';
+        } else {
+          targetUrl = validationStatus === ValidationStatus.PENDING ? '/student/onboarding' : '/student/dashboard';
+        }
       }
-
-      console.log('🔵 [LOGIN FORM] - Redirection vers:', targetUrl);
+      
+      console.log(`[LOGIN_FORM] Redirection vers: ${targetUrl}`);
       router.push(targetUrl);
     }
   }, [status, session, router]);
+
+  // Gestion des messages d'erreur/succès venant des paramètres URL
+  useEffect(() => {
+    if (errorParam) {
+      console.log('[LOGIN_FORM] Erreur de NextAuth détectée:', errorParam);
+      if (errorParam === 'CredentialsSignin') {
+        setError("Email ou mot de passe incorrect pour le compte professeur.");
+      } else if (errorParam === 'OAuthAccountNotLinked') {
+        setError("Ce compte email est déjà utilisé. Veuillez utiliser un autre compte pour vous connecter.");
+      }
+      else {
+        setError("Une erreur de connexion est survenue. Veuillez réessayer.");
+      }
+    }
+    if (messageParam === 'registration_success') {
+      console.log('[LOGIN_FORM] Message de succes inscription recu.');
+      setInfoMessage("Compte professeur créé ! Veuillez vous connecter avec vos identifiants.");
+    }
+    if (messageParam === 'owner_google_attempt') {
+        setError("Cet email est réservé au professeur. Veuillez vous connecter avec votre mot de passe.");
+    }
+  }, [errorParam, messageParam]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     setInfoMessage(null);
+    console.log(`[LOGIN_FORM] Tentative de connexion pour: ${email}`);
 
     if (!email || !password) {
       setError('Veuillez remplir tous les champs.');
@@ -75,33 +93,38 @@ export default function LoginForm() {
     const result = await signIn('credentials', {
       email: email.trim().toLowerCase(),
       password,
-      redirect: false, // On gère la redirection manuellement après via le useEffect
+      redirect: false,
     });
+    console.log('[LOGIN_FORM] Résultat de signIn (credentials):', result);
 
-    if (result && !result.ok) {
-       setError(result.error === 'CredentialsSignin' ? 'Email ou mot de passe incorrect.' : 'Une erreur est survenue.');
-       setLoading(false);
+    if (result?.ok) {
+      console.log('[LOGIN_FORM] Connexion réussie. Rafraîchissement de la session...');
+      router.refresh(); 
+    } else {
+      console.log(`[LOGIN_FORM] Échec de la connexion: ${result?.error}`);
+      setError(result?.error === 'CredentialsSignin' ? 'Email ou mot de passe incorrect.' : 'Une erreur est survenue.');
+      setLoading(false);
     }
   };
 
   const handleGoogleSignIn = () => {
     setLoading(true);
-    // La redirection est gérée par le useEffect après authentification
+    console.log('[LOGIN_FORM] Connexion élève avec Google...');
     signIn('google');
   };
 
-  if (status === "loading" || status === "authenticated") {
+  if (status === "loading" || (status === 'authenticated' && session)) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader2 className="h-12 w-12 animate-spin" />
-        <p className='ml-2 text-muted-foreground'>Chargement de la session...</p>
+        <p className='ml-2 text-muted-foreground'>Chargement...</p>
       </div>
     );
   }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4 relative bg-background">
-       <Image
+      <Image
         src="https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=3024&auto=format&fit=crop"
         alt="Classroom background"
         fill
@@ -126,40 +149,39 @@ export default function LoginForm() {
             </h1>
           </div>
           <p className="text-lg text-muted-foreground">
-            Connectez-vous pour commencer votre session.
+            {ownerExists ? "Connectez-vous pour commencer votre session." : "Veuillez d'abord créer le compte professeur."}
           </p>
         </div>
 
-        {infoMessage && (
-          <Alert className="mb-6 max-w-md mx-auto bg-green-50 border-green-200">
-            <Info className="h-4 w-4 text-green-700" />
-            <AlertTitle className="text-green-800">Information</AlertTitle>
-            <AlertDescription className="text-green-700">{infoMessage}</AlertDescription>
-          </Alert>
-        )}
-
         <Card className="shadow-2xl bg-card/80 backdrop-blur-sm border-white/20">
-          <form onSubmit={handleSubmit}>
-            <CardContent className="p-8 space-y-6">
-              {error && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>Erreur de connexion</AlertTitle>
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-              
+          <CardContent className="p-8 space-y-6">
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Erreur de connexion</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            {infoMessage && (
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertTitle>Information</AlertTitle>
+                <AlertDescription>{infoMessage}</AlertDescription>
+              </Alert>
+            )}
+
+            {ownerExists ? (
+              <>
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full flex items-center justify-center gap-2"
+                  className="w-full h-12 flex items-center justify-center gap-2 text-base"
                   onClick={handleGoogleSignIn}
                   disabled={loading}
                 >
-                  <FaGoogle className="h-4 w-4 mr-2" />
-                  Continuer avec Google
+                  <FaGoogle className="h-5 w-5 mr-2" />
+                  Élèves : Connexion / Inscription Google
                 </Button>
-
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
                     <div className="w-full border-t border-muted" />
@@ -170,56 +192,76 @@ export default function LoginForm() {
                     </span>
                   </div>
                 </div>
-
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                    <Input
-                      id="email"
-                      type="email"
-                      className="pl-10"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      disabled={loading}
-                      required
-                    />
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <p className="text-center text-sm text-muted-foreground font-semibold">
+                    Professeur (Propriétaire)
+                  </p>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <Input
+                        id="email"
+                        type="email"
+                        className="pl-10 h-12"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        disabled={loading}
+                        required
+                      />
+                    </div>
                   </div>
-                </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="password">Mot de passe</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                    <Input
-                      id="password"
-                      type="password"
-                      className="pl-10"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      disabled={loading}
-                      required
-                    />
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Mot de passe</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <Input
+                        id="password"
+                        type="password"
+                        className="pl-10 h-12"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        disabled={loading}
+                        required
+                      />
+                    </div>
                   </div>
-                </div>
+                  <Button
+                    type="submit"
+                    className="w-full font-semibold h-12 text-base"
+                    disabled={loading || !email || !password}
+                  >
+                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Se connecter"}
+                  </Button>
+                </form>
+              </>
+            ) : (
+              <div className="text-center">
+                 <Alert>
+                    <Info className="h-4 w-4" />
+                    <AlertTitle>Action requise</AlertTitle>
+                    <AlertDescription>
+                      Aucun compte professeur n'a été trouvé. Veuillez d'abord créer le compte principal.
+                    </AlertDescription>
+                 </Alert>
+                 <Button asChild className="mt-4 w-full">
+                    <Link href="/register">
+                      Créer le compte Professeur
+                    </Link>
+                 </Button>
               </div>
-            </CardContent>
-            <CardFooter className="bg-background/20 p-6 flex-col gap-4">
-              <Button
-                type="submit"
-                className="w-full font-semibold text-lg py-7"
-                disabled={loading || !email || !password}
-              >
-                {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : "Se connecter"}
-              </Button>
+            )}
+          </CardContent>
+           {ownerExists && (
+            <CardFooter>
               <div className="text-center w-full">
-                <Link href="/register" className="text-sm text-primary hover:underline">
-                  Pas encore de compte ? Inscrivez-vous
-                </Link>
+                  <Link href="/register" className="text-sm text-primary hover:underline">
+                      Le compte professeur n'existe pas ? S'inscrire
+                  </Link>
               </div>
             </CardFooter>
-          </form>
+           )}
         </Card>
       </div>
     </div>

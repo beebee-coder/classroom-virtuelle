@@ -1,46 +1,60 @@
 # Référence du Flux d'Authentification et d'Inscription
 
-Ce document liste les fichiers essentiels impliqués dans le processus complet, de l'arrivée d'un utilisateur à sa redirection vers le tableau de bord approprié.
+Ce document liste les fichiers essentiels impliqués dans le processus complet, de l'arrivée d'un utilisateur à sa redirection vers le tableau de bord approprié, en intégrant le nouveau flux d'onboarding.
 
 ## 1. Pages d'Entrée (Non authentifié)
 
-- **`src/app/page.tsx`**: Page d'accueil. Affiche la page de bienvenue si l'utilisateur n'est pas connecté. Si une session existe, elle redirige l'utilisateur vers son tableau de bord (`/teacher/dashboard` ou `/student/dashboard`) ou vers la page d'attente si son statut est `PENDING`.
+- **`/` (Page d'accueil)** :
+  - **Fichier** : `src/app/page.tsx`
+  - **Logique** : Affiche la page de bienvenue. Si un utilisateur connecté arrive ici, le `middleware` le redirige vers le tableau de bord approprié avant même le rendu de la page.
 
-- **`src/app/login/page.tsx` et `src/app/login/login-form.tsx`**: Gère la connexion des utilisateurs existants, soit par identifiants (email/mot de passe), soit via Google. C'est ici que la redirection post-connexion est initiée côté client.
+- **`/login` (Connexion)** :
+  - **Fichier** : `src/app/login/login-form.tsx`
+  - **Logique** : Gère la connexion via **Credentials** (professeur) ou **Google** (élèves). `next-auth` gère la création de la session. La redirection post-connexion est gérée par le `middleware`.
 
-- **`src/app/register/page.tsx` et `src/app/register/register-form.tsx`**: Gère l'inscription de nouveaux utilisateurs, soit via un formulaire, soit en initiant une connexion Google pour la première fois.
+- **`/register` (Inscription)** :
+  - **Fichier** : `src/app/register/register-form.tsx`
+  - **Logique** : Contient deux flux :
+    1.  **Formulaire Professeur** : Envoie les données à `/api/auth/register` pour créer le compte propriétaire.
+    2.  **Bouton Google** : Initie une connexion `signIn('google')` pour les élèves.
 
 ## 2. Logique d'Authentification (Cœur du système)
 
-- **`src/lib/auth-options.ts`**: Fichier central pour `next-auth`.
-    - **`providers`**: Définit les stratégies `Credentials` (email/password) et `GoogleProvider`.
-    - **`GoogleProvider.profile()`**: Fonction cruciale qui assigne le rôle (`PROFESSEUR` ou `ELEVE`) et le statut (`VALIDATED` ou `PENDING`) lors d'une inscription/connexion via Google. Elle vérifie si l'utilisateur existe déjà avant d'en créer un nouveau.
-    - **`callbacks (jwt, session)`**: Enrichit le jeton JWT et l'objet de session avec les données personnalisées de l'utilisateur (ID, rôle, statut).
+- **`src/lib/auth-options.ts`** : Fichier central pour `next-auth`.
+  - **`providers`** : Définit les stratégies `CredentialsProvider` (exclusif au `OWNER_EMAIL`) et `GoogleProvider`.
+  - **`GoogleProvider.profile()`** : Fonction cruciale qui assigne le rôle `ELEVE` et le statut `PENDING` lors d'une inscription via Google.
+  - **`callbacks.jwt()`** : Enrichit le token JWT. **C'est ici que le flag `isNewUser` est ajouté** si un élève se connecte pour la première fois (il n'a pas encore de `classeId`).
+  - **`callbacks.session()`** : Hydrate l'objet `session` côté client avec les données du token (rôle, statut, `isNewUser`).
 
-- **`src/app/api/auth/[...nextauth]/route.ts`**: La "catch-all route" qui expose la configuration de `next-auth` en tant que points d'API (`/api/auth/signin`, `/api/auth/callback`, etc.).
+- **`/api/auth/[...nextauth]/route.ts`** : Expose la configuration de `next-auth` en tant que points d'API.
 
-## 3. Logique d'Inscription Spécifique
+- **`src/lib/prisma.ts`** :
+  - Contient un **middleware Prisma** qui intercepte chaque création d'un `User`.
+  - Si le nouvel utilisateur est un `ELEVE`, il déclenche un événement Ably (`NEW_PENDING_STUDENT`) pour notifier en temps réel le tableau de bord du professeur.
 
-- **`src/app/api/auth/register/route.ts`**: Point d'API **uniquement** pour les inscriptions par formulaire. Il contient la logique pour :
-    1.  Vérifier si un utilisateur existe déjà.
-    2.  Déterminer le rôle (`PROFESSEUR` si c'est le premier, sinon `ELEVE`).
-    3.  Hacher le mot de passe.
-    4.  Créer l'utilisateur en base de données.
-    
-- **`src/lib/prisma.ts` (Middleware Prisma)** : C'est le nouveau cœur de la notification temps réel.
-    - Un middleware est configuré pour intercepter chaque création (`create`) d'un `User`.
-    - Si le nouvel utilisateur est un `ELEVE` avec le statut `PENDING`, le middleware déclenche l'action serveur `broadcastNewPendingStudent`. Cette approche garantit que la notification est envoyée de manière fiable, quelle que soit la méthode d'inscription (formulaire ou Google).
+## 3. Flux d'Onboarding et de Validation de l'Élève
 
-## 4. Gestion des Notifications Temps Réel
+- **`/student/onboarding/page.tsx` (Nouveau)** :
+  - **Objectif** : Accueillir un élève qui vient de s'inscrire mais qui n'a pas encore été assigné à une classe.
+  - **Logique** : Le `middleware` redirige ici les élèves avec `isNewUser: true`. La page affiche un message de bienvenue et attend l'assignation. Un polling est mis en place pour vérifier si `classeId` a été ajouté à la session.
 
-- **`src/lib/actions/ably-session.actions.ts`**: Contient l'action serveur `broadcastNewPendingStudent`, qui publie un message sur le canal Ably global des élèves en attente.
+- **`/student/validation-pending/page.tsx`** :
+  - **Objectif** : Page d'attente pour les élèves déjà assignés mais dont le compte doit être validé par le professeur.
+  - **Logique** : Le `middleware` redirige ici les élèves avec `validationStatus: 'PENDING'`. Un `useEffect` vérifie périodiquement si le statut est passé à `VALIDATED`.
 
-- **`src/app/teacher/validations/ValidationConsoleClient.tsx`**: Le composant côté client qui **écoute** le canal Ably `pending-students`. Il reçoit les notifications en temps réel et met à jour l'interface du professeur avec les nouveaux élèves à valider.
+- **`/teacher/validations`** :
+  - **Page** : `src/app/teacher/validations/page.tsx`
+  - **Composant Client** : `StudentValidationConsole.tsx`
+  - **Logique** :
+    1.  Récupère les élèves avec le statut `PENDING` ou ceux qui n'ont pas de `classeId`.
+    2.  Permet au professeur de choisir une classe dans un menu déroulant.
+    3.  Appelle l'action `validateStudentRegistration` qui met à jour le `validationStatus` de l'élève à `VALIDATED` **et** lui assigne le `classeId`.
 
-## 5. Validation et Redirection des Élèves
+## 4. Protection des Routes (Middleware)
 
-- **`src/app/teacher/validations/page.tsx`**: Page côté serveur qui récupère la liste initiale de **tous** les élèves en attente (`PENDING`) depuis la base de données pour le professeur.
-
-- **`src/lib/actions/teacher.actions.ts`**: Contient l'action `validateStudent`, appelée par le professeur depuis la console de validation. Elle met à jour le statut de l'élève à `VALIDATED` et l'assigne à une classe.
-
-- **`src/app/student/validation-pending/page.tsx`**: La page où un élève est "bloqué". Un `useEffect` vérifie périodiquement l'état de sa session. Dès que le statut passe à `VALIDATED`, il redirige l'élève vers son tableau de bord.
+- **`src/middleware.ts`** : C'est le garde du corps de l'application.
+  - Il vérifie le token `next-auth` à chaque requête.
+  - Redirige les utilisateurs non connectés vers `/login`.
+  - Redirige les utilisateurs connectés des pages publiques vers leur dashboard.
+  - Applique les règles de redirection pour l'onboarding et la validation en attente.
+  - Bloque l'accès aux routes `/teacher/*` pour les élèves et vice-versa.

@@ -1,27 +1,19 @@
 
-
 import { TaskEditor } from "@/components/TaskEditor";
 import { BackButton } from "@/components/BackButton";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-options";
+import { getAuthSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import prisma from "@/lib/prisma";
-import type { Task } from "@prisma/client";
+import { getActiveTasks } from '@/lib/actions/task.actions';
 
-// ✅ FORCER LE RENDER DYNAMIQUE
 export const dynamic = 'force-dynamic';
 
 export default async function TasksPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getAuthSession();
   if (session?.user?.role !== 'PROFESSEUR') {
     redirect("/login");
   }
 
-  const tasks = await prisma.task.findMany({
-    orderBy: {
-      createdAt: 'desc'
-    }
-  });
+  const tasks = await getActiveTasks();
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-w-0">

@@ -1,4 +1,4 @@
-// src/components/session/ChatWorkspace.tsx - VERSION CORRIGÉE POUR ABLY v2+
+// src/components/session/ChatWorkspace.tsx
 'use client';
 
 import { useState, useEffect, useRef, useTransition, useCallback, useMemo } from 'react';
@@ -48,7 +48,7 @@ export function ChatWorkspace({ classroomId, userId, userRole }: ChatWorkspacePr
   const channelRef = useRef<RealtimeChannel | null>(null);
   const listenersRef = useRef<Map<string, (message: AblyMessage) => void>>(new Map());
   const isMountedRef = useRef(true);
-  const operationLockRef = useRef(false); // ✅ Verrou pour éviter les race conditions
+  const operationLockRef = useRef(false);
 
   const { client: ablyClient, isConnected: ablyConnected, connectionState } = useNamedAbly('ChatWorkspace');
   
@@ -100,8 +100,7 @@ export function ChatWorkspace({ classroomId, userId, userRole }: ChatWorkspacePr
     const channel = channelRef.current;
     if (!channel) return;
     
-    console.log(`🧹 [CHAT WORKSPACE] Nettoyage du canal: ${channel.name}`);
-    operationLockRef.current = true; // Verrouiller pendant le nettoyage
+    operationLockRef.current = true;
 
     try {
         listenersRef.current.forEach((handler, eventName) => {
@@ -111,13 +110,12 @@ export function ChatWorkspace({ classroomId, userId, userRole }: ChatWorkspacePr
         
         if (channel.state === 'attached' || channel.state === 'attaching') {
             await channel.detach();
-            console.log(`✅ [CHAT WORKSPACE] Canal ${channel.name} détaché.`);
         }
     } catch (error) {
         console.warn(`❌ [CHAT WORKSPACE] Erreur lors du nettoyage du canal ${channel.name}:`, error);
     } finally {
         channelRef.current = null;
-        operationLockRef.current = false; // Libérer le verrou
+        operationLockRef.current = false;
     }
 }, []);
 
@@ -171,7 +169,6 @@ export function ChatWorkspace({ classroomId, userId, userRole }: ChatWorkspacePr
 
     const setupChannel = async () => {
         if (operationLockRef.current) {
-            console.warn(`[CHAT WORKSPACE] Opération en cours, tentative de configuration différée pour ${channelName}`);
             setTimeout(setupChannel, 100);
             return;
         }
@@ -184,7 +181,6 @@ export function ChatWorkspace({ classroomId, userId, userRole }: ChatWorkspacePr
         channelRef.current = channel;
 
         try {
-            console.log(`🔔 [CHAT WORKSPACE] Tentative d'abonnement au canal: ${channelName}`);
             await channel.attach();
             
             if (isMountedRef.current) {
@@ -192,7 +188,6 @@ export function ChatWorkspace({ classroomId, userId, userRole }: ChatWorkspacePr
                   channel.subscribe(event, handler);
                   listenersRef.current.set(event, handler);
                 });
-                console.log(`✅ [CHAT WORKSPACE] Abonnement réussi pour: ${channelName}`);
             }
         } catch (error) {
             console.error(`❌ [CHAT WORKSPACE] Échec de l'attachement au canal ${channelName}:`, error);
@@ -204,11 +199,7 @@ export function ChatWorkspace({ classroomId, userId, userRole }: ChatWorkspacePr
     setupChannel();
 
     return () => {
-        console.log(`🧹 [CHAT WORKSPACE] Nettoyage de l'effet pour le canal: ${currentChannelNameRef.current}`);
-        const currentChannelName = channelRef.current?.name;
-        if(currentChannelName){
-            cleanupAbly();
-        }
+      // Pas de cleanup direct ici, géré par le useEffect de démontage
     };
 }, [classroomId, ablyReady, ablyClient, eventHandlers, cleanupAbly]);
 

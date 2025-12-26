@@ -1,14 +1,13 @@
 
 // src/app/teacher/future-classroom/page.tsx
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-options";
+import { getAuthSession } from "@/lib/auth";
 import { redirect } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Rocket, Construction } from 'lucide-react';
 import { BackButton } from '@/components/BackButton';
 
 export default async function FutureClassroomPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getAuthSession();
   if (!session?.user || session.user.role !== 'PROFESSEUR') {
     redirect('/login');
   }

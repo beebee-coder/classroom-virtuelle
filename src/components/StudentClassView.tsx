@@ -3,9 +3,9 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Crown, Star, Wifi, WifiOff, User as UserIcon } from "lucide-react"; // ✅ Renommé pour éviter conflit
+import { Crown, Star, Wifi, WifiOff, User as UserIcon } from "lucide-react";
 import type { ClassroomWithStudents } from "@/app/student/class/[id]/page";
-import type { User } from "@prisma/client"; // ✅ Typage explicite
+import type { User } from "@prisma/client";
 import { useAblyPresence } from "@/hooks/useAblyPresence";
 import { cn } from "@/lib/utils";
 import { useEffect, useState, useMemo } from "react";
@@ -54,12 +54,15 @@ export function StudentClassView({ classroom, currentUser }: StudentClassViewPro
     const onlineIds: string[] = [];
     
     onlineMembers.forEach(member => {
-      if (member.data?.userId) {
-        if (classroom.eleves.some(student => student.id === member.data!.userId)) {
-          onlineIds.push(member.data.userId);
-          return;
-        }
+      // Priorité à l'ID de l'utilisateur dans les données
+      const memberUserId = member.data?.userId || member.id;
+
+      if (classroom.eleves.some(student => student.id === memberUserId)) {
+        onlineIds.push(memberUserId);
+        return;
       }
+      
+      // Fallback sur l'email si l'ID ne correspond pas
       if (member.data?.email) {
         const matchingStudent = classroom.eleves.find(student => 
           student.email?.toLowerCase() === member.data!.email?.toLowerCase()
@@ -69,20 +72,11 @@ export function StudentClassView({ classroom, currentUser }: StudentClassViewPro
           return;
         }
       }
-      if (member.role === Role.ELEVE && member.name) {
-        const matchingStudent = classroom.eleves.find(student => {
-          const studentName = student.name?.toLowerCase().trim();
-          const memberName = member.name?.toLowerCase().trim();
-          return studentName === memberName;
-        });
-        if (matchingStudent) {
-          onlineIds.push(matchingStudent.id);
-        }
-      }
     });
 
     return [...new Set(onlineIds)];
   }, [onlineMembers, classroom.eleves]);
+
 
   // Tri par points
   const sortedStudents = useMemo(() => {
@@ -99,7 +93,6 @@ export function StudentClassView({ classroom, currentUser }: StudentClassViewPro
     return { totalStudents, onlineStudents, onlinePercentage };
   }, [onlineStudentIds.length, classroom.eleves.length]);
 
-  // ✅ Fonction sécurisée pour les avatars
   const getAvatarUrl = (seed: string) => {
     return `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(seed)}`;
   };

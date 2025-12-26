@@ -2,35 +2,25 @@
 import { Header } from '@/components/Header';
 import { notFound, redirect } from 'next/navigation';
 import { CareerThemeWrapper } from '@/components/CareerThemeWrapper';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options';
+import { getAuthSession } from '@/lib/auth';
 import { getStudentData } from '@/lib/actions/student.actions';
+import { getActiveTasks } from '@/lib/actions/task.actions';
+import { getMetiers } from '@/lib/actions/teacher.actions';
 import { getStudentAnnouncements } from '@/lib/actions/announcement.actions';
 import StudentPageClient from '@/components/StudentPageClient';
 import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import Menu from '@/components/Menu';
-import prisma from '@/lib/prisma';
-import type { User, Metier, Announcement, StudentProgress, Task, Classroom, EtatEleve } from '@prisma/client';
 import { StudentDashboardError } from '@/components/StudentDashboardError';
 import { SessionInvitationListener } from '@/components/SessionInvitationListener';
+import type { User, Metier, Announcement, StudentProgress, Task, Classroom, EtatEleve } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
-
-type StudentWithDetails = User & {
-    classe: Classroom | null;
-    etat: (EtatEleve & { metier: Metier | null }) | null;
-    studentProgress: StudentProgress[];
-};
-
-type AnnouncementWithAuthor = Announcement & {
-    author: { name: string | null };
-};
 
 export default async function StudentDashboardPage() {
     console.log('🧑‍🎓 [PAGE] - Chargement du tableau de bord élève.');
 
     try {
-        const session = await getServerSession(authOptions);
+        const session = await getAuthSession();
         if (!session?.user?.id || session.user.role !== 'ELEVE') {
             console.log('🔒 [PAGE ELEVE] - Redirection: utilisateur non authentifié ou non élève');
             redirect('/login');
@@ -38,7 +28,7 @@ export default async function StudentDashboardPage() {
 
         console.log(`✅ [PAGE ELEVE] - Session trouvée pour: ${session.user.name} (${session.user.email})`);
 
-        let student: StudentWithDetails | null = null;
+        let student: any;
         try {
             student = await getStudentData(session.user.id);
         } catch (studentError) {
@@ -59,34 +49,13 @@ export default async function StudentDashboardPage() {
 
         const metier = student.etat?.metier;
         
-        const [announcementsResult, tasksResult, allCareersResult] = await Promise.allSettled([
-            getStudentAnnouncements(student.id).catch((err: Error) => {
-                console.error('❌ [PAGE ELEVE] - Erreur lors du chargement des annonces:', err);
-                return [] as AnnouncementWithAuthor[];
-            }),
-            prisma.task.findMany({ where: { isActive: true } }).catch((err: Error) => {
-                console.error('❌ [PAGE ELEVE] - Erreur lors du chargement des tâches:', err);
-                return [] as Task[];
-            }),
-            prisma.metier.findMany().catch((err: Error) => {
-                console.error('❌ [PAGE ELEVE] - Erreur lors du chargement des métiers:', err);
-                return [] as Metier[];
-            })
+        const [announcements, tasks, allCareers] = await Promise.all([
+            getStudentAnnouncements(student.id),
+            getActiveTasks(),
+            getMetiers()
         ]);
-
-        const announcementsData = announcementsResult.status === 'fulfilled' 
-            ? announcementsResult.value 
-            : [] as AnnouncementWithAuthor[];
-
-        const tasksData = tasksResult.status === 'fulfilled' 
-            ? tasksResult.value 
-            : [] as Task[];
-
-        const allCareersData = allCareersResult.status === 'fulfilled' 
-            ? allCareersResult.value 
-            : [] as Metier[];
             
-        console.log(`📦 [PAGE ELEVE] - Données supplémentaires chargées: ${announcementsData.length} annonces, ${tasksData.length} tâches, ${allCareersData.length} métiers.`);
+        console.log(`📦 [PAGE ELEVE] - Données supplémentaires chargées: ${announcements.length} annonces, ${tasks.length} tâches, ${allCareers.length} métiers.`);
 
         return (
             <CareerThemeWrapper career={metier ?? undefined}>
@@ -107,10 +76,10 @@ export default async function StudentDashboardPage() {
                                 </div>
                                 <StudentPageClient
                                     student={student}
-                                    announcements={announcementsData}
-                                    allCareers={allCareersData}
+                                    announcements={announcements}
+                                    allCareers={allCareers}
                                     isTeacherView={false}
-                                    tasks={tasksData}
+                                    tasks={tasks}
                                     user={session.user}
                                 />
                             </SidebarInset>

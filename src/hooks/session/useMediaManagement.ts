@@ -4,7 +4,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 const MEDIA_CONSTRAINTS: MediaStreamConstraints = {
-    video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+    video: { 
+        width: { ideal: 1280 }, 
+        height: { ideal: 720 },
+        frameRate: { ideal: 24 }
+    },
     audio: {
       autoGainControl: true,
       echoCancellation: true,
@@ -14,11 +18,15 @@ const MEDIA_CONSTRAINTS: MediaStreamConstraints = {
 
 const SCREEN_CONSTRAINTS: DisplayMediaStreamOptions = {
     video: { 
-        frameRate: 30,
+        frameRate: { ideal: 30 },
+        cursor: "always"
     },
-    audio: true,
+    audio: true, // Permet de capturer l'audio du système/onglet
 };
 
+/**
+ * Hook pour gérer les flux média locaux (caméra, micro, partage d'écran).
+ */
 export function useMediaManagement() {
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
     const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
@@ -29,24 +37,23 @@ export function useMediaManagement() {
     const [isMediaLoading, setIsMediaLoading] = useState(true);
 
     const isMountedRef = useRef(true);
-    const localStreamRef = useRef<MediaStream | null>(null);
 
-    // Initialisation des médias
+    // Initialisation du flux de la caméra
     useEffect(() => {
         isMountedRef.current = true;
         
         const getMedia = async () => {
+            setIsMediaLoading(true);
             try {
                 const stream = await navigator.mediaDevices.getUserMedia(MEDIA_CONSTRAINTS);
                 if (isMountedRef.current) {
-                    localStreamRef.current = stream;
                     setLocalStream(stream);
                     setIsMediaReady(true);
                 }
             } catch (error) {
                 console.error("❌ [MEDIA] Erreur d'accès à la caméra/micro:", error);
                 if (isMountedRef.current) {
-                    setIsMediaReady(true); // Prêt, mais sans stream
+                    setIsMediaReady(true); // Prêt, même sans stream
                 }
             } finally {
                 if (isMountedRef.current) {
@@ -59,63 +66,61 @@ export function useMediaManagement() {
 
         return () => {
             isMountedRef.current = false;
-            localStreamRef.current?.getTracks().forEach(track => track.stop());
+            localStream?.getTracks().forEach(track => track.stop());
             screenStream?.getTracks().forEach(track => track.stop());
         };
-    }, [screenStream]); // Dépendance à screenStream pour nettoyer
-
-    // Gestion de l'arrêt du partage d'écran via le navigateur
-    useEffect(() => {
-        if (!screenStream) return;
-
-        const handleTrackEnded = () => {
-            if (isMountedRef.current) {
-                setIsSharingScreen(false);
-                setScreenStream(null);
-            }
-        };
-
-        screenStream.getTracks().forEach(track => track.addEventListener('ended', handleTrackEnded));
-        return () => screenStream.getTracks().forEach(track => track.removeEventListener('ended', handleTrackEnded));
-    }, [screenStream]);
+    }, []); // Dépendances vides pour ne s'exécuter qu'une fois
 
     const toggleMute = useCallback(() => {
-        // CORRECTION: Utiliser la référence pour s'assurer de modifier le bon flux
-        if (!localStreamRef.current) return;
-        localStreamRef.current.getAudioTracks().forEach(track => {
+        if (!localStream) return;
+        localStream.getAudioTracks().forEach(track => {
             track.enabled = !track.enabled;
         });
         setIsMuted(prev => !prev);
-    }, []);
+    }, [localStream]);
 
     const toggleVideo = useCallback(() => {
-        // CORRECTION: Utiliser la référence pour s'assurer de modifier le bon flux
-        if (!localStreamRef.current) return;
-        localStreamRef.current.getVideoTracks().forEach(track => {
+        if (!localStream) return;
+        localStream.getVideoTracks().forEach(track => {
             track.enabled = !track.enabled;
         });
         setIsVideoOff(prev => !prev);
-    }, []);
+    }, [localStream]);
 
-    const toggleScreenShare = useCallback(async () => {
-        if (isSharingScreen) {
-            // Arrêter le partage
-            screenStream?.getTracks().forEach(track => track.stop());
-            setScreenStream(null);
-            setIsSharingScreen(false);
-        } else {
-            // Démarrer le partage
-            try {
-                const stream = await navigator.mediaDevices.getDisplayMedia(SCREEN_CONSTRAINTS);
-                if (isMountedRef.current) {
-                    setScreenStream(stream);
-                    setIsSharingScreen(true);
-                }
-            } catch (error) {
-                console.error("❌ [MEDIA] Erreur de partage d'écran:", error);
+    // ✅ NOUVELLE LOGIQUE POUR LE PARTAGE D'ÉCRAN
+    const startScreenShare = useCallback(async (): Promise<MediaStream | null> => {
+        if (isSharingScreen) return screenStream;
+        
+        try {
+            const stream = await navigator.mediaDevices.getDisplayMedia(SCREEN_CONSTRAINTS);
+            if (isMountedRef.current) {
+                // Écouter l'arrêt via le bouton natif du navigateur
+                stream.getVideoTracks()[0].addEventListener('ended', () => {
+                    if (isMountedRef.current) {
+                        stopScreenShare();
+                    }
+                });
+                setScreenStream(stream);
+                setIsSharingScreen(true);
+                return stream;
             }
+            return null;
+        } catch (error) {
+            console.error("❌ [MEDIA] Erreur de partage d'écran:", error);
+            if (isMountedRef.current) {
+                setIsSharingScreen(false);
+            }
+            return null;
         }
     }, [isSharingScreen, screenStream]);
+
+    const stopScreenShare = useCallback(() => {
+        if (!isMountedRef.current) return;
+        screenStream?.getTracks().forEach(track => track.stop());
+        setScreenStream(null);
+        setIsSharingScreen(false);
+    }, [screenStream]);
+
 
     return {
         localStream,
@@ -127,6 +132,7 @@ export function useMediaManagement() {
         isMediaLoading,
         toggleMute,
         toggleVideo,
-        toggleScreenShare,
+        startScreenShare, // ✅ Exporter la fonction de démarrage
+        stopScreenShare,  // ✅ Exporter la fonction d'arrêt
     };
 }

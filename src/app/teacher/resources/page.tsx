@@ -1,8 +1,6 @@
-
 // src/app/teacher/resources/page.tsx
 import { redirect } from 'next/navigation';
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-options";
+import { getAuthSession } from "@/lib/auth";
 import { getTeacherDocuments } from '@/lib/actions/session.actions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BackButton } from '@/components/BackButton';
@@ -15,7 +13,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function TeacherResourcesPage() {
     console.log('📚 [PAGE] Loading Teacher Resources page...');
-    const session = await getServerSession(authOptions);
+    const session = await getAuthSession();
 
     if (!session?.user || session.user.role !== 'PROFESSEUR') {
         redirect('/login');

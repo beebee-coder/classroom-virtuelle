@@ -1,9 +1,8 @@
 // src/app/librairie-metiers/page.tsx
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-options";
+import { getAuthSession } from "@/lib/auth";
 import { redirect } from 'next/navigation';
-import prisma from "@/lib/prisma";
-import { Header } from "@/components/Header"; // CORRECTION: Import correct du composant nommé
+import { getMetiers } from '@/lib/actions/teacher.actions'; // Action pour récupérer les métiers
+import { Header } from "@/components/Header";
 import { BackButton } from "@/components/BackButton";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { BookOpen } from "lucide-react";
@@ -11,7 +10,6 @@ import * as LucideIcons from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
-// Fonction pour obtenir l'icône à partir de son nom
 const getIcon = (iconName: string | null) => {
     if (!iconName) return BookOpen;
     const IconComponent = (LucideIcons as any)[iconName];
@@ -19,21 +17,17 @@ const getIcon = (iconName: string | null) => {
 };
 
 export default async function CareerLibraryPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getAuthSession();
 
   if (!session?.user || session.user.role !== 'PROFESSEUR') {
     redirect('/login');
   }
 
-  const metiers = await prisma.metier.findMany({
-    orderBy: {
-      nom: 'asc',
-    },
-  });
+  const metiers = await getMetiers(); // Appel de la nouvelle action
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Header /> {/* ✅ Correct : utilisation sans props */}
+      <Header />
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center gap-4 mb-8">
           <BackButton />

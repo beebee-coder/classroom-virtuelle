@@ -1,8 +1,6 @@
-
 // src/app/api/session/[id]/sync/route.ts - VERSION CORRIGÉE
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-options";
+import { getAuthSession } from "@/lib/auth";
 import type { WhiteboardOperation } from '@/types';
 import prisma from '@/lib/prisma'; // Importer Prisma
 
@@ -14,7 +12,7 @@ export async function POST(
   const sessionId = params.id;
   
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getAuthSession();
 
     if (!session?.user) {
       return new NextResponse('Unauthorized', { status: 403 });
@@ -63,5 +61,3 @@ export async function OPTIONS(request: NextRequest) {
     },
   });
 }
-
-    

@@ -1,110 +1,79 @@
 // src/app/teacher/layout.tsx
 import { redirect } from 'next/navigation';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options';
-import prisma from '@/lib/prisma';
+import { getAuthSession } from '@/lib/auth';
+import { Header } from '@/components/Header';
 import Menu from '@/components/Menu';
 import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Role } from '@prisma/client';
-import { Header } from '@/components/Header'; // Le Header est maintenant ici
+import { getTeacherDashboardData } from '@/lib/teacher-data';
+import { CreateAnnouncementForm } from '@/components/CreateAnnouncementForm';
+import { ResetButton } from '@/components/ResetButton';
+import { Megaphone, RefreshCw } from 'lucide-react';
+import styles from '@/components/Menu.module.css';
+import { cn } from '@/lib/utils';
+import React from 'react';
 
-export const dynamic = 'force-dynamic';
 
 export default async function TeacherLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getAuthSession();
 
   if (!session?.user || session.user.role !== Role.PROFESSEUR) {
     redirect('/login');
   }
 
-  try {
-    const classrooms = await prisma.classroom.findMany({
-      where: { professeurId: session.user.id },
-      select: { id: true, nom: true },
-      orderBy: { nom: 'asc' }
-    });
+  const { classrooms, validationCount } = await getTeacherDashboardData(session.user.id);
+  
+  // Composants pour les actions du menu qui nécessitent des déclencheurs de dialogue
+  const announcementTrigger = (
+      <CreateAnnouncementForm classrooms={classrooms}>
+        <button className={cn(styles.button, styles.purple)}>
+            <Megaphone className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
+            <span className="truncate">Créer une Annonce</span>
+        </button>
+      </CreateAnnouncementForm>
+  );
 
-    const tasksToValidate = await prisma.studentProgress.count({
-      where: {
-        status: 'PENDING_VALIDATION',
-        task: { validationType: 'PROFESSOR' },
-        student: { classe: { professeurId: session.user.id } }
-      }
-    });
+  const resetTrigger = (
+      <ResetButton>
+        <button className={cn(styles.button, styles.red)}>
+            <RefreshCw className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
+            <span className="truncate">Remise à zéro</span>
+        </button>
+      </ResetButton>
+  );
 
-    const validationCount = tasksToValidate || 0;
 
-    return (
-      <SidebarProvider>
-        <div className="flex flex-col min-h-screen w-full">
-          {/* Le Header est maintenant dans le layout spécifique à l'enseignant */}
-          <Header>
+  return (
+    <SidebarProvider>
+      <div className="flex flex-col min-h-screen w-full">
+        <Header>
             <div className="flex items-center gap-4">
               <SidebarTrigger className="h-9 w-9" />
-              <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
-                <span>
-                  {classrooms.length} classe{classrooms.length > 1 ? 's' : ''}
-                </span>
-                {validationCount > 0 && (
-                  <span className="inline-flex items-center px-2 py-1 rounded-full bg-destructive/10 text-destructive text-xs font-medium">
-                    {validationCount} validation{validationCount > 1 ? 's' : ''} en attente
-                  </span>
-                )}
-              </div>
             </div>
-          </Header>
+        </Header>
 
-          <div className="flex flex-1 overflow-hidden min-w-0">
-            <Sidebar variant="inset" className="border-r bg-sidebar">
-              <SidebarContent className="flex flex-col h-full">
-                <div className="flex-1 overflow-hidden">
-                  <Menu
-                    user={session.user}
-                    classrooms={classrooms}
-                    validationCount={validationCount}
-                  />
-                </div>
-                <div className="p-4 border-t bg-sidebar/50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                      <span className="text-xs font-medium text-primary">
-                        {session.user.name?.charAt(0) || 'P'}
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        {session.user.name || 'Professeur'}
-                      </p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {session.user.email}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </SidebarContent>
-            </Sidebar>
+        <div className="flex flex-1 overflow-hidden min-w-0">
+          <Sidebar>
+            <SidebarContent>
+              <Menu
+                user={session.user}
+                classrooms={classrooms}
+                validationCount={validationCount}
+                announcementTrigger={announcementTrigger}
+                resetTrigger={resetTrigger}
+              />
+            </SidebarContent>
+          </Sidebar>
 
-            <SidebarInset>
-              <main className="h-full overflow-auto">{children}</main>
-            </SidebarInset>
-          </div>
-        </div>
-      </SidebarProvider>
-    );
-  } catch (error) {
-    console.error("❌ [LAYOUT] Erreur dans le layout enseignant:", error);
-    // Affichage d'une page d'erreur simple si le layout ne peut pas être rendu
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <div className="text-center">
-          <h1 className="text-xl font-bold text-destructive">Erreur de chargement</h1>
-          <p className="text-muted-foreground">Impossible de charger l'interface enseignant.</p>
+          <SidebarInset>
+            <main className="h-full overflow-auto">{children}</main>
+          </SidebarInset>
         </div>
       </div>
-    );
-  }
+    </SidebarProvider>
+  );
 }

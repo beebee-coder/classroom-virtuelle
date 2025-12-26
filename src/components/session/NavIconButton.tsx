@@ -8,7 +8,7 @@ import { useState } from 'react';
 interface NavIconButtonProps {
   icon : LucideIcon;
   label: string;
-  colors: [string, string];
+  colors: readonly [string, string];
   isActive?: boolean;
   onClick?: () => void;
   isDisabled?: boolean;

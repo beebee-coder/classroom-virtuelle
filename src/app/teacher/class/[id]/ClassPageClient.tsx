@@ -39,10 +39,9 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
         'ClassPageClient'
     );
 
-    // ✅ CORRECTION : Entrer dans la présence avec gestion robuste des erreurs
     useEffect(() => {
         if (isConnected && classroom?.id && teacher && !hasEnteredPresence && !isLoading) {
-            console.log('👨‍🏫 [CLASSE] - Professeur entre dans la présence');
+            console.log('👨‍🏫 [CLASSE] - Tentative d\'entrée en présence du professeur');
             
             const enterPresenceWithRetry = async () => {
                 try {
@@ -50,22 +49,17 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                         name: teacher.name || 'Professeur',
                         role: Role.PROFESSEUR,
                         image: teacher.image,
-                        data: {
-                            userId: teacher.id,
-                            role: Role.PROFESSEUR, // ✅ CORRECTION : Ajout du rôle dans data
-                            classroomId: classroom.id
-                        }
+                        data: { userId: teacher.id }
                     });
                     console.log('✅ [CLASSE] - Professeur entré avec succès dans la présence');
                     setHasEnteredPresence(true);
-                    setPresenceEnterAttempts(0); // Réinitialiser les tentatives en cas de succès
+                    setPresenceEnterAttempts(0); 
                 } catch (error) {
                     console.error('❌ [CLASSE] - Erreur lors de l\'entrée en présence:', error);
                     setPresenceEnterAttempts(prev => prev + 1);
                     
-                    // ✅ CORRECTION : Stratégie de réessai intelligente
                     if (presenceEnterAttempts < 3) {
-                        const retryDelay = Math.min(1000 * Math.pow(2, presenceEnterAttempts), 10000); // Exponential backoff
+                        const retryDelay = Math.min(1000 * Math.pow(2, presenceEnterAttempts), 10000);
                         console.log(`🔄 [CLASSE] - Nouvelle tentative dans ${retryDelay}ms (tentative ${presenceEnterAttempts + 1}/3)`);
                         setTimeout(() => {
                             setHasEnteredPresence(false);
@@ -80,96 +74,26 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
         }
     }, [isConnected, classroom?.id, teacher, enterPresence, isLoading, hasEnteredPresence, presenceEnterAttempts]);
 
-    // ✅ CORRECTION : Logique de mapping améliorée avec gestion des professeurs
     const { onlineStudentIds, onlineTeacherIds } = useMemo(() => {
-        console.log('🔍 [CLASSE] - Online members from Ably:', onlineMembers);
-        
         const onlineStudentIds: string[] = [];
         const onlineTeacherIds: string[] = [];
         
         onlineMembers.forEach(member => {
-            // ✅ CORRECTION : Vérification plus robuste du rôle et de l'identité
-            const memberRole = member.data?.role || member.role;
+            const memberRole = member.role;
             const memberUserId = member.data?.userId || member.id;
 
             if (memberRole === Role.PROFESSEUR) {
-                // Gestion des professeurs
-                if (memberUserId === teacher.id) {
-                    console.log(`👨‍🏫 [CLASSE] - Professeur connecté: ${teacher.name}`);
-                    onlineTeacherIds.push(memberUserId);
-                } else {
-                    console.log(`👨‍🏫 [CLASSE] - Autre professeur connecté: ${member.name} (${memberUserId})`);
-                    onlineTeacherIds.push(memberUserId);
-                }
+                onlineTeacherIds.push(memberUserId);
             } else if (memberRole === Role.ELEVE) {
-                // ✅ CORRECTION : Mapping des élèves avec plusieurs stratégies
-                let studentFound = false;
-
-                // Stratégie 1: Recherche par userId exact
-                if (memberUserId) {
-                    const student = classroom.eleves?.find(s => s.id === memberUserId);
-                    if (student) {
-                        console.log(`✅ [CLASSE] - Mapped Ably member ${member.id} to student ${memberUserId} (${student.name}) via userId`);
-                        onlineStudentIds.push(memberUserId);
-                        studentFound = true;
-                    }
+                const studentExists = classroom.eleves?.some(s => s.id === memberUserId);
+                if (studentExists) {
+                    onlineStudentIds.push(memberUserId);
                 }
-
-                // Stratégie 2: Recherche par nom (fallback)
-                if (!studentFound && member.name) {
-                    const matchingStudent = classroom.eleves?.find(student => {
-                        // Comparaison flexible des noms
-                        const studentName = student.name?.toLowerCase().trim();
-                        const memberName = member.name?.toLowerCase().trim();
-                        
-                        return studentName === memberName || 
-                               (studentName && memberName && (
-                                   studentName.includes(memberName) || 
-                                   memberName.includes(studentName) ||
-                                   student.name?.toLowerCase().includes(member.name?.toLowerCase() || '')
-                               ));
-                    });
-                    
-                    if (matchingStudent) {
-                        console.log(`✅ [CLASSE] - Mapped Ably member ${member.id} to student ${matchingStudent.id} (${matchingStudent.name}) via name matching`);
-                        onlineStudentIds.push(matchingStudent.id);
-                        studentFound = true;
-                    }
-                }
-
-                // Stratégie 3: Recherche par email (fallback supplémentaire)
-                if (!studentFound && member.data?.email) {
-                    const matchingStudent = classroom.eleves?.find(student => 
-                        student.email?.toLowerCase() === member.data?.email?.toLowerCase()
-                    );
-                    
-                    if (matchingStudent) {
-                        console.log(`✅ [CLASSE] - Mapped Ably member ${member.id} to student ${matchingStudent.id} (${matchingStudent.name}) via email`);
-                        onlineStudentIds.push(matchingStudent.id);
-                        studentFound = true;
-                    }
-                }
-
-                if (!studentFound) {
-                    console.warn(`⚠️ [CLASSE] - No matching student found for Ably member:`, {
-                        memberId: member.id,
-                        memberName: member.name,
-                        memberRole: memberRole,
-                        memberUserId: memberUserId,
-                        availableStudents: classroom.eleves?.map(s => ({ id: s.id, name: s.name }))
-                    });
-                }
-            } else {
-                console.warn(`⚠️ [CLASSE] - Membre avec rôle inconnu:`, member);
             }
         });
         
-        // ✅ CORRECTION : Déduplication des IDs (au cas où)
         const uniqueStudentIds = [...new Set(onlineStudentIds)];
         const uniqueTeacherIds = [...new Set(onlineTeacherIds)];
-        
-        console.log(`📊 [CLASSE] - Online student IDs:`, uniqueStudentIds);
-        console.log(`👨‍🏫 [CLASSE] - Online teacher IDs:`, uniqueTeacherIds);
         
         return {
             onlineStudentIds: uniqueStudentIds,
@@ -177,7 +101,7 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
         };
     }, [onlineMembers, classroom.eleves, teacher.id]);
 
-    // ✅ CORRECTION : Calcul des statistiques de présence amélioré
+
     const presenceStats = useMemo(() => {
         const totalStudents = classroom.eleves?.length || 0;
         const onlineStudents = onlineStudentIds.length;
@@ -189,32 +113,23 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
             onlineStudents,
             teachersOnline,
             totalOnline,
-            // ✅ NOUVEAU : Pourcentage de présence
             onlinePercentage: totalStudents > 0 ? Math.round((onlineStudents / totalStudents) * 100) : 0
         };
     }, [onlineMembers, onlineStudentIds, onlineTeacherIds, classroom.eleves]);
 
-    // ✅ CORRECTION : Gestion améliorée des erreurs de présence
     useEffect(() => {
         if (presenceError) {
             console.error('❌ [CLIENT CLASSE] - Erreur de connexion temps réel Ably:', presenceError);
-            
-            // Tentative de récupération automatique
-            if (presenceError?.includes('disconnected') || presenceError?.includes('timeout')) {
-                console.log('🔄 [CLIENT CLASSE] - Tentative de récupération de la connexion...');
-                // La reconnexion sera gérée automatiquement par useAblyPresence
-            }
         }
     }, [presenceError]);
 
-    // ✅ CORRECTION : Statut de connexion détaillé
     const getConnectionStatus = () => {
         if (isLoading) return { text: '⚡ Connexion en cours...', color: 'text-yellow-600' };
         if (!isConnected) return { text: '🔌 Déconnecté', color: 'text-red-600' };
         if (presenceError) return { text: '⚠️ Connexion instable', color: 'text-orange-600' };
         
         return { 
-            text: `● En ligne (${presenceStats.totalOnline} membres, ${presenceStats.onlineStudents}/${presenceStats.totalStudents} élèves, ${presenceStats.teachersOnline} prof${presenceStats.teachersOnline > 1 ? 's' : ''})`,
+            text: `● En ligne (${presenceStats.onlineStudents}/${presenceStats.totalStudents} élèves)`,
             color: 'text-green-600' 
         };
     };
@@ -235,11 +150,6 @@ export default function ClassPageClient({ classroom, teacher, announcements }: C
                             <span className={`ml-2 ${connectionStatus.color}`}>
                                 {connectionStatus.text}
                             </span>
-                            {presenceStats.onlinePercentage > 0 && (
-                                <span className="ml-2 text-blue-600">
-                                    {presenceStats.onlinePercentage}% de présence
-                                </span>
-                            )}
                         </p>
                     </div>
                 </div>

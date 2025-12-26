@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import styles from './Menu.module.css';
-import { menuItems } from '@/lib/constants';
+import { menuItems, type MenuSection, type MenuItem } from '@/lib/constants';
 import type { Session } from "next-auth";
 import type { Classroom } from "@prisma/client";
 import React from "react";
@@ -14,53 +14,26 @@ interface MenuProps {
   user: Session['user'];
   classrooms?: Pick<Classroom, 'id' | 'nom'>[];
   validationCount?: number;
+  announcementTrigger?: React.ReactNode;
+  resetTrigger?: React.ReactNode;
 }
 
-interface MenuItemType {
-  label: string;
-  roles: string[];
-  condition?: (user: Session['user']) => boolean;
-  component?: React.ComponentType<any>;
-  href?: string | ((user: Session['user']) => string);
-  icon?: React.ComponentType<any>;
-  isDialog?: boolean;
-}
-
-interface MenuGroupType {
-  title: string;
-  items: MenuItemType[];
-}
-
-const Menu: React.FC<MenuProps> = ({ user, classrooms = [], validationCount = 0 }) => {
+const Menu: React.FC<MenuProps> = ({ user, validationCount = 0, announcementTrigger, resetTrigger }) => {
   const pathname = usePathname();
 
   if (!user) return null;
 
   const colorClasses = [
-    styles.red,
-    styles.green, 
-    styles.blue,
-    styles.purple,
-    styles.orange,
-    styles.pink,
-    styles.cyan,
+    styles.red, styles.green, styles.blue, styles.purple,
+    styles.orange, styles.pink, styles.cyan,
   ];
 
   return (
     <div className="p-4 text-sm h-full overflow-y-auto">
-      {/* ✅ SVG supprimé : inutile et non accessible */}
-      
-      {(menuItems as MenuGroupType[]).map((group) => {
-        const visibleItems = group.items.filter(item => {
-          try {
-            const hasRole = item.roles.includes(user.role as string);
-            const passesCondition = !item.condition || item.condition(user);
-            return hasRole && passesCondition;
-          } catch (error) {
-            console.warn(`Erreur dans le filtre du menu item "${item.label}":`, error);
-            return false;
-          }
-        });
+      {menuItems.map((group) => {
+        const visibleItems = group.items.filter(item => 
+            item.roles.includes(user.role!) && (!item.condition || item.condition(user))
+        );
         
         if (visibleItems.length === 0) return null;
         
@@ -77,45 +50,26 @@ const Menu: React.FC<MenuProps> = ({ user, classrooms = [], validationCount = 0 
                 const Icon = item.icon;
                 const colorClass = colorClasses[index % colorClasses.length];
 
-                if (item.component) {
-                  const Component = item.component;
-                  const compProps: any = {};
-
-                  if (item.label === "Créer une Annonce") {
-                    compProps.classrooms = classrooms;
+                // Gère les actions de dialogue
+                if (item.action) {
+                  if (item.action === 'create-announcement' && announcementTrigger) {
+                    return React.cloneElement(announcementTrigger as React.ReactElement, { key: item.label });
                   }
-
-                  if (item.isDialog) {
-                    compProps.children = (
-                      <button 
-                        className={cn(
-                          styles.button, 
-                          colorClass
-                        )}
-                      >
-                        {Icon && <Icon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />}
-                        <span className="truncate">{item.label}</span>
-                      </button>
-                    );
-                    return <Component key={item.label} {...compProps} />;
+                  if (item.action === 'reset-data' && resetTrigger) {
+                     return React.cloneElement(resetTrigger as React.ReactElement, { key: item.label });
                   }
-                  
-                  return <Component key={item.label} {...compProps} />;
+                  return null;
                 }
                 
-                if (item.href && Icon) {
+                if (item.href) {
                   const href = typeof item.href === 'function' ? item.href(user) : item.href;
-                  const isActive = pathname === href || pathname?.startsWith(href + '/');
+                  const isActive = pathname === href || (href !== '/' && pathname?.startsWith(href));
                   
                   return (
                     <Link
                       href={href}
                       key={item.label}
-                      className={cn(
-                        styles.button, 
-                        colorClass,
-                        isActive && "ring-2 ring-accent bg-accent/10"
-                      )}
+                      className={cn(styles.button, colorClass, isActive && "ring-2 ring-accent bg-accent/10")}
                       aria-current={isActive ? "page" : undefined}
                     >
                       <Icon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
@@ -133,7 +87,6 @@ const Menu: React.FC<MenuProps> = ({ user, classrooms = [], validationCount = 0 
                   );
                 }
                 
-                console.warn(`Item de menu invalide: ${item.label}`);
                 return null;
               })}
             </div>

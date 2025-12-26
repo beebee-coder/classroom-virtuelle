@@ -1,15 +1,12 @@
 // src/app/student/[id]/parent/page.tsx
-import { notFound, redirect } from 'next/navigation';
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-options";
+import { notFound } from 'next/navigation';
 import { Header } from '@/components/Header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { KeyRound } from 'lucide-react';
-import { verifyParentPassword, getTasksForValidation } from '@/lib/actions/parent.actions';
+import { verifyParentPassword, getTasksForValidation, getStudentForParentPage } from '@/lib/actions/parent.actions';
 import { TaskValidationClient } from './TaskValidationClient';
 import { BackButton } from '@/components/BackButton';
 import { Suspense } from 'react';
-import prisma from '@/lib/prisma';
 import type { Task } from '@prisma/client';
 
 type ValidationTask = Task & { progressId: string };
@@ -21,12 +18,9 @@ export default async function ParentValidationPage({
   params: { id: string };
   searchParams: { pw?: string };
 }) {
-  const session = await getServerSession(authOptions);
   const studentId = params.id;
   
-  const student = await prisma.user.findUnique({
-    where: { id: studentId, role: 'ELEVE' }
-  });
+  const student = await getStudentForParentPage(studentId);
 
   if (!student) {
     notFound();
@@ -63,8 +57,7 @@ export default async function ParentValidationPage({
               <Suspense fallback={<div>Chargement...</div>}>
                  <TaskValidationClient
                     studentId={student.id}
-                    studentName={student.name || 'l\'élève'}
-                    initialTasksForValidation={tasksForValidation}
+                    studentName={student.name || "l'élève"}                    initialTasksForValidation={tasksForValidation}
                     isAuthenticated={isAuthenticated}
                     hasPasswordSet={hasPasswordSet}
                   />

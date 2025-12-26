@@ -2,8 +2,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-options";
+import { getAuthSession } from "@/lib/auth";
 import prisma from '../prisma';
 import { ProgressStatus, type Task, type StudentProgress, Role } from '@prisma/client';
 
@@ -15,7 +14,7 @@ async function invalidateTaskCaches(studentId?: string) {
 
 export async function saveTask(formData: FormData): Promise<Task> {
     console.log(`📝 [ACTION] saveTask`);
-    const session = await getServerSession(authOptions);
+    const session = await getAuthSession();
     if (session?.user?.role !== 'PROFESSEUR') {
         throw new Error('Unauthorized');
     }
@@ -56,7 +55,7 @@ export async function saveTask(formData: FormData): Promise<Task> {
 
 export async function deleteTask(id: string): Promise<{ success: boolean }> {
     console.log(`🗑️ [ACTION] deleteTask: ${id}`);
-    const session = await getServerSession(authOptions);
+    const session = await getAuthSession();
     if (session?.user?.role !== 'PROFESSEUR') {
         throw new Error('Unauthorized');
     }
@@ -72,7 +71,7 @@ export async function deleteTask(id: string): Promise<{ success: boolean }> {
 
 export async function completeTask(taskId: string, submissionUrl?: string): Promise<StudentProgress> {
   console.log(`🏁 [ACTION] completeTask: ${taskId}`);
-  const session = await getServerSession(authOptions);
+  const session = await getAuthSession();
   
   if (!session?.user || session.user.role !== Role.ELEVE) {
     throw new Error("Authentification élève requise.");
@@ -139,4 +138,14 @@ export async function completeTask(taskId: string, submissionUrl?: string): Prom
   
   console.log(`✅ [ACTION] Tâche complétée avec succès: ${progress.id}`);
   return progress;
+}
+
+export async function getActiveTasks(): Promise<Task[]> {
+    console.log('📋 [ACTION] getActiveTasks');
+    const tasks = await prisma.task.findMany({
+        where: { isActive: true },
+        orderBy: { createdAt: 'desc' }
+    });
+    console.log(`  -> ${tasks.length} tâches actives trouvées.`);
+    return tasks;
 }

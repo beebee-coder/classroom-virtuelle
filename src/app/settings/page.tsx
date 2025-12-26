@@ -1,26 +1,24 @@
-// src/app/settings/page.tsx - VERSION CORRIGÉE
+
+// src/app/settings/page.tsx
 import { redirect } from 'next/navigation';
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-options";
+import { getAuthSession } from "@/lib/auth";
 import { Header } from '@/components/Header';
 import { BackButton } from '@/components/BackButton';
 import { SettingsClient } from '@/components/SettingsClient';
 import { Sidebar, SidebarContent, SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import Menu from '@/components/Menu';
-import prisma from '@/lib/prisma';
+import { getUserSettings } from '@/lib/actions/user.actions'; // Action pour récupérer les paramètres utilisateur
 
 export const dynamic = 'force-dynamic';
 
 export default async function SettingsPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getAuthSession();
 
   if (!session?.user) {
     redirect('/login');
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id }
-  });
+  const user = await getUserSettings(session.user.id); // Appel de la nouvelle action
 
   if (!user) {
     redirect('/login');
@@ -31,7 +29,7 @@ export default async function SettingsPage() {
   return (
     <SidebarProvider>
       <div className="flex flex-col min-h-screen w-full">
-        <Header> {/* ✅ Supprimé `user={user}` */}
+        <Header>
           {isTeacher && <SidebarTrigger />}
         </Header>
         <div className="flex flex-1 overflow-hidden min-w-0">

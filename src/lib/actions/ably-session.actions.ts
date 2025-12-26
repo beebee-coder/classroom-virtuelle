@@ -1,8 +1,7 @@
 // src/lib/actions/ably-session.actions.ts
 'use server';
 
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-options";
+import { getAuthSession } from "@/lib/auth";
 import { ablyTrigger } from '../ably/triggers';
 import { AblyEvents } from '../ably/events';
 import { getSessionChannelName } from '../ably/channels';
@@ -56,7 +55,7 @@ const validateActiveTool = (tool: string): string => {
 
 export async function updateStudentSessionStatus(sessionId: string, status: { isHandRaised?: boolean; understanding?: ComprehensionLevel }) {
   console.log(`🔄 [ACTION] - Mise à jour du statut élève pour la session ${sessionId}:`, status);
-  const session = await getServerSession(authOptions);
+  const session = await getAuthSession();
   if (!session?.user?.id) throw new Error('Not authenticated');
 
   const userId = session.user.id;
@@ -85,7 +84,7 @@ export async function updateStudentSessionStatus(sessionId: string, status: { is
 
 export async function broadcastActiveTool(sessionId: string, tool: string) {
   console.log(`🛠️ [ACTION] - Diffusion du changement d'outil vers '${tool}' sur la session ${sessionId}`);
-  const session = await getServerSession(authOptions);
+  const session = await getAuthSession();
   if (session?.user?.role !== Role.PROFESSEUR) {
     throw new Error('Only teachers can change tools');
   }
@@ -108,7 +107,7 @@ export async function broadcastActiveTool(sessionId: string, tool: string) {
 
 export async function broadcastTimerEvent(sessionId: string, event: 'timer-started' | 'timer-paused' | 'timer-reset', data?: any) {
   console.log(`⏱️ [ACTION] - Diffusion de l'événement minuteur '${event}' sur la session ${sessionId}`);
-  const session = await getServerSession(authOptions);
+  const session = await getAuthSession();
   if (session?.user?.role !== Role.PROFESSEUR) throw new Error('Only teachers can control the timer');
 
   const channel = getSessionChannelName(sessionId);
@@ -130,7 +129,7 @@ export async function broadcastTimerEvent(sessionId: string, event: 'timer-start
 
 export async function closeQuiz(sessionId: string): Promise<{ success: boolean }> {
   console.log(`🚪 [ACTION] - Fermeture du quiz pour la session ${sessionId}`);
-  const session = await getServerSession(authOptions);
+  const session = await getAuthSession();
   if (session?.user?.role !== Role.PROFESSEUR) {
     throw new Error('Only teachers can close a quiz');
   }
@@ -143,7 +142,7 @@ export async function closeQuiz(sessionId: string): Promise<{ success: boolean }
 
 export async function startQuiz(sessionId: string, quizData: CreateQuizData): Promise<{ success: boolean; error?: string }> {
   console.log(`🎯 [ACTION] - Lancement du quiz pour la session ${sessionId}`);
-  const session = await getServerSession(authOptions);
+  const session = await getAuthSession();
   if (session?.user?.role !== Role.PROFESSEUR) {
     return { success: false, error: 'Only teachers can start a quiz' };
   }
@@ -192,7 +191,7 @@ export async function startQuiz(sessionId: string, quizData: CreateQuizData): Pr
 // ✅ FONCTION CORRIGÉE : vérifie l'existence du quiz et utilise le bon quizId
 export async function submitQuizResponse(sessionId: string, response: QuizResponse): Promise<{ success: boolean }> {
   console.log(`📝 [ACTION] - Soumission d'une réponse au quiz pour la session ${sessionId}`);
-  const session = await getServerSession(authOptions);
+  const session = await getAuthSession();
   if (!session?.user?.id) {
     throw new Error('Not authenticated');
   }
@@ -266,7 +265,7 @@ export async function endQuiz(
   responses: Map<string, QuizResponse>
 ): Promise<EndQuizResult> {
   console.log(`🏁 [ACTION] - Fin du quiz ${quizId} pour la session ${sessionId}`);
-  const session = await getServerSession(authOptions);
+  const session = await getAuthSession();
   if (session?.user?.role !== Role.PROFESSEUR) {
     return { success: false, error: 'Only teachers can end a quiz' };
   }

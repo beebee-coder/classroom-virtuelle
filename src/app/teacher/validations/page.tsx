@@ -1,31 +1,27 @@
 // src/app/teacher/validations/page.tsx
 import { Suspense } from 'react';
 import { BackButton } from "@/components/BackButton";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-options";
+import { getAuthSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { getTasksForProfessorValidation, getPendingStudents } from "@/lib/actions/teacher.actions";
+import { getTasksForProfessorValidation, getPendingStudents, getTeacherClassrooms } from "@/lib/actions/teacher.actions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ValidationConsoleClient } from "./ValidationConsoleClient";
 import { StudentValidationConsole } from './StudentValidationConsole';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { UserPlus, CheckSquare } from 'lucide-react';
-import prisma from '@/lib/prisma';
-import type { Classroom } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
 
 async function ValidationsPage({ searchParams }: { searchParams: { tab?: string }}) {
-  const session = await getServerSession(authOptions);
+  const session = await getAuthSession();
   if (session?.user?.role !== "PROFESSEUR") {
     redirect("/login");
   }
 
-  // Utiliser `Promise.all` pour charger les données en parallèle
   const [tasksToValidate, pendingStudents, classrooms] = await Promise.all([
     getTasksForProfessorValidation(session.user.id),
     getPendingStudents(),
-    prisma.classroom.findMany({ where: { professeurId: session.user.id } })
+    getTeacherClassrooms(session.user.id)
   ]);
   
   const defaultTab = searchParams.tab === 'tasks' ? 'tasks' : 'students';

@@ -1,12 +1,10 @@
-
 // app/api/ably/test/route.ts
 import { NextResponse } from 'next/server';
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-options";
+import { getAuthSession } from "@/lib/auth";
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getAuthSession();
     
     return NextResponse.json({
       success: true,
@@ -23,5 +21,3 @@ export async function GET() {
     }, { status: 500 });
   }
 }
-
-    

@@ -1,7 +1,7 @@
 // src/components/ResetButton.tsx
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, isValidElement, Fragment } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,11 +17,10 @@ import { Button } from "./ui/button";
 import { Loader2, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { resetAllStudentData } from '@/lib/actions/teacher.actions';
-import { cn } from '@/lib/utils';
 
 interface ResetButtonProps {
-    children?: React.ReactNode;
-    className?: string;
+  children?: React.ReactNode;
+  className?: string;
 }
 
 export function ResetButton({ children, className }: ResetButtonProps) {
@@ -47,17 +46,32 @@ export function ResetButton({ children, className }: ResetButtonProps) {
     }
   };
 
-  const trigger = children || (
-    <Button variant="destructive" className={className}>
-      <RefreshCw className="mr-2 h-4 w-4" />
-      Remise à zéro
-    </Button>
-  );
+  // ✅ Garantir qu'on a un seul élément React valide
+  let triggerElement: React.ReactElement;
+
+  if (children) {
+    // Si c'est un seul élément valide, on l'utilise
+    if (isValidElement(children)) {
+      triggerElement = children;
+    } else {
+      // Sinon, on enveloppe dans un Fragment ou un div (car Radix exige un seul élément)
+      // Mais on ne peut pas passer un tableau ou du texte à asChild
+      // Donc on utilise un <span> neutre pour wrapper
+      triggerElement = <span className={className}>{children}</span>;
+    }
+  } else {
+    triggerElement = (
+      <Button variant="destructive" className={className}>
+        <RefreshCw className="mr-2 h-4 w-4" />
+        Remise à zéro
+      </Button>
+    );
+  }
 
   return (
     <AlertDialog>
-      <AlertDialogTrigger asChild className={className}>
-        {trigger}
+      <AlertDialogTrigger asChild>
+        {triggerElement}
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -68,10 +82,20 @@ export function ResetButton({ children, className }: ResetButtonProps) {
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isResetting}>Annuler</AlertDialogCancel>
-          <AlertDialogAction onClick={handleReset} disabled={isResetting} asChild>
-             <Button variant="destructive">
-                {isResetting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                Confirmer la remise à zéro complète
+          <AlertDialogAction asChild disabled={isResetting}>
+            <Button
+              variant="destructive"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleReset();
+              }}
+            >
+              {isResetting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              Confirmer la remise à zéro complète
             </Button>
           </AlertDialogAction>
         </AlertDialogFooter>

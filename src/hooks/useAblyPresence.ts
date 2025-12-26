@@ -198,11 +198,12 @@ export const useAblyPresence = (
             if (!currentChannelInfo) return;
 
             if (stateChange.current === 'attached') {
-              initializePresenceData(currentChannelInfo.channel, currentChannelInfo);
+              initializePresenceData(currentChannelInfo.channel, currentChannelInfo, extractPresenceData);
             }
             // Mettre à jour tous les listeners
             currentChannelInfo.listeners.forEach(id => {
-                // Ici, on pourrait utiliser un bus d'événements pour notifier les composants
+                const componentCallback = globalThis.presenceUpdateCallbacks?.get(id);
+                if(componentCallback) componentCallback();
             });
           };
 
@@ -275,7 +276,7 @@ export const useAblyPresence = (
         }
       }
     };
-}, [channelId, enabled, client, extractPresenceData, updateLocalStateFromGlobal]);
+  }, [channelId, enabled, client, extractPresenceData, updateLocalStateFromGlobal]);
 
 
   const enterPresence = useCallback(async (userData: Omit<AblyPresenceMember, 'id'>) => {
@@ -368,18 +369,14 @@ export const useAblyPresence = (
   };
 };
 
-// Helper type pour le callback global
 declare global {
   var presenceUpdateCallbacks: Map<string, () => void>;
 }
 
-// Fonction pour initialiser le callback global si nécessaire
 if (typeof globalThis.presenceUpdateCallbacks === 'undefined') {
   globalThis.presenceUpdateCallbacks = new Map();
 }
 
-
-// Fonctions utilitaires pour initialiser les données de présence
 async function initializePresenceData(
   targetChannel: AblyChannel,
   targetChannelInfo: {
@@ -388,7 +385,8 @@ async function initializePresenceData(
     members: Map<string, AblyPresenceMember>;
     listeners: Set<string>;
     lastPresenceUpdate: number;
-  }
+  },
+  extractPresenceData: (message: AblyPresenceMessage) => AblyPresenceMember | null
 ) {
   try {
     const members = await targetChannel.presence.get();
@@ -396,18 +394,11 @@ async function initializePresenceData(
     if (Array.isArray(members)) {
       targetChannelInfo.members.clear();
       members.forEach((member: AblyPresenceMessage) => {
-        // La logique d'extraction est maintenant dans le hook, mais pourrait être partagée
-        // Pour l'instant, on assume une structure simple
-        const presenceMember = {
-          id: member.clientId,
-          name: (member.data as any)?.name || member.clientId,
-          role: (member.data as any)?.role || Role.ELEVE,
-          image: (member.data as any)?.image || null,
-          data: (member.data as any)?.data || {}
-        } as AblyPresenceMember;
-        targetChannelInfo.members.set(member.clientId!, presenceMember);
+        const presenceMember = extractPresenceData(member);
+        if (presenceMember) {
+            targetChannelInfo.members.set(member.clientId!, presenceMember);
+        }
       });
-      // Notifier tous les listeners
       targetChannelInfo.listeners.forEach(listenerId => {
         const componentCallback = globalThis.presenceUpdateCallbacks?.get(listenerId);
         if(componentCallback) componentCallback();

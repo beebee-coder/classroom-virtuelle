@@ -1,5 +1,5 @@
 // src/types/next-auth.d.ts
-import NextAuth, { DefaultSession } from "next-auth";
+import NextAuth, { DefaultSession, User as NextAuthUser } from "next-auth";
 import { JWT as NextAuthJWT } from "next-auth/jwt";
 import { Role, ValidationStatus } from '@prisma/client';
 
@@ -9,15 +9,16 @@ declare module "next-auth" {
       id: string;
       role?: Role;
       classeId?: string | null;
-      validationStatus?: ValidationStatus; // ✅ ajouté
+      validationStatus?: ValidationStatus;
+      isNewUser?: boolean; // Pour le flux d'onboarding
     } & DefaultSession["user"];
   }
 
-  interface User {
+  // Étendre le type User de base de next-auth
+  interface User extends NextAuthUser {
     role?: Role;
     classeId?: string | null;
-    image?: string | null;
-    validationStatus?: ValidationStatus; // ✅ ajouté
+    validationStatus?: ValidationStatus;
   }
 }
 
@@ -26,7 +27,7 @@ declare module "next-auth/jwt" {
     id?: string;
     role?: Role;
     classeId?: string | null;
-    image?: string | null;
-    validationStatus?: ValidationStatus; // ✅ ajouté
+    validationStatus?: ValidationStatus;
+    isNewUser?: boolean; // Pour le flux d'onboarding
   }
 }

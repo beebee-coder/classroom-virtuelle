@@ -9,7 +9,6 @@ import { User, Role } from '@prisma/client';
 import { SessionDetails, ComprehensionLevel, WhiteboardOperation, QuizResponse, QuizResults, QuizWithQuestions, DocumentInHistory } from '@/types';
 import SessionLoading from './SessionLoading';
 import { SessionHeader } from './session/SessionHeader';
-import { PermissionPrompt } from './PermissionPrompt';
 import { endCoursSession, saveAndShareDocument, getSessionDetails } from '@/lib/actions/session.actions';
 import { ablyTrigger } from '@/lib/ably/triggers';
 import { AblyEvents } from '@/lib/ably/events';
@@ -36,6 +35,7 @@ export default function SessionClientWrapper({ sessionId }: SessionClientWrapper
   const [sessionData, setSessionData] = useState<SessionDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -55,11 +55,9 @@ export default function SessionClientWrapper({ sessionId }: SessionClientWrapper
       };
       fetchData();
     } else if (status === 'unauthenticated') {
-      // Rediriger si non authentifié, bien que la page devrait déjà le faire
-      const router = useRouter();
       router.push(`/login?callbackUrl=/session/${sessionId}`);
     }
-  }, [sessionId, status]);
+  }, [sessionId, status, router]);
 
   if (loading || status === 'loading') {
     return <SessionLoading />;
@@ -116,10 +114,9 @@ function SessionClient({
   const isMountedRef = useRef(true);
   const [isEndingSession, setIsEndingSession] = useState<boolean>(false);
 
-  const { localStream, screenStream, isSharingScreen, isMuted, isVideoOff, isMediaReady, isMediaLoading, toggleMute, toggleVideo, toggleScreenShare } = useMediaManagement();
-  const activeStream = isSharingScreen ? screenStream : localStream;
+  const { localStream, screenStream, isSharingScreen, isMuted, isVideoOff, isMediaReady, isMediaLoading, toggleMute, toggleVideo, startScreenShare, stopScreenShare } = useMediaManagement();
   
-  const { remoteStreams, createPeer, handleIncomingSignal, cleanupPeerConnection } = useWebRTCConnection(sessionId, currentUserId, activeStream, isMountedRef.current);
+  const { remoteStreams, createPeer, handleIncomingSignal, cleanupPeerConnection, replaceTrackInPeers } = useWebRTCConnection(sessionId, currentUserId, localStream, isMountedRef.current);
   
   const {
     activeTool, documentUrl, documentHistory, whiteboardOperations, activeQuiz, quizResponses, quizResults,
@@ -160,7 +157,7 @@ function SessionClient({
   }, []);
 
   useEffect(() => {
-    if (!isMediaReady || !activeStream || onlineUserIds.length === 0) return;
+    if (!isMediaReady || !localStream || onlineUserIds.length === 0) return;
 
     if (currentUserRole === Role.PROFESSEUR) {
       const studentIds = (classroom?.eleves || []).map(s => s.id);
@@ -170,7 +167,7 @@ function SessionClient({
         !remoteStreams.has(userId)
       );
       usersToConnect.forEach(userId => {
-        createPeer(userId, true, activeStream);
+        createPeer(userId, true, localStream);
       });
 
       remoteStreams.forEach((_, userId) => {
@@ -179,7 +176,7 @@ function SessionClient({
         }
       });
     }
-  }, [onlineUserIds, currentUserId, isMediaReady, activeStream, createPeer, remoteStreams, cleanupPeerConnection, currentUserRole, classroom?.eleves]);
+  }, [onlineUserIds, currentUserId, isMediaReady, localStream, createPeer, remoteStreams, cleanupPeerConnection, currentUserRole, classroom?.eleves]);
 
   const allSessionUsers = useMemo(() => {
     const users = [initialTeacher];
@@ -192,13 +189,33 @@ function SessionClient({
   const spotlightedUser = useMemo(() => spotlightedParticipantId ? allSessionUsers.find(u => u.id === spotlightedParticipantId) : undefined, [allSessionUsers, spotlightedParticipantId]);
   const spotlightedStream = useMemo(() => {
     if (!spotlightedParticipantId) return null;
-    if (spotlightedParticipantId === currentUserId) return activeStream;
+    if (spotlightedParticipantId === currentUserId) return isSharingScreen ? screenStream : localStream;
     return remoteStreams.get(spotlightedParticipantId) || null;
-  }, [spotlightedParticipantId, currentUserId, activeStream, remoteStreams]);
+  }, [spotlightedParticipantId, currentUserId, isSharingScreen, screenStream, localStream, remoteStreams]);
 
   const remoteParticipants = useMemo(() => Array.from(remoteStreams.entries()).map(([id, stream]) => ({ id, stream })), [remoteStreams]);
   const isHandRaised = useMemo(() => handRaiseQueue.includes(currentUserId), [handRaiseQueue, currentUserId]);
   const raisedHandUsers = useMemo(() => handRaiseQueue.map(userId => allSessionUsers.find(u => u.id === userId)).filter(Boolean) as User[], [handRaiseQueue, allSessionUsers]);
+
+  const toggleScreenShare = useCallback(async () => {
+    if (isSharingScreen) {
+        stopScreenShare();
+        const videoTrack = localStream?.getVideoTracks()[0] || null;
+        replaceTrackInPeers(videoTrack, 'video');
+    } else {
+        const newScreenStream = await startScreenShare();
+        if (newScreenStream) {
+            const screenVideoTrack = newScreenStream.getVideoTracks()[0];
+            replaceTrackInPeers(screenVideoTrack, 'video');
+            // Gérer l'audio si nécessaire
+            const screenAudioTrack = newScreenStream.getAudioTracks()[0];
+            if (screenAudioTrack) {
+                replaceTrackInPeers(screenAudioTrack, 'audio');
+            }
+        }
+    }
+  }, [isSharingScreen, startScreenShare, stopScreenShare, localStream, replaceTrackInPeers]);
+
 
   const handleEndSession = useCallback(async () => {
     if (currentUserRole !== Role.PROFESSEUR || isEndingSession) return;
@@ -334,7 +351,6 @@ function SessionClient({
         classroom={classroom} 
       />
       <main className="flex-1 flex flex-col min-h-0 w-full pt-4">
-        <PermissionPrompt />
         {currentUserRole === Role.PROFESSEUR ? (
           <TeacherSessionView
             sessionId={sessionId}

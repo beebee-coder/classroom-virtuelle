@@ -1,7 +1,6 @@
 // src/app/api/ably/token/route.ts - VERSION CORRIGÉE POUR ABLY v2+
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-options";
+import { getAuthSession } from "@/lib/auth";
 import Ably, {
   type TokenRequest,
   type ErrorInfo,
@@ -27,7 +26,7 @@ export async function GET(request: NextRequest) {
     console.log('🚪 [ABLY TOKEN] - Token request received');
 
     try {
-        const session = await withTimeout(getServerSession(authOptions), AUTH_TIMEOUT_MS);
+        const session = await withTimeout(getAuthSession(), AUTH_TIMEOUT_MS);
 
         console.log('🔍 [ABLY TOKEN] - Session verified:', {
             hasSession: !!session,

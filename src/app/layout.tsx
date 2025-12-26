@@ -5,7 +5,6 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { Providers } from '@/components/Providers';
 import { cn } from '@/lib/utils';
-// Le Header est retiré d'ici pour être géré par les layouts spécifiques
 
 const inter = Inter({
   subsets: ['latin'],

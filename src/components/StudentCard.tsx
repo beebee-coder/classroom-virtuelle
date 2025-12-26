@@ -17,8 +17,8 @@ interface StudentCardProps {
   isSelectionDisabled: boolean;
 }
 
-// ✅ Fonction sécurisée pour l’avatar
 const getAvatarUrl = (seed: string) => {
+  if (!seed) return '';
   return `https://api.dicebear.com/7.x/pixel-art/svg?seed=${encodeURIComponent(seed)}`;
 };
 

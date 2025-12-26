@@ -1,65 +1,40 @@
 // src/app/teacher/dashboard/page.tsx
 import { redirect } from 'next/navigation';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options';
-import { getTasksForProfessorValidation } from '@/lib/actions/teacher.actions';
-import prisma from '@/lib/prisma';
+import { getAuthSession } from '@/lib/auth';
+import { getTeacherDashboardData } from '@/lib/teacher-data';
 import TeacherDashboardClient from './TeacherDashboardClient';
-import type { Classroom } from '@prisma/client';
-import { Button } from '@/components/ui/button';
-import Link from 'next/link';
-import { ValidationStatus, Role } from '@prisma/client'; // Importer les énumérations
+import { Suspense } from 'react';
 
 export const dynamic = 'force-dynamic';
 
+function TeacherDashboardSkeleton() {
+    return <div>Chargement du tableau de bord...</div>;
+}
+
 export default async function TeacherDashboardPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getAuthSession();
 
   if (!session?.user || session.user.role !== 'PROFESSEUR') {
     redirect('/login');
   }
 
   try {
-    console.log(`👨‍🏫 [DASHBOARD] Chargement du tableau de bord pour le professeur: ${session.user.id}`);
-
-    const classroomsData = await prisma.classroom.findMany({
-      where: { 
-        professeurId: session.user.id
-      },
-      select: { 
-        id: true, 
-        nom: true 
-      },
-    });
-
-    console.log(`📚 [DASHBOARD] ${classroomsData.length} classes trouvées`);
-
-    // ✅ CORRECTION : Passer l'ID du professeur à la fonction
-    const tasksToValidate = await getTasksForProfessorValidation(session.user.id);
-    const tasksValidationCount = tasksToValidate.length;
-    
-    // ✅ OPTIMISATION : Utiliser prisma.count pour une requête plus performante
-    const studentValidationCount = await prisma.user.count({
-      where: {
-        role: Role.ELEVE,
-        validationStatus: ValidationStatus.PENDING,
-      },
-    });
-
-    console.log(`✅ [DASHBOARD] ${tasksValidationCount} tâches et ${studentValidationCount} inscriptions à valider`);
+    const { classrooms, tasksToValidateCount, pendingStudentCount } = await getTeacherDashboardData(session.user.id);
 
     return (
-      <div 
-        className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-w-0" 
-        role="main"
-      >
-        <TeacherDashboardClient
-          user={session.user}
-          classrooms={classroomsData}
-          initialTasksCount={tasksValidationCount}
-          initialStudentsCount={studentValidationCount} // Passer le compte initial
-        />
-      </div>
+      <Suspense fallback={<TeacherDashboardSkeleton />}>
+        <div 
+          className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-w-0" 
+          role="main"
+        >
+          <TeacherDashboardClient
+            user={session.user}
+            classrooms={classrooms}
+            initialTasksCount={tasksToValidateCount}
+            initialStudentsCount={pendingStudentCount}
+          />
+        </div>
+      </Suspense>
     );
 
   } catch (error) {
@@ -77,11 +52,12 @@ export default async function TeacherDashboardPage() {
           <p className="text-muted-foreground mb-6 text-sm">
             Impossible de charger les données du tableau de bord. Veuillez réessayer plus tard.
           </p>
-          <Button asChild>
-            <Link href="/teacher/dashboard">
-              Réessayer
-            </Link>
-          </Button>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+          >
+            Réessayer
+          </button>
         </div>
       </div>
     );

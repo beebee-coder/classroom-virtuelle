@@ -1,39 +1,27 @@
 // src/app/student/[id]/page.tsx
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-options";
+import { getAuthSession } from "@/lib/auth";
 import { redirect, notFound } from 'next/navigation';
 import { getStudentData } from '@/lib/actions/student.actions';
+import { getActiveTasks } from '@/lib/actions/task.actions';
+import { getMetiers } from '@/lib/actions/teacher.actions';
 import StudentPageClient from '@/components/StudentPageClient';
 import { getStudentAnnouncements } from '@/lib/actions/announcement.actions';
 import { CareerThemeWrapper } from '@/components/CareerThemeWrapper';
 import { SidebarProvider, Sidebar, SidebarContent, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { Header } from '@/components/Header';
 import Menu from '@/components/Menu';
-import prisma from '@/lib/prisma';
-import type { User, Metier, Announcement, StudentProgress, Task, Classroom, EtatEleve } from '@prisma/client';
 import { ChatSheet } from '@/components/ChatSheet';
-
-// Type cohérent avec getStudentData
-type StudentWithDetails = User & {
-    classe: Classroom | null;
-    etat: (EtatEleve & { metier: Metier | null }) | null;
-    studentProgress: StudentProgress[];
-};
-
-type AnnouncementWithAuthor = Announcement & {
-    author: { name: string | null };
-};
+import type { User, Metier, Announcement, StudentProgress, Task, Classroom, EtatEleve } from '@prisma/client';
 
 export default async function StudentProfilePage({ params }: { params: { id: string } }) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getAuthSession();
     const viewingUser = session?.user;
     
     if (!viewingUser) {
       redirect('/login');
     }
 
-    // Si un élève essaie d'accéder à une page d'un autre élève
     if (viewingUser.role === 'ELEVE' && viewingUser.id !== params.id) {
       redirect('/student/dashboard');
     }
@@ -46,10 +34,15 @@ export default async function StudentProfilePage({ params }: { params: { id: str
     }
     
     const isTeacherView = viewingUser.role === 'PROFESSEUR';
+    
+    // Déplacer les requêtes Prisma dans des actions serveur
+    const [allCareers, announcements, tasks] = await Promise.all([
+      isTeacherView ? getMetiers() : Promise.resolve([]),
+      getStudentAnnouncements(student.id),
+      getActiveTasks()
+    ]);
+    
     const metier = student.etat?.metier;
-    const allCareers = isTeacherView ? await prisma.metier.findMany() : [];
-    const announcements = await getStudentAnnouncements(student.id);
-    const tasks = await prisma.task.findMany({ where: { isActive: true } });
     const classeId = student.classe?.id;
 
     const pageContent = (
@@ -63,13 +56,10 @@ export default async function StudentProfilePage({ params }: { params: { id: str
         />
     );
 
-    // Si c'est un professeur qui regarde, on affiche seulement le contenu
-    // qui sera inséré dans le layout du professeur.
     if (isTeacherView) {
         return pageContent;
     }
     
-    // Si c'est l'élève qui regarde sa propre page, on applique son thème et le layout complet.
     return (
       <CareerThemeWrapper career={metier ?? undefined}>
         <SidebarProvider>

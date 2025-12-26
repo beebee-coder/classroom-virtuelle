@@ -1,51 +1,31 @@
-
 // src/app/teacher/profile/page.tsx
 import { BackButton } from "@/components/BackButton";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-options";
+import { getAuthSession } from "@/lib/auth";
 import { Users, Book, Video, Clock } from "lucide-react";
 import { redirect } from "next/navigation";
-import prisma from "@/lib/prisma";
+import { getUserSettings } from '@/lib/actions/user.actions';
+import { getTeacherProfileStats } from '@/lib/actions/teacher.actions';
 
 export const dynamic = 'force-dynamic';
 
 export default async function TeacherProfilePage() {
-  const session = await getServerSession(authOptions);
+  const session = await getAuthSession();
   if (!session?.user || session.user.role !== 'PROFESSEUR') {
       redirect('/login');
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-  });
+  const [user, stats] = await Promise.all([
+    getUserSettings(session.user.id),
+    getTeacherProfileStats(session.user.id)
+  ]);
   
   if (!user) {
     redirect('/login');
   }
   
-  const classrooms = await prisma.classroom.findMany({
-      where: { professeurId: user.id },
-      include: { _count: { select: { eleves: true }}}
-  });
-
-  const totalStudents = classrooms.reduce((acc, curr) => acc + curr._count.eleves, 0);
-  
-  const sessions = await prisma.coursSession.findMany({
-      where: { professeurId: user.id, endTime: { not: null } }
-  });
-
-  const totalSessions = sessions.length;
-  const averageDuration = totalSessions > 0
-    ? sessions.reduce((acc, s) => {
-        if (s.endTime && s.startTime) {
-            return acc + (s.endTime.getTime() - s.startTime.getTime());
-        }
-        return acc;
-    }, 0) / totalSessions / 1000 / 60 // in minutes
-    : 0;
-
+  const { totalClassrooms, totalStudents, totalSessions, averageDuration } = stats;
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-w-0">
@@ -82,7 +62,7 @@ export default async function TeacherProfilePage() {
                             <Book className="h-6 w-6 text-primary" />
                         </div>
                         <div>
-                            <p className="text-2xl font-bold">{classrooms.length}</p>
+                            <p className="text-2xl font-bold">{totalClassrooms}</p>
                             <p className="text-sm text-muted-foreground">Classe(s) Gérée(s)</p>
                         </div>
                     </div>

@@ -1,15 +1,27 @@
 // src/app/login/page.tsx
-'use client'; // ✅ CORRECTION: Transformer en composant client
-
 import LoginForm from './login-form';
-import { Suspense } from 'react';
+import { checkOwnerAccountExists } from '@/lib/actions/teacher.actions';
+import { getAuthSession } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 
-// Le Suspense est conservé au cas où, mais le composant est maintenant client
-// pour assurer un chargement plus simple et éviter les ChunkLoadErrors.
-export default function LoginPage() {
-  return (
-    <Suspense fallback={<div>Chargement du formulaire...</div>}>
-      <LoginForm />
-    </Suspense>
-  );
+export const dynamic = 'force-dynamic';
+
+export default async function LoginPage() {
+  // Si l'utilisateur est déjà connecté, on le redirige immédiatement
+  // Cela aide à prévenir les boucles si le middleware est complexe.
+  const session = await getAuthSession();
+  if (session?.user) {
+    if (session.user.role === 'PROFESSEUR') {
+      redirect('/teacher/dashboard');
+    } else {
+      // Redirige vers onboarding si nouveau, sinon dashboard
+      const redirectTo = session.user.isNewUser ? '/student/onboarding' : '/student/dashboard';
+      redirect(redirectTo);
+    }
+  }
+
+  // Si non connecté, vérifier si le propriétaire existe pour afficher le bon formulaire
+  const ownerExists = await checkOwnerAccountExists();
+
+  return <LoginForm ownerExists={ownerExists} />;
 }

@@ -10,10 +10,14 @@ export const AblyEvents = {
     SESSION_INVITATION: 'session-invitation',
     SESSION_ENDED: 'session-ended',
     PARTICIPANT_SPOTLIGHTED: 'participant-spotlighted',
+    NEW_PENDING_STUDENT: 'new-pending-student',
+
+    // ✅ Événement ajouté pour la validation élève
+    STUDENT_VALIDATED: 'student-validated',
 
     // Real-time interaction events
     HAND_RAISE_UPDATE: 'hand-raise-update',
-    HAND_ACKNOWLEDGED: 'hand-acknowledged', // Ajout du nouvel événement
+    HAND_ACKNOWLEDGED: 'hand-acknowledged',
     UNDERSTANDING_UPDATE: 'understanding-update',
 
     // Tool-related events
@@ -47,7 +51,7 @@ export const AblyEvents = {
     QUIZ_STARTED: 'quiz-started',
     QUIZ_RESPONSE: 'quiz-response',
     QUIZ_ENDED: 'quiz-ended',
-    QUIZ_CLOSED: 'quiz-closed', // Ajout de l'événement de fermeture
+    QUIZ_CLOSED: 'quiz-closed',
 
     // Breakout Rooms events
     BREAKOUT_ROOMS_STARTED: 'breakout-rooms-started',

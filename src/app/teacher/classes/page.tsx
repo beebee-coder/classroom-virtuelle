@@ -1,17 +1,15 @@
-
 // src/app/teacher/classes/page.tsx
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users } from 'lucide-react';
 import Link from 'next/link';
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-options";
+import { getAuthSession } from "@/lib/auth";
 import { redirect } from 'next/navigation';
 import { BackButton } from '@/components/BackButton';
 import { AddClassForm } from '@/components/AddClassForm';
-import prisma from '@/lib/prisma';
+import { getTeacherClassroomsWithStudentCount } from '@/lib/actions/teacher.actions';
 
 export default async function TeacherClassesPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getAuthSession();
   
   if (!session?.user || session.user.role !== 'PROFESSEUR') {
     redirect('/login');
@@ -20,26 +18,7 @@ export default async function TeacherClassesPage() {
   const user = session.user;
 
   try {
-    const classrooms = await prisma.classroom.findMany({
-      where: { 
-        professeurId: user.id 
-      },
-      include: {
-        eleves: {
-          select: {
-            id: true
-          }
-        }
-      }
-    });
-
-    // Calculer le nombre d'élèves pour chaque classe
-    const classroomsWithCount = classrooms.map(classroom => ({
-      ...classroom,
-      _count: {
-        eleves: classroom.eleves.length
-      }
-    }));
+    const classroomsWithCount = await getTeacherClassroomsWithStudentCount(user.id);
 
     return (
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-w-0">

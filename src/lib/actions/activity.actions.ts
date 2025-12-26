@@ -1,8 +1,7 @@
 // src/lib/actions/activity.actions.ts
 'use server';
 
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options';
+import { getAuthSession } from '@/lib/auth';
 import prisma from '../prisma';
 import { Role } from '@prisma/client';
 
@@ -15,7 +14,7 @@ const ACTIVITY_POINTS = 1; // Points attribués pour chaque période d'activité
  * @returns An object indicating success and points awarded.
  */
 export async function trackStudentActivity(activityDurationInSeconds: number): Promise<{ success: boolean; pointsAwarded: number }> {
-    const session = await getServerSession(authOptions);
+    const session = await getAuthSession();
 
     if (!session?.user?.id || session.user.role !== Role.ELEVE) {
         // Silently fail if not an authenticated student

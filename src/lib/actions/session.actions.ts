@@ -10,7 +10,7 @@ import { authOptions } from "@/lib/auth-options";
 import prisma from '../prisma';
 import type { CoursSession, User, SharedDocument } from '@prisma/client';
 import { Role } from '@prisma/client';
-import { ComprehensionLevel, type DocumentInHistory, type ClassroomWithDetails, Quiz } from '@/types';
+import { ComprehensionLevel, type DocumentInHistory, type ClassroomWithDetails, QuizWithQuestions } from '@/types'; // CORRECTION: Utiliser QuizWithQuestions
 
 export interface SessionData extends CoursSession {
     invitationResults?: {
@@ -29,7 +29,7 @@ export interface SessionDetails {
   classroom: ClassroomWithDetails | null;
   startTime: string;
   endTime: string | null;
-  activeQuiz: Quiz | null;
+  activeQuiz: QuizWithQuestions | null; // CORRECTION: Utiliser QuizWithQuestions
 }
 
 interface InvitationPayload {
@@ -452,6 +452,15 @@ export async function getSessionDetails(sessionId: string): Promise<SessionDetai
 
     const documents = await getTeacherDocuments();
 
+    // CORRECTION: Convertir le quiz en QuizWithQuestions
+    const activeQuiz = sessionData.activeQuiz ? {
+        ...sessionData.activeQuiz,
+        questions: sessionData.activeQuiz.questions.map(q => ({
+            ...q,
+            options: q.options
+        }))
+    } as QuizWithQuestions : null;
+
     return {
         id: sessionData.id,
         teacher: sessionData.professeur,
@@ -461,6 +470,6 @@ export async function getSessionDetails(sessionId: string): Promise<SessionDetai
         classroom: sessionData.classe as any,
         startTime: sessionData.startTime.toISOString(),
         endTime: sessionData.endTime?.toISOString() || null,
-        activeQuiz: sessionData.activeQuiz as Quiz | null,
+        activeQuiz: activeQuiz, // Utiliser la version convertie
     };
 }

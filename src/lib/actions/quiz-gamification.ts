@@ -3,8 +3,7 @@
 
 import { Role } from '@prisma/client';
 import prisma from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options';
+import { getAuthSession } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 
 /**
@@ -16,7 +15,7 @@ import { revalidatePath } from 'next/cache';
  * Idempotent : ne récompense qu'une seule fois par quiz.
  */
 export async function awardQuizPointsToTopStudents(quizId: string) {
-  const session = await getServerSession(authOptions);
+  const session = await getAuthSession();
   
   if (!session?.user || session.user.role !== Role.PROFESSEUR) {
     throw new Error('Accès refusé');

@@ -1,12 +1,11 @@
 // src/app/api/teacher/pending-students/route.ts
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth-options";
+import { getAuthSession } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getAuthSession();
     
     if (!session?.user || session.user.role !== "PROFESSEUR") {
       console.warn("[PENDING_STUDENTS/API] Accès refusé – non professeur");
