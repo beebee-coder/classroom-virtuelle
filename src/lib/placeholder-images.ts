@@ -7,4 +7,6 @@ export type ImagePlaceholder = {
   imageHint: string;
 };
 
-export const PlaceHolderImages: ImagePlaceholder[] = data.placeholderImages;
+// Since the JSON is empty, we provide an empty array.
+// This will be populated as you use placeholder images.
+export const PlaceHolderImages: ImagePlaceholder[] = (data as any).placeholderImages || [];

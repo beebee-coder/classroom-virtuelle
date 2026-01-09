@@ -1,20 +1,17 @@
-# **App Name**: AlumniConnect
+# **App Name**: HomeCanvas
 
 ## Core Features:
 
-- Homepage Display: Display a well-designed homepage with essential information and navigation using Shudcin UI and Tailwind CSS.
-- Alumni Directory: Allow alumni to search for and view profiles of other alumni using data fetched from the Postgres database via Prisma.
-- Profile Creation/Update: Enable alumni to create and update their profiles with relevant information stored in the Postgres database.
-- Event Listings: Display upcoming alumni events and allow alumni to register for them.
-- GitHub Update Script: Automated script for updating the application code from GitHub, adhering strictly to the provided documentation tool (integrated as a reference guide in the app structure).
-- Vercel Deployment: Seamless deployment to Vercel for continuous integration and delivery, referencing documentation in project files.
+- Homepage Display: Display a visually appealing homepage using Shadcn UI and Tailwind CSS.
+- GitHub Update Script: Implement a script to automatically update the application based on changes in the GitHub repository.
+- Vercel Deployment: Configure the application for seamless deployment and hosting on Vercel.
+- Documentation Integration: Integrate the provided documentation as a reference guide within the application structure for easy access and compliance.
 
 ## Style Guidelines:
 
-- Primary color: Deep blue (#3F51B5) to convey trust and professionalism.
-- Background color: Light gray (#F5F5F5) to provide a clean and modern backdrop.
-- Accent color: Teal (#009688) to highlight interactive elements and calls to action.
-- Body and headline font: 'Inter', a grotesque-style sans-serif for a modern, neutral look.
-- Use a responsive, grid-based layout to ensure optimal viewing experience across different devices. The layout should have clear visual hierarchy and intuitive navigation.
-- Employ a set of consistent, minimalist icons from a library like Feather or Tabler Icons to represent common actions and categories.
-- Incorporate subtle transitions and animations to enhance user experience, such as fading effects on content loading and button hover effects. Ensure animations are performant and do not distract from the content.
+- Primary color: Deep indigo (#4F46E5) to convey professionalism and stability.
+- Background color: Very light lavender (#F5F3FF), a desaturated version of the primary color, for a clean backdrop.
+- Accent color: Vivid violet (#7C3AED) to highlight interactive elements and calls to action.
+- Font: 'Inter', a grotesque-style sans-serif, for both headlines and body text. 
+- Clean and modern layout using Tailwind CSS grid and flexbox to ensure responsiveness.
+- Use simple, geometric icons from a library like 'lucide-react' to maintain a consistent and professional visual language.
