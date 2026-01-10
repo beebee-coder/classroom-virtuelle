@@ -23,11 +23,9 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
 
 # local env files
 .env*.local
-.env
 
 # vercel
 .vercel
@@ -36,5 +34,5 @@ pnpm-debug.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# documentation
-/docs/
+docs/
+deploy.sh
