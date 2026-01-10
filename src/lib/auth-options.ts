@@ -36,11 +36,19 @@ export const authOptions: NextAuthOptions = {
         }
 
         const userEmail = credentials.email.toLowerCase().trim();
-        const ownerEmail = process.env.OWNER_EMAIL?.toLowerCase().trim();
+        // Utilisation de la nouvelle variable d'environnement publique
+        const ownerEmail = process.env.NEXT_PUBLIC_OWNER_EMAIL?.toLowerCase().trim();
 
         console.log("🔍 Vérification du propriétaire...");
         console.log("📧 Email utilisateur:", userEmail);
-        console.log("👑 Email propriétaire configuré:", ownerEmail || "non configuré");
+        // Log pour vérifier si la variable est chargée en production
+        console.log("👑 Email propriétaire configuré:", ownerEmail ? "Défini" : "NON DÉFINI");
+
+        if (!ownerEmail) {
+            console.error("💥 ERREUR CRITIQUE: La variable d'environnement NEXT_PUBLIC_OWNER_EMAIL n'est pas définie sur le serveur de déploiement.");
+            console.groupEnd();
+            return null;
+        }
 
         if (userEmail !== ownerEmail) {
           console.warn("⛔ Connexion refusée: email n'est pas celui du propriétaire");
@@ -136,7 +144,7 @@ export const authOptions: NextAuthOptions = {
       
       if (account?.provider === "google") {
         const userEmail = profile?.email?.toLowerCase().trim();
-        const ownerEmail = process.env.OWNER_EMAIL?.toLowerCase().trim();
+        const ownerEmail = process.env.NEXT_PUBLIC_OWNER_EMAIL?.toLowerCase().trim();
 
         console.log("📧 Email Google:", userEmail);
         console.log("👑 Email propriétaire:", ownerEmail);

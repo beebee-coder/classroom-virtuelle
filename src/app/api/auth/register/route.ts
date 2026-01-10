@@ -19,9 +19,9 @@ export async function POST(req: NextRequest) {
     }
 
     // ✅ Vérification critique : OWNER_EMAIL doit être défini
-    const ownerEmailEnv = process.env.OWNER_EMAIL;
+    const ownerEmailEnv = process.env.NEXT_PUBLIC_OWNER_EMAIL;
     if (!ownerEmailEnv) {
-      console.error('[API/REGISTER] 💥 ERREUR FATALE: OWNER_EMAIL non défini dans les variables d\'environnement.');
+      console.error('[API/REGISTER] 💥 ERREUR FATALE: NEXT_PUBLIC_OWNER_EMAIL non défini dans les variables d\'environnement.');
       return NextResponse.json(
         { error: "Configuration serveur manquante. Veuillez contacter l'administrateur." },
         { status: 500 }
