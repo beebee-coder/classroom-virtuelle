@@ -1,39 +1,30 @@
 #!/bin/bash
-
-# Configuration et push d'un dépôt existant depuis la ligne de commande
-
-REMOTE_URL="https://github.com/beebee-coder/classroom-virtuelle.git"
-BRANCH_NAME="main"
+set -e # Arrête le script si une commande échoue
 
 echo "Configuration du remote Git..."
+# Supprime le remote 'origin' s'il existe déjà, pour éviter les erreurs
+git remote remove origin &>/dev/null || true
+# Ajoute le remote en utilisant HTTPS
+git remote add origin https://github.com/beebee-coder/classroom-virtuelle.git
 
-# Vérifie si le remote 'origin' existe déjà
-if git remote | grep -q 'origin'; then
-  echo "Le remote 'origin' existe déjà. On s'assure que l'URL est correcte."
-  git remote set-url origin ${REMOTE_URL}
+echo "Nettoyage des fichiers déjà suivis par Git qui devraient être ignorés..."
+# Retire .env du suivi Git, s'il est suivi
+git rm --cached .env &>/dev/null || true
+# Retire deploy.sh du suivi Git, s'il est suivi
+git rm --cached deploy.sh &>/dev/null || true
+
+echo "Vérification des changements à commiter..."
+# Vérifie s'il y a des changements à commiter (y compris les suppressions du cache)
+if ! git diff-index --quiet HEAD --; then
+  echo "Création d'un commit pour les modifications..."
+  git add .
+  # Utilise une configuration locale pour le commit
+  git -c user.name="Firebase Studio" -c user.email="studio@example.com" commit -m "Clean up tracked files and sync changes"
 else
-  echo "Ajout du remote 'origin'."
-  git remote add origin ${REMOTE_URL}
+  echo "Aucun changement à commiter."
 fi
 
-echo "Ajout de tous les fichiers au suivi Git..."
-git add .
-
-echo "Création du commit initial..."
-# Vérifie s'il y a des modifications à commiter pour éviter une erreur
-if git diff-index --quiet HEAD --; then
-  echo "Aucune modification à commiter. Le commit initial existe probablement déjà."
-else
-  git commit -m "Initial project commit"
-fi
-
-echo "Renommage de la branche en '${BRANCH_NAME}'..."
-# Renomme la branche actuelle en 'main'
-git branch -M ${BRANCH_NAME}
-
-echo "Push de la branche '${BRANCH_NAME}' vers le dépôt distant 'origin' (avec --force)..."
-# Pousse la branche 'main' et configure le suivi pour les futurs 'git pull/push'
-# L'option --force est ajoutée pour écraser l'historique distant et résoudre les erreurs de non-fast-forward.
-git push --force -u origin ${BRANCH_NAME}
+echo "Push de la branche 'main' vers le dépôt distant 'origin' (avec --force)..."
+git push -u origin main --force
 
 echo "Déploiement terminé."
