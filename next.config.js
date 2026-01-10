@@ -28,6 +28,14 @@ const nextConfig = {
       asyncWebAssembly: true,
       syncWebAssembly: true,
     };
+    
+    // Pour corriger le ChunkLoadError dans les environnements avec latence réseau
+    if (dev) {
+        config.optimization.splitChunks = {
+            ...config.optimization.splitChunks,
+            minSize: 0, 
+        };
+    }
 
     // Ignorer spécifiquement l'erreur WASM de Prisma (c'est juste un warning)
     config.ignoreWarnings = [
