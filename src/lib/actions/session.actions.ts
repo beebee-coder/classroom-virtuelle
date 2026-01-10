@@ -29,7 +29,7 @@ export interface SessionDetails {
   classroom: ClassroomWithDetails | null;
   startTime: string;
   endTime: string | null;
-  activeQuiz: QuizWithQuestions | null; // CORRECTION: Utiliser QuizWithQuestions
+  activeQuiz: QuizWithQuestions | null;
 }
 
 interface InvitationPayload {
@@ -154,7 +154,9 @@ export async function createCoursSession(professeurId: string, classroomId: stri
                 data: {
                     professeurId,
                     classroomId,
-                    participants: { connect: participantIds.map(id => ({ id })) }
+                    participants: {
+                        connect: participantIds.map(id => ({ id }))
+                    }
                 },
             });
             console.log('✅ [ACTION] - Session créée en base de données:', newSession.id);
@@ -451,24 +453,23 @@ export async function getSessionDetails(sessionId: string): Promise<SessionDetai
 
     const documents = await getTeacherDocuments();
 
-    // CORRECTION: Convertir le quiz en QuizWithQuestions
     const activeQuiz = sessionData.activeQuiz ? {
         ...sessionData.activeQuiz,
-        questions: sessionData.activeQuiz.questions.map((q: QuizQuestion) => ({
+        questions: sessionData.activeQuiz.questions.map((q: any) => ({
             ...q,
-            options: (q as any).options,
+            options: q.options,
         })),
     } as QuizWithQuestions : null;
 
     return {
         id: sessionData.id,
         teacher: sessionData.professeur,
-        students: sessionData.participants.filter((p: User) => p.role === Role.ELEVE),
+        students: sessionData.participants.filter((p) => p.role === Role.ELEVE),
         participants: sessionData.participants,
         documentHistory: documents,
         classroom: sessionData.classe as any,
         startTime: sessionData.startTime.toISOString(),
         endTime: sessionData.endTime?.toISOString() || null,
-        activeQuiz: activeQuiz, // Utiliser la version convertie
+        activeQuiz: activeQuiz,
     };
 }
