@@ -6,7 +6,7 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 const OWNER_EMAIL = process.env.OWNER_EMAIL || 'teacher@example.com';
-const OWNER_PASSWORD = 'youssef66023';
+const OWNER_PASSWORD = process.env.OWNER_PASSWORD || 'password';
 
 const METIERS_DATA = [
   { nom: 'Astronaute', description: 'Explore les étoiles et découvre de nouveaux mondes.', icon: 'Rocket', theme: JSON.stringify({ primaryColor: '240 5.9% 10%', accentColor: '210 40% 98%', backgroundColor: 'bg-gray-900', textColor: 'text-white' }) },
