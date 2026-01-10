@@ -15,35 +15,38 @@ datasource db {
 // ================================================= //
 
 model User {
-  id                 String           @id @default(cuid())
-  name               String?
-  email              String           @unique
-  emailVerified      DateTime?
-  image              String?
-  password           String?
-  role               Role             @default(ELEVE)
-  points             Int              @default(0)
-  ambition           String?
-  parentPassword     String?
-  validationStatus   ValidationStatus @default(PENDING)
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
+  id               String           @id @default(cuid())
+  name             String?
+  email            String           @unique
+  emailVerified    DateTime?
+  image            String?
+  password         String?
+  role             Role             @default(ELEVE)
+  points           Int              @default(0)
+  ambition         String?
+  parentPassword   String?
+  validationStatus ValidationStatus @default(PENDING)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
   // --- Relations ---
-  classeId             String?
-  classe               Classroom?       @relation("StudentsInClassroom", fields: [classeId], references: [id])
-  classesAsProfesseur  Classroom[]      @relation("TeacherToClassrooms")
-  sessionsAsProfesseur CoursSession[]   @relation("TeacherSessions")
-  sessionsAsParticipant CoursSession[]  @relation("ParticipantSessions")
-  studentProgress      StudentProgress[]
-  reactions            Reaction[]
-  messages             Message[]
-  announcements        Announcement[]
-  etat                 EtatEleve?
-  createdTasks         Task[]           @relation("TasksCreatedBy")
+  classeId              String?
+  classe                Classroom?        @relation("StudentsInClassroom", fields: [classeId], references: [id])
+  classesAsProfesseur   Classroom[]       @relation("TeacherToClassrooms")
+  sessionsAsProfesseur  CoursSession[]    @relation("TeacherSessions")
+  sessionsAsParticipant CoursSession[]    @relation("ParticipantSessions")
+  studentProgress       StudentProgress[]
+  reactions             Reaction[]
+  messages              Message[]
+  announcements         Announcement[]
+  etat                  EtatEleve?
+  createdTasks          Task[]            @relation("TasksCreatedBy")
 
-  accounts Account[]
-  sessions Session[]
+  accounts       Account[]
+  sessions       Session[]
+  SharedDocument SharedDocument[]
+  Quiz           Quiz[]
+  QuizResponse   QuizResponse[]
 }
 
 model Classroom {
@@ -55,36 +58,36 @@ model Classroom {
   sessions     CoursSession[]
   annonces     Announcement[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  Message   Message[]
 }
 
 model CoursSession {
-  id              String           @id @default(cuid())
-  professeurId    String
-  professeur      User             @relation("TeacherSessions", fields: [professeurId], references: [id], onDelete: Cascade)
-  classroomId     String
-  classe          Classroom        @relation(fields: [classroomId], references: [id], onDelete: Cascade)
-  startTime       DateTime         @default(now())
-  endTime         DateTime?
-  activeQuizId    String?
-  activeQuiz      Quiz?            @relation(fields: [activeQuizId], references: [id])
-  
+  id           String    @id @default(cuid())
+  professeurId String
+  professeur   User      @relation("TeacherSessions", fields: [professeurId], references: [id], onDelete: Cascade)
+  classroomId  String
+  classe       Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  startTime    DateTime  @default(now())
+  endTime      DateTime?
+  activeQuizId String?
+  activeQuiz   Quiz?     @relation(fields: [activeQuizId], references: [id])
+
   participants    User[]           @relation("ParticipantSessions")
   sharedDocuments SharedDocument[]
 }
 
-
 model EtatEleve {
-  id          String   @id @default(cuid())
-  eleveId     String   @unique
-  eleve       User     @relation(fields: [eleveId], references: [id], onDelete: Cascade)
-  metierId    String?
-  metier      Metier?  @relation(fields: [metierId], references: [id])
-  isPunished  Boolean  @default(false)
+  id            String    @id @default(cuid())
+  eleveId       String    @unique
+  eleve         User      @relation(fields: [eleveId], references: [id], onDelete: Cascade)
+  metierId      String?
+  metier        Metier?   @relation(fields: [metierId], references: [id])
+  isPunished    Boolean   @default(false)
   punishedUntil DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 model Metier {
@@ -97,18 +100,18 @@ model Metier {
 }
 
 model Task {
-  id              String            @id @default(cuid())
-  title           String
-  description     String
-  points          Int
-  type            TaskType
-  category        TaskCategory
-  difficulty      TaskDifficulty
-  validationType  ValidationType
-  requiresProof   Boolean           @default(false)
-  isActive        Boolean           @default(true)
-  createdById     String?
-  createdBy       User?             @relation("TasksCreatedBy", fields: [createdById], references: [id])
+  id             String         @id @default(cuid())
+  title          String
+  description    String
+  points         Int
+  type           TaskType
+  category       TaskCategory
+  difficulty     TaskDifficulty
+  validationType ValidationType
+  requiresProof  Boolean        @default(false)
+  isActive       Boolean        @default(true)
+  createdById    String?
+  createdBy      User?          @relation("TasksCreatedBy", fields: [createdById], references: [id])
 
   studentProgress StudentProgress[]
   createdAt       DateTime          @default(now())
@@ -171,12 +174,12 @@ model Message {
 }
 
 model Reaction {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   emoji     String
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   messageId String
-  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
 }
 
 // --- Modèles pour le Quiz ---
@@ -214,13 +217,12 @@ model QuizResponse {
   quiz             Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
   userId           String
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  answers          Json     // { "questionId": "selectedOptionId", ... }
-  answerTimestamps Json     // { "questionId": "timestamp", ... }
+  answers          Json // { "questionId": "selectedOptionId", ... }
+  answerTimestamps Json // { "questionId": "timestamp", ... }
   submittedAt      DateTime @default(now())
-  
+
   @@unique([quizId, userId])
 }
-
 
 // ================================================= //
 //               MODÈLES NEXT-AUTH                   //
@@ -260,7 +262,6 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
-
 
 // ================================================= //
 //                        ENUMS                      //
