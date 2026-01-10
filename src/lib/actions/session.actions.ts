@@ -10,7 +10,7 @@ import { authOptions } from "@/lib/auth-options";
 import prisma from '../prisma';
 import type { CoursSession, User, SharedDocument, QuizQuestion } from '@prisma/client';
 import { Role } from '@prisma/client';
-import { ComprehensionLevel, type DocumentInHistory, type ClassroomWithDetails, QuizWithQuestions } from '@/types'; // CORRECTION: Utiliser QuizWithQuestions
+import { ComprehensionLevel, type DocumentInHistory, type ClassroomWithDetails, QuizWithQuestions } from '@/types';
 
 export interface SessionData extends CoursSession {
     invitationResults?: {
@@ -243,11 +243,10 @@ async function sendIndividualInvitations(sessionId: string, professeurId: string
 export async function endCoursSession(sessionId: string) {
     console.log(`🔚 [ACTION] - Fin de la session ${sessionId}`);
     
-    // CORRECTION : S'assurer de récupérer le classroomId
     const session = await prisma.coursSession.update({
         where: { id: sessionId },
         data: { endTime: new Date() },
-        select: { id: true, classroomId: true } // Récupérer l'ID de la classe
+        select: { id: true, classroomId: true }
     });
 
     if (!session || !session.classroomId) {
@@ -257,7 +256,6 @@ export async function endCoursSession(sessionId: string) {
 
     const eventData = { sessionId, endedAt: new Date().toISOString() };
     
-    // CORRECTION : Construire les noms de canaux avec des données valides
     const channels = [
         getSessionChannelName(sessionId),
         getClassChannelName(session.classroomId)
@@ -464,7 +462,7 @@ export async function getSessionDetails(sessionId: string): Promise<SessionDetai
     return {
         id: sessionData.id,
         teacher: sessionData.professeur,
-        students: sessionData.participants.filter((p) => p.role === Role.ELEVE),
+        students: sessionData.participants.filter((p: User) => p.role === Role.ELEVE),
         participants: sessionData.participants,
         documentHistory: documents,
         classroom: sessionData.classe as any,
