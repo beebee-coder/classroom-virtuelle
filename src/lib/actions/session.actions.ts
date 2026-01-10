@@ -8,7 +8,7 @@ import { getSessionChannelName, getUserChannelName, getClassChannelName } from '
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import prisma from '../prisma';
-import type { CoursSession, User, SharedDocument } from '@prisma/client';
+import type { CoursSession, User, SharedDocument, QuizQuestion } from '@prisma/client';
 import { Role } from '@prisma/client';
 import { ComprehensionLevel, type DocumentInHistory, type ClassroomWithDetails, QuizWithQuestions } from '@/types'; // CORRECTION: Utiliser QuizWithQuestions
 
@@ -156,7 +156,6 @@ export async function createCoursSession(professeurId: string, classroomId: stri
                     classroomId,
                     participants: { connect: participantIds.map(id => ({ id })) }
                 },
-                include: { participants: true }
             });
             console.log('✅ [ACTION] - Session créée en base de données:', newSession.id);
             return newSession;
@@ -420,8 +419,8 @@ export async function getSessionDetails(sessionId: string): Promise<SessionDetai
     console.log(`ℹ️ [ACTION] - Récupération des détails de la session ${sessionId}`);
     const sessionData = await prisma.coursSession.findUnique({
         where: { id: sessionId },
-        include: { 
-            professeur: true, 
+        include: {
+            professeur: true,
             participants: true,
             classe: {
                 include: {
@@ -429,23 +428,23 @@ export async function getSessionDetails(sessionId: string): Promise<SessionDetai
                         include: {
                             etat: {
                                 include: {
-                                    metier: true
-                                }
-                            }
-                        }
-                    }
-                }
+                                    metier: true,
+                                },
+                            },
+                        },
+                    },
+                },
             },
             activeQuiz: {
                 include: {
                     questions: {
                         include: {
-                            options: true
-                        }
-                    }
-                }
-            }
-        }
+                            options: true,
+                        },
+                    },
+                },
+            },
+        },
     });
 
     if (!sessionData) return null;
@@ -455,16 +454,16 @@ export async function getSessionDetails(sessionId: string): Promise<SessionDetai
     // CORRECTION: Convertir le quiz en QuizWithQuestions
     const activeQuiz = sessionData.activeQuiz ? {
         ...sessionData.activeQuiz,
-        questions: sessionData.activeQuiz.questions.map(q => ({
+        questions: sessionData.activeQuiz.questions.map((q: QuizQuestion) => ({
             ...q,
-            options: q.options
-        }))
+            options: (q as any).options,
+        })),
     } as QuizWithQuestions : null;
 
     return {
         id: sessionData.id,
         teacher: sessionData.professeur,
-        students: sessionData.participants.filter(p => p.role === Role.ELEVE),
+        students: sessionData.participants.filter((p: User) => p.role === Role.ELEVE),
         participants: sessionData.participants,
         documentHistory: documents,
         classroom: sessionData.classe as any,
