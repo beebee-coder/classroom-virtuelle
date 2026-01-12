@@ -203,6 +203,7 @@ export default function LoginForm({ ownerExists }: LoginFormProps) {
                       <Input
                         id="email"
                         type="email"
+                        placeholder="Mettre votre email"
                         className="pl-10 h-12"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
@@ -219,6 +220,7 @@ export default function LoginForm({ ownerExists }: LoginFormProps) {
                       <Input
                         id="password"
                         type="password"
+                        placeholder="Mettre votre mot de passe"
                         className="pl-10 h-12"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}

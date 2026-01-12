@@ -151,6 +151,7 @@ export default function RegisterForm({ ownerExists }: RegisterFormProps) {
                       <Input
                         id="name"
                         type="text"
+                        placeholder="Mettre votre nom complet"
                         className="pl-10 h-12"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
@@ -167,6 +168,7 @@ export default function RegisterForm({ ownerExists }: RegisterFormProps) {
                       <Input
                         id="email"
                         type="email"
+                        placeholder="Mettre votre email"
                         className="pl-10 h-12"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
@@ -183,6 +185,7 @@ export default function RegisterForm({ ownerExists }: RegisterFormProps) {
                       <Input
                         id="password"
                         type="password"
+                        placeholder="Mettre votre mot de passe"
                         className="pl-10 h-12"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
